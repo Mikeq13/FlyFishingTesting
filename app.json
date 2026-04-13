@@ -4,6 +4,10 @@
     "slug": "fishing-lab",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light"
+    "userInterfaceStyle": "light",
+    "plugins": [
+      "expo-sqlite",
+      "expo-asset"
+    ]
   }
 }
