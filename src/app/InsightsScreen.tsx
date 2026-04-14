@@ -1,15 +1,23 @@
 import React from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { InsightCard } from '@/components/InsightCard';
+import { PremiumFeatureGate } from '@/components/PremiumFeatureGate';
 import { useAppStore } from './store';
 import { ScreenBackground } from '@/components/ScreenBackground';
 
 export const InsightsScreen = ({ navigation }: any) => {
-  const { insights, anglerComparisons, topFlyRecords, topFlyInsights } = useAppStore();
+  const { insights, anglerComparisons, topFlyRecords, topFlyInsights, currentHasPremiumAccess } = useAppStore();
 
   return (
     <ScreenBackground>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
+        {!currentHasPremiumAccess ? (
+          <PremiumFeatureGate
+            title="Premium Insights"
+            description="River-specific trends, top flies, and cross-angler comparisons are part of the premium research experience."
+          />
+        ) : (
+          <>
         <View style={{ gap: 4 }}>
           <Text style={{ fontSize: 28, fontWeight: '800', color: '#f7fdff' }}>Insights</Text>
           <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
@@ -58,6 +66,8 @@ export const InsightsScreen = ({ navigation }: any) => {
         <Pressable onPress={() => navigation.navigate('Home')} style={{ backgroundColor: '#264653', borderRadius: 14, padding: 14 }}>
           <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Go Home</Text>
         </Pressable>
+          </>
+        )}
       </ScrollView>
     </ScreenBackground>
   );

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { PremiumFeatureGate } from '@/components/PremiumFeatureGate';
 import { useAppStore } from './store';
 import { buildAggregates } from '@/engine/aggregationEngine';
 import { buildAIContext } from '@/ai/aiContextBuilder';
@@ -7,7 +8,7 @@ import { runCoach } from '@/ai/coachEngine';
 import { ScreenBackground } from '@/components/ScreenBackground';
 
 export const CoachScreen = () => {
-  const { sessions, experiments, insights } = useAppStore();
+  const { sessions, experiments, insights, currentHasPremiumAccess } = useAppStore();
   const [question, setQuestion] = useState('What am I doing wrong in pools?');
   const [response, setResponse] = useState<ReturnType<typeof runCoach> | null>(null);
 
@@ -15,6 +16,19 @@ export const CoachScreen = () => {
     () => buildAIContext(sessions, buildAggregates(sessions, experiments), insights, experiments, sessions[0]),
     [sessions, experiments, insights]
   );
+
+  if (!currentHasPremiumAccess) {
+    return (
+      <ScreenBackground>
+        <ScrollView contentContainerStyle={{ padding: 16, gap: 8 }} keyboardShouldPersistTaps="handled">
+          <PremiumFeatureGate
+            title="Premium AI Coach"
+            description="The AI coach is part of premium access so you can ask questions against your saved fishing history and experiment data."
+          />
+        </ScrollView>
+      </ScreenBackground>
+    );
+  }
 
   return (
     <ScreenBackground>

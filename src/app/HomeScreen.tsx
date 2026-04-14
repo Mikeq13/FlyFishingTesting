@@ -126,8 +126,8 @@ export const HomeScreen = ({ navigation }: any) => {
           </Pressable>
         </View>
         {[
-          ['View Insights', 'Insights'],
-          ['Ask AI Coach', 'Coach'],
+          [`View Insights${currentHasPremiumAccess ? '' : ' (Premium)'}`, 'Insights'],
+          [`Ask AI Coach${currentHasPremiumAccess ? '' : ' (Premium)'}`, 'Coach'],
           [currentUser?.role === 'owner' ? 'Manage Access' : 'Subscription', 'Access']
         ].map(([label, route]) => (
           <Pressable key={route} onPress={() => navigation.navigate(route)} style={{ backgroundColor: 'rgba(6, 27, 44, 0.72)', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
