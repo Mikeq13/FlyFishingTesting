@@ -1,5 +1,6 @@
 import React from 'react';
 import { Alert, Pressable, Text, TextInput, View } from 'react-native';
+import { KeyboardDismissView } from '@/components/KeyboardDismissView';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { useAppStore } from './store';
 
@@ -40,6 +41,7 @@ export const HomeScreen = ({ navigation }: any) => {
 
   return (
     <ScreenBackground>
+      <KeyboardDismissView>
       <View style={{ flex: 1, justifyContent: 'center', padding: 20, gap: 14 }}>
         <View style={{ gap: 6 }}>
           <Text style={{ fontSize: 34, fontWeight: '800', color: '#f7fdff' }}>Fishing Lab</Text>
@@ -135,6 +137,7 @@ export const HomeScreen = ({ navigation }: any) => {
           </Pressable>
         ))}
       </View>
+      </KeyboardDismissView>
     </ScreenBackground>
   );
 };

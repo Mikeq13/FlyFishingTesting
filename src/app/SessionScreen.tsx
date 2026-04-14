@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { DepthSelector } from '@/components/DepthSelector';
+import { KeyboardDismissView } from '@/components/KeyboardDismissView';
 import { OptionChips } from '@/components/OptionChips';
 import { DEPTH_RANGES, WATER_TYPES } from '@/constants/options';
 import { useAppStore } from './store';
@@ -42,7 +43,8 @@ export const SessionScreen = ({ navigation }: any) => {
 
   return (
     <ScreenBackground>
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} keyboardShouldPersistTaps="handled">
+      <KeyboardDismissView>
+      <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         <View style={{ gap: 4 }}>
           <Text style={{ fontSize: 28, fontWeight: '800', color: '#f7fdff' }}>Session Setup</Text>
           <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>Capture the water you are fishing before you start comparing flies.</Text>
@@ -86,6 +88,7 @@ export const SessionScreen = ({ navigation }: any) => {
           <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Start Experiment</Text>
         </Pressable>
       </ScrollView>
+      </KeyboardDismissView>
     </ScreenBackground>
   );
 };

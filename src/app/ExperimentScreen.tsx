@@ -3,6 +3,7 @@ import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-nativ
 import { CastCounter } from '@/components/CastCounter';
 import { CatchCounter } from '@/components/CatchCounter';
 import { FlySelector } from '@/components/FlySelector';
+import { KeyboardDismissView } from '@/components/KeyboardDismissView';
 import { useAppStore } from './store';
 import { FlySetup } from '@/types/fly';
 import { validateExperimentPair } from '@/engine/rules';
@@ -120,7 +121,8 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
 
   return (
     <ScreenBackground>
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} keyboardShouldPersistTaps="handled">
+      <KeyboardDismissView>
+      <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         <View style={{ gap: 4 }}>
           <Text style={{ fontSize: 28, fontWeight: '800', color: '#f7fdff' }}>Experiment</Text>
           <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
@@ -253,6 +255,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           </View>
         )}
       </ScrollView>
+      </KeyboardDismissView>
     </ScreenBackground>
   );
 };

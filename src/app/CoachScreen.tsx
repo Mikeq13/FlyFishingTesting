@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { KeyboardDismissView } from '@/components/KeyboardDismissView';
 import { PremiumFeatureGate } from '@/components/PremiumFeatureGate';
 import { useAppStore } from './store';
 import { buildAggregates } from '@/engine/aggregationEngine';
@@ -20,19 +21,22 @@ export const CoachScreen = () => {
   if (!currentHasPremiumAccess) {
     return (
       <ScreenBackground>
-        <ScrollView contentContainerStyle={{ padding: 16, gap: 8 }} keyboardShouldPersistTaps="handled">
+        <KeyboardDismissView>
+        <ScrollView contentContainerStyle={{ padding: 16, gap: 8 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
           <PremiumFeatureGate
             title="Premium AI Coach"
             description="The AI coach is part of premium access so you can ask questions against your saved fishing history and experiment data."
           />
         </ScrollView>
+        </KeyboardDismissView>
       </ScreenBackground>
     );
   }
 
   return (
     <ScreenBackground>
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 8 }} keyboardShouldPersistTaps="handled">
+      <KeyboardDismissView>
+      <ScrollView contentContainerStyle={{ padding: 16, gap: 8 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
       <Text style={{ fontSize: 20, fontWeight: '700', color: 'white' }}>AI Coach</Text>
       <TextInput value={question} onChangeText={setQuestion} style={{ borderWidth: 1, padding: 10, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.95)' }} />
       <Pressable onPress={() => setResponse(runCoach(question, context))} style={{ backgroundColor: '#264653', padding: 12, borderRadius: 8 }}>
@@ -51,6 +55,7 @@ export const CoachScreen = () => {
         </View>
       )}
       </ScrollView>
+      </KeyboardDismissView>
     </ScreenBackground>
   );
 };
