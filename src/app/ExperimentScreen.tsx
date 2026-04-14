@@ -23,6 +23,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   const [flyEntries, setFlyEntries] = useState<ExperimentFlyEntry[]>(() => createEmptyExperimentEntries(2, 0));
   const [castStep, setCastStep] = useState<5 | 10>(5);
   const [isSaving, setIsSaving] = useState(false);
+  const [showSavedExperimentActions, setShowSavedExperimentActions] = useState(false);
 
   useEffect(() => {
     setFlyEntries((current) => alignExperimentEntries(current, flyCount, baselineIndex));
@@ -56,6 +57,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     setFlyCount(2);
     setBaselineIndex(0);
     setFlyEntries(createEmptyExperimentEntries(2, 0));
+    setShowSavedExperimentActions(false);
   };
 
   const modifyAndContinue = () => {
@@ -66,6 +68,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         catches: 0
       }))
     );
+    setShowSavedExperimentActions(false);
   };
 
   const save = async () => {
@@ -109,13 +112,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         outcome: status.outcome,
         confidenceScore: status.confidenceScore
       });
-
-      Alert.alert('Experiment saved', 'What do you want to do next?', [
-        { text: 'Modify and continue', onPress: modifyAndContinue },
-        { text: 'Start fresh', onPress: resetForNextExperiment },
-        { text: 'View this session', onPress: () => navigation.navigate('SessionDetail', { sessionId }) },
-        { text: 'Go to insights', onPress: () => navigation.navigate('Insights') }
-      ]);
+      setShowSavedExperimentActions(true);
     } finally {
       setIsSaving(false);
     }
@@ -215,6 +212,37 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         <Pressable onPress={save} disabled={isSaving} style={{ backgroundColor: isSaving ? '#6c757d' : '#264653', padding: 12, borderRadius: 8 }}>
           <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>{isSaving ? 'Saving...' : 'Save Experiment'}</Text>
         </Pressable>
+
+        {showSavedExperimentActions && (
+          <View style={{ gap: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)', borderRadius: 10, padding: 12, backgroundColor: 'rgba(255,255,255,0.92)' }}>
+            <Text style={{ fontWeight: '700', fontSize: 16 }}>Experiment saved</Text>
+            <Text>What do you want to do next?</Text>
+            <Pressable onPress={modifyAndContinue} style={{ backgroundColor: '#2a9d8f', padding: 10, borderRadius: 8 }}>
+              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Modify and continue</Text>
+            </Pressable>
+            <Pressable onPress={resetForNextExperiment} style={{ backgroundColor: '#264653', padding: 10, borderRadius: 8 }}>
+              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Start fresh</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setShowSavedExperimentActions(false);
+                navigation.navigate('SessionDetail', { sessionId });
+              }}
+              style={{ backgroundColor: '#1d3557', padding: 10, borderRadius: 8 }}
+            >
+              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>View this session</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setShowSavedExperimentActions(false);
+                navigation.navigate('Insights');
+              }}
+              style={{ backgroundColor: '#6c757d', padding: 10, borderRadius: 8 }}
+            >
+              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Go to insights</Text>
+            </Pressable>
+          </View>
+        )}
       </ScrollView>
     </ScreenBackground>
   );

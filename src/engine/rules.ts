@@ -6,11 +6,11 @@ export interface ExperimentRuleCheck {
   differingMajorVariables: string[];
 }
 
-export const validateExperimentPair = (controlFly: FlySetup, variantFly: FlySetup): ExperimentRuleCheck => {
+export const validateExperimentPair = (baselineFly: FlySetup, testFly: FlySetup): ExperimentRuleCheck => {
   const differingMajorVariables: string[] = [];
 
-  if (controlFly.intent !== variantFly.intent) differingMajorVariables.push('intent');
-  if (controlFly.beadSizeMm !== variantFly.beadSizeMm) differingMajorVariables.push('bead_size_mm');
+  if (baselineFly.intent !== testFly.intent) differingMajorVariables.push('fly_type');
+  if (baselineFly.beadSizeMm !== testFly.beadSizeMm) differingMajorVariables.push('bead_size_mm');
 
   const valid = differingMajorVariables.length <= 1;
 
@@ -18,7 +18,7 @@ export const validateExperimentPair = (controlFly: FlySetup, variantFly: FlySetu
     valid,
     warning: valid
       ? undefined
-      : `Control and variant differ in ${differingMajorVariables.length} major variables (${differingMajorVariables.join(', ')}). Limit to one major variable for clean inference.`,
+      : `Baseline and test fly differ in ${differingMajorVariables.length} major variables (${differingMajorVariables.join(', ')}). Limit to one major variable for clean inference.`,
     differingMajorVariables
   };
 };

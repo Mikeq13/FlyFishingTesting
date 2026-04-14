@@ -20,7 +20,7 @@ export const generateInsights = (stats: AggregatedStats): Insight[] => {
   const candidates: Array<{ label: string; rates: Record<string, number>; castsByKey: Record<string, { casts: number }> }> = [
     { label: 'water type', rates: waterRates, castsByKey: stats.byWaterType },
     { label: 'depth range', rates: depthRates, castsByKey: stats.byDepthRange },
-    { label: 'fly intent', rates: intentRates, castsByKey: stats.byFlyIntent },
+    { label: 'fly type', rates: intentRates, castsByKey: stats.byFlyIntent },
     { label: 'river', rates: riverRates, castsByKey: stats.byRiverName },
     { label: 'month', rates: monthRates, castsByKey: stats.byMonth }
   ];
