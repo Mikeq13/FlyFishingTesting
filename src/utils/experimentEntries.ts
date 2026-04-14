@@ -1,26 +1,33 @@
 import { Experiment, ExperimentFlyEntry } from '@/types/experiment';
 import { FlySetup } from '@/types/fly';
 
-const emptyFly: FlySetup = { name: '', intent: 'imitative', beadSizeMm: 0, bodyType: 'thread', collar: 'none' };
+const emptyFly: FlySetup = { name: '', intent: 'imitative', hookSize: 16, beadSizeMm: 0, bodyType: 'thread', collar: 'none' };
+const withDefaultHookSize = (fly: FlySetup): FlySetup => ({ ...fly, hookSize: fly.hookSize ?? 16 });
 
-export const createExperimentLabel = (index: number, total: number): string => {
+export const createExperimentLabel = (index: number, total: number, baselineIndex: number): string => {
   if (total === 1) return 'Fly';
-  if (total === 2) return index === 0 ? 'Control' : 'Variant';
-  if (total === 3) return index === 0 ? 'Control' : index === 1 ? 'Variant A' : 'Variant B';
-  return `Fly ${index + 1}`;
+  if (index === baselineIndex) return 'Baseline';
+
+  const testOrder = Array.from({ length: total }, (_, slot) => slot)
+    .filter((slot) => slot !== baselineIndex)
+    .indexOf(index);
+
+  if (total === 2) return 'Test';
+  return testOrder === 0 ? 'Test A' : 'Test B';
 };
 
-export const createEmptyExperimentEntries = (count: number): ExperimentFlyEntry[] =>
+export const createEmptyExperimentEntries = (count: number, baselineIndex = 0): ExperimentFlyEntry[] =>
   Array.from({ length: count }, (_, index) => ({
     slotId: `slot-${index + 1}`,
-    label: createExperimentLabel(index, count),
+    label: createExperimentLabel(index, count, baselineIndex),
+    role: index === baselineIndex ? 'baseline' : 'test',
     fly: index === 1 ? { ...emptyFly, intent: 'attractor' } : { ...emptyFly },
     casts: 0,
     catches: 0
   }));
 
-export const alignExperimentEntries = (entries: ExperimentFlyEntry[], count: number): ExperimentFlyEntry[] => {
-  const next = createEmptyExperimentEntries(count);
+export const alignExperimentEntries = (entries: ExperimentFlyEntry[], count: number, baselineIndex = 0): ExperimentFlyEntry[] => {
+  const next = createEmptyExperimentEntries(count, baselineIndex);
 
   return next.map((entry, index) => {
     const existing = entries[index];
@@ -28,7 +35,8 @@ export const alignExperimentEntries = (entries: ExperimentFlyEntry[], count: num
     return {
       ...existing,
       slotId: existing.slotId || entry.slotId,
-      label: createExperimentLabel(index, count)
+      label: createExperimentLabel(index, count, baselineIndex),
+      role: index === baselineIndex ? 'baseline' : 'test'
     };
   });
 };
@@ -41,15 +49,17 @@ export const getExperimentEntries = (experiment: Experiment): ExperimentFlyEntry
   return [
     {
       slotId: 'slot-1',
-      label: 'Control',
-      fly: experiment.controlFly,
+      label: 'Baseline',
+      role: 'baseline',
+      fly: withDefaultHookSize(experiment.controlFly),
       casts: experiment.controlCasts,
       catches: experiment.controlCatches
     },
     {
       slotId: 'slot-2',
-      label: 'Variant',
-      fly: experiment.variantFly,
+      label: 'Test',
+      role: 'test',
+      fly: withDefaultHookSize(experiment.variantFly),
       casts: experiment.variantCasts,
       catches: experiment.variantCatches
     }
@@ -60,7 +70,8 @@ export const getLegacyExperimentFields = (entries: ExperimentFlyEntry[]) => {
   const primary = entries[0] ?? createEmptyExperimentEntries(1)[0];
   const secondary = entries[1] ?? {
     slotId: 'slot-2',
-    label: 'Variant',
+    label: 'Test',
+    role: 'test' as const,
     fly: primary.fly,
     casts: 0,
     catches: 0

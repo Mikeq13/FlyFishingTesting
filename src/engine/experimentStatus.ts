@@ -32,7 +32,7 @@ export const deriveExperimentStatus = (entries: ExperimentFlyEntry[]): Experimen
 
   if (!runnerUp) {
     return {
-      winner: totalCasts >= MIN_DECISIVE_CASTS ? leader.label : 'inconclusive',
+      winner: totalCasts >= MIN_DECISIVE_CASTS ? leader.role === 'baseline' ? 'baseline' : leader.label : 'inconclusive',
       outcome: totalCasts >= MIN_DECISIVE_CASTS ? 'decisive' : 'inconclusive',
       confidenceScore: Math.min(1, totalCasts / 100)
     };
@@ -49,7 +49,7 @@ export const deriveExperimentStatus = (entries: ExperimentFlyEntry[]): Experimen
   const outcome: ExperimentOutcome = totalCasts >= MIN_DECISIVE_CASTS && rateDiff(leader.rate, runnerUp.rate) >= MIN_DECISIVE_RATE_DIFF ? 'decisive' : 'inconclusive';
 
   return {
-    winner: outcome === 'decisive' ? leader.label : 'inconclusive',
+    winner: outcome === 'decisive' ? (leader.role === 'baseline' ? 'baseline' : leader.label) : 'inconclusive',
     outcome,
     confidenceScore: Math.min(1, totalCasts / 100)
   };

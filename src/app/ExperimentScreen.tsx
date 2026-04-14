@@ -19,13 +19,14 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   const sessionId: number = route.params.sessionId;
   const [hypothesis, setHypothesis] = useState('');
   const [flyCount, setFlyCount] = useState<1 | 2 | 3>(2);
-  const [flyEntries, setFlyEntries] = useState<ExperimentFlyEntry[]>(() => createEmptyExperimentEntries(2));
+  const [baselineIndex, setBaselineIndex] = useState(0);
+  const [flyEntries, setFlyEntries] = useState<ExperimentFlyEntry[]>(() => createEmptyExperimentEntries(2, 0));
   const [castStep, setCastStep] = useState<5 | 10>(5);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    setFlyEntries((current) => alignExperimentEntries(current, flyCount));
-  }, [flyCount]);
+    setFlyEntries((current) => alignExperimentEntries(current, flyCount, baselineIndex));
+  }, [baselineIndex, flyCount]);
 
   const visibleEntries = useMemo(() => flyEntries.slice(0, flyCount), [flyCount, flyEntries]);
 
@@ -53,7 +54,8 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   const resetForNextExperiment = () => {
     setHypothesis('');
     setFlyCount(2);
-    setFlyEntries(createEmptyExperimentEntries(2));
+    setBaselineIndex(0);
+    setFlyEntries(createEmptyExperimentEntries(2, 0));
   };
 
   const modifyAndContinue = () => {
@@ -69,10 +71,15 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   const save = async () => {
     if (isSaving) return;
 
-    if (visibleEntries.length === 2) {
-      const check = validateExperimentPair(visibleEntries[0].fly, visibleEntries[1].fly);
-      if (!check.valid && check.warning) {
-        Alert.alert('Design warning', check.warning);
+    if (visibleEntries.length > 1) {
+      const baselineEntry = visibleEntries[baselineIndex];
+      const invalidComparison = visibleEntries
+        .filter((_, index) => index !== baselineIndex)
+        .map((entry) => ({ entry, check: validateExperimentPair(baselineEntry.fly, entry.fly) }))
+        .find(({ check }) => !check.valid);
+
+      if (invalidComparison?.check.warning) {
+        Alert.alert('Design warning', `${invalidComparison.entry.label}: ${invalidComparison.check.warning}`);
         return;
       }
     }
@@ -140,6 +147,30 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
             ))}
           </View>
         </View>
+
+        {flyCount > 1 && (
+          <View style={{ gap: 8 }}>
+            <Text style={{ color: 'white', fontWeight: '700' }}>Choose Baseline</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {visibleEntries.map((entry, index) => (
+                <Pressable
+                  key={`baseline-${entry.slotId}`}
+                  onPress={() => setBaselineIndex(index)}
+                  style={{
+                    flex: 1,
+                    backgroundColor: baselineIndex === index ? '#2a9d8f' : '#6c757d',
+                    padding: 10,
+                    borderRadius: 8
+                  }}
+                >
+                  <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
+                    {entry.fly.name.trim() || `Fly ${index + 1}`}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        )}
 
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <Pressable

@@ -2,10 +2,12 @@ import { FlySetup } from './fly';
 
 export type ExperimentWinner = string;
 export type ExperimentOutcome = 'decisive' | 'tie' | 'inconclusive';
+export type ExperimentFlyRole = 'baseline' | 'test';
 
 export interface ExperimentFlyEntry {
   slotId: string;
   label: string;
+  role: ExperimentFlyRole;
   fly: FlySetup;
   casts: number;
   catches: number;
