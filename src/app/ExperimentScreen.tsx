@@ -7,6 +7,7 @@ import { useAppStore } from './store';
 import { FlySetup } from '@/types/fly';
 import { validateExperimentPair } from '@/engine/rules';
 import { catchRate } from '@/utils/calculations';
+import { ScreenBackground } from '@/components/ScreenBackground';
 
 const emptyFly: FlySetup = { name: '', intent: 'imitative', beadSizeMm: 0, bodyType: 'thread', collar: 'none' };
 
@@ -45,26 +46,28 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
       confidenceScore: Math.min(1, (controlCasts + variantCasts) / 100)
     });
 
-    navigation.navigate('Insights');
+    navigation.navigate('SessionDetail', { sessionId });
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
-      <Text style={{ fontSize: 20, fontWeight: '700' }}>Experiment</Text>
-      <TextInput value={hypothesis} onChangeText={setHypothesis} placeholder="Hypothesis" style={{ borderWidth: 1, padding: 10, borderRadius: 8 }} />
-      <FlySelector title="Control" value={controlFly} onChange={setControlFly} />
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        <CastCounter label="Control casts" value={controlCasts} onIncrement={() => setControlCasts((v) => v + 1)} />
-        <CatchCounter label="Control catches" value={controlCatches} onIncrement={() => setControlCatches((v) => v + 1)} />
-      </View>
-      <FlySelector title="Variant" value={variantFly} onChange={setVariantFly} />
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        <CastCounter label="Variant casts" value={variantCasts} onIncrement={() => setVariantCasts((v) => v + 1)} />
-        <CatchCounter label="Variant catches" value={variantCatches} onIncrement={() => setVariantCatches((v) => v + 1)} />
-      </View>
-      <Pressable onPress={save} style={{ backgroundColor: '#264653', padding: 12, borderRadius: 8 }}>
-        <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Save Experiment</Text>
-      </Pressable>
-    </ScrollView>
+    <ScreenBackground>
+      <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
+        <Text style={{ fontSize: 20, fontWeight: '700', color: 'white' }}>Experiment</Text>
+        <TextInput value={hypothesis} onChangeText={setHypothesis} placeholder="Hypothesis" style={{ borderWidth: 1, padding: 10, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.95)' }} />
+        <FlySelector title="Control" value={controlFly} onChange={setControlFly} />
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <CastCounter label="Control casts" value={controlCasts} onIncrement={() => setControlCasts((v) => v + 1)} />
+          <CatchCounter label="Control catches" value={controlCatches} onIncrement={() => setControlCatches((v) => v + 1)} />
+        </View>
+        <FlySelector title="Variant" value={variantFly} onChange={setVariantFly} />
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <CastCounter label="Variant casts" value={variantCasts} onIncrement={() => setVariantCasts((v) => v + 1)} />
+          <CatchCounter label="Variant catches" value={variantCatches} onIncrement={() => setVariantCatches((v) => v + 1)} />
+        </View>
+        <Pressable onPress={save} style={{ backgroundColor: '#264653', padding: 12, borderRadius: 8 }}>
+          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Save Experiment</Text>
+        </Pressable>
+      </ScrollView>
+    </ScreenBackground>
   );
 };
