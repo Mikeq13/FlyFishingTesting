@@ -2,7 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AppStoreProvider } from './app/store';
-import { HomeScreen } from './app/HomeScreen';
+import HomeScreen from './app/HomeScreen';
 import { SessionScreen } from './app/SessionScreen';
 import { ExperimentScreen } from './app/ExperimentScreen';
 import { InsightsScreen } from './app/InsightsScreen';
