@@ -13,6 +13,7 @@ import { initDb } from '@/db/schema';
 import { buildAggregates } from '@/engine/aggregationEngine';
 import { generateAnglerComparisons } from '@/engine/anglerComparisonEngine';
 import { generateInsights } from '@/engine/insightEngine';
+import { buildTopFlyInsights, buildTopFlyRecords, TopFlyRecord } from '@/engine/topFlyEngine';
 import { isWithinDateRange } from '@/utils/dateRange';
 
 interface AppStore {
@@ -20,6 +21,8 @@ interface AppStore {
   experiments: Experiment[];
   insights: Insight[];
   anglerComparisons: Insight[];
+  topFlyRecords: TopFlyRecord[];
+  topFlyInsights: Insight[];
   users: UserProfile[];
   savedFlies: SavedFly[];
   savedRivers: SavedRiver[];
@@ -40,6 +43,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const [sessions, setSessions] = useState<Session[]>([]);
   const [experiments, setExperiments] = useState<Experiment[]>([]);
   const [anglerComparisons, setAnglerComparisons] = useState<Insight[]>([]);
+  const [topFlyRecords, setTopFlyRecords] = useState<TopFlyRecord[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [savedFlies, setSavedFlies] = useState<SavedFly[]>([]);
   const [savedRivers, setSavedRivers] = useState<SavedRiver[]>([]);
@@ -80,6 +84,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       setSavedFlies([]);
       setSavedRivers([]);
       setAnglerComparisons([]);
+      setTopFlyRecords([]);
       return;
     }
     const [s, e, flies, rivers] = await Promise.all([listSessions(uid), listExperiments(uid), listSavedFlies(uid), listSavedRivers(uid)]);
@@ -90,6 +95,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     setSavedFlies(flies);
     setSavedRivers(rivers);
     setAnglerComparisons(generateAnglerComparisons(allUsers, allSessionLists.flat(), allExperimentLists.flat()));
+    setTopFlyRecords(buildTopFlyRecords(s, e));
   };
 
   useEffect(() => {
@@ -101,6 +107,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   }, [activeUserId]);
 
   const insights = useMemo(() => generateInsights(buildAggregates(sessions, experiments)), [sessions, experiments]);
+  const topFlyInsights = useMemo(() => buildTopFlyInsights(topFlyRecords), [topFlyRecords]);
 
   return (
     <Ctx.Provider
@@ -109,6 +116,8 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         experiments,
         insights,
         anglerComparisons,
+        topFlyRecords,
+        topFlyInsights,
         users,
         savedFlies,
         savedRivers,

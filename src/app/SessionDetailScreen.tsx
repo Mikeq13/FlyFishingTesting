@@ -47,7 +47,7 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
             <Text>Hypothesis: {e.hypothesis}</Text>
             {getExperimentEntries(e).map((entry) => (
               <Text key={`${e.id}-${entry.slotId}`}>
-                {entry.label} {entry.fly.name || 'Unnamed'}: {entry.catches}/{entry.casts}
+                {entry.label} {entry.fly.name || 'Unnamed'} (#{entry.fly.hookSize}): {entry.catches}/{entry.casts}
               </Text>
             ))}
           </View>

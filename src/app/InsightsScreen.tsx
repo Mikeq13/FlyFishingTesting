@@ -5,7 +5,7 @@ import { useAppStore } from './store';
 import { ScreenBackground } from '@/components/ScreenBackground';
 
 export const InsightsScreen = ({ navigation }: any) => {
-  const { insights, anglerComparisons } = useAppStore();
+  const { insights, anglerComparisons, topFlyRecords, topFlyInsights } = useAppStore();
 
   return (
     <ScreenBackground>
@@ -14,6 +14,19 @@ export const InsightsScreen = ({ navigation }: any) => {
         {insights.map((insight, idx) => (
           <InsightCard key={`${insight.type}-${idx}`} insight={insight} />
         ))}
+        {!!topFlyInsights.length && (
+          <>
+            <Text style={{ fontSize: 18, fontWeight: '700', marginTop: 8, marginBottom: 8, color: 'white' }}>Top Flies</Text>
+            {topFlyInsights.map((insight, idx) => (
+              <InsightCard key={`top-fly-${idx}`} insight={insight} />
+            ))}
+            {topFlyRecords.slice(0, 5).map((record) => (
+              <Text key={`${record.name}-${record.hookSize}-${record.beadSizeMm}`} style={{ color: '#dbf5ff', marginBottom: 4 }}>
+                {record.name} | #{record.hookSize} | bead {record.beadSizeMm} | {(record.rate * 100).toFixed(1)}% over {record.casts} casts
+              </Text>
+            ))}
+          </>
+        )}
         {!!anglerComparisons.length && (
           <>
             <Text style={{ fontSize: 18, fontWeight: '700', marginTop: 8, marginBottom: 8, color: 'white' }}>Across Anglers</Text>

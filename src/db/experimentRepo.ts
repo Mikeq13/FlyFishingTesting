@@ -8,6 +8,8 @@ const WEB_EXPERIMENTS_ID_KEY = 'fishing_lab.experiments.nextId';
 
 const hydrateExperiment = (experiment: Experiment): Experiment => ({
   ...experiment,
+  controlFly: { ...experiment.controlFly, hookSize: experiment.controlFly.hookSize ?? 16 },
+  variantFly: { ...experiment.variantFly, hookSize: experiment.variantFly.hookSize ?? 16 },
   flyEntries: experiment.flyEntries?.length
     ? experiment.flyEntries
     : getExperimentEntries({
