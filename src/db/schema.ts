@@ -22,8 +22,8 @@ export const initDb = async (): Promise<void> => {
   if (isWeb) return;
   const database = await getDb();
 
-  await database.execAsync(`
-    CREATE TABLE IF NOT EXISTS users (
+  const bootstrapStatements = [
+    `CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       created_at TEXT NOT NULL,
@@ -34,14 +34,12 @@ export const initDb = async (): Promise<void> => {
       trial_ends_at TEXT,
       subscription_expires_at TEXT,
       granted_by_user_id INTEGER
-    );
-
-    CREATE TABLE IF NOT EXISTS app_settings (
+    )`,
+    `CREATE TABLE IF NOT EXISTS app_settings (
       key TEXT PRIMARY KEY NOT NULL,
       value TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS sessions (
+    )`,
+    `CREATE TABLE IF NOT EXISTS sessions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       date TEXT NOT NULL,
@@ -53,9 +51,8 @@ export const initDb = async (): Promise<void> => {
       insect_confidence TEXT NOT NULL,
       notes TEXT,
       FOREIGN KEY(user_id) REFERENCES users(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS experiments (
+    )`,
+    `CREATE TABLE IF NOT EXISTS experiments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       session_id INTEGER NOT NULL,
@@ -73,9 +70,8 @@ export const initDb = async (): Promise<void> => {
       archived_at TEXT,
       FOREIGN KEY(user_id) REFERENCES users(id),
       FOREIGN KEY(session_id) REFERENCES sessions(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS saved_flies (
+    )`,
+    `CREATE TABLE IF NOT EXISTS saved_flies (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       name TEXT NOT NULL,
@@ -89,16 +85,19 @@ export const initDb = async (): Promise<void> => {
       collar TEXT NOT NULL,
       created_at TEXT NOT NULL,
       FOREIGN KEY(user_id) REFERENCES users(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS saved_rivers (
+    )`,
+    `CREATE TABLE IF NOT EXISTS saved_rivers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       name TEXT NOT NULL,
       created_at TEXT NOT NULL,
       FOREIGN KEY(user_id) REFERENCES users(id)
-    );
-  `);
+    )`
+  ];
+
+  for (const statement of bootstrapStatements) {
+    await database.execAsync(statement);
+  }
 
   try {
     await database.execAsync(`ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'angler';`);
