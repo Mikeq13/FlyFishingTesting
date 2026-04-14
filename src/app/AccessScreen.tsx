@@ -1,11 +1,12 @@
 import React from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { useAppStore } from './store';
 import { getEntitlementLabel, hasPremiumAccess } from '@/engine/entitlementEngine';
 import { beginAppleSubscriptionPurchase, PREMIUM_MONTHLY_PRICE_LABEL, PREMIUM_TRIAL_LABEL } from '@/billing/storekit';
 
 export const AccessScreen = () => {
+  const { width } = useWindowDimensions();
   const {
     users,
     ownerUser,
@@ -18,6 +19,7 @@ export const AccessScreen = () => {
     markSubscriberAccess,
     clearUserAccess
   } = useAppStore();
+  const contentMaxWidth = Math.min(width - 24, 980);
 
   if (!currentUser) {
     return (
@@ -47,7 +49,7 @@ export const AccessScreen = () => {
 
   return (
     <ScreenBackground>
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ padding: 16, gap: 12, width: '100%', alignSelf: 'center', maxWidth: contentMaxWidth }} keyboardShouldPersistTaps="handled">
         <View style={{ gap: 4 }}>
           <Text style={{ fontSize: 28, fontWeight: '800', color: '#f7fdff' }}>Access & Billing</Text>
           <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>

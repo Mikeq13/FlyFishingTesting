@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { CastCounter } from '@/components/CastCounter';
 import { CatchCounter } from '@/components/CatchCounter';
 import { FlySelector } from '@/components/FlySelector';
@@ -15,6 +15,7 @@ import { alignExperimentEntries, createEmptyExperimentEntries, getLegacyExperime
 const FLY_COUNT_OPTIONS = [1, 2, 3] as const;
 
 export const ExperimentScreen = ({ route, navigation }: any) => {
+  const { width } = useWindowDimensions();
   const { addExperiment, addSavedFly, savedFlies, users, activeUserId } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
   const sessionId: number = route.params.sessionId;
@@ -25,6 +26,8 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   const [castStep, setCastStep] = useState<5 | 10>(5);
   const [isSaving, setIsSaving] = useState(false);
   const [showSavedExperimentActions, setShowSavedExperimentActions] = useState(false);
+  const isCompactLayout = width < 720;
+  const contentMaxWidth = Math.min(width - 24, 980);
 
   useEffect(() => {
     setFlyEntries((current) => alignExperimentEntries(current, flyCount, baselineIndex));
@@ -121,7 +124,11 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   return (
     <ScreenBackground>
       <KeyboardDismissView>
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+      <ScrollView
+        contentContainerStyle={{ padding: 16, gap: 12, width: '100%', alignSelf: 'center', maxWidth: contentMaxWidth }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         <View style={{ gap: 4 }}>
           <Text style={{ fontSize: 28, fontWeight: '800', color: '#f7fdff' }}>Experiment</Text>
           <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
@@ -133,7 +140,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
 
         <View style={{ gap: 8, backgroundColor: 'rgba(6, 27, 44, 0.70)', padding: 14, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
           <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>Flies in this experiment</Text>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flexDirection: isCompactLayout ? 'column' : 'row', gap: 8 }}>
             {FLY_COUNT_OPTIONS.map((option) => (
               <Pressable
                 key={option}
@@ -156,7 +163,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         {flyCount > 1 && (
           <View style={{ gap: 8, backgroundColor: 'rgba(6, 27, 44, 0.70)', padding: 14, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
             <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>Choose Baseline</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={{ flexDirection: isCompactLayout ? 'column' : 'row', gap: 8 }}>
               {visibleEntries.map((entry, index) => (
                 <Pressable
                   key={`baseline-${entry.slotId}`}
@@ -179,7 +186,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           </View>
         )}
 
-        <View style={{ flexDirection: 'row', gap: 8 }}>
+        <View style={{ flexDirection: isCompactLayout ? 'column' : 'row', gap: 8 }}>
           <Pressable
             onPress={() => setCastStep(5)}
             style={{ backgroundColor: castStep === 5 ? '#1d3557' : 'rgba(255,255,255,0.14)', padding: 12, borderRadius: 12, flex: 1, borderWidth: 1, borderColor: 'rgba(202,240,248,0.12)' }}
@@ -203,7 +210,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
               onChange={(fly) => updateEntry(index, { ...entry, fly })}
               onSave={() => saveFlyToLibrary(entry.fly)}
             />
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={{ flexDirection: isCompactLayout ? 'column' : 'row', gap: 8 }}>
               <CastCounter
                 label={`${entry.label} casts`}
                 value={entry.casts}

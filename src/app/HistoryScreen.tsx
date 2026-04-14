@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { useAppStore } from './store';
 import { isWithinDateRange } from '@/utils/dateRange';
 import { getExperimentEntries } from '@/utils/experimentEntries';
@@ -15,6 +15,7 @@ const inputStyle = {
 };
 
 export const HistoryScreen = () => {
+  const { width } = useWindowDimensions();
   const { sessions, experiments, users, activeUserId, archiveInconclusiveExperiments } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
   const [riverFilter, setRiverFilter] = useState('');
@@ -23,6 +24,7 @@ export const HistoryScreen = () => {
   const [depthFilter, setDepthFilter] = useState('');
   const [archiveFrom, setArchiveFrom] = useState('');
   const [archiveTo, setArchiveTo] = useState('');
+  const contentMaxWidth = Math.min(width - 24, 980);
 
   const normalizedFilters = {
     river: riverFilter.trim().toLowerCase(),
@@ -82,7 +84,10 @@ export const HistoryScreen = () => {
 
   return (
     <ScreenBackground>
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 8 }} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={{ padding: 16, gap: 8, width: '100%', alignSelf: 'center', maxWidth: contentMaxWidth }}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={{ gap: 4 }}>
           <Text style={{ fontSize: 28, fontWeight: '800', color: '#f7fdff' }}>History</Text>
           <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>Filter past sessions, review experiments, and clean up inconclusive results when needed.</Text>
@@ -96,18 +101,18 @@ export const HistoryScreen = () => {
         </View>
 
         <View style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 18, padding: 14, gap: 8, backgroundColor: 'rgba(245,252,255,0.96)' }}>
-        <Text style={{ fontWeight: '800', fontSize: 16, color: '#102a43' }}>Cleanup Inconclusive Results</Text>
-        <TextInput value={archiveFrom} onChangeText={setArchiveFrom} placeholder="From date (YYYY-MM-DD)" placeholderTextColor="#5a6c78" style={inputStyle} />
-        <TextInput value={archiveTo} onChangeText={setArchiveTo} placeholder="To date (YYYY-MM-DD)" placeholderTextColor="#5a6c78" style={inputStyle} />
-        <Text style={{ color: '#334e68' }}>Matching inconclusive experiments: {inconclusiveCount}</Text>
-        <Pressable
-          onPress={runArchive}
-          disabled={!inconclusiveCount}
-          style={{ backgroundColor: inconclusiveCount ? '#8d0801' : '#adb5bd', borderRadius: 12, padding: 12 }}
-        >
-          <Text style={{ color: 'white', fontWeight: '700', textAlign: 'center' }}>Archive Inconclusive Experiments</Text>
-        </Pressable>
-      </View>
+          <Text style={{ fontWeight: '800', fontSize: 16, color: '#102a43' }}>Cleanup Inconclusive Results</Text>
+          <TextInput value={archiveFrom} onChangeText={setArchiveFrom} placeholder="From date (YYYY-MM-DD)" placeholderTextColor="#5a6c78" style={inputStyle} />
+          <TextInput value={archiveTo} onChangeText={setArchiveTo} placeholder="To date (YYYY-MM-DD)" placeholderTextColor="#5a6c78" style={inputStyle} />
+          <Text style={{ color: '#334e68' }}>Matching inconclusive experiments: {inconclusiveCount}</Text>
+          <Pressable
+            onPress={runArchive}
+            disabled={!inconclusiveCount}
+            style={{ backgroundColor: inconclusiveCount ? '#8d0801' : '#adb5bd', borderRadius: 12, padding: 12 }}
+          >
+            <Text style={{ color: 'white', fontWeight: '700', textAlign: 'center' }}>Archive Inconclusive Experiments</Text>
+          </Pressable>
+        </View>
 
       {!filteredSessions.length ? <Text style={{ color: '#f7fdff' }}>No sessions found for current filters.</Text> : null}
 
