@@ -8,14 +8,14 @@ const hasLocalStorage = (): boolean => {
   }
 };
 
-const readRaw = (key: string): string | null => {
+export const readWebValue = (key: string): string | null => {
   if (hasLocalStorage()) {
     return window.localStorage.getItem(key);
   }
   return fallbackMemory.get(key) ?? null;
 };
 
-const writeRaw = (key: string, value: string): void => {
+export const writeWebValue = (key: string, value: string): void => {
   if (hasLocalStorage()) {
     window.localStorage.setItem(key, value);
     return;
@@ -24,7 +24,7 @@ const writeRaw = (key: string, value: string): void => {
 };
 
 export const listWebRows = <T>(tableKey: string): T[] => {
-  const raw = readRaw(tableKey);
+  const raw = readWebValue(tableKey);
   if (!raw) return [];
 
   try {
@@ -41,7 +41,7 @@ export const insertWebRow = <T extends { id: number }>(
   options: { prepend?: boolean } = { prepend: true }
 ): number => {
   const rows = listWebRows<T>(tableKey);
-  const nextId = Number(readRaw(counterKey) ?? '1');
+  const nextId = Number(readWebValue(counterKey) ?? '1');
   const row = { id: nextId, ...payload } as T;
 
   if (options.prepend === false) {
@@ -50,7 +50,7 @@ export const insertWebRow = <T extends { id: number }>(
     rows.unshift(row);
   }
 
-  writeRaw(tableKey, JSON.stringify(rows));
-  writeRaw(counterKey, String(nextId + 1));
+  writeWebValue(tableKey, JSON.stringify(rows));
+  writeWebValue(counterKey, String(nextId + 1));
   return nextId;
 };

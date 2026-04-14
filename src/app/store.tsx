@@ -5,6 +5,7 @@ import { UserProfile } from '@/types/user';
 import { createSession, listSessions } from '@/db/sessionRepo';
 import { createExperiment, listExperiments } from '@/db/experimentRepo';
 import { createUser, listUsers } from '@/db/userRepo';
+import { getActiveUserId as loadActiveUserId, setActiveUserId as saveActiveUserId } from '@/db/settingsRepo';
 import { initDb } from '@/db/schema';
 import { buildAggregates } from '@/engine/aggregationEngine';
 import { generateInsights } from '@/engine/insightEngine';
@@ -15,9 +16,9 @@ interface AppStore {
   insights: Insight[];
   users: UserProfile[];
   activeUserId: number | null;
-  setActiveUserId: (id: number) => void;
+  setActiveUserId: (id: number) => Promise<void>;
   addUser: (name: string) => Promise<number>;
-  refresh: () => Promise<void>;
+  refresh: (targetUserId?: number | null) => Promise<void>;
   addSession: (payload: Omit<Session, 'id' | 'userId'>) => Promise<number>;
   addExperiment: (payload: Omit<Experiment, 'id' | 'userId'>) => Promise<number>;
 }
@@ -30,24 +31,39 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [activeUserId, setActiveUserId] = useState<number | null>(null);
 
+  const selectActiveUser = async (id: number) => {
+    setActiveUserId(id);
+    await saveActiveUserId(id);
+  };
+
   const bootstrap = async () => {
     await initDb();
     const existingUsers = await listUsers();
     if (!existingUsers.length) {
       const id = await createUser('Primary Angler');
+      await saveActiveUserId(id);
       setActiveUserId(id);
       setUsers([{ id, name: 'Primary Angler', createdAt: new Date().toISOString() }]);
     } else {
+      const storedActiveUserId = await loadActiveUserId();
+      const nextActiveUserId = existingUsers.some((user) => user.id === storedActiveUserId) ? storedActiveUserId : existingUsers[0].id;
+      if (nextActiveUserId) {
+        await saveActiveUserId(nextActiveUserId);
+      }
       setUsers(existingUsers);
-      setActiveUserId(existingUsers[0].id);
+      setActiveUserId(nextActiveUserId);
     }
   };
 
-  const refresh = async () => {
+  const refresh = async (targetUserId?: number | null) => {
     const allUsers = await listUsers();
     setUsers(allUsers);
-    const uid = activeUserId ?? allUsers[0]?.id;
-    if (!uid) return;
+    const uid = targetUserId ?? activeUserId ?? allUsers[0]?.id;
+    if (!uid) {
+      setSessions([]);
+      setExperiments([]);
+      return;
+    }
     const [s, e] = await Promise.all([listSessions(uid), listExperiments(uid)]);
     setSessions(s);
     setExperiments(e);
@@ -71,10 +87,12 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         insights,
         users,
         activeUserId,
-        setActiveUserId,
+        setActiveUserId: selectActiveUser,
         addUser: async (name) => {
           const id = await createUser(name);
-          await refresh();
+          await saveActiveUserId(id);
+          setActiveUserId(id);
+          await refresh(id);
           return id;
         },
         refresh,
