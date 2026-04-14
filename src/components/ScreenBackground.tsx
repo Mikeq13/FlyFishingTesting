@@ -16,36 +16,45 @@ export const ScreenBackground = ({ children }: { children: React.ReactNode }) =>
   const layoutKey = `${Math.round(width)}x${Math.round(height)}`;
 
   return (
-    <ImageBackground
-      key={layoutKey}
-      source={background}
-      resizeMode="cover"
-      style={[styles.bg, { width, minHeight: height }]}
-      imageStyle={styles.image}
-    >
-      <View
-        style={[
-          styles.topGlow,
-          isLandscape && styles.topGlowLandscape,
-          isWideWeb && styles.topGlowDesktop
-        ]}
-      />
-      <View
-        style={[
-          styles.bottomGlow,
-          isLandscape && styles.bottomGlowLandscape,
-          isWideWeb && styles.bottomGlowDesktop
-        ]}
-      />
-      <View style={[styles.overlay, { minHeight: height }]}>
-        <SafeAreaView style={[styles.container, { minHeight: height }]}>{children}</SafeAreaView>
-      </View>
-    </ImageBackground>
+    <View key={layoutKey} style={[styles.root, { minHeight: height }]}>
+      <ImageBackground
+        source={background}
+        resizeMode="cover"
+        style={styles.bg}
+        imageStyle={styles.image}
+      >
+        <View
+          style={[
+            styles.topGlow,
+            isLandscape && styles.topGlowLandscape,
+            isWideWeb && styles.topGlowDesktop
+          ]}
+        />
+        <View
+          style={[
+            styles.bottomGlow,
+            isLandscape && styles.bottomGlowLandscape,
+            isWideWeb && styles.bottomGlowDesktop
+          ]}
+        />
+        <View style={styles.overlay} />
+      </ImageBackground>
+      <SafeAreaView edges={['top', 'bottom']} style={[styles.container, { minHeight: height }]}>
+        {children}
+      </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  bg: { flex: 1, backgroundColor: '#08161f' },
+  root: {
+    flex: 1,
+    backgroundColor: '#08161f'
+  },
+  bg: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#08161f'
+  },
   image: {
     opacity: 0.95
   },
@@ -91,6 +100,11 @@ const styles = StyleSheet.create({
     width: 300,
     height: 300
   },
-  overlay: { flex: 1, backgroundColor: 'rgba(5, 18, 28, 0.64)' },
-  container: { flex: 1 }
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(5, 18, 28, 0.64)'
+  },
+  container: {
+    flex: 1
+  }
 });
