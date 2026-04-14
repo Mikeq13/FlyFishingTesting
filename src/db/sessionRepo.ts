@@ -2,6 +2,11 @@ import { getDb, isWeb } from './schema';
 import { Session } from '@/types/session';
 
 let memSessions: Session[] = [];
+let memId = 1;
+
+export const createSession = async (payload: Omit<Session, 'id'>): Promise<number> => {
+  if (isWeb) {
+    const id = memId++;
 let memSessionId = 1;
 
 export const createSession = async (payload: Omit<Session, 'id'>): Promise<number> => {
@@ -13,6 +18,9 @@ export const createSession = async (payload: Omit<Session, 'id'>): Promise<numbe
 
   const db = await getDb();
   const result = await db.runAsync(
+    `INSERT INTO sessions (user_id, date, water_type, depth_range, insect_type, insect_stage, insect_confidence, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    payload.userId,
     `INSERT INTO sessions (date, water_type, depth_range, insect_type, insect_stage, insect_confidence, notes)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
     payload.date,
@@ -26,6 +34,14 @@ export const createSession = async (payload: Omit<Session, 'id'>): Promise<numbe
   return result.lastInsertRowId;
 };
 
+export const listSessions = async (userId: number): Promise<Session[]> => {
+  if (isWeb) return memSessions.filter((s) => s.userId === userId);
+
+  const db = await getDb();
+  const rows = await db.getAllAsync<any>('SELECT * FROM sessions WHERE user_id = ? ORDER BY date DESC', userId);
+  return rows.map((r) => ({
+    id: r.id,
+    userId: r.user_id,
 export const listSessions = async (): Promise<Session[]> => {
   if (isWeb) return memSessions;
 

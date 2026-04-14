@@ -17,6 +17,7 @@ export const runCoach = (question: string, context: AIContext): CoachResponse =>
   ];
 
   const confidence: 'low' | 'medium' | 'high' = topInsight?.confidence || 'low';
+
   const summary = topInsight
     ? `Based on your own data, the strongest signal is: ${topInsight.message}`
     : 'Your current dataset has limited signal. We can still improve by tightening experiment design.';
@@ -25,7 +26,8 @@ export const runCoach = (question: string, context: AIContext): CoachResponse =>
     summary,
     evidence,
     confidence,
-    nextBestAction: 'Run 40 casts in one water type, keep fly constant, and change only depth range to isolate depth effect.',
+    nextBestAction:
+      'Run 40 casts in one water type, keep fly constant, and change only depth range to isolate depth effect.',
     rawPrompt: `${systemPrompt}\n\n${buildCoachPrompt(question, context)}`
   };
 };

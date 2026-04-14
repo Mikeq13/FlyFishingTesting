@@ -8,8 +8,8 @@ Rules:
 4) Explain WHY using observed patterns and sample sizes.
 5) Always end with a next-best experiment suggestion.`;
 
-export const buildCoachPrompt = (userQuestion: string, context: AIContext): string =>
-  [
+export const buildCoachPrompt = (userQuestion: string, context: AIContext): string => {
+  return [
     `USER_QUESTION: ${userQuestion}`,
     `CONTEXT_JSON: ${JSON.stringify(context)}`,
     `RESPONSE_FORMAT:`,
@@ -18,3 +18,4 @@ export const buildCoachPrompt = (userQuestion: string, context: AIContext): stri
     `- confidence: low|medium|high`,
     `- next_best_action: single controlled experiment`
   ].join('\n');
+};

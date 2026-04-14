@@ -2,6 +2,7 @@ import { FlySetup } from './fly';
 
 export interface Experiment {
   id: number;
+  userId: number;
   sessionId: number;
   hypothesis: string;
   controlFly: FlySetup;

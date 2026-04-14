@@ -1,6 +1,12 @@
 import { getDb, isWeb } from './schema';
 import { Experiment } from '@/types/experiment';
 
+let memExperiments: Experiment[] = [];
+let memId = 1;
+
+export const createExperiment = async (payload: Omit<Experiment, 'id'>): Promise<number> => {
+  if (isWeb) {
+    const id = memId++;
 // Web fallback (in-memory) so app can run on Vercel without ExpoSQLite native module.
 let memExperiments: Experiment[] = [];
 let memExperimentId = 1;
@@ -15,6 +21,9 @@ export const createExperiment = async (payload: Omit<Experiment, 'id'>): Promise
   const db = await getDb();
   const result = await db.runAsync(
     `INSERT INTO experiments
+      (user_id, session_id, hypothesis, control_fly_json, variant_fly_json, control_casts, control_catches, variant_casts, variant_catches, winner, confidence_score)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    payload.userId,
       (session_id, hypothesis, control_fly_json, variant_fly_json, control_casts, control_catches, variant_casts, variant_catches, winner, confidence_score)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     payload.sessionId,
@@ -31,6 +40,14 @@ export const createExperiment = async (payload: Omit<Experiment, 'id'>): Promise
   return result.lastInsertRowId;
 };
 
+export const listExperiments = async (userId: number): Promise<Experiment[]> => {
+  if (isWeb) return memExperiments.filter((e) => e.userId === userId);
+
+  const db = await getDb();
+  const rows = await db.getAllAsync<any>('SELECT * FROM experiments WHERE user_id = ? ORDER BY id DESC', userId);
+  return rows.map((r) => ({
+    id: r.id,
+    userId: r.user_id,
 export const listExperiments = async (): Promise<Experiment[]> => {
   if (isWeb) {
     return memExperiments;

@@ -19,6 +19,9 @@ export const buildAIContext = (
 ): AIContext => {
   const anomalies: string[] = [];
   const lowSampleExperiments = experiments.filter((e) => e.controlCasts + e.variantCasts < 10).length;
+  if (lowSampleExperiments > 0) {
+    anomalies.push(`${lowSampleExperiments} experiments have <10 casts, so confidence is weak.`);
+  }
   if (lowSampleExperiments > 0) anomalies.push(`${lowSampleExperiments} experiments have <10 casts, so confidence is weak.`);
 
   return {

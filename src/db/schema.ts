@@ -6,6 +6,17 @@ export const isWeb = Platform.OS === 'web';
 type DbLike = {
   execAsync: (sql: string) => Promise<void>;
   runAsync: (...args: any[]) => Promise<{ lastInsertRowId: number }>;
+  getAllAsync: <T = any>(sql: string, ...args: any[]) => Promise<T[]>;
+};
+
+let db: DbLike | null = null;
+export const isWeb = Platform.OS === 'web';
+
+export const getDb = async (): Promise<DbLike> => {
+  if (isWeb) throw new Error('SQLite unavailable on web runtime');
+  if (!db) {
+    const SQLite = await import('./sqlite');
+    db = (await SQLite.openDatabaseAsync('fishing_lab.db')) as DbLike;
   getAllAsync: <T = any>(sql: string) => Promise<T[]>;
 };
 
@@ -23,6 +34,18 @@ export const getDb = async (): Promise<DbLike> => {
 
 export const initDb = async (): Promise<void> => {
   if (isWeb) return;
+  const database = await getDb();
+
+  await database.execAsync(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
 
   const database = await getDb();
   await database.execAsync(`
@@ -34,11 +57,14 @@ export const initDb = async (): Promise<void> => {
       insect_type TEXT NOT NULL,
       insect_stage TEXT NOT NULL,
       insect_confidence TEXT NOT NULL,
+      notes TEXT,
+      FOREIGN KEY(user_id) REFERENCES users(id)
       notes TEXT
     );
 
     CREATE TABLE IF NOT EXISTS experiments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
       session_id INTEGER NOT NULL,
       hypothesis TEXT NOT NULL,
       control_fly_json TEXT NOT NULL,
@@ -48,6 +74,9 @@ export const initDb = async (): Promise<void> => {
       variant_casts INTEGER NOT NULL,
       variant_catches INTEGER NOT NULL,
       winner TEXT NOT NULL,
+      confidence_score REAL NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id),
+      FOREIGN KEY(session_id) REFERENCES sessions(id)
       confidence_score REAL NOT NULL
     );
   `);

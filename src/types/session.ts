@@ -6,6 +6,7 @@ export type Confidence = 'low' | 'medium' | 'high';
 
 export interface Session {
   id: number;
+  userId: number;
   date: string;
   waterType: WaterType;
   depthRange: DepthRange;
@@ -13,4 +14,12 @@ export interface Session {
   insectStage: InsectStage;
   insectConfidence: Confidence;
   notes?: string;
+}
+
+export interface Observation {
+  id?: number;
+  sessionId: number;
+  type: 'success' | 'failure' | 'hatch' | 'behavior' | 'water';
+  text: string;
+  timestamp: string;
 }

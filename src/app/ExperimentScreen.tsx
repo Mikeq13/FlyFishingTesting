@@ -22,6 +22,14 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   const [variantCasts, setVariantCasts] = useState(0);
   const [variantCatches, setVariantCatches] = useState(0);
 
+  const resetForNextExperiment = () => {
+    setHypothesis('');
+    setControlCasts(0);
+    setControlCatches(0);
+    setVariantCasts(0);
+    setVariantCatches(0);
+  };
+
   const save = async () => {
     const check = validateExperimentPair(controlFly, variantFly);
     if (!check.valid && check.warning) {
@@ -46,7 +54,11 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
       confidenceScore: Math.min(1, (controlCasts + variantCasts) / 100)
     });
 
-    navigation.navigate('SessionDetail', { sessionId });
+    Alert.alert('Experiment saved', 'What do you want to do next?', [
+      { text: 'Continue experimenting', onPress: resetForNextExperiment },
+      { text: 'View this session', onPress: () => navigation.navigate('SessionDetail', { sessionId }) },
+      { text: 'Go to insights', onPress: () => navigation.navigate('Insights') }
+    ]);
   };
 
   return (
