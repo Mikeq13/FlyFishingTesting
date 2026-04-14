@@ -22,6 +22,7 @@ export const buildAIContext = (
   if (lowSampleExperiments > 0) {
     anomalies.push(`${lowSampleExperiments} experiments have <10 casts, so confidence is weak.`);
   }
+  if (lowSampleExperiments > 0) anomalies.push(`${lowSampleExperiments} experiments have <10 casts, so confidence is weak.`);
 
   return {
     recentSessions: sessions.slice(0, 10),

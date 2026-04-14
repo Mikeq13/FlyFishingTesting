@@ -7,6 +7,11 @@ let memId = 1;
 export const createSession = async (payload: Omit<Session, 'id'>): Promise<number> => {
   if (isWeb) {
     const id = memId++;
+let memSessionId = 1;
+
+export const createSession = async (payload: Omit<Session, 'id'>): Promise<number> => {
+  if (isWeb) {
+    const id = memSessionId++;
     memSessions.unshift({ id, ...payload });
     return id;
   }
@@ -16,6 +21,8 @@ export const createSession = async (payload: Omit<Session, 'id'>): Promise<numbe
     `INSERT INTO sessions (user_id, date, water_type, depth_range, insect_type, insect_stage, insect_confidence, notes)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     payload.userId,
+    `INSERT INTO sessions (date, water_type, depth_range, insect_type, insect_stage, insect_confidence, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
     payload.date,
     payload.waterType,
     payload.depthRange,
@@ -35,6 +42,13 @@ export const listSessions = async (userId: number): Promise<Session[]> => {
   return rows.map((r) => ({
     id: r.id,
     userId: r.user_id,
+export const listSessions = async (): Promise<Session[]> => {
+  if (isWeb) return memSessions;
+
+  const db = await getDb();
+  const rows = await db.getAllAsync<any>('SELECT * FROM sessions ORDER BY date DESC');
+  return rows.map((r) => ({
+    id: r.id,
     date: r.date,
     waterType: r.water_type,
     depthRange: r.depth_range,
