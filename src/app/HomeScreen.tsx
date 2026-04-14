@@ -1,15 +1,17 @@
 import React from 'react';
-import { Alert, Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { KeyboardDismissView } from '@/components/KeyboardDismissView';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { useAppStore } from './store';
 
 export const HomeScreen = ({ navigation }: any) => {
   const { users, activeUserId, setActiveUserId, addUser, currentEntitlementLabel, currentHasPremiumAccess, currentUser, canManageAccess } = useAppStore();
+  const { width } = useWindowDimensions();
   const activeUser = users.find((u) => u.id === activeUserId);
   const [newUserName, setNewUserName] = React.useState('');
   const [showAnglerList, setShowAnglerList] = React.useState(false);
   const [isCreatingUser, setIsCreatingUser] = React.useState(false);
+  const isCompactLayout = width < 720;
 
   const createAnotherUser = async () => {
     const name = newUserName.trim();
@@ -42,7 +44,7 @@ export const HomeScreen = ({ navigation }: any) => {
   return (
     <ScreenBackground>
       <KeyboardDismissView>
-      <View style={{ flex: 1, justifyContent: 'center', padding: 20, gap: 14 }}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20, gap: 14, width: '100%', alignSelf: 'center', maxWidth: 980 }} keyboardShouldPersistTaps="handled">
         <View style={{ gap: 6 }}>
           <Text style={{ fontSize: 34, fontWeight: '800', color: '#f7fdff' }}>Fishing Lab</Text>
           <Text style={{ color: '#d7f3ff', fontSize: 16, lineHeight: 22 }}>
@@ -68,7 +70,7 @@ export const HomeScreen = ({ navigation }: any) => {
           <Text style={{ color: '#bde6f6' }}>Premium features: {currentHasPremiumAccess ? 'Enabled' : 'Locked'}</Text>
         </View>
         <View style={{ gap: 10, backgroundColor: 'rgba(7, 36, 58, 0.62)', padding: 14, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flexDirection: isCompactLayout ? 'column' : 'row', gap: 8 }}>
             <Pressable
               onPress={() => setShowAnglerList((current) => !current)}
               style={{ flex: 1, backgroundColor: 'rgba(29,53,87,0.95)', padding: 12, borderRadius: 12 }}
@@ -119,7 +121,7 @@ export const HomeScreen = ({ navigation }: any) => {
             </View>
           ) : null}
         </View>
-        <View style={{ flexDirection: 'row', gap: 10 }}>
+        <View style={{ flexDirection: isCompactLayout ? 'column' : 'row', gap: 10 }}>
           <Pressable onPress={() => navigation.navigate('Session')} style={{ flex: 1, backgroundColor: 'rgba(18,74,112,0.95)', padding: 16, borderRadius: 16 }}>
             <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Start Session</Text>
           </Pressable>
@@ -136,7 +138,7 @@ export const HomeScreen = ({ navigation }: any) => {
             <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>{label}</Text>
           </Pressable>
         ))}
-      </View>
+      </ScrollView>
       </KeyboardDismissView>
     </ScreenBackground>
   );
