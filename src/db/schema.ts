@@ -26,7 +26,14 @@ export const initDb = async (): Promise<void> => {
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'angler',
+      access_level TEXT NOT NULL DEFAULT 'free',
+      subscription_status TEXT NOT NULL DEFAULT 'not_started',
+      trial_started_at TEXT,
+      trial_ends_at TEXT,
+      subscription_expires_at TEXT,
+      granted_by_user_id INTEGER
     );
 
     CREATE TABLE IF NOT EXISTS app_settings (
@@ -93,6 +100,27 @@ export const initDb = async (): Promise<void> => {
     );
   `);
 
+  try {
+    await database.execAsync(`ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'angler';`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE users ADD COLUMN access_level TEXT NOT NULL DEFAULT 'free';`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE users ADD COLUMN subscription_status TEXT NOT NULL DEFAULT 'not_started';`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE users ADD COLUMN trial_started_at TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE users ADD COLUMN trial_ends_at TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE users ADD COLUMN subscription_expires_at TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE users ADD COLUMN granted_by_user_id INTEGER;`);
+  } catch {}
   try {
     await database.execAsync(`ALTER TABLE sessions ADD COLUMN river_name TEXT;`);
   } catch {}

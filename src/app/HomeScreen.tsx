@@ -4,7 +4,7 @@ import { ScreenBackground } from '@/components/ScreenBackground';
 import { useAppStore } from './store';
 
 export const HomeScreen = ({ navigation }: any) => {
-  const { users, activeUserId, setActiveUserId, addUser } = useAppStore();
+  const { users, activeUserId, setActiveUserId, addUser, currentEntitlementLabel, currentHasPremiumAccess, currentUser } = useAppStore();
   const activeUser = users.find((u) => u.id === activeUserId);
   const [newUserName, setNewUserName] = React.useState('');
   const [showAnglerList, setShowAnglerList] = React.useState(false);
@@ -62,6 +62,8 @@ export const HomeScreen = ({ navigation }: any) => {
           </Text>
           <Text style={{ color: '#f7fdff', fontWeight: '800', fontSize: 24 }}>{activeUser?.name ?? 'Loading...'}</Text>
           <Text style={{ color: '#bde6f6' }}>Choose a saved angler or create a new profile before you head into a session.</Text>
+          <Text style={{ color: '#d7f3ff' }}>Access: {currentEntitlementLabel}</Text>
+          <Text style={{ color: '#bde6f6' }}>Premium features: {currentHasPremiumAccess ? 'Enabled' : 'Locked'}</Text>
         </View>
         <View style={{ gap: 10, backgroundColor: 'rgba(7, 36, 58, 0.62)', padding: 14, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
           <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -125,7 +127,8 @@ export const HomeScreen = ({ navigation }: any) => {
         </View>
         {[
           ['View Insights', 'Insights'],
-          ['Ask AI Coach', 'Coach']
+          ['Ask AI Coach', 'Coach'],
+          [currentUser?.role === 'owner' ? 'Manage Access' : 'Subscription', 'Access']
         ].map(([label, route]) => (
           <Pressable key={route} onPress={() => navigation.navigate(route)} style={{ backgroundColor: 'rgba(6, 27, 44, 0.72)', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
             <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>{label}</Text>

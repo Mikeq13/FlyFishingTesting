@@ -5,16 +5,18 @@ import { UserProfile } from '@/types/user';
 import { FlySetup, SavedFly } from '@/types/fly';
 import { createSession, listSessions } from '@/db/sessionRepo';
 import { archiveExperiments, createExperiment, listExperiments } from '@/db/experimentRepo';
-import { createUser, listUsers } from '@/db/userRepo';
+import { createUser, listUsers, updateUser } from '@/db/userRepo';
 import { createSavedFly, listSavedFlies } from '@/db/savedFlyRepo';
 import { createSavedRiver, listSavedRivers } from '@/db/savedRiverRepo';
 import { getActiveUserId as loadActiveUserId, setActiveUserId as saveActiveUserId } from '@/db/settingsRepo';
 import { initDb } from '@/db/schema';
 import { buildAggregates } from '@/engine/aggregationEngine';
 import { generateAnglerComparisons } from '@/engine/anglerComparisonEngine';
+import { createTrialWindow, getEntitlementLabel, hasPremiumAccess } from '@/engine/entitlementEngine';
 import { generateInsights } from '@/engine/insightEngine';
 import { buildTopFlyInsights, buildTopFlyRecords, TopFlyRecord } from '@/engine/topFlyEngine';
 import { isWithinDateRange } from '@/utils/dateRange';
+import { AccessLevel, SubscriptionStatus } from '@/types/user';
 
 interface AppStore {
   sessions: Session[];
@@ -24,6 +26,9 @@ interface AppStore {
   topFlyRecords: TopFlyRecord[];
   topFlyInsights: Insight[];
   users: UserProfile[];
+  currentUser: UserProfile | null;
+  currentEntitlementLabel: string;
+  currentHasPremiumAccess: boolean;
   savedFlies: SavedFly[];
   savedRivers: SavedRiver[];
   activeUserId: number | null;
@@ -31,6 +36,11 @@ interface AppStore {
   addUser: (name: string) => Promise<number>;
   addSavedFly: (payload: FlySetup) => Promise<number>;
   addSavedRiver: (name: string) => Promise<number>;
+  updateUserAccess: (userId: number, next: { accessLevel: AccessLevel; subscriptionStatus: SubscriptionStatus; trialStartedAt?: string | null; trialEndsAt?: string | null; subscriptionExpiresAt?: string | null; grantedByUserId?: number | null; }) => Promise<void>;
+  startTrialForUser: (userId: number) => Promise<void>;
+  grantPowerUserAccess: (userId: number) => Promise<void>;
+  markSubscriberAccess: (userId: number, expiresAt?: string | null) => Promise<void>;
+  clearUserAccess: (userId: number) => Promise<void>;
   refresh: (targetUserId?: number | null) => Promise<void>;
   addSession: (payload: Omit<Session, 'id' | 'userId'>) => Promise<number>;
   addExperiment: (payload: Omit<Experiment, 'id' | 'userId'>) => Promise<number>;
@@ -49,6 +59,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const [savedRivers, setSavedRivers] = useState<SavedRiver[]>([]);
   const [activeUserId, setActiveUserId] = useState<number | null>(null);
   const sessionMap = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
+  const currentUser = useMemo(() => users.find((user) => user.id === activeUserId) ?? null, [activeUserId, users]);
 
   const selectActiveUser = async (id: number) => {
     setActiveUserId(id);
@@ -57,13 +68,19 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
 
   const bootstrap = async () => {
     await initDb();
-    const existingUsers = await listUsers();
+    let existingUsers = await listUsers();
     if (!existingUsers.length) {
-      const id = await createUser('Primary Angler');
+      const id = await createUser({ name: 'Primary Angler', role: 'owner', accessLevel: 'power_user', subscriptionStatus: 'power_user' });
       await saveActiveUserId(id);
       setActiveUserId(id);
-      setUsers([{ id, name: 'Primary Angler', createdAt: new Date().toISOString() }]);
+      existingUsers = await listUsers();
+      setUsers(existingUsers);
     } else {
+      const owner = existingUsers.find((user) => user.role === 'owner');
+      if (!owner && existingUsers[0]) {
+        await updateUser(existingUsers[0].id, { role: 'owner', accessLevel: 'power_user', subscriptionStatus: 'power_user' });
+        existingUsers = await listUsers();
+      }
       const storedActiveUserId = await loadActiveUserId();
       const nextActiveUserId = existingUsers.some((user) => user.id === storedActiveUserId) ? storedActiveUserId : existingUsers[0].id;
       if (nextActiveUserId) {
@@ -109,6 +126,21 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const insights = useMemo(() => generateInsights(buildAggregates(sessions, experiments)), [sessions, experiments]);
   const topFlyInsights = useMemo(() => buildTopFlyInsights(topFlyRecords), [topFlyRecords]);
 
+  const updateUserAccess = async (
+    userId: number,
+    next: {
+      accessLevel: AccessLevel;
+      subscriptionStatus: SubscriptionStatus;
+      trialStartedAt?: string | null;
+      trialEndsAt?: string | null;
+      subscriptionExpiresAt?: string | null;
+      grantedByUserId?: number | null;
+    }
+  ) => {
+    await updateUser(userId, next);
+    await refresh(activeUserId);
+  };
+
   return (
     <Ctx.Provider
       value={{
@@ -119,6 +151,9 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         topFlyRecords,
         topFlyInsights,
         users,
+        currentUser,
+        currentEntitlementLabel: getEntitlementLabel(currentUser),
+        currentHasPremiumAccess: hasPremiumAccess(currentUser),
         savedFlies,
         savedRivers,
         activeUserId,
@@ -141,6 +176,49 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
           const id = await createSavedRiver({ userId: activeUserId, name });
           await refresh(activeUserId);
           return id;
+        },
+        updateUserAccess,
+        startTrialForUser: async (userId) => {
+          const trialWindow = createTrialWindow();
+          await updateUserAccess(userId, {
+            accessLevel: 'trial',
+            subscriptionStatus: 'trialing',
+            trialStartedAt: trialWindow.trialStartedAt,
+            trialEndsAt: trialWindow.trialEndsAt,
+            subscriptionExpiresAt: null,
+            grantedByUserId: activeUserId
+          });
+        },
+        grantPowerUserAccess: async (userId) => {
+          await updateUserAccess(userId, {
+            accessLevel: 'power_user',
+            subscriptionStatus: 'power_user',
+            trialStartedAt: null,
+            trialEndsAt: null,
+            subscriptionExpiresAt: null,
+            grantedByUserId: activeUserId
+          });
+        },
+        markSubscriberAccess: async (userId, expiresAt = null) => {
+          await updateUserAccess(userId, {
+            accessLevel: 'subscriber',
+            subscriptionStatus: 'active',
+            trialStartedAt: null,
+            trialEndsAt: null,
+            subscriptionExpiresAt: expiresAt,
+            grantedByUserId: activeUserId
+          });
+        },
+        clearUserAccess: async (userId) => {
+          const target = users.find((user) => user.id === userId);
+          await updateUserAccess(userId, {
+            accessLevel: target?.role === 'owner' ? 'power_user' : 'free',
+            subscriptionStatus: target?.role === 'owner' ? 'power_user' : 'not_started',
+            trialStartedAt: null,
+            trialEndsAt: null,
+            subscriptionExpiresAt: null,
+            grantedByUserId: activeUserId
+          });
         },
         refresh,
         addSession: async (payload) => {

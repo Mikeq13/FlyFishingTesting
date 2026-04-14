@@ -9,6 +9,7 @@ import { InsightsScreen } from './app/InsightsScreen';
 import { HistoryScreen } from './app/HistoryScreen';
 import { CoachScreen } from './app/CoachScreen';
 import { SessionDetailScreen } from './app/SessionDetailScreen';
+import { AccessScreen } from './app/AccessScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -24,6 +25,7 @@ export default function App() {
           <Stack.Screen name="Insights" component={InsightsScreen} />
           <Stack.Screen name="History" component={HistoryScreen} />
           <Stack.Screen name="Coach" component={CoachScreen} />
+          <Stack.Screen name="Access" component={AccessScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </AppStoreProvider>
