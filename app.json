@@ -3,10 +3,20 @@
     "name": "Fishing Lab",
     "slug": "fishing-lab",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "userInterfaceStyle": "light",
     "web": {
-      "favicon": "./assets/favicon.png"
-    }
+      "name": "Fishing Lab",
+      "shortName": "Fish Lab",
+      "description": "A Fly Fishing Journal designed to help you improve with insights and coaching.",
+      "display": "standalone",
+      "startUrl": "/",
+      "orientation": "any",
+      "themeColor": "#0b3d5c",
+      "backgroundColor": "#08161f"
+    },
+    "plugins": [
+      "expo-sqlite"
+    ]
   }
 }
