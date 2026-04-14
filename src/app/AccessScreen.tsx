@@ -8,9 +8,11 @@ import { beginAppleSubscriptionPurchase, PREMIUM_MONTHLY_PRICE_LABEL, PREMIUM_TR
 export const AccessScreen = () => {
   const {
     users,
+    ownerUser,
     currentUser,
     currentEntitlementLabel,
     currentHasPremiumAccess,
+    canManageAccess,
     startTrialForUser,
     grantPowerUserAccess,
     markSubscriberAccess,
@@ -74,9 +76,14 @@ export const AccessScreen = () => {
           )}
         </View>
 
-        {currentUser.role === 'owner' && (
+        {canManageAccess && (
           <View style={{ gap: 10 }}>
             <Text style={{ color: '#f7fdff', fontWeight: '800', fontSize: 20 }}>Owner Controls</Text>
+            {ownerUser && (
+              <Text style={{ color: '#d7f3ff' }}>
+                Admin access is controlled by {ownerUser.name}. You can manage access while testing with any active angler.
+              </Text>
+            )}
             {users.map((user) => (
               <View
                 key={user.id}

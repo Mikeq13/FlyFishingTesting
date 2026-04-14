@@ -26,9 +26,11 @@ interface AppStore {
   topFlyRecords: TopFlyRecord[];
   topFlyInsights: Insight[];
   users: UserProfile[];
+  ownerUser: UserProfile | null;
   currentUser: UserProfile | null;
   currentEntitlementLabel: string;
   currentHasPremiumAccess: boolean;
+  canManageAccess: boolean;
   savedFlies: SavedFly[];
   savedRivers: SavedRiver[];
   activeUserId: number | null;
@@ -60,6 +62,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const [activeUserId, setActiveUserId] = useState<number | null>(null);
   const sessionMap = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
   const currentUser = useMemo(() => users.find((user) => user.id === activeUserId) ?? null, [activeUserId, users]);
+  const ownerUser = useMemo(() => users.find((user) => user.role === 'owner') ?? null, [users]);
 
   const selectActiveUser = async (id: number) => {
     setActiveUserId(id);
@@ -78,7 +81,9 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     } else {
       const owner = existingUsers.find((user) => user.role === 'owner');
       if (!owner && existingUsers[0]) {
-        await updateUser(existingUsers[0].id, { role: 'owner', accessLevel: 'power_user', subscriptionStatus: 'power_user' });
+        const storedActiveUserId = await loadActiveUserId();
+        const ownerId = existingUsers.some((user) => user.id === storedActiveUserId) ? storedActiveUserId : existingUsers[0].id;
+        await updateUser(ownerId, { role: 'owner', accessLevel: 'power_user', subscriptionStatus: 'power_user' });
         existingUsers = await listUsers();
       }
       const storedActiveUserId = await loadActiveUserId();
@@ -151,9 +156,11 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         topFlyRecords,
         topFlyInsights,
         users,
+        ownerUser,
         currentUser,
         currentEntitlementLabel: getEntitlementLabel(currentUser),
-        currentHasPremiumAccess: hasPremiumAccess(currentUser),
+        currentHasPremiumAccess: hasPremiumAccess(currentUser) || hasPremiumAccess(ownerUser),
+        canManageAccess: !!ownerUser,
         savedFlies,
         savedRivers,
         activeUserId,

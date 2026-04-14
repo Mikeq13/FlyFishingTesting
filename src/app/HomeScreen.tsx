@@ -5,7 +5,7 @@ import { ScreenBackground } from '@/components/ScreenBackground';
 import { useAppStore } from './store';
 
 export const HomeScreen = ({ navigation }: any) => {
-  const { users, activeUserId, setActiveUserId, addUser, currentEntitlementLabel, currentHasPremiumAccess, currentUser } = useAppStore();
+  const { users, activeUserId, setActiveUserId, addUser, currentEntitlementLabel, currentHasPremiumAccess, currentUser, canManageAccess } = useAppStore();
   const activeUser = users.find((u) => u.id === activeUserId);
   const [newUserName, setNewUserName] = React.useState('');
   const [showAnglerList, setShowAnglerList] = React.useState(false);
@@ -130,7 +130,7 @@ export const HomeScreen = ({ navigation }: any) => {
         {[
           [`View Insights${currentHasPremiumAccess ? '' : ' (Premium)'}`, 'Insights'],
           [`Ask AI Coach${currentHasPremiumAccess ? '' : ' (Premium)'}`, 'Coach'],
-          [currentUser?.role === 'owner' ? 'Manage Access' : 'Subscription', 'Access']
+          [canManageAccess ? 'Manage Access' : 'Subscription', 'Access']
         ].map(([label, route]) => (
           <Pressable key={route} onPress={() => navigation.navigate(route)} style={{ backgroundColor: 'rgba(6, 27, 44, 0.72)', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
             <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>{label}</Text>
