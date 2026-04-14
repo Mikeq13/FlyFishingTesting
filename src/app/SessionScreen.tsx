@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput } from 'react-native';
 import { DepthSelector } from '@/components/DepthSelector';
 import { OptionChips } from '@/components/OptionChips';
@@ -16,7 +16,9 @@ export const SessionScreen = ({ navigation }: any) => {
   const [insectStage, setInsectStage] = useState<InsectStage>('nymph');
   const [riverName, setRiverName] = useState('');
   const [notes, setNotes] = useState('');
+  const [showSavedRiverList, setShowSavedRiverList] = useState(false);
   const availableStages = INSECT_STAGES_BY_TYPE[insectType];
+  const sortedSavedRivers = useMemo(() => [...savedRivers].sort((a, b) => a.name.localeCompare(b.name)), [savedRivers]);
 
   useEffect(() => {
     if (!availableStages.includes(insectStage)) {
@@ -59,15 +61,32 @@ export const SessionScreen = ({ navigation }: any) => {
         <Text style={{ color: 'white', fontWeight: '700' }}>Depth Range</Text>
         <DepthSelector value={depthRange} onChange={setDepthRange} />
         <Text style={{ color: 'white', fontWeight: '700' }}>River</Text>
-        <TextInput value={riverName} onChangeText={setRiverName} placeholder="river name" style={{ borderWidth: 1, padding: 10, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.95)' }} />
-        {!!savedRivers.length && (
-          <OptionChips
-            label="Saved Rivers"
-            options={[...savedRivers].sort((a, b) => a.name.localeCompare(b.name)).map((river) => river.name)}
-            value={riverName}
-            onChange={setRiverName}
-          />
+        {!!sortedSavedRivers.length && (
+          <>
+            <Pressable onPress={() => setShowSavedRiverList((current) => !current)} style={{ backgroundColor: '#1d3557', padding: 10, borderRadius: 8 }}>
+              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
+                {showSavedRiverList ? 'Hide Saved Rivers' : 'Choose Saved River'}
+              </Text>
+            </Pressable>
+            {showSavedRiverList && (
+              <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.95)' }}>
+                {sortedSavedRivers.map((river) => (
+                  <Pressable
+                    key={river.id}
+                    onPress={() => {
+                      setRiverName(river.name);
+                      setShowSavedRiverList(false);
+                    }}
+                    style={{ paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' }}
+                  >
+                    <Text style={{ color: '#0b3d3a', fontWeight: '600' }}>{river.name}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+          </>
         )}
+        <TextInput value={riverName} onChangeText={setRiverName} placeholder="river name" style={{ borderWidth: 1, padding: 10, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.95)' }} />
         <OptionChips label="Bug Family" options={INSECT_TYPES} value={insectType} onChange={setInsectType} />
         <OptionChips label="Bug Stage" options={availableStages} value={insectStage} onChange={setInsectStage} />
         <TextInput value={notes} onChangeText={setNotes} placeholder="notes" multiline style={{ borderWidth: 1, padding: 10, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.95)' }} />
