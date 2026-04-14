@@ -42,6 +42,8 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
 
   const resetForNextExperiment = () => {
     setHypothesis('');
+    setControlFly(emptyFly);
+    setVariantFly({ ...emptyFly, intent: 'attractor' });
     setControlCasts(0);
     setControlCatches(0);
     setVariantCasts(0);
