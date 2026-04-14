@@ -9,10 +9,10 @@ export const INSECT_STAGES_BY_TYPE: Record<InsectType, InsectStage[]> = {
   beetle: ['adult'],
   caddis: ['adult', 'larva', 'pupa/emerger'],
   grasshopper: ['adult'],
-  leech: ['adult'],
+  leech: ['subsurface'],
   mayfly: ['dun', 'nymph', 'pupa/emerger', 'spinner'],
   midge: ['adult', 'larva', 'pupa/emerger'],
-  'scud/sowbug': ['adult'],
+  'scud/sowbug': ['subsurface'],
   stonefly: ['adult', 'nymph'],
   'yellow sally': ['adult', 'nymph']
 };
@@ -20,5 +20,5 @@ export const CONFIDENCE_LEVELS: Confidence[] = ['low', 'medium', 'high'];
 
 export const FLY_INTENTS: FlyIntent[] = ['attractor', 'imitative'];
 export const BODY_TYPES: BodyType[] = ['dubbing', 'natural', 'thread'];
-export const COLLAR_TYPES: CollarType[] = ['cdc', 'hackle', 'none'];
+export const COLLAR_TYPES: CollarType[] = ['cdc', 'dubbing', 'hackle', 'none'];
 export const BEAD_SIZES_MM = [0, 2, 2.3, 2.5, 2.8, 3, 3.2, 3.5, 3.8, 4] as const;

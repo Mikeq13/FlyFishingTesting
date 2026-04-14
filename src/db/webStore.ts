@@ -54,3 +54,8 @@ export const insertWebRow = <T extends { id: number }>(
   writeWebValue(counterKey, String(nextId + 1));
   return nextId;
 };
+
+export const updateWebRows = <T>(tableKey: string, updater: (rows: T[]) => T[]): void => {
+  const rows = listWebRows<T>(tableKey);
+  writeWebValue(tableKey, JSON.stringify(updater(rows)));
+};

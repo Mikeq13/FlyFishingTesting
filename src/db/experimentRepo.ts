@@ -1,6 +1,6 @@
 import { getDb, isWeb } from './schema';
 import { Experiment } from '@/types/experiment';
-import { insertWebRow, listWebRows } from './webStore';
+import { insertWebRow, listWebRows, updateWebRows } from './webStore';
 
 const WEB_EXPERIMENTS_KEY = 'fishing_lab.experiments';
 const WEB_EXPERIMENTS_ID_KEY = 'fishing_lab.experiments.nextId';
@@ -13,8 +13,8 @@ export const createExperiment = async (payload: Omit<Experiment, 'id'>): Promise
   const db = await getDb();
   const result = await db.runAsync(
     `INSERT INTO experiments
-      (user_id, session_id, hypothesis, control_fly_json, variant_fly_json, control_casts, control_catches, variant_casts, variant_catches, winner, confidence_score)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (user_id, session_id, hypothesis, control_fly_json, variant_fly_json, control_casts, control_catches, variant_casts, variant_catches, winner, outcome, confidence_score, archived_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     payload.userId,
     payload.sessionId,
     payload.hypothesis,
@@ -25,16 +25,28 @@ export const createExperiment = async (payload: Omit<Experiment, 'id'>): Promise
     payload.variantCasts,
     payload.variantCatches,
     payload.winner,
-    payload.confidenceScore
+    payload.outcome,
+    payload.confidenceScore,
+    payload.archivedAt ?? null
   );
   return result.lastInsertRowId;
 };
 
-export const listExperiments = async (userId: number): Promise<Experiment[]> => {
-  if (isWeb) return listWebRows<Experiment>(WEB_EXPERIMENTS_KEY).filter((e) => e.userId === userId);
+export const listExperiments = async (userId: number, options: { includeArchived?: boolean } = {}): Promise<Experiment[]> => {
+  const includeArchived = options.includeArchived ?? false;
+  if (isWeb) {
+    return listWebRows<Experiment>(WEB_EXPERIMENTS_KEY).filter((e) => e.userId === userId && (includeArchived || !e.archivedAt));
+  }
 
   const db = await getDb();
-  const rows = await db.getAllAsync<any>('SELECT * FROM experiments WHERE user_id = ? ORDER BY id DESC', userId);
+  const rows = await db.getAllAsync<any>(
+    `SELECT * FROM experiments
+     WHERE user_id = ?
+       AND (? = 1 OR archived_at IS NULL)
+     ORDER BY id DESC`,
+    userId,
+    includeArchived ? 1 : 0
+  );
   return rows.map((r) => ({
     id: r.id,
     userId: r.user_id,
@@ -47,6 +59,25 @@ export const listExperiments = async (userId: number): Promise<Experiment[]> => 
     variantCasts: r.variant_casts,
     variantCatches: r.variant_catches,
     winner: r.winner,
-    confidenceScore: r.confidence_score
+    outcome: r.outcome ?? 'inconclusive',
+    confidenceScore: r.confidence_score,
+    archivedAt: r.archived_at ?? undefined
   }));
+};
+
+export const archiveExperiments = async (experimentIds: number[]): Promise<void> => {
+  if (!experimentIds.length) return;
+
+  const archivedAt = new Date().toISOString();
+
+  if (isWeb) {
+    updateWebRows<Experiment>(WEB_EXPERIMENTS_KEY, (rows) =>
+      rows.map((row) => (experimentIds.includes(row.id) ? { ...row, archivedAt } : row))
+    );
+    return;
+  }
+
+  const db = await getDb();
+  const placeholders = experimentIds.map(() => '?').join(', ');
+  await db.runAsync(`UPDATE experiments SET archived_at = ? WHERE id IN (${placeholders})`, archivedAt, ...experimentIds);
 };

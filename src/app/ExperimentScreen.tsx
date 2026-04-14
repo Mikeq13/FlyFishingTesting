@@ -6,7 +6,7 @@ import { FlySelector } from '@/components/FlySelector';
 import { useAppStore } from './store';
 import { FlySetup } from '@/types/fly';
 import { validateExperimentPair } from '@/engine/rules';
-import { catchRate } from '@/utils/calculations';
+import { deriveExperimentStatus } from '@/engine/experimentStatus';
 import { ScreenBackground } from '@/components/ScreenBackground';
 
 const emptyFly: FlySetup = { name: '', intent: 'imitative', beadSizeMm: 0, bodyType: 'thread', collar: 'none' };
@@ -26,19 +26,20 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   const [isSaving, setIsSaving] = useState(false);
 
   const saveFlyToLibrary = async (fly: FlySetup) => {
-    if (!fly.name.trim()) {
+    const normalizedName = fly.name.trim();
+
+    if (!normalizedName) {
       Alert.alert('Fly name needed', 'Give the fly a name before saving it to the library.');
       return;
     }
 
-    const normalizedName = fly.name.trim().toLowerCase();
-    if (savedFlies.some((savedFly) => savedFly.name.trim().toLowerCase() === normalizedName)) {
+    if (savedFlies.some((savedFly) => savedFly.name.trim().toLowerCase() === normalizedName.toLowerCase())) {
       Alert.alert('Fly already saved', 'That fly name already exists in your library.');
       return;
     }
 
-    await addSavedFly({ ...fly, name: fly.name.trim() });
-    Alert.alert('Fly saved', `${fly.name.trim()} is now available for future experiments.`);
+    await addSavedFly({ ...fly, name: normalizedName });
+    Alert.alert('Fly saved', `${normalizedName} is now available for future experiments.`);
   };
 
   const resetForNextExperiment = () => {
@@ -73,9 +74,12 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     setIsSaving(true);
 
     try {
-      const cRate = catchRate(controlCatches, controlCasts);
-      const vRate = catchRate(variantCatches, variantCasts);
-      const winner = cRate === vRate ? 'tie' : cRate > vRate ? 'control' : 'variant';
+      const status = deriveExperimentStatus({
+        controlCasts,
+        controlCatches,
+        variantCasts,
+        variantCatches
+      });
 
       await addExperiment({
         sessionId,
@@ -86,8 +90,9 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         controlCatches,
         variantCasts,
         variantCatches,
-        winner,
-        confidenceScore: Math.min(1, (controlCasts + variantCasts) / 100)
+        winner: status.winner,
+        outcome: status.outcome,
+        confidenceScore: status.confidenceScore
       });
 
       Alert.alert('Experiment saved', 'What do you want to do next?', [
@@ -133,7 +138,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           <CatchCounter label="Variant catches" value={variantCatches} onIncrement={() => setVariantCatches((v) => v + 1)} />
         </View>
         <Pressable onPress={save} disabled={isSaving} style={{ backgroundColor: isSaving ? '#6c757d' : '#264653', padding: 12, borderRadius: 8 }}>
-          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>{isSaving ? 'Saving…' : 'Save Experiment'}</Text>
+          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>{isSaving ? 'Saving...' : 'Save Experiment'}</Text>
         </Pressable>
       </ScrollView>
     </ScreenBackground>

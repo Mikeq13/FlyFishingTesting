@@ -1,5 +1,8 @@
 import { FlySetup } from './fly';
 
+export type ExperimentWinner = 'control' | 'variant' | 'tie' | 'inconclusive';
+export type ExperimentOutcome = 'decisive' | 'tie' | 'inconclusive';
+
 export interface Experiment {
   id: number;
   userId: number;
@@ -11,8 +14,10 @@ export interface Experiment {
   controlCatches: number;
   variantCasts: number;
   variantCatches: number;
-  winner: 'control' | 'variant' | 'tie' | 'inconclusive';
+  winner: ExperimentWinner;
+  outcome: ExperimentOutcome;
   confidenceScore: number;
+  archivedAt?: string;
 }
 
 export interface Insight {

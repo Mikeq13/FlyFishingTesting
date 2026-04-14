@@ -11,7 +11,7 @@ export type InsectType =
   | 'beetle'
   | 'scud/sowbug'
   | 'leech';
-export type InsectStage = 'larva' | 'nymph' | 'pupa/emerger' | 'dun' | 'spinner' | 'adult';
+export type InsectStage = 'larva' | 'nymph' | 'pupa/emerger' | 'dun' | 'spinner' | 'adult' | 'subsurface';
 export type Confidence = 'low' | 'medium' | 'high';
 
 export interface Session {

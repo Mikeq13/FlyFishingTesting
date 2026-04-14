@@ -35,7 +35,8 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
         <Text style={{ color: 'white', fontWeight: '700' }}>Experiments in this session: {sessionExperiments.length}</Text>
         {sessionExperiments.map((e) => (
           <View key={e.id} style={{ backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 10, padding: 12 }}>
-            <Text style={{ fontWeight: '700' }}>#{e.id} Winner: {e.winner}</Text>
+            <Text style={{ fontWeight: '700' }}>#{e.id} Outcome: {e.outcome}</Text>
+            <Text>Winner: {e.winner}</Text>
             <Text>Hypothesis: {e.hypothesis}</Text>
             <Text>Control {e.controlFly.name || 'Unnamed'}: {e.controlCatches}/{e.controlCasts}</Text>
             <Text>Variant {e.variantFly.name || 'Unnamed'}: {e.variantCatches}/{e.variantCasts}</Text>

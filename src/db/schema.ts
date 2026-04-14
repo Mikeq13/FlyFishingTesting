@@ -60,7 +60,9 @@ export const initDb = async (): Promise<void> => {
       variant_casts INTEGER NOT NULL,
       variant_catches INTEGER NOT NULL,
       winner TEXT NOT NULL,
+      outcome TEXT NOT NULL DEFAULT 'inconclusive',
       confidence_score REAL NOT NULL,
+      archived_at TEXT,
       FOREIGN KEY(user_id) REFERENCES users(id),
       FOREIGN KEY(session_id) REFERENCES sessions(id)
     );
@@ -88,5 +90,11 @@ export const initDb = async (): Promise<void> => {
 
   try {
     await database.execAsync(`ALTER TABLE sessions ADD COLUMN river_name TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE experiments ADD COLUMN outcome TEXT NOT NULL DEFAULT 'inconclusive';`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE experiments ADD COLUMN archived_at TEXT;`);
   } catch {}
 };

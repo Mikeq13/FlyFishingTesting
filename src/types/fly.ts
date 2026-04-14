@@ -1,6 +1,6 @@
 export type FlyIntent = 'imitative' | 'attractor';
 export type BodyType = 'thread' | 'dubbing' | 'natural';
-export type CollarType = 'none' | 'cdc' | 'hackle';
+export type CollarType = 'none' | 'cdc' | 'dubbing' | 'hackle';
 
 export interface FlySetup {
   name: string;

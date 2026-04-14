@@ -4,7 +4,7 @@ import { SavedRiver, Session } from '@/types/session';
 import { UserProfile } from '@/types/user';
 import { FlySetup, SavedFly } from '@/types/fly';
 import { createSession, listSessions } from '@/db/sessionRepo';
-import { createExperiment, listExperiments } from '@/db/experimentRepo';
+import { archiveExperiments, createExperiment, listExperiments } from '@/db/experimentRepo';
 import { createUser, listUsers } from '@/db/userRepo';
 import { createSavedFly, listSavedFlies } from '@/db/savedFlyRepo';
 import { createSavedRiver, listSavedRivers } from '@/db/savedRiverRepo';
@@ -12,6 +12,7 @@ import { getActiveUserId as loadActiveUserId, setActiveUserId as saveActiveUserI
 import { initDb } from '@/db/schema';
 import { buildAggregates } from '@/engine/aggregationEngine';
 import { generateInsights } from '@/engine/insightEngine';
+import { isWithinDateRange } from '@/utils/dateRange';
 
 interface AppStore {
   sessions: Session[];
@@ -28,6 +29,7 @@ interface AppStore {
   refresh: (targetUserId?: number | null) => Promise<void>;
   addSession: (payload: Omit<Session, 'id' | 'userId'>) => Promise<number>;
   addExperiment: (payload: Omit<Experiment, 'id' | 'userId'>) => Promise<number>;
+  archiveInconclusiveExperiments: (range: { from?: string; to?: string }) => Promise<number>;
 }
 
 const Ctx = createContext<AppStore | null>(null);
@@ -39,6 +41,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const [savedFlies, setSavedFlies] = useState<SavedFly[]>([]);
   const [savedRivers, setSavedRivers] = useState<SavedRiver[]>([]);
   const [activeUserId, setActiveUserId] = useState<number | null>(null);
+  const sessionMap = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
 
   const selectActiveUser = async (id: number) => {
     setActiveUserId(id);
@@ -134,6 +137,20 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
           const id = await createExperiment({ ...payload, userId: activeUserId });
           await refresh();
           return id;
+        },
+        archiveInconclusiveExperiments: async ({ from, to }) => {
+          const experimentIds = experiments
+            .filter((experiment) => {
+              if (experiment.outcome !== 'inconclusive') return false;
+              const session = sessionMap.get(experiment.sessionId);
+              if (!session) return false;
+              return isWithinDateRange(session.date, { from, to });
+            })
+            .map((experiment) => experiment.id);
+
+          await archiveExperiments(experimentIds);
+          await refresh(activeUserId);
+          return experimentIds.length;
         }
       }}
     >
