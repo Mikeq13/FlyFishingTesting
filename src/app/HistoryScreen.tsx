@@ -13,7 +13,6 @@ export const HistoryScreen = () => {
   const [riverFilter, setRiverFilter] = useState('');
   const [monthFilter, setMonthFilter] = useState('');
   const [waterFilter, setWaterFilter] = useState('');
-  const [insectFilter, setInsectFilter] = useState('');
   const [depthFilter, setDepthFilter] = useState('');
   const [archiveFrom, setArchiveFrom] = useState('');
   const [archiveTo, setArchiveTo] = useState('');
@@ -22,7 +21,6 @@ export const HistoryScreen = () => {
     river: riverFilter.trim().toLowerCase(),
     month: monthFilter.trim().toLowerCase(),
     water: waterFilter.trim().toLowerCase(),
-    insect: insectFilter.trim().toLowerCase(),
     depth: depthFilter.trim().toLowerCase()
   };
 
@@ -34,18 +32,16 @@ export const HistoryScreen = () => {
         const river = session.riverName?.toLowerCase() ?? '';
         const month = new Date(session.date).toLocaleString('en-US', { month: 'long' }).toLowerCase();
         const water = session.waterType.toLowerCase();
-        const insect = session.insectType.toLowerCase();
         const depth = session.depthRange.toLowerCase();
 
         return (
           (!normalizedFilters.river || river.includes(normalizedFilters.river)) &&
           (!normalizedFilters.month || month.includes(normalizedFilters.month)) &&
           (!normalizedFilters.water || water.includes(normalizedFilters.water)) &&
-          (!normalizedFilters.insect || insect.includes(normalizedFilters.insect)) &&
           (!normalizedFilters.depth || depth.includes(normalizedFilters.depth))
         );
       }),
-    [sessions, normalizedFilters.river, normalizedFilters.month, normalizedFilters.water, normalizedFilters.insect, normalizedFilters.depth]
+    [sessions, normalizedFilters.river, normalizedFilters.month, normalizedFilters.water, normalizedFilters.depth]
   );
 
   const inconclusiveCount = useMemo(
@@ -85,7 +81,6 @@ export const HistoryScreen = () => {
       <TextInput value={riverFilter} onChangeText={setRiverFilter} placeholder="filter river" style={inputStyle} />
       <TextInput value={monthFilter} onChangeText={setMonthFilter} placeholder="filter month" style={inputStyle} />
       <TextInput value={waterFilter} onChangeText={setWaterFilter} placeholder="filter water type" style={inputStyle} />
-      <TextInput value={insectFilter} onChangeText={setInsectFilter} placeholder="filter insect type" style={inputStyle} />
       <TextInput value={depthFilter} onChangeText={setDepthFilter} placeholder="filter depth" style={inputStyle} />
 
       <View style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)', borderRadius: 8, padding: 12, gap: 8, backgroundColor: 'rgba(255,255,255,0.92)' }}>

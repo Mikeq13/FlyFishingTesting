@@ -15,7 +15,6 @@ const buildExperimentSignature = (experiment: Experiment, session?: Session): st
   return [
     normalize(experiment.hypothesis || 'no hypothesis'),
     session?.waterType ?? 'unknown-water',
-    session?.insectType ?? 'unknown-insect',
     flySignature
   ].join(' :: ');
 };

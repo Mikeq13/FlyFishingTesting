@@ -46,7 +46,7 @@ export const buildAggregates = (sessions: Session[], experiments: Experiment[]):
     add(byWaterType, session.waterType, totalCasts, totalCatches);
     add(byDepthRange, session.depthRange, totalCasts, totalCatches);
     entries.forEach((entry) => add(byFlyIntent, entry.fly.intent, entry.casts, entry.catches));
-    add(byInsectStage, session.insectStage, totalCasts, totalCatches);
+    entries.forEach((entry) => add(byInsectStage, entry.fly.bugStage, entry.casts, entry.catches));
     const monthLabel = new Date(session.date).toLocaleString('en-US', { month: 'long' });
     const riverLabel = session.riverName?.trim() || 'Unknown river';
     add(byRiverName, riverLabel, totalCasts, totalCatches);

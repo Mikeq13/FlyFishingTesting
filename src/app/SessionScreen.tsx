@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput } from 'react-native';
 import { DepthSelector } from '@/components/DepthSelector';
 import { OptionChips } from '@/components/OptionChips';
-import { DEPTH_RANGES, INSECT_STAGES_BY_TYPE, INSECT_TYPES, WATER_TYPES } from '@/constants/options';
+import { DEPTH_RANGES, WATER_TYPES } from '@/constants/options';
 import { useAppStore } from './store';
-import { InsectStage, InsectType, WaterType } from '@/types/session';
+import { WaterType } from '@/types/session';
 import { ScreenBackground } from '@/components/ScreenBackground';
 
 export const SessionScreen = ({ navigation }: any) => {
@@ -12,19 +12,10 @@ export const SessionScreen = ({ navigation }: any) => {
   const activeUser = users.find((user) => user.id === activeUserId);
   const [waterType, setWaterType] = useState<WaterType>('run');
   const [depthRange, setDepthRange] = useState<typeof DEPTH_RANGES[number]>('1-3 ft');
-  const [insectType, setInsectType] = useState<InsectType>('mayfly');
-  const [insectStage, setInsectStage] = useState<InsectStage>('nymph');
   const [riverName, setRiverName] = useState('');
   const [notes, setNotes] = useState('');
   const [showSavedRiverList, setShowSavedRiverList] = useState(false);
-  const availableStages = INSECT_STAGES_BY_TYPE[insectType];
   const sortedSavedRivers = useMemo(() => [...savedRivers].sort((a, b) => a.name.localeCompare(b.name)), [savedRivers]);
-
-  useEffect(() => {
-    if (!availableStages.includes(insectStage)) {
-      setInsectStage(availableStages[0]);
-    }
-  }, [availableStages, insectStage]);
 
   const saveRiver = async () => {
     const normalizedRiverName = riverName.trim();
@@ -44,9 +35,6 @@ export const SessionScreen = ({ navigation }: any) => {
       waterType,
       depthRange,
       riverName: normalizedRiverName || undefined,
-      insectType,
-      insectStage,
-      insectConfidence: 'medium',
       notes
     });
     navigation.navigate('Experiment', { sessionId: id });
@@ -87,8 +75,6 @@ export const SessionScreen = ({ navigation }: any) => {
           </>
         )}
         <TextInput value={riverName} onChangeText={setRiverName} placeholder="river name" style={{ borderWidth: 1, padding: 10, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.95)' }} />
-        <OptionChips label="Bug Family" options={INSECT_TYPES} value={insectType} onChange={setInsectType} />
-        <OptionChips label="Bug Stage" options={availableStages} value={insectStage} onChange={setInsectStage} />
         <TextInput value={notes} onChangeText={setNotes} placeholder="notes" multiline style={{ borderWidth: 1, padding: 10, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.95)' }} />
         <Pressable onPress={onStart} style={{ backgroundColor: '#2a9d8f', padding: 12, borderRadius: 8 }}>
           <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Start Experiment</Text>

@@ -19,9 +19,9 @@ export const createSession = async (payload: Omit<Session, 'id'>): Promise<numbe
     payload.waterType,
     payload.depthRange,
     payload.riverName ?? null,
-    payload.insectType,
-    payload.insectStage,
-    payload.insectConfidence,
+    'mayfly',
+    'nymph',
+    'low',
     payload.notes ?? null
   );
   return result.lastInsertRowId;
@@ -39,9 +39,6 @@ export const listSessions = async (userId: number): Promise<Session[]> => {
     waterType: r.water_type,
     depthRange: r.depth_range,
     riverName: r.river_name ?? undefined,
-    insectType: r.insect_type,
-    insectStage: r.insect_stage,
-    insectConfidence: r.insect_confidence,
     notes: r.notes ?? undefined
   }));
 };

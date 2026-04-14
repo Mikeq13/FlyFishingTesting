@@ -21,9 +21,6 @@ export interface Session {
   waterType: WaterType;
   depthRange: DepthRange;
   riverName?: string;
-  insectType: InsectType;
-  insectStage: InsectStage;
-  insectConfidence: Confidence;
   notes?: string;
 }
 
