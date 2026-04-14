@@ -13,7 +13,7 @@ import { SessionDetailScreen } from './app/SessionDetailScreen';
 const Stack = createNativeStackNavigator();
 
 export default function App() {
-  return (
+    return (
     <AppStoreProvider>
       <NavigationContainer>
         <Stack.Navigator initialRouteName="Home" screenOptions={{ headerTintColor: '#0b1f2a', headerBackTitleVisible: false }}>
