@@ -1,5 +1,13 @@
 import { getDb, isWeb } from './schema';
 import { Experiment } from '@/types/experiment';
+import { insertWebRow, listWebRows } from './webStore';
+
+const WEB_EXPERIMENTS_KEY = 'fishing_lab.experiments';
+const WEB_EXPERIMENTS_ID_KEY = 'fishing_lab.experiments.nextId';
+
+export const createExperiment = async (payload: Omit<Experiment, 'id'>): Promise<number> => {
+  if (isWeb) {
+    return insertWebRow<Experiment>(WEB_EXPERIMENTS_KEY, WEB_EXPERIMENTS_ID_KEY, payload);
 
 let memExperiments: Experiment[] = [];
 let memId = 1;
@@ -41,6 +49,7 @@ export const createExperiment = async (payload: Omit<Experiment, 'id'>): Promise
 };
 
 export const listExperiments = async (userId: number): Promise<Experiment[]> => {
+  if (isWeb) return listWebRows<Experiment>(WEB_EXPERIMENTS_KEY).filter((e) => e.userId === userId);
   if (isWeb) return memExperiments.filter((e) => e.userId === userId);
 
   const db = await getDb();

@@ -1,5 +1,13 @@
 import { getDb, isWeb } from './schema';
 import { Session } from '@/types/session';
+import { insertWebRow, listWebRows } from './webStore';
+
+const WEB_SESSIONS_KEY = 'fishing_lab.sessions';
+const WEB_SESSIONS_ID_KEY = 'fishing_lab.sessions.nextId';
+
+export const createSession = async (payload: Omit<Session, 'id'>): Promise<number> => {
+  if (isWeb) {
+    return insertWebRow<Session>(WEB_SESSIONS_KEY, WEB_SESSIONS_ID_KEY, payload);
 
 let memSessions: Session[] = [];
 let memId = 1;
@@ -35,6 +43,7 @@ export const createSession = async (payload: Omit<Session, 'id'>): Promise<numbe
 };
 
 export const listSessions = async (userId: number): Promise<Session[]> => {
+  if (isWeb) return listWebRows<Session>(WEB_SESSIONS_KEY).filter((s) => s.userId === userId);
   if (isWeb) return memSessions.filter((s) => s.userId === userId);
 
   const db = await getDb();
