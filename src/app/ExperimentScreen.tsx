@@ -77,14 +77,13 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
 
     if (visibleEntries.length > 1) {
       const baselineEntry = visibleEntries[baselineIndex];
-      const invalidComparison = visibleEntries
+      const comparisonNote = visibleEntries
         .filter((_, index) => index !== baselineIndex)
         .map((entry) => ({ entry, check: validateExperimentPair(baselineEntry.fly, entry.fly) }))
-        .find(({ check }) => !check.valid);
+        .find(({ check }) => !!check.warning);
 
-      if (invalidComparison?.check.warning) {
-        Alert.alert('Design warning', `${invalidComparison.entry.label}: ${invalidComparison.check.warning}`);
-        return;
+      if (comparisonNote?.check.warning) {
+        console.warn(`Design note for ${comparisonNote.entry.label}: ${comparisonNote.check.warning}`);
       }
     }
 
