@@ -3,7 +3,7 @@ import { Alert, Pressable, Text, View } from 'react-native';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { useAppStore } from './store';
 
-const HomeScreen = ({ navigation }: any) => {
+export const HomeScreen = ({ navigation }: any) => {
   const { users, activeUserId, setActiveUserId, addUser } = useAppStore();
   const activeUser = users.find((u) => u.id === activeUserId);
 
