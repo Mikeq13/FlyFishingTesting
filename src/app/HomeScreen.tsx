@@ -40,15 +40,34 @@ export const HomeScreen = ({ navigation }: any) => {
 
   return (
     <ScreenBackground>
-      <View style={{ flex: 1, justifyContent: 'center', padding: 20, gap: 12 }}>
-        <Text style={{ fontSize: 30, fontWeight: '800', color: 'white' }}>Fishing Lab</Text>
-        <Text style={{ color: '#dbf5ff', marginBottom: 6 }}>A field notebook that learns how you fish.</Text>
-        <Text style={{ color: 'white', fontWeight: '700' }}>Active angler: {activeUser?.name ?? 'Loading...'}</Text>
-        <View style={{ gap: 8, backgroundColor: 'rgba(7, 36, 58, 0.45)', padding: 12, borderRadius: 12 }}>
+      <View style={{ flex: 1, justifyContent: 'center', padding: 20, gap: 14 }}>
+        <View style={{ gap: 6 }}>
+          <Text style={{ fontSize: 34, fontWeight: '800', color: '#f7fdff' }}>Fishing Lab</Text>
+          <Text style={{ color: '#d7f3ff', fontSize: 16, lineHeight: 22 }}>
+            A mobile field notebook for testing flies, learning patterns, and keeping your research on the water.
+          </Text>
+        </View>
+        <View
+          style={{
+            gap: 10,
+            backgroundColor: 'rgba(6, 27, 44, 0.72)',
+            padding: 16,
+            borderRadius: 20,
+            borderWidth: 1,
+            borderColor: 'rgba(202, 240, 248, 0.18)'
+          }}
+        >
+          <Text style={{ color: '#d7f3ff', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 }}>
+            Active Angler
+          </Text>
+          <Text style={{ color: '#f7fdff', fontWeight: '800', fontSize: 24 }}>{activeUser?.name ?? 'Loading...'}</Text>
+          <Text style={{ color: '#bde6f6' }}>Choose a saved angler or create a new profile before you head into a session.</Text>
+        </View>
+        <View style={{ gap: 10, backgroundColor: 'rgba(7, 36, 58, 0.62)', padding: 14, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <Pressable
               onPress={() => setShowAnglerList((current) => !current)}
-              style={{ flex: 1, backgroundColor: 'rgba(38,84,124,0.92)', padding: 10, borderRadius: 10 }}
+              style={{ flex: 1, backgroundColor: 'rgba(29,53,87,0.95)', padding: 12, borderRadius: 12 }}
             >
               <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
                 {showAnglerList ? 'Hide Anglers' : 'Choose Angler'}
@@ -57,7 +76,7 @@ export const HomeScreen = ({ navigation }: any) => {
             <Pressable
               onPress={createAnotherUser}
               disabled={isCreatingUser}
-              style={{ flex: 1, backgroundColor: 'rgba(42,157,143,0.92)', padding: 10, borderRadius: 10, opacity: isCreatingUser ? 0.7 : 1 }}
+              style={{ flex: 1, backgroundColor: 'rgba(42,157,143,0.96)', padding: 12, borderRadius: 12, opacity: isCreatingUser ? 0.7 : 1 }}
             >
               <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
                 {isCreatingUser ? 'Creating...' : 'Create Angler'}
@@ -69,8 +88,8 @@ export const HomeScreen = ({ navigation }: any) => {
             value={newUserName}
             onChangeText={setNewUserName}
             placeholder="Enter angler name"
-            placeholderTextColor="#6c757d"
-            style={{ borderRadius: 10, padding: 10, backgroundColor: 'rgba(255,255,255,0.95)' }}
+            placeholderTextColor="#5a6c78"
+            style={{ borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
           />
 
           {showAnglerList ? (
@@ -80,12 +99,14 @@ export const HomeScreen = ({ navigation }: any) => {
                   key={user.id}
                   onPress={() => selectUser(user.id)}
                   style={{
-                    padding: 10,
-                    borderRadius: 10,
-                    backgroundColor: user.id === activeUserId ? 'rgba(42,157,143,0.92)' : 'rgba(255,255,255,0.14)'
+                    padding: 12,
+                    borderRadius: 14,
+                    backgroundColor: user.id === activeUserId ? 'rgba(42,157,143,0.92)' : 'rgba(255,255,255,0.12)',
+                    borderWidth: 1,
+                    borderColor: user.id === activeUserId ? 'rgba(255,255,255,0.26)' : 'rgba(202,240,248,0.10)'
                   }}
                 >
-                  <Text style={{ color: 'white', fontWeight: '700' }}>{user.name}</Text>
+                  <Text style={{ color: '#f7fdff', fontWeight: '700', fontSize: 16 }}>{user.name}</Text>
                   <Text style={{ color: '#dbf5ff', fontSize: 12 }}>
                     Added {new Date(user.createdAt).toLocaleDateString()}
                   </Text>
@@ -94,11 +115,11 @@ export const HomeScreen = ({ navigation }: any) => {
             </View>
           ) : null}
         </View>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          <Pressable onPress={() => navigation.navigate('Session')} style={{ flex: 1, backgroundColor: 'rgba(38,84,124,0.92)', padding: 14, borderRadius: 10 }}>
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <Pressable onPress={() => navigation.navigate('Session')} style={{ flex: 1, backgroundColor: 'rgba(18,74,112,0.95)', padding: 16, borderRadius: 16 }}>
             <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Start Session</Text>
           </Pressable>
-          <Pressable onPress={() => navigation.navigate('History')} style={{ flex: 1, backgroundColor: 'rgba(38,84,124,0.92)', padding: 14, borderRadius: 10 }}>
+          <Pressable onPress={() => navigation.navigate('History')} style={{ flex: 1, backgroundColor: 'rgba(18,74,112,0.95)', padding: 16, borderRadius: 16 }}>
             <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>View History</Text>
           </Pressable>
         </View>
@@ -106,7 +127,7 @@ export const HomeScreen = ({ navigation }: any) => {
           ['View Insights', 'Insights'],
           ['Ask AI Coach', 'Coach']
         ].map(([label, route]) => (
-          <Pressable key={route} onPress={() => navigation.navigate(route)} style={{ backgroundColor: 'rgba(38,84,124,0.92)', padding: 14, borderRadius: 10 }}>
+          <Pressable key={route} onPress={() => navigation.navigate(route)} style={{ backgroundColor: 'rgba(6, 27, 44, 0.72)', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
             <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>{label}</Text>
           </Pressable>
         ))}

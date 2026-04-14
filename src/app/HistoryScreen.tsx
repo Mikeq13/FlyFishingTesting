@@ -5,7 +5,14 @@ import { isWithinDateRange } from '@/utils/dateRange';
 import { getExperimentEntries } from '@/utils/experimentEntries';
 import { ScreenBackground } from '@/components/ScreenBackground';
 
-const inputStyle = { borderWidth: 1, padding: 8, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.95)' };
+const inputStyle = {
+  borderWidth: 1,
+  borderColor: 'rgba(202,240,248,0.18)',
+  padding: 12,
+  borderRadius: 12,
+  backgroundColor: 'rgba(245,252,255,0.96)',
+  color: '#102a43'
+};
 
 export const HistoryScreen = () => {
   const { sessions, experiments, users, activeUserId, archiveInconclusiveExperiments } = useAppStore();
@@ -76,28 +83,33 @@ export const HistoryScreen = () => {
   return (
     <ScreenBackground>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 8 }} keyboardShouldPersistTaps="handled">
-      <Text style={{ fontSize: 20, fontWeight: '700', color: 'white' }}>History</Text>
-      <Text style={{ fontWeight: '700', color: '#dbf5ff' }}>Angler: {activeUser?.name ?? 'Loading...'}</Text>
-      <TextInput value={riverFilter} onChangeText={setRiverFilter} placeholder="filter river" style={inputStyle} />
-      <TextInput value={monthFilter} onChangeText={setMonthFilter} placeholder="filter month" style={inputStyle} />
-      <TextInput value={waterFilter} onChangeText={setWaterFilter} placeholder="filter water type" style={inputStyle} />
-      <TextInput value={depthFilter} onChangeText={setDepthFilter} placeholder="filter depth" style={inputStyle} />
+        <View style={{ gap: 4 }}>
+          <Text style={{ fontSize: 28, fontWeight: '800', color: '#f7fdff' }}>History</Text>
+          <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>Filter past sessions, review experiments, and clean up inconclusive results when needed.</Text>
+          <Text style={{ fontWeight: '700', color: '#dbf5ff' }}>Angler: {activeUser?.name ?? 'Loading...'}</Text>
+        </View>
+        <View style={{ gap: 8, backgroundColor: 'rgba(6, 27, 44, 0.70)', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
+          <TextInput value={riverFilter} onChangeText={setRiverFilter} placeholder="Filter river" placeholderTextColor="#5a6c78" style={inputStyle} />
+          <TextInput value={monthFilter} onChangeText={setMonthFilter} placeholder="Filter month" placeholderTextColor="#5a6c78" style={inputStyle} />
+          <TextInput value={waterFilter} onChangeText={setWaterFilter} placeholder="Filter water type" placeholderTextColor="#5a6c78" style={inputStyle} />
+          <TextInput value={depthFilter} onChangeText={setDepthFilter} placeholder="Filter depth" placeholderTextColor="#5a6c78" style={inputStyle} />
+        </View>
 
-      <View style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)', borderRadius: 8, padding: 12, gap: 8, backgroundColor: 'rgba(255,255,255,0.92)' }}>
-        <Text style={{ fontWeight: '700' }}>Cleanup Inconclusive Results</Text>
-        <TextInput value={archiveFrom} onChangeText={setArchiveFrom} placeholder="from date (YYYY-MM-DD)" style={inputStyle} />
-        <TextInput value={archiveTo} onChangeText={setArchiveTo} placeholder="to date (YYYY-MM-DD)" style={inputStyle} />
-        <Text>Matching inconclusive experiments: {inconclusiveCount}</Text>
+        <View style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 18, padding: 14, gap: 8, backgroundColor: 'rgba(245,252,255,0.96)' }}>
+        <Text style={{ fontWeight: '800', fontSize: 16, color: '#102a43' }}>Cleanup Inconclusive Results</Text>
+        <TextInput value={archiveFrom} onChangeText={setArchiveFrom} placeholder="From date (YYYY-MM-DD)" placeholderTextColor="#5a6c78" style={inputStyle} />
+        <TextInput value={archiveTo} onChangeText={setArchiveTo} placeholder="To date (YYYY-MM-DD)" placeholderTextColor="#5a6c78" style={inputStyle} />
+        <Text style={{ color: '#334e68' }}>Matching inconclusive experiments: {inconclusiveCount}</Text>
         <Pressable
           onPress={runArchive}
           disabled={!inconclusiveCount}
-          style={{ backgroundColor: inconclusiveCount ? '#8d0801' : '#adb5bd', borderRadius: 8, padding: 10 }}
+          style={{ backgroundColor: inconclusiveCount ? '#8d0801' : '#adb5bd', borderRadius: 12, padding: 12 }}
         >
           <Text style={{ color: 'white', fontWeight: '700', textAlign: 'center' }}>Archive Inconclusive Experiments</Text>
         </Pressable>
       </View>
 
-      {!filteredSessions.length ? <Text style={{ color: 'white' }}>No sessions found for current filters.</Text> : null}
+      {!filteredSessions.length ? <Text style={{ color: '#f7fdff' }}>No sessions found for current filters.</Text> : null}
 
       {filteredSessions.map((session) => {
         const sessionExperiments = experiments.filter((experiment) => experiment.sessionId === session.id);
@@ -112,18 +124,18 @@ export const HistoryScreen = () => {
         const rate = totalCasts ? totalCatches / totalCasts : 0;
 
         return (
-          <View key={session.id} style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)', borderRadius: 8, padding: 12, gap: 6, backgroundColor: 'rgba(255,255,255,0.92)' }}>
-            <Text style={{ fontWeight: '700' }}>{new Date(session.date).toLocaleString()}</Text>
-            <Text>Month: {new Date(session.date).toLocaleString('en-US', { month: 'long' })}</Text>
-            {session.riverName ? <Text>River: {session.riverName}</Text> : null}
-            <Text>Water: {session.waterType}</Text>
-            <Text>Depth: {session.depthRange}</Text>
-            <Text>Session catch rate: {(rate * 100).toFixed(1)}%</Text>
-            <Text>Experiments logged: {sessionExperiments.length}</Text>
+          <View key={session.id} style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 18, padding: 14, gap: 6, backgroundColor: 'rgba(245,252,255,0.96)' }}>
+            <Text style={{ fontWeight: '800', fontSize: 16, color: '#102a43' }}>{new Date(session.date).toLocaleString()}</Text>
+            <Text style={{ color: '#334e68' }}>Month: {new Date(session.date).toLocaleString('en-US', { month: 'long' })}</Text>
+            {session.riverName ? <Text style={{ color: '#334e68' }}>River: {session.riverName}</Text> : null}
+            <Text style={{ color: '#334e68' }}>Water: {session.waterType}</Text>
+            <Text style={{ color: '#334e68' }}>Depth: {session.depthRange}</Text>
+            <Text style={{ color: '#334e68' }}>Session catch rate: {(rate * 100).toFixed(1)}%</Text>
+            <Text style={{ color: '#334e68' }}>Experiments logged: {sessionExperiments.length}</Text>
 
             {!!sessionExperiments.length && (
               <View style={{ marginTop: 4, gap: 4 }}>
-                <Text style={{ fontWeight: '600' }}>Experiment history</Text>
+                <Text style={{ fontWeight: '700', color: '#102a43' }}>Experiment history</Text>
                 {sessionExperiments.map((experiment) => {
                   const entries = getExperimentEntries(experiment);
                   const experimentCasts = entries.reduce((sum, entry) => sum + entry.casts, 0);
@@ -131,12 +143,12 @@ export const HistoryScreen = () => {
                   const experimentRate = experimentCasts ? (experimentCatches / experimentCasts) * 100 : 0;
 
                   return (
-                    <View key={experiment.id} style={{ backgroundColor: '#f5f5f5', borderRadius: 8, padding: 8 }}>
-                      <Text>Hypothesis: {experiment.hypothesis}</Text>
-                      <Text>Outcome: {experiment.outcome}</Text>
-                      <Text>Winner: {experiment.winner}</Text>
-                      <Text>Flies: {entries.map((entry) => `${entry.fly.name || entry.label} (#${entry.fly.hookSize})`).join(', ')}</Text>
-                      <Text>Catch rate: {experimentRate.toFixed(1)}%</Text>
+                    <View key={experiment.id} style={{ backgroundColor: '#e9f5fb', borderRadius: 12, padding: 10 }}>
+                      <Text style={{ color: '#102a43' }}>Hypothesis: {experiment.hypothesis}</Text>
+                      <Text style={{ color: '#334e68' }}>Outcome: {experiment.outcome}</Text>
+                      <Text style={{ color: '#334e68' }}>Winner: {experiment.winner}</Text>
+                      <Text style={{ color: '#334e68' }}>Flies: {entries.map((entry) => `${entry.fly.name || entry.label} (#${entry.fly.hookSize})`).join(', ')}</Text>
+                      <Text style={{ color: '#334e68' }}>Catch rate: {experimentRate.toFixed(1)}%</Text>
                     </View>
                   );
                 })}

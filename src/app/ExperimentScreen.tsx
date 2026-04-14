@@ -121,12 +121,17 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   return (
     <ScreenBackground>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} keyboardShouldPersistTaps="handled">
-        <Text style={{ fontSize: 20, fontWeight: '700', color: 'white' }}>Experiment</Text>
-        <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Angler: {activeUser?.name ?? 'Loading...'}</Text>
-        <TextInput value={hypothesis} onChangeText={setHypothesis} placeholder="Hypothesis" style={{ borderWidth: 1, padding: 10, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.95)' }} />
+        <View style={{ gap: 4 }}>
+          <Text style={{ fontSize: 28, fontWeight: '800', color: '#f7fdff' }}>Experiment</Text>
+          <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
+            Set your baseline, choose the flies in play, and record cast and catch data cleanly.
+          </Text>
+          <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Angler: {activeUser?.name ?? 'Loading...'}</Text>
+        </View>
+        <TextInput value={hypothesis} onChangeText={setHypothesis} placeholder="Hypothesis" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
 
-        <View style={{ gap: 8 }}>
-          <Text style={{ color: 'white', fontWeight: '700' }}>Flies in this experiment</Text>
+        <View style={{ gap: 8, backgroundColor: 'rgba(6, 27, 44, 0.70)', padding: 14, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
+          <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>Flies in this experiment</Text>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {FLY_COUNT_OPTIONS.map((option) => (
               <Pressable
@@ -134,9 +139,11 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                 onPress={() => setFlyCount(option)}
                 style={{
                   flex: 1,
-                  backgroundColor: flyCount === option ? '#2a9d8f' : '#6c757d',
-                  padding: 10,
-                  borderRadius: 8
+                  backgroundColor: flyCount === option ? '#2a9d8f' : 'rgba(255,255,255,0.14)',
+                  padding: 12,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: flyCount === option ? 'rgba(255,255,255,0.24)' : 'rgba(202,240,248,0.12)'
                 }}
               >
                 <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>{option}</Text>
@@ -146,8 +153,8 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         </View>
 
         {flyCount > 1 && (
-          <View style={{ gap: 8 }}>
-            <Text style={{ color: 'white', fontWeight: '700' }}>Choose Baseline</Text>
+          <View style={{ gap: 8, backgroundColor: 'rgba(6, 27, 44, 0.70)', padding: 14, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
+            <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>Choose Baseline</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {visibleEntries.map((entry, index) => (
                 <Pressable
@@ -155,9 +162,11 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                   onPress={() => setBaselineIndex(index)}
                   style={{
                     flex: 1,
-                    backgroundColor: baselineIndex === index ? '#2a9d8f' : '#6c757d',
-                    padding: 10,
-                    borderRadius: 8
+                    backgroundColor: baselineIndex === index ? '#2a9d8f' : 'rgba(255,255,255,0.14)',
+                    padding: 12,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: baselineIndex === index ? 'rgba(255,255,255,0.24)' : 'rgba(202,240,248,0.12)'
                   }}
                 >
                   <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
@@ -172,13 +181,13 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <Pressable
             onPress={() => setCastStep(5)}
-            style={{ backgroundColor: castStep === 5 ? '#1d3557' : '#6c757d', padding: 10, borderRadius: 8, flex: 1 }}
+            style={{ backgroundColor: castStep === 5 ? '#1d3557' : 'rgba(255,255,255,0.14)', padding: 12, borderRadius: 12, flex: 1, borderWidth: 1, borderColor: 'rgba(202,240,248,0.12)' }}
           >
             <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Cast interval: 5</Text>
           </Pressable>
           <Pressable
             onPress={() => setCastStep(10)}
-            style={{ backgroundColor: castStep === 10 ? '#1d3557' : '#6c757d', padding: 10, borderRadius: 8, flex: 1 }}
+            style={{ backgroundColor: castStep === 10 ? '#1d3557' : 'rgba(255,255,255,0.14)', padding: 12, borderRadius: 12, flex: 1, borderWidth: 1, borderColor: 'rgba(202,240,248,0.12)' }}
           >
             <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Cast interval: 10</Text>
           </Pressable>
@@ -209,18 +218,18 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           </View>
         ))}
 
-        <Pressable onPress={save} disabled={isSaving} style={{ backgroundColor: isSaving ? '#6c757d' : '#264653', padding: 12, borderRadius: 8 }}>
+        <Pressable onPress={save} disabled={isSaving} style={{ backgroundColor: isSaving ? '#6c757d' : '#264653', padding: 14, borderRadius: 14 }}>
           <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>{isSaving ? 'Saving...' : 'Save Experiment'}</Text>
         </Pressable>
 
         {showSavedExperimentActions && (
-          <View style={{ gap: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)', borderRadius: 10, padding: 12, backgroundColor: 'rgba(255,255,255,0.92)' }}>
-            <Text style={{ fontWeight: '700', fontSize: 16 }}>Experiment saved</Text>
-            <Text>What do you want to do next?</Text>
-            <Pressable onPress={modifyAndContinue} style={{ backgroundColor: '#2a9d8f', padding: 10, borderRadius: 8 }}>
+          <View style={{ gap: 8, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 18, padding: 14, backgroundColor: 'rgba(245,252,255,0.96)' }}>
+            <Text style={{ fontWeight: '800', fontSize: 18, color: '#102a43' }}>Experiment saved</Text>
+            <Text style={{ color: '#334e68' }}>What do you want to do next?</Text>
+            <Pressable onPress={modifyAndContinue} style={{ backgroundColor: '#2a9d8f', padding: 12, borderRadius: 12 }}>
               <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Modify and continue</Text>
             </Pressable>
-            <Pressable onPress={resetForNextExperiment} style={{ backgroundColor: '#264653', padding: 10, borderRadius: 8 }}>
+            <Pressable onPress={resetForNextExperiment} style={{ backgroundColor: '#264653', padding: 12, borderRadius: 12 }}>
               <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Start fresh</Text>
             </Pressable>
             <Pressable
@@ -228,7 +237,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                 setShowSavedExperimentActions(false);
                 navigation.navigate('SessionDetail', { sessionId });
               }}
-              style={{ backgroundColor: '#1d3557', padding: 10, borderRadius: 8 }}
+              style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}
             >
               <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>View this session</Text>
             </Pressable>
@@ -237,7 +246,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                 setShowSavedExperimentActions(false);
                 navigation.navigate('Insights');
               }}
-              style={{ backgroundColor: '#6c757d', padding: 10, borderRadius: 8 }}
+              style={{ backgroundColor: '#6c757d', padding: 12, borderRadius: 12 }}
             >
               <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Go to insights</Text>
             </Pressable>

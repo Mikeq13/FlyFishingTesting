@@ -20,7 +20,7 @@ interface ChipGroupProps<T extends string | number> {
 
 const ChipGroup = <T extends string | number>({ label, options, selected, onSelect }: ChipGroupProps<T>) => (
   <View style={{ gap: 6 }}>
-    <Text style={{ fontWeight: '600' }}>{label}</Text>
+    <Text style={{ fontWeight: '700', color: '#d7f3ff' }}>{label}</Text>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
       {options.map((option) => (
         <Pressable
@@ -31,11 +31,11 @@ const ChipGroup = <T extends string | number>({ label, options, selected, onSele
             paddingVertical: 6,
             borderRadius: 999,
             borderWidth: 1,
-            borderColor: selected === option ? '#2a9d8f' : '#aaa',
-            backgroundColor: selected === option ? '#e8f7f4' : 'transparent'
+            borderColor: selected === option ? '#2a9d8f' : 'rgba(202,240,248,0.18)',
+            backgroundColor: selected === option ? '#2a9d8f' : 'rgba(255,255,255,0.10)'
           }}
         >
-          <Text style={{ color: selected === option ? '#0b3d3a' : '#1f2933' }}>{String(option)}</Text>
+          <Text style={{ color: selected === option ? '#f7fdff' : '#d7f3ff' }}>{String(option)}</Text>
         </Pressable>
       ))}
     </View>
@@ -48,18 +48,18 @@ export const FlySelector = ({ title, value, savedFlies, onChange, onSave }: FlyS
   const availableStages = INSECT_STAGES_BY_TYPE[value.bugFamily];
 
   return (
-    <View style={{ gap: 10, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12 }}>
-      <Text style={{ fontWeight: '700' }}>{title}</Text>
+    <View style={{ gap: 10, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)', borderRadius: 18, padding: 14, backgroundColor: 'rgba(6, 27, 44, 0.70)' }}>
+      <Text style={{ fontWeight: '800', fontSize: 18, color: '#f7fdff' }}>{title}</Text>
 
       {!!sortedSavedFlies.length && (
         <View style={{ gap: 6 }}>
-          <Pressable onPress={() => setShowSavedFlyList((current) => !current)} style={{ backgroundColor: '#1d3557', padding: 10, borderRadius: 8 }}>
+          <Pressable onPress={() => setShowSavedFlyList((current) => !current)} style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}>
             <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
               {showSavedFlyList ? 'Hide Saved Flies' : 'Choose Saved Fly'}
             </Text>
           </Pressable>
           {showSavedFlyList && (
-            <View style={{ borderWidth: 1, borderColor: '#ddd', borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.95)' }}>
+            <View style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)' }}>
               {sortedSavedFlies.map((fly) => (
                 <Pressable
                   key={fly.id}
@@ -77,7 +77,7 @@ export const FlySelector = ({ title, value, savedFlies, onChange, onSave }: FlyS
                     });
                     setShowSavedFlyList(false);
                   }}
-                  style={{ paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' }}
+                  style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
                 >
                   <Text style={{ fontWeight: '600', color: '#0b3d3a' }}>{fly.name}</Text>
                   <Text style={{ color: '#4b5563', fontSize: 12 }}>
@@ -94,7 +94,8 @@ export const FlySelector = ({ title, value, savedFlies, onChange, onSave }: FlyS
         value={value.name}
         placeholder="Fly name"
         onChangeText={(name) => onChange({ ...value, name })}
-        style={{ borderWidth: 1, padding: 8, borderRadius: 6 }}
+        placeholderTextColor="#5a6c78"
+        style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
       />
       <ChipGroup label="Fly Type" options={FLY_INTENTS} selected={value.intent} onSelect={(intent) => onChange({ ...value, intent })} />
       <ChipGroup label="Hook Size" options={HOOK_SIZES} selected={value.hookSize ?? 16} onSelect={(hookSize) => onChange({ ...value, hookSize })} />
@@ -105,7 +106,7 @@ export const FlySelector = ({ title, value, savedFlies, onChange, onSave }: FlyS
       <ChipGroup label="Tail" options={TAIL_TYPES} selected={value.tail} onSelect={(tail) => onChange({ ...value, tail })} />
       <ChipGroup label="Collar" options={COLLAR_TYPES} selected={value.collar} onSelect={(collar) => onChange({ ...value, collar })} />
 
-      <Pressable onPress={onSave} style={{ backgroundColor: '#2a9d8f', padding: 10, borderRadius: 8 }}>
+      <Pressable onPress={onSave} style={{ backgroundColor: '#2a9d8f', padding: 12, borderRadius: 12 }}>
         <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Save To Fly Library</Text>
       </Pressable>
     </View>
