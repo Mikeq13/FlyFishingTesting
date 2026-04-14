@@ -5,8 +5,6 @@ import { UserProfile } from '@/types/user';
 import { createSession, listSessions } from '@/db/sessionRepo';
 import { createExperiment, listExperiments } from '@/db/experimentRepo';
 import { createUser, listUsers } from '@/db/userRepo';
-import { createSession, listSessions } from '@/db/sessionRepo';
-import { createExperiment, listExperiments } from '@/db/experimentRepo';
 import { initDb } from '@/db/schema';
 import { buildAggregates } from '@/engine/aggregationEngine';
 import { generateInsights } from '@/engine/insightEngine';
@@ -22,9 +20,6 @@ interface AppStore {
   refresh: () => Promise<void>;
   addSession: (payload: Omit<Session, 'id' | 'userId'>) => Promise<number>;
   addExperiment: (payload: Omit<Experiment, 'id' | 'userId'>) => Promise<number>;
-  refresh: () => Promise<void>;
-  addSession: (payload: Omit<Session, 'id'>) => Promise<number>;
-  addExperiment: (payload: Omit<Experiment, 'id'>) => Promise<number>;
 }
 
 const Ctx = createContext<AppStore | null>(null);
@@ -54,9 +49,6 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     const uid = activeUserId ?? allUsers[0]?.id;
     if (!uid) return;
     const [s, e] = await Promise.all([listSessions(uid), listExperiments(uid)]);
-
-  const refresh = async () => {
-    const [s, e] = await Promise.all([listSessions(), listExperiments()]);
     setSessions(s);
     setExperiments(e);
   };
@@ -68,9 +60,6 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   useEffect(() => {
     refresh().catch(console.error);
   }, [activeUserId]);
-
-    initDb().then(refresh).catch(console.error);
-  }, []);
 
   const insights = useMemo(() => generateInsights(buildAggregates(sessions, experiments)), [sessions, experiments]);
 
@@ -92,16 +81,12 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         addSession: async (payload) => {
           if (!activeUserId) throw new Error('No active user selected.');
           const id = await createSession({ ...payload, userId: activeUserId });
-        refresh,
-        addSession: async (payload) => {
-          const id = await createSession(payload);
           await refresh();
           return id;
         },
         addExperiment: async (payload) => {
           if (!activeUserId) throw new Error('No active user selected.');
           const id = await createExperiment({ ...payload, userId: activeUserId });
-          const id = await createExperiment(payload);
           await refresh();
           return id;
         }

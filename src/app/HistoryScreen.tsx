@@ -28,15 +28,6 @@ export const HistoryScreen = () => {
         );
       }),
     [sessions, normalizedFilters.water, normalizedFilters.insect, normalizedFilters.depth]
-  const filtered = useMemo(
-    () =>
-      sessions.filter(
-        (s) =>
-          (!waterFilter || s.waterType.includes(waterFilter)) &&
-          (!insectFilter || s.insectType.includes(insectFilter)) &&
-          (!depthFilter || s.depthRange.includes(depthFilter))
-      ),
-    [sessions, waterFilter, insectFilter, depthFilter]
   );
 
   return (
@@ -49,7 +40,6 @@ export const HistoryScreen = () => {
       {!filteredSessions.length ? <Text>No sessions found for current filters.</Text> : null}
 
       {filteredSessions.map((s) => {
-      {filtered.map((s) => {
         const sessionExperiments = experiments.filter((e) => e.sessionId === s.id);
         const totalCasts = sessionExperiments.reduce((sum, e) => sum + e.controlCasts + e.variantCasts, 0);
         const totalCatches = sessionExperiments.reduce((sum, e) => sum + e.controlCatches + e.variantCatches, 0);
@@ -81,14 +71,6 @@ export const HistoryScreen = () => {
                 })}
               </View>
             )}
-        const best = sessionExperiments[0]?.winner ?? 'n/a';
-
-        return (
-          <View key={s.id} style={{ borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12 }}>
-            <Text>{new Date(s.date).toLocaleString()}</Text>
-            <Text>Water: {s.waterType}</Text>
-            <Text>Catch rate: {(rate * 100).toFixed(1)}%</Text>
-            <Text>Best experiment result: {best}</Text>
           </View>
         );
       })}

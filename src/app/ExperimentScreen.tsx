@@ -21,6 +21,8 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   const [controlCatches, setControlCatches] = useState(0);
   const [variantCasts, setVariantCasts] = useState(0);
   const [variantCatches, setVariantCatches] = useState(0);
+  const [castStep, setCastStep] = useState<5 | 10>(5);
+  const [isSaving, setIsSaving] = useState(false);
 
   const resetForNextExperiment = () => {
     setHypothesis('');
@@ -31,12 +33,52 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   };
 
   const save = async () => {
+    if (isSaving) return;
+
     const check = validateExperimentPair(controlFly, variantFly);
     if (!check.valid && check.warning) {
       Alert.alert('Design warning', check.warning);
       return;
     }
 
+    if (controlCasts <= 0 || variantCasts <= 0) {
+      Alert.alert('Missing cast data', 'Log casts for both control and variant before saving.');
+      return;
+    }
+
+    if (controlCatches > controlCasts || variantCatches > variantCasts) {
+      Alert.alert('Invalid catch count', 'Catches cannot be greater than casts.');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const cRate = catchRate(controlCatches, controlCasts);
+      const vRate = catchRate(variantCatches, variantCasts);
+      const winner = cRate === vRate ? 'tie' : cRate > vRate ? 'control' : 'variant';
+
+      await addExperiment({
+        sessionId,
+        hypothesis: hypothesis || 'No hypothesis provided',
+        controlFly,
+        variantFly,
+        controlCasts,
+        controlCatches,
+        variantCasts,
+        variantCatches,
+        winner,
+        confidenceScore: Math.min(1, (controlCasts + variantCasts) / 100)
+      });
+
+      Alert.alert('Experiment saved', 'What do you want to do next?', [
+        { text: 'Continue experimenting', onPress: resetForNextExperiment },
+        { text: 'View this session', onPress: () => navigation.navigate('SessionDetail', { sessionId }) },
+        { text: 'Go to insights', onPress: () => navigation.navigate('Insights') }
+      ]);
+    } finally {
+      setIsSaving(false);
+    }
     const cRate = catchRate(controlCatches, controlCasts);
     const vRate = catchRate(variantCatches, variantCasts);
     const winner = cRate === vRate ? 'tie' : cRate > vRate ? 'control' : 'variant';
@@ -66,6 +108,25 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
         <Text style={{ fontSize: 20, fontWeight: '700', color: 'white' }}>Experiment</Text>
         <TextInput value={hypothesis} onChangeText={setHypothesis} placeholder="Hypothesis" style={{ borderWidth: 1, padding: 10, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.95)' }} />
+
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <Pressable
+            onPress={() => setCastStep(5)}
+            style={{ backgroundColor: castStep === 5 ? '#1d3557' : '#6c757d', padding: 10, borderRadius: 8, flex: 1 }}
+          >
+            <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Cast interval: 5</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setCastStep(10)}
+            style={{ backgroundColor: castStep === 10 ? '#1d3557' : '#6c757d', padding: 10, borderRadius: 8, flex: 1 }}
+          >
+            <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Cast interval: 10</Text>
+          </Pressable>
+        </View>
+
+        <FlySelector title="Control" value={controlFly} onChange={setControlFly} />
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <CastCounter label="Control casts" value={controlCasts} step={castStep} onIncrement={() => setControlCasts((v) => v + castStep)} />
         <FlySelector title="Control" value={controlFly} onChange={setControlFly} />
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <CastCounter label="Control casts" value={controlCasts} onIncrement={() => setControlCasts((v) => v + 1)} />
@@ -73,6 +134,11 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         </View>
         <FlySelector title="Variant" value={variantFly} onChange={setVariantFly} />
         <View style={{ flexDirection: 'row', gap: 8 }}>
+          <CastCounter label="Variant casts" value={variantCasts} step={castStep} onIncrement={() => setVariantCasts((v) => v + castStep)} />
+          <CatchCounter label="Variant catches" value={variantCatches} onIncrement={() => setVariantCatches((v) => v + 1)} />
+        </View>
+        <Pressable onPress={save} disabled={isSaving} style={{ backgroundColor: isSaving ? '#6c757d' : '#264653', padding: 12, borderRadius: 8 }}>
+          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>{isSaving ? 'Saving…' : 'Save Experiment'}</Text>
           <CastCounter label="Variant casts" value={variantCasts} onIncrement={() => setVariantCasts((v) => v + 1)} />
           <CatchCounter label="Variant catches" value={variantCatches} onIncrement={() => setVariantCatches((v) => v + 1)} />
         </View>

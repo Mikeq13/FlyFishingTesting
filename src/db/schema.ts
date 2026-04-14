@@ -1,7 +1,4 @@
 import { Platform } from 'react-native';
-import { openDatabaseAsync } from './sqlite';
-
-export const isWeb = Platform.OS === 'web';
 
 type DbLike = {
   execAsync: (sql: string) => Promise<void>;
@@ -17,17 +14,6 @@ export const getDb = async (): Promise<DbLike> => {
   if (!db) {
     const SQLite = await import('./sqlite');
     db = (await SQLite.openDatabaseAsync('fishing_lab.db')) as DbLike;
-  getAllAsync: <T = any>(sql: string) => Promise<T[]>;
-};
-
-let db: DbLike | null = null;
-
-export const getDb = async (): Promise<DbLike> => {
-  if (isWeb) {
-    throw new Error('SQLite unavailable on web runtime');
-  }
-  if (!db) {
-    db = (await openDatabaseAsync('fishing_lab.db')) as DbLike;
   }
   return db;
 };
@@ -46,11 +32,6 @@ export const initDb = async (): Promise<void> => {
     CREATE TABLE IF NOT EXISTS sessions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
-
-  const database = await getDb();
-  await database.execAsync(`
-    CREATE TABLE IF NOT EXISTS sessions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
       date TEXT NOT NULL,
       water_type TEXT NOT NULL,
       depth_range TEXT NOT NULL,
@@ -59,7 +40,6 @@ export const initDb = async (): Promise<void> => {
       insect_confidence TEXT NOT NULL,
       notes TEXT,
       FOREIGN KEY(user_id) REFERENCES users(id)
-      notes TEXT
     );
 
     CREATE TABLE IF NOT EXISTS experiments (
@@ -77,7 +57,6 @@ export const initDb = async (): Promise<void> => {
       confidence_score REAL NOT NULL,
       FOREIGN KEY(user_id) REFERENCES users(id),
       FOREIGN KEY(session_id) REFERENCES sessions(id)
-      confidence_score REAL NOT NULL
     );
   `);
 };
