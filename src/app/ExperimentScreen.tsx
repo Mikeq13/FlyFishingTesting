@@ -56,6 +56,16 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     setFlyEntries(createEmptyExperimentEntries(2));
   };
 
+  const modifyAndContinue = () => {
+    setFlyEntries((current) =>
+      current.map((entry) => ({
+        ...entry,
+        casts: 0,
+        catches: 0
+      }))
+    );
+  };
+
   const save = async () => {
     if (isSaving) return;
 
@@ -94,7 +104,8 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
       });
 
       Alert.alert('Experiment saved', 'What do you want to do next?', [
-        { text: 'Continue experimenting', onPress: resetForNextExperiment },
+        { text: 'Modify and continue', onPress: modifyAndContinue },
+        { text: 'Start fresh', onPress: resetForNextExperiment },
         { text: 'View this session', onPress: () => navigation.navigate('SessionDetail', { sessionId }) },
         { text: 'Go to insights', onPress: () => navigation.navigate('Insights') }
       ]);
