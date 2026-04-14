@@ -79,6 +79,28 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     } finally {
       setIsSaving(false);
     }
+    const cRate = catchRate(controlCatches, controlCasts);
+    const vRate = catchRate(variantCatches, variantCasts);
+    const winner = cRate === vRate ? 'tie' : cRate > vRate ? 'control' : 'variant';
+
+    await addExperiment({
+      sessionId,
+      hypothesis: hypothesis || 'No hypothesis provided',
+      controlFly,
+      variantFly,
+      controlCasts,
+      controlCatches,
+      variantCasts,
+      variantCatches,
+      winner,
+      confidenceScore: Math.min(1, (controlCasts + variantCasts) / 100)
+    });
+
+    Alert.alert('Experiment saved', 'What do you want to do next?', [
+      { text: 'Continue experimenting', onPress: resetForNextExperiment },
+      { text: 'View this session', onPress: () => navigation.navigate('SessionDetail', { sessionId }) },
+      { text: 'Go to insights', onPress: () => navigation.navigate('Insights') }
+    ]);
   };
 
   return (
@@ -105,6 +127,9 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         <FlySelector title="Control" value={controlFly} onChange={setControlFly} />
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <CastCounter label="Control casts" value={controlCasts} step={castStep} onIncrement={() => setControlCasts((v) => v + castStep)} />
+        <FlySelector title="Control" value={controlFly} onChange={setControlFly} />
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <CastCounter label="Control casts" value={controlCasts} onIncrement={() => setControlCasts((v) => v + 1)} />
           <CatchCounter label="Control catches" value={controlCatches} onIncrement={() => setControlCatches((v) => v + 1)} />
         </View>
         <FlySelector title="Variant" value={variantFly} onChange={setVariantFly} />
@@ -114,6 +139,11 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         </View>
         <Pressable onPress={save} disabled={isSaving} style={{ backgroundColor: isSaving ? '#6c757d' : '#264653', padding: 12, borderRadius: 8 }}>
           <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>{isSaving ? 'Saving…' : 'Save Experiment'}</Text>
+          <CastCounter label="Variant casts" value={variantCasts} onIncrement={() => setVariantCasts((v) => v + 1)} />
+          <CatchCounter label="Variant catches" value={variantCatches} onIncrement={() => setVariantCatches((v) => v + 1)} />
+        </View>
+        <Pressable onPress={save} style={{ backgroundColor: '#264653', padding: 12, borderRadius: 8 }}>
+          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Save Experiment</Text>
         </Pressable>
       </ScrollView>
     </ScreenBackground>
