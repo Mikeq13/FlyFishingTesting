@@ -64,7 +64,9 @@ export const FlySelector = ({ title, value, savedFlies, onChange, onSave }: FlyS
       <View style={{ gap: 6 }}>
         <Text style={{ fontWeight: '600' }}>Saved flies</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {savedFlies.map((fly) => (
+          {[...savedFlies]
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map((fly) => (
             <Pressable
               key={fly.id}
               onPress={() => onChange({ name: fly.name, intent: fly.intent, beadSizeMm: fly.beadSizeMm, bodyType: fly.bodyType, collar: fly.collar })}

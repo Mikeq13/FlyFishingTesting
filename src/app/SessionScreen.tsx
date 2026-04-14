@@ -60,7 +60,14 @@ export const SessionScreen = ({ navigation }: any) => {
         <DepthSelector value={depthRange} onChange={setDepthRange} />
         <Text style={{ color: 'white', fontWeight: '700' }}>River</Text>
         <TextInput value={riverName} onChangeText={setRiverName} placeholder="river name" style={{ borderWidth: 1, padding: 10, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.95)' }} />
-        {!!savedRivers.length && <OptionChips label="Saved Rivers" options={savedRivers.map((river) => river.name)} value={riverName} onChange={setRiverName} />}
+        {!!savedRivers.length && (
+          <OptionChips
+            label="Saved Rivers"
+            options={[...savedRivers].sort((a, b) => a.name.localeCompare(b.name)).map((river) => river.name)}
+            value={riverName}
+            onChange={setRiverName}
+          />
+        )}
         <OptionChips label="Bug Family" options={INSECT_TYPES} value={insectType} onChange={setInsectType} />
         <OptionChips label="Bug Stage" options={availableStages} value={insectStage} onChange={setInsectStage} />
         <TextInput value={notes} onChangeText={setNotes} placeholder="notes" multiline style={{ borderWidth: 1, padding: 10, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.95)' }} />
