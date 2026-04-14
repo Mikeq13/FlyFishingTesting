@@ -12,7 +12,7 @@ import { ScreenBackground } from '@/components/ScreenBackground';
 const emptyFly: FlySetup = { name: '', intent: 'imitative', beadSizeMm: 0, bodyType: 'thread', collar: 'none' };
 
 export const ExperimentScreen = ({ route, navigation }: any) => {
-  const { addExperiment } = useAppStore();
+  const { addExperiment, addSavedFly, savedFlies } = useAppStore();
   const sessionId: number = route.params.sessionId;
   const [hypothesis, setHypothesis] = useState('');
   const [controlFly, setControlFly] = useState<FlySetup>(emptyFly);
@@ -23,6 +23,22 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   const [variantCatches, setVariantCatches] = useState(0);
   const [castStep, setCastStep] = useState<5 | 10>(5);
   const [isSaving, setIsSaving] = useState(false);
+
+  const saveFlyToLibrary = async (fly: FlySetup) => {
+    if (!fly.name.trim()) {
+      Alert.alert('Fly name needed', 'Give the fly a name before saving it to the library.');
+      return;
+    }
+
+    const normalizedName = fly.name.trim().toLowerCase();
+    if (savedFlies.some((savedFly) => savedFly.name.trim().toLowerCase() === normalizedName)) {
+      Alert.alert('Fly already saved', 'That fly name already exists in your library.');
+      return;
+    }
+
+    await addSavedFly({ ...fly, name: fly.name.trim() });
+    Alert.alert('Fly saved', `${fly.name.trim()} is now available for future experiments.`);
+  };
 
   const resetForNextExperiment = () => {
     setHypothesis('');
@@ -102,12 +118,12 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           </Pressable>
         </View>
 
-        <FlySelector title="Control" value={controlFly} onChange={setControlFly} />
+        <FlySelector title="Control" value={controlFly} savedFlies={savedFlies} onChange={setControlFly} onSave={() => saveFlyToLibrary(controlFly)} />
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <CastCounter label="Control casts" value={controlCasts} step={castStep} onIncrement={() => setControlCasts((v) => v + castStep)} />
           <CatchCounter label="Control catches" value={controlCatches} onIncrement={() => setControlCatches((v) => v + 1)} />
         </View>
-        <FlySelector title="Variant" value={variantFly} onChange={setVariantFly} />
+        <FlySelector title="Variant" value={variantFly} savedFlies={savedFlies} onChange={setVariantFly} onSave={() => saveFlyToLibrary(variantFly)} />
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <CastCounter label="Variant casts" value={variantCasts} step={castStep} onIncrement={() => setVariantCasts((v) => v + castStep)} />
           <CatchCounter label="Variant catches" value={variantCatches} onIncrement={() => setVariantCatches((v) => v + 1)} />

@@ -9,3 +9,9 @@ export interface FlySetup {
   bodyType: BodyType;
   collar: CollarType;
 }
+
+export interface SavedFly extends FlySetup {
+  id: number;
+  userId: number;
+  createdAt: string;
+}

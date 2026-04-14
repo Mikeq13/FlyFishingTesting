@@ -63,5 +63,17 @@ export const initDb = async (): Promise<void> => {
       FOREIGN KEY(user_id) REFERENCES users(id),
       FOREIGN KEY(session_id) REFERENCES sessions(id)
     );
+
+    CREATE TABLE IF NOT EXISTS saved_flies (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      intent TEXT NOT NULL,
+      bead_size_mm REAL NOT NULL,
+      body_type TEXT NOT NULL,
+      collar TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    );
   `);
 };

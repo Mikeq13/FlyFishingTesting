@@ -2,9 +2,11 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import { Experiment, Insight } from '@/types/experiment';
 import { Session } from '@/types/session';
 import { UserProfile } from '@/types/user';
+import { FlySetup, SavedFly } from '@/types/fly';
 import { createSession, listSessions } from '@/db/sessionRepo';
 import { createExperiment, listExperiments } from '@/db/experimentRepo';
 import { createUser, listUsers } from '@/db/userRepo';
+import { createSavedFly, listSavedFlies } from '@/db/savedFlyRepo';
 import { getActiveUserId as loadActiveUserId, setActiveUserId as saveActiveUserId } from '@/db/settingsRepo';
 import { initDb } from '@/db/schema';
 import { buildAggregates } from '@/engine/aggregationEngine';
@@ -15,9 +17,11 @@ interface AppStore {
   experiments: Experiment[];
   insights: Insight[];
   users: UserProfile[];
+  savedFlies: SavedFly[];
   activeUserId: number | null;
   setActiveUserId: (id: number) => Promise<void>;
   addUser: (name: string) => Promise<number>;
+  addSavedFly: (payload: FlySetup) => Promise<number>;
   refresh: (targetUserId?: number | null) => Promise<void>;
   addSession: (payload: Omit<Session, 'id' | 'userId'>) => Promise<number>;
   addExperiment: (payload: Omit<Experiment, 'id' | 'userId'>) => Promise<number>;
@@ -29,6 +33,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const [sessions, setSessions] = useState<Session[]>([]);
   const [experiments, setExperiments] = useState<Experiment[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [savedFlies, setSavedFlies] = useState<SavedFly[]>([]);
   const [activeUserId, setActiveUserId] = useState<number | null>(null);
 
   const selectActiveUser = async (id: number) => {
@@ -62,11 +67,13 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     if (!uid) {
       setSessions([]);
       setExperiments([]);
+      setSavedFlies([]);
       return;
     }
-    const [s, e] = await Promise.all([listSessions(uid), listExperiments(uid)]);
+    const [s, e, flies] = await Promise.all([listSessions(uid), listExperiments(uid), listSavedFlies(uid)]);
     setSessions(s);
     setExperiments(e);
+    setSavedFlies(flies);
   };
 
   useEffect(() => {
@@ -86,6 +93,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         experiments,
         insights,
         users,
+        savedFlies,
         activeUserId,
         setActiveUserId: selectActiveUser,
         addUser: async (name) => {
@@ -93,6 +101,12 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
           await saveActiveUserId(id);
           setActiveUserId(id);
           await refresh(id);
+          return id;
+        },
+        addSavedFly: async (payload) => {
+          if (!activeUserId) throw new Error('No active user selected.');
+          const id = await createSavedFly({ ...payload, userId: activeUserId });
+          await refresh(activeUserId);
           return id;
         },
         refresh,
