@@ -13,11 +13,16 @@ export const generateInsights = (stats: AggregatedStats): Insight[] => {
   const waterRates = bucketRates(stats.byWaterType);
   const depthRates = bucketRates(stats.byDepthRange);
   const intentRates = bucketRates(stats.byFlyIntent);
+  const riverRates = bucketRates(stats.byRiverName);
+  const monthRates = bucketRates(stats.byMonth);
+  const riverMonthRates = bucketRates(stats.byRiverMonth);
 
   const candidates: Array<{ label: string; rates: Record<string, number>; castsByKey: Record<string, { casts: number }> }> = [
     { label: 'water type', rates: waterRates, castsByKey: stats.byWaterType },
     { label: 'depth range', rates: depthRates, castsByKey: stats.byDepthRange },
-    { label: 'fly intent', rates: intentRates, castsByKey: stats.byFlyIntent }
+    { label: 'fly intent', rates: intentRates, castsByKey: stats.byFlyIntent },
+    { label: 'river', rates: riverRates, castsByKey: stats.byRiverName },
+    { label: 'month', rates: monthRates, castsByKey: stats.byMonth }
   ];
 
   for (const c of candidates) {
@@ -54,6 +59,18 @@ export const generateInsights = (stats: AggregatedStats): Insight[] => {
         message: 'Depth sensitivity detected. Run a focused experiment where only depth changes.',
         confidence: 'medium',
         supportingData: { depthRates, spread }
+      });
+    }
+  }
+
+  if (Object.keys(riverMonthRates).length >= 2) {
+    const { top } = topAndBottom(riverMonthRates);
+    if (top && stats.byRiverMonth[top[0]]?.casts >= 20) {
+      insights.push({
+        type: 'recommendation',
+        message: `River-season signal detected: '${top[0]}' is currently your strongest stored context for catch rate performance.`,
+        confidence: confidenceFromSamples(stats.byRiverMonth[top[0]].casts),
+        supportingData: { dimension: 'river-month', top }
       });
     }
   }

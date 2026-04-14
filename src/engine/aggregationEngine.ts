@@ -12,6 +12,9 @@ export interface AggregatedStats {
   byDepthRange: Record<string, BucketStat>;
   byFlyIntent: Record<string, BucketStat>;
   byInsectStage: Record<string, BucketStat>;
+  byRiverName: Record<string, BucketStat>;
+  byMonth: Record<string, BucketStat>;
+  byRiverMonth: Record<string, BucketStat>;
 }
 
 const add = (bucket: Record<string, BucketStat>, key: string, casts: number, catches: number): void => {
@@ -25,6 +28,9 @@ export const buildAggregates = (sessions: Session[], experiments: Experiment[]):
   const byDepthRange: Record<string, BucketStat> = {};
   const byFlyIntent: Record<string, BucketStat> = {};
   const byInsectStage: Record<string, BucketStat> = {};
+  const byRiverName: Record<string, BucketStat> = {};
+  const byMonth: Record<string, BucketStat> = {};
+  const byRiverMonth: Record<string, BucketStat> = {};
 
   const sessionMap = new Map(sessions.map((s) => [s.id, s]));
 
@@ -40,9 +46,14 @@ export const buildAggregates = (sessions: Session[], experiments: Experiment[]):
     add(byFlyIntent, e.controlFly.intent, e.controlCasts, e.controlCatches);
     add(byFlyIntent, e.variantFly.intent, e.variantCasts, e.variantCatches);
     add(byInsectStage, session.insectStage, totalCasts, totalCatches);
+    const monthLabel = new Date(session.date).toLocaleString('en-US', { month: 'long' });
+    const riverLabel = session.riverName?.trim() || 'Unknown river';
+    add(byRiverName, riverLabel, totalCasts, totalCatches);
+    add(byMonth, monthLabel, totalCasts, totalCatches);
+    add(byRiverMonth, `${riverLabel} in ${monthLabel}`, totalCasts, totalCatches);
   }
 
-  return { byWaterType, byDepthRange, byFlyIntent, byInsectStage };
+  return { byWaterType, byDepthRange, byFlyIntent, byInsectStage, byRiverName, byMonth, byRiverMonth };
 };
 
 export const bucketRates = (bucket: Record<string, BucketStat>): Record<string, number> =>
