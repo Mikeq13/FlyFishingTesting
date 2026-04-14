@@ -5,8 +5,9 @@ import { ScreenBackground } from '@/components/ScreenBackground';
 import { catchRate } from '@/utils/calculations';
 
 export const SessionDetailScreen = ({ route, navigation }: any) => {
-  const { sessions, experiments } = useAppStore();
+  const { sessions, experiments, users, activeUserId } = useAppStore();
   const sessionId = route?.params?.sessionId as number;
+  const activeUser = users.find((user) => user.id === activeUserId);
 
   const session = sessions.find((s) => s.id === sessionId);
   const sessionExperiments = experiments.filter((e) => e.sessionId === sessionId);
@@ -18,9 +19,11 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
     <ScreenBackground>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
         <Text style={{ fontSize: 24, color: 'white', fontWeight: '700' }}>Session Continuity</Text>
+        <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Angler: {activeUser?.name ?? 'Loading...'}</Text>
         {session ? (
           <View style={{ backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 10, padding: 12, gap: 4 }}>
             <Text>Date: {new Date(session.date).toLocaleString()}</Text>
+            {session.riverName ? <Text>River: {session.riverName}</Text> : null}
             <Text>Water: {session.waterType}</Text>
             <Text>Depth: {session.depthRange}</Text>
             <Text>Catch rate: {(catchRate(totalCatches, totalCasts) * 100).toFixed(1)}%</Text>

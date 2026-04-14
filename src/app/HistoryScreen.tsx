@@ -3,7 +3,8 @@ import { ScrollView, Text, TextInput, View } from 'react-native';
 import { useAppStore } from './store';
 
 export const HistoryScreen = () => {
-  const { sessions, experiments } = useAppStore();
+  const { sessions, experiments, users, activeUserId } = useAppStore();
+  const activeUser = users.find((user) => user.id === activeUserId);
   const [riverFilter, setRiverFilter] = useState('');
   const [monthFilter, setMonthFilter] = useState('');
   const [waterFilter, setWaterFilter] = useState('');
@@ -41,6 +42,7 @@ export const HistoryScreen = () => {
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 8 }}>
       <Text style={{ fontSize: 20, fontWeight: '700' }}>History</Text>
+      <Text style={{ fontWeight: '700' }}>Angler: {activeUser?.name ?? 'Loading...'}</Text>
       <TextInput value={riverFilter} onChangeText={setRiverFilter} placeholder="filter river" style={{ borderWidth: 1, padding: 8, borderRadius: 8 }} />
       <TextInput value={monthFilter} onChangeText={setMonthFilter} placeholder="filter month" style={{ borderWidth: 1, padding: 8, borderRadius: 8 }} />
       <TextInput value={waterFilter} onChangeText={setWaterFilter} placeholder="filter water type" style={{ borderWidth: 1, padding: 8, borderRadius: 8 }} />

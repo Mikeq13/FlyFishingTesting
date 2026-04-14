@@ -12,7 +12,8 @@ import { ScreenBackground } from '@/components/ScreenBackground';
 const emptyFly: FlySetup = { name: '', intent: 'imitative', beadSizeMm: 0, bodyType: 'thread', collar: 'none' };
 
 export const ExperimentScreen = ({ route, navigation }: any) => {
-  const { addExperiment, addSavedFly, savedFlies } = useAppStore();
+  const { addExperiment, addSavedFly, savedFlies, users, activeUserId } = useAppStore();
+  const activeUser = users.find((user) => user.id === activeUserId);
   const sessionId: number = route.params.sessionId;
   const [hypothesis, setHypothesis] = useState('');
   const [controlFly, setControlFly] = useState<FlySetup>(emptyFly);
@@ -103,6 +104,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     <ScreenBackground>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
         <Text style={{ fontSize: 20, fontWeight: '700', color: 'white' }}>Experiment</Text>
+        <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Angler: {activeUser?.name ?? 'Loading...'}</Text>
         <TextInput value={hypothesis} onChangeText={setHypothesis} placeholder="Hypothesis" style={{ borderWidth: 1, padding: 10, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.95)' }} />
 
         <View style={{ flexDirection: 'row', gap: 8 }}>
