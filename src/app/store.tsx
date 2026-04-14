@@ -50,6 +50,7 @@ interface AppStore {
 }
 
 const Ctx = createContext<AppStore | null>(null);
+const TESTING_PREMIUM_OVERRIDE = true;
 
 export const AppStoreProvider = ({ children }: { children: React.ReactNode }) => {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -158,8 +159,8 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         users,
         ownerUser,
         currentUser,
-        currentEntitlementLabel: getEntitlementLabel(currentUser),
-        currentHasPremiumAccess: hasPremiumAccess(currentUser) || hasPremiumAccess(ownerUser),
+        currentEntitlementLabel: TESTING_PREMIUM_OVERRIDE ? 'Testing access enabled' : getEntitlementLabel(currentUser),
+        currentHasPremiumAccess: TESTING_PREMIUM_OVERRIDE ? true : hasPremiumAccess(currentUser) || hasPremiumAccess(ownerUser),
         canManageAccess: !!ownerUser,
         savedFlies,
         savedRivers,
