@@ -52,7 +52,7 @@ export const SessionScreen = ({ navigation }: any) => {
 
   return (
     <ScreenBackground>
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
+      <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} keyboardShouldPersistTaps="handled">
         <Text style={{ fontSize: 20, fontWeight: '700', color: 'white' }}>Active Session</Text>
         <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Angler: {activeUser?.name ?? 'Loading...'}</Text>
         <OptionChips label="Water Type" options={WATER_TYPES} value={waterType} onChange={setWaterType} />

@@ -3,8 +3,9 @@ import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-nativ
 import { useAppStore } from './store';
 import { isWithinDateRange } from '@/utils/dateRange';
 import { getExperimentEntries } from '@/utils/experimentEntries';
+import { ScreenBackground } from '@/components/ScreenBackground';
 
-const inputStyle = { borderWidth: 1, padding: 8, borderRadius: 8 };
+const inputStyle = { borderWidth: 1, padding: 8, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.95)' };
 
 export const HistoryScreen = () => {
   const { sessions, experiments, users, activeUserId, archiveInconclusiveExperiments } = useAppStore();
@@ -77,16 +78,17 @@ export const HistoryScreen = () => {
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 8 }}>
-      <Text style={{ fontSize: 20, fontWeight: '700' }}>History</Text>
-      <Text style={{ fontWeight: '700' }}>Angler: {activeUser?.name ?? 'Loading...'}</Text>
+    <ScreenBackground>
+      <ScrollView contentContainerStyle={{ padding: 16, gap: 8 }} keyboardShouldPersistTaps="handled">
+      <Text style={{ fontSize: 20, fontWeight: '700', color: 'white' }}>History</Text>
+      <Text style={{ fontWeight: '700', color: '#dbf5ff' }}>Angler: {activeUser?.name ?? 'Loading...'}</Text>
       <TextInput value={riverFilter} onChangeText={setRiverFilter} placeholder="filter river" style={inputStyle} />
       <TextInput value={monthFilter} onChangeText={setMonthFilter} placeholder="filter month" style={inputStyle} />
       <TextInput value={waterFilter} onChangeText={setWaterFilter} placeholder="filter water type" style={inputStyle} />
       <TextInput value={insectFilter} onChangeText={setInsectFilter} placeholder="filter insect type" style={inputStyle} />
       <TextInput value={depthFilter} onChangeText={setDepthFilter} placeholder="filter depth" style={inputStyle} />
 
-      <View style={{ borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, gap: 8 }}>
+      <View style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)', borderRadius: 8, padding: 12, gap: 8, backgroundColor: 'rgba(255,255,255,0.92)' }}>
         <Text style={{ fontWeight: '700' }}>Cleanup Inconclusive Results</Text>
         <TextInput value={archiveFrom} onChangeText={setArchiveFrom} placeholder="from date (YYYY-MM-DD)" style={inputStyle} />
         <TextInput value={archiveTo} onChangeText={setArchiveTo} placeholder="to date (YYYY-MM-DD)" style={inputStyle} />
@@ -100,7 +102,7 @@ export const HistoryScreen = () => {
         </Pressable>
       </View>
 
-      {!filteredSessions.length ? <Text>No sessions found for current filters.</Text> : null}
+      {!filteredSessions.length ? <Text style={{ color: 'white' }}>No sessions found for current filters.</Text> : null}
 
       {filteredSessions.map((session) => {
         const sessionExperiments = experiments.filter((experiment) => experiment.sessionId === session.id);
@@ -115,7 +117,7 @@ export const HistoryScreen = () => {
         const rate = totalCasts ? totalCatches / totalCasts : 0;
 
         return (
-          <View key={session.id} style={{ borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, gap: 6 }}>
+          <View key={session.id} style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)', borderRadius: 8, padding: 12, gap: 6, backgroundColor: 'rgba(255,255,255,0.92)' }}>
             <Text style={{ fontWeight: '700' }}>{new Date(session.date).toLocaleString()}</Text>
             <Text>Month: {new Date(session.date).toLocaleString('en-US', { month: 'long' })}</Text>
             {session.riverName ? <Text>River: {session.riverName}</Text> : null}
@@ -138,7 +140,7 @@ export const HistoryScreen = () => {
                       <Text>Hypothesis: {experiment.hypothesis}</Text>
                       <Text>Outcome: {experiment.outcome}</Text>
                       <Text>Winner: {experiment.winner}</Text>
-                      <Text>Flies: {entries.map((entry) => entry.fly.name || entry.label).join(', ')}</Text>
+                      <Text>Flies: {entries.map((entry) => `${entry.fly.name || entry.label} (#${entry.fly.hookSize})`).join(', ')}</Text>
                       <Text>Catch rate: {experimentRate.toFixed(1)}%</Text>
                     </View>
                   );
@@ -148,6 +150,7 @@ export const HistoryScreen = () => {
           </View>
         );
       })}
-    </ScrollView>
+      </ScrollView>
+    </ScreenBackground>
   );
 };
