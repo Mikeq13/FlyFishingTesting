@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { ImageBackground, SafeAreaView, StyleSheet, View } from 'react-native';
+import { ImageBackground, Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const backgrounds = [
   require('../../assets/backgrounds/fast-water-stream.jpg'),
@@ -8,12 +9,27 @@ const backgrounds = [
 ];
 
 export const ScreenBackground = ({ children }: { children: React.ReactNode }) => {
+  const { width, height } = useWindowDimensions();
   const background = useMemo(() => backgrounds[Math.floor(Math.random() * backgrounds.length)], []);
+  const isLandscape = width > height;
+  const isWideWeb = Platform.OS === 'web' && width >= 900;
 
   return (
-    <ImageBackground source={background} resizeMode="cover" style={styles.bg}>
-      <View style={styles.topGlow} />
-      <View style={styles.bottomGlow} />
+    <ImageBackground source={background} resizeMode="cover" style={styles.bg} imageStyle={styles.image}>
+      <View
+        style={[
+          styles.topGlow,
+          isLandscape && styles.topGlowLandscape,
+          isWideWeb && styles.topGlowDesktop
+        ]}
+      />
+      <View
+        style={[
+          styles.bottomGlow,
+          isLandscape && styles.bottomGlowLandscape,
+          isWideWeb && styles.bottomGlowDesktop
+        ]}
+      />
       <View style={styles.overlay}>
         <SafeAreaView style={styles.container}>{children}</SafeAreaView>
       </View>
@@ -23,6 +39,9 @@ export const ScreenBackground = ({ children }: { children: React.ReactNode }) =>
 
 const styles = StyleSheet.create({
   bg: { flex: 1, backgroundColor: '#08161f' },
+  image: {
+    opacity: 0.95
+  },
   topGlow: {
     position: 'absolute',
     top: -120,
@@ -32,6 +51,18 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: 'rgba(94, 196, 230, 0.2)'
   },
+  topGlowLandscape: {
+    top: -80,
+    right: -40,
+    width: 220,
+    height: 220
+  },
+  topGlowDesktop: {
+    top: -60,
+    right: 40,
+    width: 280,
+    height: 280
+  },
   bottomGlow: {
     position: 'absolute',
     bottom: -140,
@@ -40,6 +71,18 @@ const styles = StyleSheet.create({
     height: 320,
     borderRadius: 999,
     backgroundColor: 'rgba(38, 84, 124, 0.3)'
+  },
+  bottomGlowLandscape: {
+    bottom: -90,
+    left: -30,
+    width: 240,
+    height: 240
+  },
+  bottomGlowDesktop: {
+    bottom: -80,
+    left: 60,
+    width: 300,
+    height: 300
   },
   overlay: { flex: 1, backgroundColor: 'rgba(5, 18, 28, 0.64)' },
   container: { flex: 1 }
