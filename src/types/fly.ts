@@ -1,0 +1,11 @@
+export type FlyIntent = 'imitative' | 'attractor';
+export type BodyType = 'thread' | 'dubbing' | 'natural';
+export type CollarType = 'none' | 'cdc' | 'hackle';
+
+export interface FlySetup {
+  name: string;
+  intent: FlyIntent;
+  beadSizeMm: number;
+  bodyType: BodyType;
+  collar: CollarType;
+}
