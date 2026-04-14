@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { CastCounter } from '@/components/CastCounter';
 import { CatchCounter } from '@/components/CatchCounter';
 import { FlySelector } from '@/components/FlySelector';
@@ -27,7 +27,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   const [isSaving, setIsSaving] = useState(false);
   const [showSavedExperimentActions, setShowSavedExperimentActions] = useState(false);
   const isCompactLayout = width < 720;
-  const contentMaxWidth = Math.min(width - 24, 980);
+  const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 980) : undefined;
 
   useEffect(() => {
     setFlyEntries((current) => alignExperimentEntries(current, flyCount, baselineIndex));

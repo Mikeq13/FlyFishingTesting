@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { KeyboardDismissView } from '@/components/KeyboardDismissView';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { useAppStore } from './store';
@@ -12,6 +12,15 @@ export const HomeScreen = ({ navigation }: any) => {
   const [showAnglerList, setShowAnglerList] = React.useState(false);
   const [isCreatingUser, setIsCreatingUser] = React.useState(false);
   const isCompactLayout = width < 720;
+  const contentContainerStyle = {
+    flexGrow: 1,
+    justifyContent: 'center' as const,
+    padding: 20,
+    gap: 14,
+    width: '100%' as const,
+    alignSelf: 'center' as const,
+    maxWidth: Platform.OS === 'web' ? 980 : undefined
+  };
 
   const createAnotherUser = async () => {
     const name = newUserName.trim();
@@ -44,7 +53,7 @@ export const HomeScreen = ({ navigation }: any) => {
   return (
     <ScreenBackground>
       <KeyboardDismissView>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20, gap: 14, width: '100%', alignSelf: 'center', maxWidth: 980 }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={contentContainerStyle} keyboardShouldPersistTaps="handled">
         <View style={{ gap: 6 }}>
           <Text style={{ fontSize: 34, fontWeight: '800', color: '#f7fdff' }}>Fishing Lab</Text>
           <Text style={{ color: '#d7f3ff', fontSize: 16, lineHeight: 22 }}>

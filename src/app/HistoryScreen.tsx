@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { useAppStore } from './store';
 import { isWithinDateRange } from '@/utils/dateRange';
 import { getExperimentEntries } from '@/utils/experimentEntries';
@@ -24,7 +24,7 @@ export const HistoryScreen = () => {
   const [depthFilter, setDepthFilter] = useState('');
   const [archiveFrom, setArchiveFrom] = useState('');
   const [archiveTo, setArchiveTo] = useState('');
-  const contentMaxWidth = Math.min(width - 24, 980);
+  const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 980) : undefined;
 
   const normalizedFilters = {
     river: riverFilter.trim().toLowerCase(),

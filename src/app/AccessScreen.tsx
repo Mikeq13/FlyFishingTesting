@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { useAppStore } from './store';
 import { getEntitlementLabel, hasPremiumAccess } from '@/engine/entitlementEngine';
@@ -19,7 +19,7 @@ export const AccessScreen = () => {
     markSubscriberAccess,
     clearUserAccess
   } = useAppStore();
-  const contentMaxWidth = Math.min(width - 24, 980);
+  const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 980) : undefined;
 
   if (!currentUser) {
     return (

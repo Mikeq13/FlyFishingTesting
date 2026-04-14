@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { DepthSelector } from '@/components/DepthSelector';
 import { KeyboardDismissView } from '@/components/KeyboardDismissView';
 import { OptionChips } from '@/components/OptionChips';
@@ -18,7 +18,7 @@ export const SessionScreen = ({ navigation }: any) => {
   const [notes, setNotes] = useState('');
   const [showSavedRiverList, setShowSavedRiverList] = useState(false);
   const sortedSavedRivers = useMemo(() => [...savedRivers].sort((a, b) => a.name.localeCompare(b.name)), [savedRivers]);
-  const contentMaxWidth = Math.min(width - 24, 920);
+  const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 920) : undefined;
 
   const saveRiver = async () => {
     const normalizedRiverName = riverName.trim();
