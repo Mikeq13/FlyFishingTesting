@@ -1,8 +1,8 @@
 import { Experiment, ExperimentFlyEntry } from '@/types/experiment';
 import { FlySetup } from '@/types/fly';
 
-const emptyFly: FlySetup = { name: '', intent: 'imitative', hookSize: 16, beadSizeMm: 0, bodyType: 'thread', collar: 'none' };
-const withDefaultHookSize = (fly: FlySetup): FlySetup => ({ ...fly, hookSize: fly.hookSize ?? 16 });
+const emptyFly: FlySetup = { name: '', intent: 'imitative', hookSize: 16, beadSizeMm: 0, bodyType: 'thread', tail: 'natural', collar: 'none' };
+const normalizeFly = (fly: FlySetup): FlySetup => ({ ...fly, hookSize: fly.hookSize ?? 16, tail: fly.tail ?? 'natural' });
 
 export const createExperimentLabel = (index: number, total: number, baselineIndex: number): string => {
   if (total === 1) return 'Fly';
@@ -51,7 +51,7 @@ export const getExperimentEntries = (experiment: Experiment): ExperimentFlyEntry
       slotId: 'slot-1',
       label: 'Baseline',
       role: 'baseline',
-      fly: withDefaultHookSize(experiment.controlFly),
+      fly: normalizeFly(experiment.controlFly),
       casts: experiment.controlCasts,
       catches: experiment.controlCatches
     },
@@ -59,7 +59,7 @@ export const getExperimentEntries = (experiment: Experiment): ExperimentFlyEntry
       slotId: 'slot-2',
       label: 'Test',
       role: 'test',
-      fly: withDefaultHookSize(experiment.variantFly),
+      fly: normalizeFly(experiment.variantFly),
       casts: experiment.variantCasts,
       catches: experiment.variantCatches
     }

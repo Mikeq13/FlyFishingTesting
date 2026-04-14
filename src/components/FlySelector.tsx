@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { FlySetup, SavedFly } from '@/types/fly';
-import { BEAD_SIZES_MM, BODY_TYPES, COLLAR_TYPES, FLY_INTENTS, HOOK_SIZES } from '@/constants/options';
+import { BEAD_SIZES_MM, BODY_TYPES, COLLAR_TYPES, FLY_INTENTS, HOOK_SIZES, TAIL_TYPES } from '@/constants/options';
 
 interface FlySelectorProps {
   title: string;
@@ -55,6 +55,7 @@ export const FlySelector = ({ title, value, savedFlies, onChange, onSave }: FlyS
     <ChipGroup label="Hook Size" options={HOOK_SIZES} selected={value.hookSize ?? 16} onSelect={(hookSize) => onChange({ ...value, hookSize })} />
     <ChipGroup label="Bead Size" options={BEAD_SIZES_MM} selected={value.beadSizeMm} onSelect={(beadSizeMm) => onChange({ ...value, beadSizeMm })} />
     <ChipGroup label="Body Type" options={BODY_TYPES} selected={value.bodyType} onSelect={(bodyType) => onChange({ ...value, bodyType })} />
+    <ChipGroup label="Tail" options={TAIL_TYPES} selected={value.tail} onSelect={(tail) => onChange({ ...value, tail })} />
     <ChipGroup label="Collar" options={COLLAR_TYPES} selected={value.collar} onSelect={(collar) => onChange({ ...value, collar })} />
 
     <Pressable onPress={onSave} style={{ backgroundColor: '#2a9d8f', padding: 10, borderRadius: 8 }}>
@@ -70,7 +71,7 @@ export const FlySelector = ({ title, value, savedFlies, onChange, onSave }: FlyS
             .map((fly) => (
             <Pressable
               key={fly.id}
-              onPress={() => onChange({ name: fly.name, intent: fly.intent, hookSize: fly.hookSize ?? 16, beadSizeMm: fly.beadSizeMm, bodyType: fly.bodyType, collar: fly.collar })}
+              onPress={() => onChange({ name: fly.name, intent: fly.intent, hookSize: fly.hookSize ?? 16, beadSizeMm: fly.beadSizeMm, bodyType: fly.bodyType, tail: fly.tail ?? 'natural', collar: fly.collar })}
               style={{ paddingHorizontal: 10, paddingVertical: 8, borderRadius: 999, backgroundColor: '#e8f7f4', borderWidth: 1, borderColor: '#2a9d8f' }}
             >
               <Text style={{ fontWeight: '600', color: '#0b3d3a' }}>{fly.name}</Text>

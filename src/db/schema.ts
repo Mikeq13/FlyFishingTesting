@@ -73,8 +73,10 @@ export const initDb = async (): Promise<void> => {
       user_id INTEGER NOT NULL,
       name TEXT NOT NULL,
       intent TEXT NOT NULL,
+      hook_size INTEGER NOT NULL DEFAULT 16,
       bead_size_mm REAL NOT NULL,
       body_type TEXT NOT NULL,
+      tail TEXT NOT NULL DEFAULT 'natural',
       collar TEXT NOT NULL,
       created_at TEXT NOT NULL,
       FOREIGN KEY(user_id) REFERENCES users(id)
@@ -100,5 +102,11 @@ export const initDb = async (): Promise<void> => {
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE experiments ADD COLUMN fly_entries_json TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE saved_flies ADD COLUMN hook_size INTEGER NOT NULL DEFAULT 16;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE saved_flies ADD COLUMN tail TEXT NOT NULL DEFAULT 'natural';`);
   } catch {}
 };
