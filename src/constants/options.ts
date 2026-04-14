@@ -21,4 +21,5 @@ export const CONFIDENCE_LEVELS: Confidence[] = ['low', 'medium', 'high'];
 export const FLY_INTENTS: FlyIntent[] = ['attractor', 'imitative'];
 export const BODY_TYPES: BodyType[] = ['dubbing', 'natural', 'thread'];
 export const COLLAR_TYPES: CollarType[] = ['cdc', 'dubbing', 'hackle', 'none'];
+export const HOOK_SIZES = [8, 10, 12, 14, 16, 18, 20, 22, 24] as const;
 export const BEAD_SIZES_MM = [0, 2, 2.3, 2.5, 2.8, 3, 3.2, 3.5, 3.8, 4] as const;
