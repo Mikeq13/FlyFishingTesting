@@ -13,9 +13,16 @@ export const ScreenBackground = ({ children }: { children: React.ReactNode }) =>
   const background = useMemo(() => backgrounds[Math.floor(Math.random() * backgrounds.length)], []);
   const isLandscape = width > height;
   const isWideWeb = Platform.OS === 'web' && width >= 900;
+  const layoutKey = `${Math.round(width)}x${Math.round(height)}`;
 
   return (
-    <ImageBackground source={background} resizeMode="cover" style={styles.bg} imageStyle={styles.image}>
+    <ImageBackground
+      key={layoutKey}
+      source={background}
+      resizeMode="cover"
+      style={[styles.bg, { width, minHeight: height }]}
+      imageStyle={styles.image}
+    >
       <View
         style={[
           styles.topGlow,
@@ -30,8 +37,8 @@ export const ScreenBackground = ({ children }: { children: React.ReactNode }) =>
           isWideWeb && styles.bottomGlowDesktop
         ]}
       />
-      <View style={styles.overlay}>
-        <SafeAreaView style={styles.container}>{children}</SafeAreaView>
+      <View style={[styles.overlay, { minHeight: height }]}>
+        <SafeAreaView style={[styles.container, { minHeight: height }]}>{children}</SafeAreaView>
       </View>
     </ImageBackground>
   );
