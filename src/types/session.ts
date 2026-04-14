@@ -1,7 +1,17 @@
-export type WaterType = 'riffle' | 'run' | 'pool' | 'lake';
+export type WaterType = 'riffle' | 'run' | 'glide' | 'pool' | 'pocket water' | 'lake';
 export type DepthRange = 'surface' | '1-3 ft' | '3-6 ft' | '6+ ft';
-export type InsectType = 'mayfly' | 'caddis' | 'midge' | 'stonefly' | 'terrestrial';
-export type InsectStage = 'larva' | 'emerger' | 'adult';
+export type InsectType =
+  | 'mayfly'
+  | 'caddis'
+  | 'midge'
+  | 'stonefly'
+  | 'yellow sally'
+  | 'ant'
+  | 'grasshopper'
+  | 'beetle'
+  | 'scud/sowbug'
+  | 'leech';
+export type InsectStage = 'larva' | 'nymph' | 'pupa/emerger' | 'dun' | 'spinner' | 'adult';
 export type Confidence = 'low' | 'medium' | 'high';
 
 export interface Session {
@@ -10,10 +20,18 @@ export interface Session {
   date: string;
   waterType: WaterType;
   depthRange: DepthRange;
+  riverName?: string;
   insectType: InsectType;
   insectStage: InsectStage;
   insectConfidence: Confidence;
   notes?: string;
+}
+
+export interface SavedRiver {
+  id: number;
+  userId: number;
+  name: string;
+  createdAt: string;
 }
 
 export interface Observation {

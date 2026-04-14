@@ -40,6 +40,7 @@ export const initDb = async (): Promise<void> => {
       date TEXT NOT NULL,
       water_type TEXT NOT NULL,
       depth_range TEXT NOT NULL,
+      river_name TEXT,
       insect_type TEXT NOT NULL,
       insect_stage TEXT NOT NULL,
       insect_confidence TEXT NOT NULL,
@@ -75,5 +76,17 @@ export const initDb = async (): Promise<void> => {
       created_at TEXT NOT NULL,
       FOREIGN KEY(user_id) REFERENCES users(id)
     );
+
+    CREATE TABLE IF NOT EXISTS saved_rivers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    );
   `);
+
+  try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN river_name TEXT;`);
+  } catch {}
 };
