@@ -1,6 +1,7 @@
 import { Experiment } from '@/types/experiment';
 import { Session } from '@/types/session';
 import { catchRate } from '@/utils/calculations';
+import { getExperimentEntries } from '@/utils/experimentEntries';
 
 interface BucketStat {
   casts: number;
@@ -38,13 +39,13 @@ export const buildAggregates = (sessions: Session[], experiments: Experiment[]):
     const session = sessionMap.get(e.sessionId);
     if (!session) continue;
 
-    const totalCasts = e.controlCasts + e.variantCasts;
-    const totalCatches = e.controlCatches + e.variantCatches;
+    const entries = getExperimentEntries(e);
+    const totalCasts = entries.reduce((sum, entry) => sum + entry.casts, 0);
+    const totalCatches = entries.reduce((sum, entry) => sum + entry.catches, 0);
 
     add(byWaterType, session.waterType, totalCasts, totalCatches);
     add(byDepthRange, session.depthRange, totalCasts, totalCatches);
-    add(byFlyIntent, e.controlFly.intent, e.controlCasts, e.controlCatches);
-    add(byFlyIntent, e.variantFly.intent, e.variantCasts, e.variantCatches);
+    entries.forEach((entry) => add(byFlyIntent, entry.fly.intent, entry.casts, entry.catches));
     add(byInsectStage, session.insectStage, totalCasts, totalCatches);
     const monthLabel = new Date(session.date).toLocaleString('en-US', { month: 'long' });
     const riverLabel = session.riverName?.trim() || 'Unknown river';

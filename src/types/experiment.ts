@@ -1,13 +1,22 @@
 import { FlySetup } from './fly';
 
-export type ExperimentWinner = 'control' | 'variant' | 'tie' | 'inconclusive';
+export type ExperimentWinner = string;
 export type ExperimentOutcome = 'decisive' | 'tie' | 'inconclusive';
+
+export interface ExperimentFlyEntry {
+  slotId: string;
+  label: string;
+  fly: FlySetup;
+  casts: number;
+  catches: number;
+}
 
 export interface Experiment {
   id: number;
   userId: number;
   sessionId: number;
   hypothesis: string;
+  flyEntries: ExperimentFlyEntry[];
   controlFly: FlySetup;
   variantFly: FlySetup;
   controlCasts: number;

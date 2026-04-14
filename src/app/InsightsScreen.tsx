@@ -5,7 +5,7 @@ import { useAppStore } from './store';
 import { ScreenBackground } from '@/components/ScreenBackground';
 
 export const InsightsScreen = ({ navigation }: any) => {
-  const { insights } = useAppStore();
+  const { insights, anglerComparisons } = useAppStore();
 
   return (
     <ScreenBackground>
@@ -14,6 +14,14 @@ export const InsightsScreen = ({ navigation }: any) => {
         {insights.map((insight, idx) => (
           <InsightCard key={`${insight.type}-${idx}`} insight={insight} />
         ))}
+        {!!anglerComparisons.length && (
+          <>
+            <Text style={{ fontSize: 18, fontWeight: '700', marginTop: 8, marginBottom: 8, color: 'white' }}>Across Anglers</Text>
+            {anglerComparisons.map((insight, idx) => (
+              <InsightCard key={`comparison-${idx}`} insight={insight} />
+            ))}
+          </>
+        )}
         <Pressable onPress={() => navigation.navigate('Session')} style={{ backgroundColor: '#2a9d8f', borderRadius: 8, padding: 12, marginTop: 10 }}>
           <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Back to Session Setup</Text>
         </Pressable>

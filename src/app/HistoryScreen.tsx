@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useAppStore } from './store';
 import { isWithinDateRange } from '@/utils/dateRange';
+import { getExperimentEntries } from '@/utils/experimentEntries';
 
 const inputStyle = { borderWidth: 1, padding: 8, borderRadius: 8 };
 
@@ -103,8 +104,14 @@ export const HistoryScreen = () => {
 
       {filteredSessions.map((session) => {
         const sessionExperiments = experiments.filter((experiment) => experiment.sessionId === session.id);
-        const totalCasts = sessionExperiments.reduce((sum, experiment) => sum + experiment.controlCasts + experiment.variantCasts, 0);
-        const totalCatches = sessionExperiments.reduce((sum, experiment) => sum + experiment.controlCatches + experiment.variantCatches, 0);
+        const totalCasts = sessionExperiments.reduce(
+          (sum, experiment) => sum + getExperimentEntries(experiment).reduce((entrySum, entry) => entrySum + entry.casts, 0),
+          0
+        );
+        const totalCatches = sessionExperiments.reduce(
+          (sum, experiment) => sum + getExperimentEntries(experiment).reduce((entrySum, entry) => entrySum + entry.catches, 0),
+          0
+        );
         const rate = totalCasts ? totalCatches / totalCasts : 0;
 
         return (
@@ -121,8 +128,9 @@ export const HistoryScreen = () => {
               <View style={{ marginTop: 4, gap: 4 }}>
                 <Text style={{ fontWeight: '600' }}>Experiment history</Text>
                 {sessionExperiments.map((experiment) => {
-                  const experimentCasts = experiment.controlCasts + experiment.variantCasts;
-                  const experimentCatches = experiment.controlCatches + experiment.variantCatches;
+                  const entries = getExperimentEntries(experiment);
+                  const experimentCasts = entries.reduce((sum, entry) => sum + entry.casts, 0);
+                  const experimentCatches = entries.reduce((sum, entry) => sum + entry.catches, 0);
                   const experimentRate = experimentCasts ? (experimentCatches / experimentCasts) * 100 : 0;
 
                   return (
@@ -130,6 +138,7 @@ export const HistoryScreen = () => {
                       <Text>Hypothesis: {experiment.hypothesis}</Text>
                       <Text>Outcome: {experiment.outcome}</Text>
                       <Text>Winner: {experiment.winner}</Text>
+                      <Text>Flies: {entries.map((entry) => entry.fly.name || entry.label).join(', ')}</Text>
                       <Text>Catch rate: {experimentRate.toFixed(1)}%</Text>
                     </View>
                   );

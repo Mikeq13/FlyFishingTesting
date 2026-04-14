@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { CastCounter } from '@/components/CastCounter';
 import { CatchCounter } from '@/components/CatchCounter';
@@ -8,22 +8,30 @@ import { FlySetup } from '@/types/fly';
 import { validateExperimentPair } from '@/engine/rules';
 import { deriveExperimentStatus } from '@/engine/experimentStatus';
 import { ScreenBackground } from '@/components/ScreenBackground';
+import { ExperimentFlyEntry } from '@/types/experiment';
+import { alignExperimentEntries, createEmptyExperimentEntries, getLegacyExperimentFields } from '@/utils/experimentEntries';
 
-const emptyFly: FlySetup = { name: '', intent: 'imitative', beadSizeMm: 0, bodyType: 'thread', collar: 'none' };
+const FLY_COUNT_OPTIONS = [1, 2, 3] as const;
 
 export const ExperimentScreen = ({ route, navigation }: any) => {
   const { addExperiment, addSavedFly, savedFlies, users, activeUserId } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
   const sessionId: number = route.params.sessionId;
   const [hypothesis, setHypothesis] = useState('');
-  const [controlFly, setControlFly] = useState<FlySetup>(emptyFly);
-  const [variantFly, setVariantFly] = useState<FlySetup>({ ...emptyFly, intent: 'attractor' });
-  const [controlCasts, setControlCasts] = useState(0);
-  const [controlCatches, setControlCatches] = useState(0);
-  const [variantCasts, setVariantCasts] = useState(0);
-  const [variantCatches, setVariantCatches] = useState(0);
+  const [flyCount, setFlyCount] = useState<1 | 2 | 3>(2);
+  const [flyEntries, setFlyEntries] = useState<ExperimentFlyEntry[]>(() => createEmptyExperimentEntries(2));
   const [castStep, setCastStep] = useState<5 | 10>(5);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setFlyEntries((current) => alignExperimentEntries(current, flyCount));
+  }, [flyCount]);
+
+  const visibleEntries = useMemo(() => flyEntries.slice(0, flyCount), [flyCount, flyEntries]);
+
+  const updateEntry = (index: number, nextEntry: ExperimentFlyEntry) => {
+    setFlyEntries((current) => current.map((entry, entryIndex) => (entryIndex === index ? nextEntry : entry)));
+  };
 
   const saveFlyToLibrary = async (fly: FlySetup) => {
     const normalizedName = fly.name.trim();
@@ -44,29 +52,27 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
 
   const resetForNextExperiment = () => {
     setHypothesis('');
-    setControlFly(emptyFly);
-    setVariantFly({ ...emptyFly, intent: 'attractor' });
-    setControlCasts(0);
-    setControlCatches(0);
-    setVariantCasts(0);
-    setVariantCatches(0);
+    setFlyCount(2);
+    setFlyEntries(createEmptyExperimentEntries(2));
   };
 
   const save = async () => {
     if (isSaving) return;
 
-    const check = validateExperimentPair(controlFly, variantFly);
-    if (!check.valid && check.warning) {
-      Alert.alert('Design warning', check.warning);
+    if (visibleEntries.length === 2) {
+      const check = validateExperimentPair(visibleEntries[0].fly, visibleEntries[1].fly);
+      if (!check.valid && check.warning) {
+        Alert.alert('Design warning', check.warning);
+        return;
+      }
+    }
+
+    if (visibleEntries.some((entry) => entry.casts <= 0)) {
+      Alert.alert('Missing cast data', 'Log casts for every selected fly before saving.');
       return;
     }
 
-    if (controlCasts <= 0 || variantCasts <= 0) {
-      Alert.alert('Missing cast data', 'Log casts for both control and variant before saving.');
-      return;
-    }
-
-    if (controlCatches > controlCasts || variantCatches > variantCasts) {
+    if (visibleEntries.some((entry) => entry.catches > entry.casts)) {
       Alert.alert('Invalid catch count', 'Catches cannot be greater than casts.');
       return;
     }
@@ -74,22 +80,14 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     setIsSaving(true);
 
     try {
-      const status = deriveExperimentStatus({
-        controlCasts,
-        controlCatches,
-        variantCasts,
-        variantCatches
-      });
+      const status = deriveExperimentStatus(visibleEntries);
+      const legacy = getLegacyExperimentFields(visibleEntries);
 
       await addExperiment({
         sessionId,
         hypothesis: hypothesis || 'No hypothesis provided',
-        controlFly,
-        variantFly,
-        controlCasts,
-        controlCatches,
-        variantCasts,
-        variantCatches,
+        flyEntries: visibleEntries,
+        ...legacy,
         winner: status.winner,
         outcome: status.outcome,
         confidenceScore: status.confidenceScore
@@ -112,6 +110,26 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Angler: {activeUser?.name ?? 'Loading...'}</Text>
         <TextInput value={hypothesis} onChangeText={setHypothesis} placeholder="Hypothesis" style={{ borderWidth: 1, padding: 10, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.95)' }} />
 
+        <View style={{ gap: 8 }}>
+          <Text style={{ color: 'white', fontWeight: '700' }}>Flies in this experiment</Text>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {FLY_COUNT_OPTIONS.map((option) => (
+              <Pressable
+                key={option}
+                onPress={() => setFlyCount(option)}
+                style={{
+                  flex: 1,
+                  backgroundColor: flyCount === option ? '#2a9d8f' : '#6c757d',
+                  padding: 10,
+                  borderRadius: 8
+                }}
+              >
+                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>{option}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <Pressable
             onPress={() => setCastStep(5)}
@@ -127,16 +145,31 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           </Pressable>
         </View>
 
-        <FlySelector title="Control" value={controlFly} savedFlies={savedFlies} onChange={setControlFly} onSave={() => saveFlyToLibrary(controlFly)} />
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          <CastCounter label="Control casts" value={controlCasts} step={castStep} onIncrement={() => setControlCasts((v) => v + castStep)} />
-          <CatchCounter label="Control catches" value={controlCatches} onIncrement={() => setControlCatches((v) => v + 1)} />
-        </View>
-        <FlySelector title="Variant" value={variantFly} savedFlies={savedFlies} onChange={setVariantFly} onSave={() => saveFlyToLibrary(variantFly)} />
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          <CastCounter label="Variant casts" value={variantCasts} step={castStep} onIncrement={() => setVariantCasts((v) => v + castStep)} />
-          <CatchCounter label="Variant catches" value={variantCatches} onIncrement={() => setVariantCatches((v) => v + 1)} />
-        </View>
+        {visibleEntries.map((entry, index) => (
+          <View key={entry.slotId} style={{ gap: 8 }}>
+            <FlySelector
+              title={entry.label}
+              value={entry.fly}
+              savedFlies={savedFlies}
+              onChange={(fly) => updateEntry(index, { ...entry, fly })}
+              onSave={() => saveFlyToLibrary(entry.fly)}
+            />
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <CastCounter
+                label={`${entry.label} casts`}
+                value={entry.casts}
+                step={castStep}
+                onIncrement={() => updateEntry(index, { ...entry, casts: entry.casts + castStep })}
+              />
+              <CatchCounter
+                label={`${entry.label} catches`}
+                value={entry.catches}
+                onIncrement={() => updateEntry(index, { ...entry, catches: entry.catches + 1 })}
+              />
+            </View>
+          </View>
+        ))}
+
         <Pressable onPress={save} disabled={isSaving} style={{ backgroundColor: isSaving ? '#6c757d' : '#264653', padding: 12, borderRadius: 8 }}>
           <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>{isSaving ? 'Saving...' : 'Save Experiment'}</Text>
         </Pressable>

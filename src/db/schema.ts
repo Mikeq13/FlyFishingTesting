@@ -53,6 +53,7 @@ export const initDb = async (): Promise<void> => {
       user_id INTEGER NOT NULL,
       session_id INTEGER NOT NULL,
       hypothesis TEXT NOT NULL,
+      fly_entries_json TEXT,
       control_fly_json TEXT NOT NULL,
       variant_fly_json TEXT NOT NULL,
       control_casts INTEGER NOT NULL,
@@ -96,5 +97,8 @@ export const initDb = async (): Promise<void> => {
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE experiments ADD COLUMN archived_at TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE experiments ADD COLUMN fly_entries_json TEXT;`);
   } catch {}
 };

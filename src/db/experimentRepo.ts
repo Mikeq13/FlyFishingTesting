@@ -1,9 +1,20 @@
 import { getDb, isWeb } from './schema';
 import { Experiment } from '@/types/experiment';
 import { insertWebRow, listWebRows, updateWebRows } from './webStore';
+import { getExperimentEntries } from '@/utils/experimentEntries';
 
 const WEB_EXPERIMENTS_KEY = 'fishing_lab.experiments';
 const WEB_EXPERIMENTS_ID_KEY = 'fishing_lab.experiments.nextId';
+
+const hydrateExperiment = (experiment: Experiment): Experiment => ({
+  ...experiment,
+  flyEntries: experiment.flyEntries?.length
+    ? experiment.flyEntries
+    : getExperimentEntries({
+        ...experiment,
+        flyEntries: []
+      })
+});
 
 export const createExperiment = async (payload: Omit<Experiment, 'id'>): Promise<number> => {
   if (isWeb) {
@@ -13,11 +24,12 @@ export const createExperiment = async (payload: Omit<Experiment, 'id'>): Promise
   const db = await getDb();
   const result = await db.runAsync(
     `INSERT INTO experiments
-      (user_id, session_id, hypothesis, control_fly_json, variant_fly_json, control_casts, control_catches, variant_casts, variant_catches, winner, outcome, confidence_score, archived_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (user_id, session_id, hypothesis, fly_entries_json, control_fly_json, variant_fly_json, control_casts, control_catches, variant_casts, variant_catches, winner, outcome, confidence_score, archived_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     payload.userId,
     payload.sessionId,
     payload.hypothesis,
+    JSON.stringify(payload.flyEntries),
     JSON.stringify(payload.controlFly),
     JSON.stringify(payload.variantFly),
     payload.controlCasts,
@@ -35,7 +47,9 @@ export const createExperiment = async (payload: Omit<Experiment, 'id'>): Promise
 export const listExperiments = async (userId: number, options: { includeArchived?: boolean } = {}): Promise<Experiment[]> => {
   const includeArchived = options.includeArchived ?? false;
   if (isWeb) {
-    return listWebRows<Experiment>(WEB_EXPERIMENTS_KEY).filter((e) => e.userId === userId && (includeArchived || !e.archivedAt));
+    return listWebRows<Experiment>(WEB_EXPERIMENTS_KEY)
+      .filter((e) => e.userId === userId && (includeArchived || !e.archivedAt))
+      .map(hydrateExperiment);
   }
 
   const db = await getDb();
@@ -52,6 +66,7 @@ export const listExperiments = async (userId: number, options: { includeArchived
     userId: r.user_id,
     sessionId: r.session_id,
     hypothesis: r.hypothesis,
+    flyEntries: r.fly_entries_json ? JSON.parse(r.fly_entries_json) : [],
     controlFly: JSON.parse(r.control_fly_json),
     variantFly: JSON.parse(r.variant_fly_json),
     controlCasts: r.control_casts,
@@ -62,7 +77,7 @@ export const listExperiments = async (userId: number, options: { includeArchived
     outcome: r.outcome ?? 'inconclusive',
     confidenceScore: r.confidence_score,
     archivedAt: r.archived_at ?? undefined
-  }));
+  })).map(hydrateExperiment);
 };
 
 export const archiveExperiments = async (experimentIds: number[]): Promise<void> => {

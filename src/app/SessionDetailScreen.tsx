@@ -3,6 +3,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useAppStore } from './store';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { catchRate } from '@/utils/calculations';
+import { getExperimentEntries } from '@/utils/experimentEntries';
 
 export const SessionDetailScreen = ({ route, navigation }: any) => {
   const { sessions, experiments, users, activeUserId } = useAppStore();
@@ -12,8 +13,14 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
   const session = sessions.find((s) => s.id === sessionId);
   const sessionExperiments = experiments.filter((e) => e.sessionId === sessionId);
 
-  const totalCasts = sessionExperiments.reduce((sum, e) => sum + e.controlCasts + e.variantCasts, 0);
-  const totalCatches = sessionExperiments.reduce((sum, e) => sum + e.controlCatches + e.variantCatches, 0);
+  const totalCasts = sessionExperiments.reduce(
+    (sum, experiment) => sum + getExperimentEntries(experiment).reduce((entrySum, entry) => entrySum + entry.casts, 0),
+    0
+  );
+  const totalCatches = sessionExperiments.reduce(
+    (sum, experiment) => sum + getExperimentEntries(experiment).reduce((entrySum, entry) => entrySum + entry.catches, 0),
+    0
+  );
 
   return (
     <ScreenBackground>
@@ -38,8 +45,11 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
             <Text style={{ fontWeight: '700' }}>#{e.id} Outcome: {e.outcome}</Text>
             <Text>Winner: {e.winner}</Text>
             <Text>Hypothesis: {e.hypothesis}</Text>
-            <Text>Control {e.controlFly.name || 'Unnamed'}: {e.controlCatches}/{e.controlCasts}</Text>
-            <Text>Variant {e.variantFly.name || 'Unnamed'}: {e.variantCatches}/{e.variantCasts}</Text>
+            {getExperimentEntries(e).map((entry) => (
+              <Text key={`${e.id}-${entry.slotId}`}>
+                {entry.label} {entry.fly.name || 'Unnamed'}: {entry.catches}/{entry.casts}
+              </Text>
+            ))}
           </View>
         ))}
 

@@ -11,6 +11,7 @@ import { createSavedRiver, listSavedRivers } from '@/db/savedRiverRepo';
 import { getActiveUserId as loadActiveUserId, setActiveUserId as saveActiveUserId } from '@/db/settingsRepo';
 import { initDb } from '@/db/schema';
 import { buildAggregates } from '@/engine/aggregationEngine';
+import { generateAnglerComparisons } from '@/engine/anglerComparisonEngine';
 import { generateInsights } from '@/engine/insightEngine';
 import { isWithinDateRange } from '@/utils/dateRange';
 
@@ -18,6 +19,7 @@ interface AppStore {
   sessions: Session[];
   experiments: Experiment[];
   insights: Insight[];
+  anglerComparisons: Insight[];
   users: UserProfile[];
   savedFlies: SavedFly[];
   savedRivers: SavedRiver[];
@@ -37,6 +39,7 @@ const Ctx = createContext<AppStore | null>(null);
 export const AppStoreProvider = ({ children }: { children: React.ReactNode }) => {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [experiments, setExperiments] = useState<Experiment[]>([]);
+  const [anglerComparisons, setAnglerComparisons] = useState<Insight[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [savedFlies, setSavedFlies] = useState<SavedFly[]>([]);
   const [savedRivers, setSavedRivers] = useState<SavedRiver[]>([]);
@@ -76,13 +79,17 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       setExperiments([]);
       setSavedFlies([]);
       setSavedRivers([]);
+      setAnglerComparisons([]);
       return;
     }
     const [s, e, flies, rivers] = await Promise.all([listSessions(uid), listExperiments(uid), listSavedFlies(uid), listSavedRivers(uid)]);
+    const allSessionLists = await Promise.all(allUsers.map((user) => listSessions(user.id)));
+    const allExperimentLists = await Promise.all(allUsers.map((user) => listExperiments(user.id)));
     setSessions(s);
     setExperiments(e);
     setSavedFlies(flies);
     setSavedRivers(rivers);
+    setAnglerComparisons(generateAnglerComparisons(allUsers, allSessionLists.flat(), allExperimentLists.flat()));
   };
 
   useEffect(() => {
@@ -101,6 +108,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         sessions,
         experiments,
         insights,
+        anglerComparisons,
         users,
         savedFlies,
         savedRivers,
