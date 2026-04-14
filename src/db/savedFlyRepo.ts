@@ -17,14 +17,16 @@ export const createSavedFly = async (payload: Omit<SavedFly, 'id' | 'createdAt'>
 
   const db = await getDb();
   const result = await db.runAsync(
-    `INSERT INTO saved_flies (user_id, name, intent, hook_size, bead_size_mm, body_type, tail, collar, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO saved_flies (user_id, name, intent, hook_size, bead_size_mm, body_type, bug_family, bug_stage, tail, collar, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     payload.userId,
     payload.name,
     payload.intent,
     payload.hookSize,
     payload.beadSizeMm,
     payload.bodyType,
+    payload.bugFamily,
+    payload.bugStage,
     payload.tail,
     payload.collar,
     nextPayload.createdAt
@@ -47,6 +49,8 @@ export const listSavedFlies = async (userId: number): Promise<SavedFly[]> => {
     hookSize: row.hook_size ?? 16,
     beadSizeMm: row.bead_size_mm,
     bodyType: row.body_type,
+    bugFamily: row.bug_family ?? 'mayfly',
+    bugStage: row.bug_stage ?? 'nymph',
     tail: row.tail ?? 'natural',
     collar: row.collar,
     createdAt: row.created_at

@@ -1,3 +1,5 @@
+import { InsectStage, InsectType } from './session';
+
 export type FlyIntent = 'imitative' | 'attractor';
 export type BodyType = 'thread' | 'dubbing' | 'natural';
 export type TailType = 'natural' | 'tag';
@@ -9,6 +11,8 @@ export interface FlySetup {
   hookSize: number;
   beadSizeMm: number;
   bodyType: BodyType;
+  bugFamily: InsectType;
+  bugStage: InsectStage;
   tail: TailType;
   collar: CollarType;
 }

@@ -1,0 +1,93 @@
+import { Experiment, Insight } from '@/types/experiment';
+import { Session } from '@/types/session';
+import { confidenceFromSamples, catchRate } from '@/utils/calculations';
+import { getExperimentEntries } from '@/utils/experimentEntries';
+
+interface TopFlyStat {
+  name: string;
+  hookSize: number;
+  beadSizeMm: number;
+  bugFamily: string;
+  bugStage: string;
+  casts: number;
+  catches: number;
+  rate: number;
+  rivers: Set<string>;
+  months: Set<string>;
+}
+
+export interface TopFlyRecord {
+  name: string;
+  hookSize: number;
+  beadSizeMm: number;
+  bugFamily: string;
+  bugStage: string;
+  casts: number;
+  catches: number;
+  rate: number;
+  rivers: string[];
+  months: string[];
+}
+
+const MIN_CASTS_FOR_TOP_FLY = 15;
+
+const toKey = (name: string, hookSize: number, beadSizeMm: number, bugFamily: string, bugStage: string): string =>
+  `${name.trim().toLowerCase()}|${hookSize}|${beadSizeMm}|${bugFamily}|${bugStage}`;
+
+export const buildTopFlyRecords = (sessions: Session[], experiments: Experiment[]): TopFlyRecord[] => {
+  const sessionMap = new Map(sessions.map((session) => [session.id, session]));
+  const stats = new Map<string, TopFlyStat>();
+
+  experiments.forEach((experiment) => {
+    const session = sessionMap.get(experiment.sessionId);
+    getExperimentEntries(experiment).forEach((entry) => {
+      const flyName = entry.fly.name.trim() || entry.label;
+      const key = toKey(flyName, entry.fly.hookSize, entry.fly.beadSizeMm, entry.fly.bugFamily, entry.fly.bugStage);
+      const current =
+        stats.get(key) ??
+        {
+          name: flyName,
+          hookSize: entry.fly.hookSize,
+          beadSizeMm: entry.fly.beadSizeMm,
+          bugFamily: entry.fly.bugFamily,
+          bugStage: entry.fly.bugStage,
+          casts: 0,
+          catches: 0,
+          rate: 0,
+          rivers: new Set<string>(),
+          months: new Set<string>()
+        };
+
+      current.casts += entry.casts;
+      current.catches += entry.catches;
+      if (session?.riverName) current.rivers.add(session.riverName);
+      if (session) current.months.add(new Date(session.date).toLocaleString('en-US', { month: 'long' }));
+      current.rate = catchRate(current.catches, current.casts);
+      stats.set(key, current);
+    });
+  });
+
+  return [...stats.values()]
+    .filter((stat) => stat.casts >= MIN_CASTS_FOR_TOP_FLY)
+    .sort((left, right) => right.rate - left.rate || right.casts - left.casts)
+    .map((stat) => ({
+      name: stat.name,
+      hookSize: stat.hookSize,
+      beadSizeMm: stat.beadSizeMm,
+      bugFamily: stat.bugFamily,
+      bugStage: stat.bugStage,
+      casts: stat.casts,
+      catches: stat.catches,
+      rate: stat.rate,
+      rivers: [...stat.rivers].sort(),
+      months: [...stat.months].sort()
+    }));
+};
+
+export const buildTopFlyInsights = (records: TopFlyRecord[]): Insight[] =>
+  records.slice(0, 3).map((record, index) => ({
+    type: index === 0 ? 'recommendation' : 'pattern',
+    message: `${record.name} (${record.bugFamily}, ${record.bugStage}, #${record.hookSize}, bead ${record.beadSizeMm}) is a top performer at ${(record.rate * 100).toFixed(1)}% over ${record.casts} casts.`,
+    confidence: confidenceFromSamples(record.casts),
+    supportingData: record
+  }));

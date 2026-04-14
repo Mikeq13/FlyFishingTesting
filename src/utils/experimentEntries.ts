@@ -1,8 +1,24 @@
 import { Experiment, ExperimentFlyEntry } from '@/types/experiment';
 import { FlySetup } from '@/types/fly';
 
-const emptyFly: FlySetup = { name: '', intent: 'imitative', hookSize: 16, beadSizeMm: 0, bodyType: 'thread', tail: 'natural', collar: 'none' };
-const normalizeFly = (fly: FlySetup): FlySetup => ({ ...fly, hookSize: fly.hookSize ?? 16, tail: fly.tail ?? 'natural' });
+const emptyFly: FlySetup = {
+  name: '',
+  intent: 'imitative',
+  hookSize: 16,
+  beadSizeMm: 0,
+  bodyType: 'thread',
+  bugFamily: 'mayfly',
+  bugStage: 'nymph',
+  tail: 'natural',
+  collar: 'none'
+};
+const normalizeFly = (fly: FlySetup): FlySetup => ({
+  ...fly,
+  hookSize: fly.hookSize ?? 16,
+  bugFamily: fly.bugFamily ?? 'mayfly',
+  bugStage: fly.bugStage ?? 'nymph',
+  tail: fly.tail ?? 'natural'
+});
 
 export const createExperimentLabel = (index: number, total: number, baselineIndex: number): string => {
   if (total === 1) return 'Fly';
@@ -43,7 +59,10 @@ export const alignExperimentEntries = (entries: ExperimentFlyEntry[], count: num
 
 export const getExperimentEntries = (experiment: Experiment): ExperimentFlyEntry[] => {
   if (experiment.flyEntries?.length) {
-    return experiment.flyEntries;
+    return experiment.flyEntries.map((entry) => ({
+      ...entry,
+      fly: normalizeFly(entry.fly)
+    }));
   }
 
   return [

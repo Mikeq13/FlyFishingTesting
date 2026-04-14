@@ -8,7 +8,7 @@ const normalize = (value: string): string => value.trim().toLowerCase();
 
 const buildExperimentSignature = (experiment: Experiment, session?: Session): string => {
   const flySignature = getExperimentEntries(experiment)
-    .map((entry) => `${normalize(entry.fly.name || entry.label)}|${entry.fly.intent}|${entry.fly.beadSizeMm}|${entry.fly.bodyType}|${entry.fly.collar}`)
+    .map((entry) => `${normalize(entry.fly.name || entry.label)}|${entry.fly.intent}|${entry.fly.hookSize}|${entry.fly.beadSizeMm}|${entry.fly.bodyType}|${entry.fly.bugFamily}|${entry.fly.bugStage}|${entry.fly.tail}|${entry.fly.collar}`)
     .sort()
     .join(' || ');
 

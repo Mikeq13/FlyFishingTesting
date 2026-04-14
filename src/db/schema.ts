@@ -76,6 +76,8 @@ export const initDb = async (): Promise<void> => {
       hook_size INTEGER NOT NULL DEFAULT 16,
       bead_size_mm REAL NOT NULL,
       body_type TEXT NOT NULL,
+      bug_family TEXT NOT NULL DEFAULT 'mayfly',
+      bug_stage TEXT NOT NULL DEFAULT 'nymph',
       tail TEXT NOT NULL DEFAULT 'natural',
       collar TEXT NOT NULL,
       created_at TEXT NOT NULL,
@@ -105,6 +107,12 @@ export const initDb = async (): Promise<void> => {
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE saved_flies ADD COLUMN hook_size INTEGER NOT NULL DEFAULT 16;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE saved_flies ADD COLUMN bug_family TEXT NOT NULL DEFAULT 'mayfly';`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE saved_flies ADD COLUMN bug_stage TEXT NOT NULL DEFAULT 'nymph';`);
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE saved_flies ADD COLUMN tail TEXT NOT NULL DEFAULT 'natural';`);
