@@ -44,7 +44,7 @@ export const HomeScreen = ({ navigation }: any) => {
         <View style={{ gap: 6 }}>
           <Text style={{ fontSize: 34, fontWeight: '800', color: '#f7fdff' }}>Fishing Lab</Text>
           <Text style={{ color: '#d7f3ff', fontSize: 16, lineHeight: 22 }}>
-            A mobile field notebook for testing flies, learning patterns, and keeping your research on the water.
+            A Fly Fishing Journal designed to help you improve with insights and coaching.
           </Text>
         </View>
         <View
