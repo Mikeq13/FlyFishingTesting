@@ -10,7 +10,7 @@ interface OptionChipsProps<T extends string> {
 
 export const OptionChips = <T extends string>({ label, options, value, onChange }: OptionChipsProps<T>) => (
   <View style={{ gap: 8 }}>
-    <Text style={{ color: 'white', fontWeight: '700' }}>{label}</Text>
+    <Text style={{ color: '#f4fbff', fontWeight: '800' }}>{label}</Text>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
       {options.map((option) => (
         <Pressable
@@ -21,11 +21,11 @@ export const OptionChips = <T extends string>({ label, options, value, onChange 
             paddingVertical: 8,
             borderRadius: 999,
             borderWidth: 1,
-            borderColor: value === option ? '#2a9d8f' : 'rgba(255,255,255,0.3)',
-            backgroundColor: value === option ? 'rgba(42,157,143,0.22)' : 'rgba(255,255,255,0.08)'
+            borderColor: value === option ? '#84d9f4' : 'rgba(255,255,255,0.22)',
+            backgroundColor: value === option ? 'rgba(132,217,244,0.28)' : 'rgba(6,28,41,0.5)'
           }}
         >
-          <Text style={{ color: 'white', fontWeight: '600' }}>{option}</Text>
+          <Text style={{ color: '#f4fbff', fontWeight: '700' }}>{option}</Text>
         </Pressable>
       ))}
     </View>
