@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { OptionChips } from '@/components/OptionChips';
+import { DEPTH_RANGES, MONTHS, WATER_TYPES } from '@/constants/options';
 import { useAppStore } from './store';
 import { isWithinDateRange } from '@/utils/dateRange';
 import { getExperimentEntries } from '@/utils/experimentEntries';
@@ -22,6 +24,7 @@ export const HistoryScreen = () => {
   const [monthFilter, setMonthFilter] = useState('');
   const [waterFilter, setWaterFilter] = useState('');
   const [depthFilter, setDepthFilter] = useState('');
+  const [showRiverChoices, setShowRiverChoices] = useState(false);
   const [cleanupFrom, setCleanupFrom] = useState('');
   const [cleanupTo, setCleanupTo] = useState('');
   const [cleanupOutcome, setCleanupOutcome] = useState<'all' | 'decisive' | 'tie' | 'inconclusive'>('inconclusive');
@@ -36,6 +39,12 @@ export const HistoryScreen = () => {
   };
 
   const sessionMap = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
+  const riverOptions = useMemo(
+    () =>
+      [...new Set(sessions.map((session) => session.riverName?.trim()).filter((river): river is string => !!river))]
+        .sort((left, right) => left.localeCompare(right)),
+    [sessions]
+  );
 
   const filteredSessions = useMemo(
     () =>
@@ -125,10 +134,46 @@ export const HistoryScreen = () => {
           <Text style={{ fontWeight: '700', color: '#dbf5ff' }}>Angler: {activeUser?.name ?? 'Loading...'}</Text>
         </View>
         <View style={{ gap: 8, backgroundColor: 'rgba(6, 27, 44, 0.70)', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
-          <TextInput value={riverFilter} onChangeText={setRiverFilter} placeholder="Filter river" placeholderTextColor="#5a6c78" style={inputStyle} />
-          <TextInput value={monthFilter} onChangeText={setMonthFilter} placeholder="Filter month" placeholderTextColor="#5a6c78" style={inputStyle} />
-          <TextInput value={waterFilter} onChangeText={setWaterFilter} placeholder="Filter water type" placeholderTextColor="#5a6c78" style={inputStyle} />
-          <TextInput value={depthFilter} onChangeText={setDepthFilter} placeholder="Filter depth" placeholderTextColor="#5a6c78" style={inputStyle} />
+          {!!riverOptions.length && (
+            <>
+              <Pressable onPress={() => setShowRiverChoices((current) => !current)} style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}>
+                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
+                  {showRiverChoices ? 'Hide Rivers' : 'Choose River'}
+                </Text>
+              </Pressable>
+              {showRiverChoices && (
+                <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)' }}>
+                  <Pressable onPress={() => { setRiverFilter(''); setShowRiverChoices(false); }} style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}>
+                    <Text style={{ color: '#0b3d3a', fontWeight: '700' }}>All rivers</Text>
+                  </Pressable>
+                  {riverOptions.map((river) => (
+                    <Pressable
+                      key={river}
+                      onPress={() => {
+                        setRiverFilter(river);
+                        setShowRiverChoices(false);
+                      }}
+                      style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
+                    >
+                      <Text style={{ color: '#0b3d3a', fontWeight: '600' }}>{river}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              )}
+            </>
+          )}
+          <OptionChips label="Month" options={MONTHS} value={monthFilter || null} onChange={setMonthFilter} />
+          <Pressable onPress={() => setMonthFilter('')} style={{ backgroundColor: 'rgba(255,255,255,0.12)', padding: 10, borderRadius: 12 }}>
+            <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Clear Month Filter</Text>
+          </Pressable>
+          <OptionChips label="Water Type" options={WATER_TYPES} value={waterFilter || null} onChange={setWaterFilter} />
+          <Pressable onPress={() => setWaterFilter('')} style={{ backgroundColor: 'rgba(255,255,255,0.12)', padding: 10, borderRadius: 12 }}>
+            <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Clear Water Filter</Text>
+          </Pressable>
+          <OptionChips label="Depth Range" options={DEPTH_RANGES} value={depthFilter || null} onChange={setDepthFilter} />
+          <Pressable onPress={() => setDepthFilter('')} style={{ backgroundColor: 'rgba(255,255,255,0.12)', padding: 10, borderRadius: 12 }}>
+            <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Clear Depth Filter</Text>
+          </Pressable>
         </View>
 
         <View style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 18, padding: 14, gap: 8, backgroundColor: 'rgba(245,252,255,0.96)' }}>
@@ -211,7 +256,13 @@ export const HistoryScreen = () => {
                       <Text style={{ color: '#334e68' }}>Catch rate: {experimentRate.toFixed(1)}%</Text>
                       {entries.some((entry) => entry.fishSizesInches.length) ? (
                         <Text style={{ color: '#334e68' }}>
-                          Fish sizes: {entries.flatMap((entry) => entry.fishSizesInches).map((size) => `${size}"`).join(', ')}
+                          Fish log: {entries
+                            .flatMap((entry) =>
+                              entry.fishSizesInches.map(
+                                (size, fishIndex) => `${size}" ${entry.fishSpecies[fishIndex] ?? 'Trout'}`
+                              )
+                            )
+                            .join(', ')}
                         </Text>
                       ) : null}
                       <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>

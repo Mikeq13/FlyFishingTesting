@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { InsightCard } from '@/components/InsightCard';
+import { OptionChips } from '@/components/OptionChips';
 import { PremiumFeatureGate } from '@/components/PremiumFeatureGate';
 import { ScreenBackground } from '@/components/ScreenBackground';
+import { DEPTH_RANGES, MONTHS, WATER_TYPES } from '@/constants/options';
 import { buildAggregates } from '@/engine/aggregationEngine';
 import { generateInsights } from '@/engine/insightEngine';
 import { buildTopFlyInsights, buildTopFlyRecords } from '@/engine/topFlyEngine';
@@ -42,13 +44,18 @@ export const InsightsScreen = ({ navigation }: any) => {
   const { sessions, experiments, anglerComparisons, currentHasPremiumAccess } = useAppStore();
   const [riverFilter, setRiverFilter] = useState('');
   const [monthFilter, setMonthFilter] = useState('');
+  const [waterFilter, setWaterFilter] = useState('');
+  const [depthFilter, setDepthFilter] = useState('');
   const [speciesFilter, setSpeciesFilter] = useState('');
   const [minimumSizeFilter, setMinimumSizeFilter] = useState('');
+  const [showRiverChoices, setShowRiverChoices] = useState(false);
   const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 980) : undefined;
 
   const normalizedFilters = {
     river: riverFilter.trim().toLowerCase(),
     month: monthFilter.trim().toLowerCase(),
+    water: waterFilter.trim().toLowerCase(),
+    depth: depthFilter.trim().toLowerCase(),
     species: speciesFilter.trim().toLowerCase(),
     minimumSize: Number(minimumSizeFilter || '0') || 0
   };
@@ -58,16 +65,32 @@ export const InsightsScreen = ({ navigation }: any) => {
       sessions.filter((session) => {
         const river = session.riverName?.toLowerCase() ?? '';
         const month = new Date(session.date).toLocaleString('en-US', { month: 'long' }).toLowerCase();
+        const water = session.waterType.toLowerCase();
+        const depth = session.depthRange.toLowerCase();
 
         return (
           (!normalizedFilters.river || river.includes(normalizedFilters.river)) &&
-          (!normalizedFilters.month || month.includes(normalizedFilters.month))
+          (!normalizedFilters.month || month.includes(normalizedFilters.month)) &&
+          (!normalizedFilters.water || water.includes(normalizedFilters.water)) &&
+          (!normalizedFilters.depth || depth.includes(normalizedFilters.depth))
         );
       }),
-    [normalizedFilters.month, normalizedFilters.river, sessions]
+    [normalizedFilters.depth, normalizedFilters.month, normalizedFilters.river, normalizedFilters.water, sessions]
   );
 
   const filteredSessionIds = useMemo(() => new Set(filteredSessions.map((session) => session.id)), [filteredSessions]);
+  const riverOptions = useMemo(
+    () =>
+      [...new Set(sessions.map((session) => session.riverName?.trim()).filter((river): river is string => !!river))]
+        .sort((left, right) => left.localeCompare(right)),
+    [sessions]
+  );
+  const speciesOptions = useMemo(
+    () =>
+      [...new Set(experiments.flatMap((experiment) => getExperimentEntries(experiment).flatMap((entry) => entry.fishSpecies)))]
+        .sort((left, right) => left.localeCompare(right)),
+    [experiments]
+  );
 
   const filteredExperiments = useMemo(
     () =>
@@ -147,9 +170,54 @@ export const InsightsScreen = ({ navigation }: any) => {
             </View>
 
             <View style={{ gap: 8, backgroundColor: 'rgba(6, 27, 44, 0.70)', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
-              <TextInput value={riverFilter} onChangeText={setRiverFilter} placeholder="Filter river" placeholderTextColor="#5a6c78" style={inputStyle} />
-              <TextInput value={monthFilter} onChangeText={setMonthFilter} placeholder="Filter month" placeholderTextColor="#5a6c78" style={inputStyle} />
-              <TextInput value={speciesFilter} onChangeText={setSpeciesFilter} placeholder="Filter species" placeholderTextColor="#5a6c78" style={inputStyle} />
+              {!!riverOptions.length && (
+                <>
+                  <Pressable onPress={() => setShowRiverChoices((current) => !current)} style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}>
+                    <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
+                      {showRiverChoices ? 'Hide Rivers' : 'Choose River'}
+                    </Text>
+                  </Pressable>
+                  {showRiverChoices && (
+                    <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)' }}>
+                      <Pressable onPress={() => { setRiverFilter(''); setShowRiverChoices(false); }} style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}>
+                        <Text style={{ color: '#0b3d3a', fontWeight: '700' }}>All rivers</Text>
+                      </Pressable>
+                      {riverOptions.map((river) => (
+                        <Pressable
+                          key={river}
+                          onPress={() => {
+                            setRiverFilter(river);
+                            setShowRiverChoices(false);
+                          }}
+                          style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
+                        >
+                          <Text style={{ color: '#0b3d3a', fontWeight: '600' }}>{river}</Text>
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                  )}
+                </>
+              )}
+              <OptionChips label="Month" options={MONTHS} value={monthFilter || null} onChange={setMonthFilter} />
+              <Pressable onPress={() => setMonthFilter('')} style={{ backgroundColor: 'rgba(255,255,255,0.12)', padding: 10, borderRadius: 12 }}>
+                <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Clear Month Filter</Text>
+              </Pressable>
+              <OptionChips label="Water Type" options={WATER_TYPES} value={waterFilter || null} onChange={setWaterFilter} />
+              <Pressable onPress={() => setWaterFilter('')} style={{ backgroundColor: 'rgba(255,255,255,0.12)', padding: 10, borderRadius: 12 }}>
+                <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Clear Water Filter</Text>
+              </Pressable>
+              <OptionChips label="Depth Range" options={DEPTH_RANGES} value={depthFilter || null} onChange={setDepthFilter} />
+              <Pressable onPress={() => setDepthFilter('')} style={{ backgroundColor: 'rgba(255,255,255,0.12)', padding: 10, borderRadius: 12 }}>
+                <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Clear Depth Filter</Text>
+              </Pressable>
+              {!!speciesOptions.length && (
+                <>
+                  <OptionChips label="Species" options={speciesOptions} value={speciesFilter || null} onChange={setSpeciesFilter} />
+                  <Pressable onPress={() => setSpeciesFilter('')} style={{ backgroundColor: 'rgba(255,255,255,0.12)', padding: 10, borderRadius: 12 }}>
+                    <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Clear Species Filter</Text>
+                  </Pressable>
+                </>
+              )}
               <TextInput
                 value={minimumSizeFilter}
                 onChangeText={setMinimumSizeFilter}

@@ -13,7 +13,7 @@ export const SessionScreen = ({ navigation }: any) => {
   const { addSession, addSavedRiver, savedRivers, users, activeUserId } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
   const [waterType, setWaterType] = useState<WaterType>('run');
-  const [depthRange, setDepthRange] = useState<typeof DEPTH_RANGES[number]>('1-3 ft');
+  const [depthRange, setDepthRange] = useState<typeof DEPTH_RANGES[number]>('1.5-3 ft');
   const [riverName, setRiverName] = useState('');
   const [notes, setNotes] = useState('');
   const [showSavedRiverList, setShowSavedRiverList] = useState(false);
@@ -56,7 +56,6 @@ export const SessionScreen = ({ navigation }: any) => {
           <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>Capture the water you are fishing before you start comparing flies.</Text>
           <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Angler: {activeUser?.name ?? 'Loading...'}</Text>
         </View>
-        <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Water Type</Text>
         <OptionChips label="Water Type" options={WATER_TYPES} value={waterType} onChange={setWaterType} />
         <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Depth Range</Text>
         <DepthSelector value={depthRange} onChange={setDepthRange} />

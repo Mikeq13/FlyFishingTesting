@@ -1,5 +1,5 @@
 export type WaterType = 'riffle' | 'run' | 'glide' | 'pool' | 'pocket water' | 'lake';
-export type DepthRange = 'surface' | '1-3 ft' | '3-6 ft' | '6+ ft';
+export type DepthRange = '<1.5 ft' | '1.5-3 ft' | '3-5 ft' | '>5 ft';
 export type InsectType =
   | 'mayfly'
   | 'caddis'

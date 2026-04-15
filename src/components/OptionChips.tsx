@@ -4,7 +4,7 @@ import { Pressable, Text, View } from 'react-native';
 interface OptionChipsProps<T extends string> {
   label: string;
   options: readonly T[];
-  value: T;
+  value?: T | null;
   onChange: (value: T) => void;
 }
 
