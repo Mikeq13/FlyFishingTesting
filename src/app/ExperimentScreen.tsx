@@ -307,36 +307,6 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>{isSaving ? 'Saving...' : 'Save Experiment'}</Text>
         </Pressable>
 
-        {showSavedExperimentActions && (
-          <View style={{ gap: 8, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 18, padding: 14, backgroundColor: 'rgba(245,252,255,0.96)' }}>
-            <Text style={{ fontWeight: '800', fontSize: 18, color: '#102a43' }}>Experiment saved</Text>
-            <Text style={{ color: '#334e68' }}>What do you want to do next?</Text>
-            <Pressable onPress={modifyAndContinue} style={{ backgroundColor: '#2a9d8f', padding: 12, borderRadius: 12 }}>
-              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Modify and continue</Text>
-            </Pressable>
-            <Pressable onPress={resetForNextExperiment} style={{ backgroundColor: '#264653', padding: 12, borderRadius: 12 }}>
-              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Start fresh</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                setShowSavedExperimentActions(false);
-                navigation.navigate('SessionDetail', { sessionId });
-              }}
-              style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}
-            >
-              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>View this session</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                setShowSavedExperimentActions(false);
-                navigation.navigate('Insights');
-              }}
-              style={{ backgroundColor: '#6c757d', padding: 12, borderRadius: 12 }}
-            >
-              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Go to insights</Text>
-            </Pressable>
-          </View>
-        )}
       </ScrollView>
       </KeyboardDismissView>
       <Modal
@@ -410,6 +380,49 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                 <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Save Catch</Text>
               </Pressable>
             </View>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={showSavedExperimentActions}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSavedExperimentActions(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(5, 18, 28, 0.72)', justifyContent: 'center', padding: 20 }}>
+          <View style={{ gap: 12, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 20, padding: 16, backgroundColor: 'rgba(245,252,255,0.98)' }}>
+            <Text style={{ fontWeight: '800', fontSize: 20, color: '#102a43' }}>Experiment saved</Text>
+            <Text style={{ color: '#334e68' }}>What do you want to do next?</Text>
+            <Pressable onPress={modifyAndContinue} style={{ backgroundColor: '#2a9d8f', padding: 12, borderRadius: 12 }}>
+              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Modify and continue</Text>
+            </Pressable>
+            <Pressable onPress={resetForNextExperiment} style={{ backgroundColor: '#264653', padding: 12, borderRadius: 12 }}>
+              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Start fresh</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setShowSavedExperimentActions(false);
+                navigation.navigate('SessionDetail', { sessionId });
+              }}
+              style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}
+            >
+              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>View this session</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setShowSavedExperimentActions(false);
+                navigation.navigate('Insights');
+              }}
+              style={{ backgroundColor: '#6c757d', padding: 12, borderRadius: 12 }}
+            >
+              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Go to insights</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setShowSavedExperimentActions(false)}
+              style={{ backgroundColor: '#adb5bd', padding: 12, borderRadius: 12 }}
+            >
+              <Text style={{ color: '#102a43', textAlign: 'center', fontWeight: '700' }}>Close</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
