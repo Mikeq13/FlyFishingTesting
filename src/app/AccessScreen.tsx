@@ -96,6 +96,47 @@ export const AccessScreen = () => {
           )}
         </View>
 
+        <View style={{ gap: 8, backgroundColor: 'rgba(6, 27, 44, 0.72)', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
+          <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>My Data</Text>
+          <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
+            Clean up local fishing data for the active profile without affecting other anglers on this device.
+          </Text>
+          <Pressable
+            onPress={() =>
+              confirmAdminAction(
+                'Clear your fishing data?',
+                `This removes ${currentUser.name}'s sessions, experiments, saved flies, and saved rivers from this device. Your angler profile will stay in the app.`,
+                () => clearFishingDataForUser(currentUser.id),
+                `${currentUser.name}'s fishing data was cleared.`
+              )
+            }
+            style={{ backgroundColor: '#6c584c', padding: 12, borderRadius: 12 }}
+          >
+            <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Clear My Fishing Data</Text>
+          </Pressable>
+          {currentUser.role !== 'owner' ? (
+            <Pressable
+              onPress={() =>
+                confirmAdminAction(
+                  'Delete this angler profile?',
+                  `This permanently removes ${currentUser.name} and all of their saved fishing data from this device.`,
+                  () => deleteAngler(currentUser.id),
+                  `${currentUser.name} was deleted from this device.`
+                )
+              }
+              style={{ backgroundColor: '#5b0b0b', padding: 12, borderRadius: 12 }}
+            >
+              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Delete My Angler Profile</Text>
+            </Pressable>
+          ) : (
+            <View style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 10 }}>
+              <Text style={{ color: '#d7f3ff' }}>
+                The owner profile stays in place, but you can still clear its fishing data when you want a fresh start.
+              </Text>
+            </View>
+          )}
+        </View>
+
         {canManageAccess && (
           <View style={{ gap: 10 }}>
             <Text style={{ color: '#f7fdff', fontWeight: '800', fontSize: 20 }}>Owner Controls</Text>
