@@ -319,10 +319,10 @@ export const InsightsScreen = ({ navigation }: any) => {
               />
               <OptionChips
                 label="Fly View"
-                options={['Pattern', 'Exact Variant']}
-                value={flyFilterMode === 'exact' ? 'Exact Variant' : 'Pattern'}
+                options={['Pattern', 'Detailed Fly']}
+                value={flyFilterMode === 'exact' ? 'Detailed Fly' : 'Pattern'}
                 onChange={(value) => {
-                  setFlyFilterMode(value === 'Exact Variant' ? 'exact' : 'pattern');
+                  setFlyFilterMode(value === 'Detailed Fly' ? 'exact' : 'pattern');
                   setFlyFilter('');
                   setShowFlyChoices(false);
                 }}
@@ -332,8 +332,8 @@ export const InsightsScreen = ({ navigation }: any) => {
                   <Pressable onPress={() => setShowFlyChoices((current) => !current)} style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}>
                     <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
                       {showFlyChoices
-                        ? `Hide ${flyFilterMode === 'exact' ? 'Fly Variants' : 'Fly Patterns'}`
-                        : `Choose ${flyFilterMode === 'exact' ? 'Fly Variant' : 'Fly Pattern'}`}
+                        ? `Hide ${flyFilterMode === 'exact' ? 'Detailed Flies' : 'Fly Patterns'}`
+                        : `Choose ${flyFilterMode === 'exact' ? 'Detailed Fly' : 'Fly Pattern'}`}
                     </Text>
                   </Pressable>
                   {showFlyChoices && (
@@ -346,7 +346,7 @@ export const InsightsScreen = ({ navigation }: any) => {
                         style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
                       >
                         <Text style={{ color: '#0b3d3a', fontWeight: '700' }}>
-                          {flyFilterMode === 'exact' ? 'All fly variants' : 'All fly patterns'}
+                          {flyFilterMode === 'exact' ? 'All detailed flies' : 'All fly patterns'}
                         </Text>
                       </Pressable>
                       {(flyFilterMode === 'exact' ? exactFlyOptions : flyOptions)
@@ -367,7 +367,7 @@ export const InsightsScreen = ({ navigation }: any) => {
                   )}
                   <Text style={{ color: '#d7f3ff' }}>
                     {flyFilterMode === 'exact'
-                      ? `Selected variant: ${flyFilter || 'All fly variants'}`
+                      ? `Selected detailed fly: ${flyFilter || 'All detailed flies'}`
                       : `Selected pattern: ${flyFilter || 'All fly patterns'}`}
                   </Text>
                 </View>
