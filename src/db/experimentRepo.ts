@@ -1,6 +1,6 @@
 import { getDb, isWeb } from './schema';
 import { Experiment } from '@/types/experiment';
-import { insertWebRow, listWebRows, updateWebRows } from './webStore';
+import { deleteWebRows, insertWebRow, listWebRows, updateWebRows } from './webStore';
 import { getExperimentEntries } from '@/utils/experimentEntries';
 
 const WEB_EXPERIMENTS_KEY = 'fishing_lab.experiments';
@@ -97,4 +97,14 @@ export const archiveExperiments = async (experimentIds: number[]): Promise<void>
   const db = await getDb();
   const placeholders = experimentIds.map(() => '?').join(', ');
   await db.runAsync(`UPDATE experiments SET archived_at = ? WHERE id IN (${placeholders})`, archivedAt, ...experimentIds);
+};
+
+export const deleteExperimentsForUser = async (userId: number): Promise<void> => {
+  if (isWeb) {
+    deleteWebRows<Experiment>(WEB_EXPERIMENTS_KEY, (row) => row.userId === userId);
+    return;
+  }
+
+  const db = await getDb();
+  await db.runAsync('DELETE FROM experiments WHERE user_id = ?', userId);
 };

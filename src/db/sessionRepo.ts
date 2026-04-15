@@ -1,6 +1,6 @@
 import { getDb, isWeb } from './schema';
 import { Session } from '@/types/session';
-import { insertWebRow, listWebRows } from './webStore';
+import { deleteWebRows, insertWebRow, listWebRows } from './webStore';
 
 const WEB_SESSIONS_KEY = 'fishing_lab.sessions';
 const WEB_SESSIONS_ID_KEY = 'fishing_lab.sessions.nextId';
@@ -41,4 +41,14 @@ export const listSessions = async (userId: number): Promise<Session[]> => {
     riverName: r.river_name ?? undefined,
     notes: r.notes ?? undefined
   }));
+};
+
+export const deleteSessionsForUser = async (userId: number): Promise<void> => {
+  if (isWeb) {
+    deleteWebRows<Session>(WEB_SESSIONS_KEY, (row) => row.userId === userId);
+    return;
+  }
+
+  const db = await getDb();
+  await db.runAsync('DELETE FROM sessions WHERE user_id = ?', userId);
 };

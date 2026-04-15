@@ -1,6 +1,6 @@
 import { SavedFly } from '@/types/fly';
 import { getDb, isWeb } from './schema';
-import { insertWebRow, listWebRows } from './webStore';
+import { deleteWebRows, insertWebRow, listWebRows } from './webStore';
 
 const WEB_SAVED_FLIES_KEY = 'fishing_lab.saved_flies';
 const WEB_SAVED_FLIES_ID_KEY = 'fishing_lab.saved_flies.nextId';
@@ -55,4 +55,14 @@ export const listSavedFlies = async (userId: number): Promise<SavedFly[]> => {
     collar: row.collar,
     createdAt: row.created_at
   }));
+};
+
+export const deleteSavedFliesForUser = async (userId: number): Promise<void> => {
+  if (isWeb) {
+    deleteWebRows<SavedFly>(WEB_SAVED_FLIES_KEY, (row) => row.userId === userId);
+    return;
+  }
+
+  const db = await getDb();
+  await db.runAsync('DELETE FROM saved_flies WHERE user_id = ?', userId);
 };

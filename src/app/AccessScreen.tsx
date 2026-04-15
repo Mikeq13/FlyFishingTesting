@@ -17,7 +17,9 @@ export const AccessScreen = () => {
     startTrialForUser,
     grantPowerUserAccess,
     markSubscriberAccess,
-    clearUserAccess
+    clearUserAccess,
+    clearFishingDataForUser,
+    deleteAngler
   } = useAppStore();
   const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 980) : undefined;
 
@@ -44,7 +46,23 @@ export const AccessScreen = () => {
 
   const runAdminAction = async (action: () => Promise<void>, label: string) => {
     await action();
-    Alert.alert('Access updated', label);
+    Alert.alert('Action completed', label);
+  };
+
+  const confirmAdminAction = (title: string, message: string, action: () => Promise<void>, successLabel: string) => {
+    Alert.alert(title, message, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Continue',
+        style: 'destructive',
+        onPress: () => {
+          runAdminAction(action, successLabel).catch((error) => {
+            const reason = error instanceof Error ? error.message : 'Please try again.';
+            Alert.alert('Unable to finish action', reason);
+          });
+        }
+      }
+    ]);
   };
 
   return (
@@ -120,6 +138,32 @@ export const AccessScreen = () => {
                     </Pressable>
                     <Pressable onPress={() => runAdminAction(() => clearUserAccess(user.id), `${user.name} was reset to free access.`)} style={{ backgroundColor: '#8d0801', padding: 12, borderRadius: 12 }}>
                       <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Reset Access</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() =>
+                        confirmAdminAction(
+                          'Clear fishing data?',
+                          `This removes ${user.name}'s sessions, experiments, saved flies, and saved rivers. The angler profile will stay in the app.`,
+                          () => clearFishingDataForUser(user.id),
+                          `${user.name}'s fishing data was cleared.`
+                        )
+                      }
+                      style={{ backgroundColor: '#6c584c', padding: 12, borderRadius: 12 }}
+                    >
+                      <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Clear Fishing Data</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() =>
+                        confirmAdminAction(
+                          'Delete angler?',
+                          `This permanently removes ${user.name} and all of their saved fishing data from this device.`,
+                          () => deleteAngler(user.id),
+                          `${user.name} was deleted from this device.`
+                        )
+                      }
+                      style={{ backgroundColor: '#5b0b0b', padding: 12, borderRadius: 12 }}
+                    >
+                      <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Delete Angler</Text>
                     </Pressable>
                   </>
                 )}

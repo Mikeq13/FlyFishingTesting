@@ -3,11 +3,11 @@ import { Experiment, Insight } from '@/types/experiment';
 import { SavedRiver, Session } from '@/types/session';
 import { UserProfile } from '@/types/user';
 import { FlySetup, SavedFly } from '@/types/fly';
-import { createSession, listSessions } from '@/db/sessionRepo';
-import { archiveExperiments, createExperiment, listExperiments } from '@/db/experimentRepo';
-import { createUser, listUsers, updateUser } from '@/db/userRepo';
-import { createSavedFly, listSavedFlies } from '@/db/savedFlyRepo';
-import { createSavedRiver, listSavedRivers } from '@/db/savedRiverRepo';
+import { createSession, deleteSessionsForUser, listSessions } from '@/db/sessionRepo';
+import { archiveExperiments, createExperiment, deleteExperimentsForUser, listExperiments } from '@/db/experimentRepo';
+import { createUser, deleteUser, listUsers, updateUser } from '@/db/userRepo';
+import { createSavedFly, deleteSavedFliesForUser, listSavedFlies } from '@/db/savedFlyRepo';
+import { createSavedRiver, deleteSavedRiversForUser, listSavedRivers } from '@/db/savedRiverRepo';
 import { getActiveUserId as loadActiveUserId, setActiveUserId as saveActiveUserId } from '@/db/settingsRepo';
 import { initDb } from '@/db/schema';
 import { buildAggregates } from '@/engine/aggregationEngine';
@@ -43,6 +43,8 @@ interface AppStore {
   grantPowerUserAccess: (userId: number) => Promise<void>;
   markSubscriberAccess: (userId: number, expiresAt?: string | null) => Promise<void>;
   clearUserAccess: (userId: number) => Promise<void>;
+  clearFishingDataForUser: (userId: number) => Promise<void>;
+  deleteAngler: (userId: number) => Promise<void>;
   refresh: (targetUserId?: number | null) => Promise<void>;
   addSession: (payload: Omit<Session, 'id' | 'userId'>) => Promise<number>;
   addExperiment: (payload: Omit<Experiment, 'id' | 'userId'>) => Promise<number>;
@@ -227,6 +229,36 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
             subscriptionExpiresAt: null,
             grantedByUserId: activeUserId
           });
+        },
+        clearFishingDataForUser: async (userId) => {
+          await deleteExperimentsForUser(userId);
+          await deleteSessionsForUser(userId);
+          await deleteSavedFliesForUser(userId);
+          await deleteSavedRiversForUser(userId);
+          await refresh(activeUserId);
+        },
+        deleteAngler: async (userId) => {
+          const target = users.find((user) => user.id === userId);
+          if (!target || target.role === 'owner') {
+            throw new Error('Owner profile cannot be deleted.');
+          }
+
+          await deleteExperimentsForUser(userId);
+          await deleteSessionsForUser(userId);
+          await deleteSavedFliesForUser(userId);
+          await deleteSavedRiversForUser(userId);
+          await deleteUser(userId);
+
+          const remainingUsers = (await listUsers()).filter((user) => user.id !== userId);
+          const fallbackUserId = remainingUsers.find((user) => user.role === 'owner')?.id ?? remainingUsers[0]?.id ?? null;
+
+          if (activeUserId === userId && fallbackUserId) {
+            await selectActiveUser(fallbackUserId);
+            await refresh(fallbackUserId);
+            return;
+          }
+
+          await refresh(fallbackUserId ?? activeUserId);
         },
         refresh,
         addSession: async (payload) => {

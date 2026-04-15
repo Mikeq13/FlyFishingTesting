@@ -1,6 +1,6 @@
 import { getDb, isWeb } from './schema';
 import { AccessLevel, SubscriptionStatus, UserProfile, UserRole } from '@/types/user';
-import { insertWebRow, listWebRows, updateWebRows } from './webStore';
+import { deleteWebRows, insertWebRow, listWebRows, updateWebRows } from './webStore';
 
 const WEB_USERS_KEY = 'fishing_lab.users';
 const WEB_USERS_ID_KEY = 'fishing_lab.users.nextId';
@@ -141,4 +141,14 @@ export const updateUser = async (id: number, updates: UpdateUserInput): Promise<
   if (!assignments.length) return;
 
   await db.runAsync(`UPDATE users SET ${assignments.join(', ')} WHERE id = ?`, ...args, id);
+};
+
+export const deleteUser = async (id: number): Promise<void> => {
+  if (isWeb) {
+    deleteWebRows<UserProfile>(WEB_USERS_KEY, (row) => row.id === id);
+    return;
+  }
+
+  const db = await getDb();
+  await db.runAsync('DELETE FROM users WHERE id = ?', id);
 };

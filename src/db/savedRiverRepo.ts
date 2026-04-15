@@ -1,6 +1,6 @@
 import { SavedRiver } from '@/types/session';
 import { getDb, isWeb } from './schema';
-import { insertWebRow, listWebRows } from './webStore';
+import { deleteWebRows, insertWebRow, listWebRows } from './webStore';
 
 const WEB_SAVED_RIVERS_KEY = 'fishing_lab.saved_rivers';
 const WEB_SAVED_RIVERS_ID_KEY = 'fishing_lab.saved_rivers.nextId';
@@ -38,4 +38,14 @@ export const listSavedRivers = async (userId: number): Promise<SavedRiver[]> => 
     name: row.name,
     createdAt: row.created_at
   }));
+};
+
+export const deleteSavedRiversForUser = async (userId: number): Promise<void> => {
+  if (isWeb) {
+    deleteWebRows<SavedRiver>(WEB_SAVED_RIVERS_KEY, (row) => row.userId === userId);
+    return;
+  }
+
+  const db = await getDb();
+  await db.runAsync('DELETE FROM saved_rivers WHERE user_id = ?', userId);
 };

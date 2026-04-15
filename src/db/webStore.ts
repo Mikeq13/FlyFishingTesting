@@ -59,3 +59,11 @@ export const updateWebRows = <T>(tableKey: string, updater: (rows: T[]) => T[]):
   const rows = listWebRows<T>(tableKey);
   writeWebValue(tableKey, JSON.stringify(updater(rows)));
 };
+
+export const deleteWebRows = <T>(tableKey: string, predicate: (row: T) => boolean): void => {
+  const rows = listWebRows<T>(tableKey);
+  writeWebValue(
+    tableKey,
+    JSON.stringify(rows.filter((row) => !predicate(row)))
+  );
+};
