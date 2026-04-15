@@ -16,7 +16,7 @@ import { OptionChips } from '@/components/OptionChips';
 const FLY_COUNT_OPTIONS = [1, 2, 3] as const;
 const FISH_SIZE_OPTIONS = Array.from({ length: 17 }, (_, index) => index + 8);
 const TROUT_SPECIES_OPTIONS: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow', 'Tiger', 'Whitefish'];
-const CONTROL_FOCUS_OPTIONS: ExperimentControlFocus[] = ['pattern', 'fly type', 'hook size', 'tail', 'collar', 'body type', 'bead size', 'bead color'];
+const CONTROL_FOCUS_OPTIONS: ExperimentControlFocus[] = ['bead color', 'bead size', 'body type', 'collar', 'fly type', 'hook size', 'pattern', 'tail'];
 
 export const ExperimentScreen = ({ route, navigation }: any) => {
   const { width } = useWindowDimensions();
@@ -86,7 +86,6 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   const resetForNextExperiment = () => {
     setFlyCount(2);
     setBaselineIndex(0);
-    setControlFocus('pattern');
     setFlyEntries(createEmptyExperimentEntries(2, 0));
     setShowSavedExperimentActions(false);
     setPendingFishEntryIndex(null);
