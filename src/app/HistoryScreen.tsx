@@ -267,6 +267,12 @@ export const HistoryScreen = () => {
                       ) : null}
                       <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
                         <Pressable
+                          onPress={() => navigation.navigate('Experiment', { sessionId: session.id, experimentId: experiment.id })}
+                          style={{ backgroundColor: '#1d3557', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, flex: 1 }}
+                        >
+                          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Edit</Text>
+                        </Pressable>
+                        <Pressable
                           onPress={() => runSingleExperimentCleanup(experiment.id, 'archive')}
                           style={{ backgroundColor: '#6c584c', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, flex: 1 }}
                         >

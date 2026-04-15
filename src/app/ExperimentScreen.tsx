@@ -18,9 +18,14 @@ const TROUT_SPECIES_OPTIONS: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'R
 
 export const ExperimentScreen = ({ route, navigation }: any) => {
   const { width } = useWindowDimensions();
-  const { addExperiment, addSavedFly, savedFlies, users, activeUserId } = useAppStore();
+  const { addExperiment, addSavedFly, savedFlies, users, activeUserId, experiments, updateExperimentEntry } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
   const sessionId: number = route.params.sessionId;
+  const experimentId: number | undefined = route.params?.experimentId;
+  const existingExperiment = useMemo(
+    () => experiments.find((experiment) => experiment.id === experimentId) ?? null,
+    [experimentId, experiments]
+  );
   const [hypothesis, setHypothesis] = useState('');
   const [flyCount, setFlyCount] = useState<1 | 2 | 3>(2);
   const [baselineIndex, setBaselineIndex] = useState(0);
@@ -37,6 +42,16 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   useEffect(() => {
     setFlyEntries((current) => alignExperimentEntries(current, flyCount, baselineIndex));
   }, [baselineIndex, flyCount]);
+
+  useEffect(() => {
+    if (!existingExperiment) return;
+    const existingEntries = alignExperimentEntries(existingExperiment.flyEntries, existingExperiment.flyEntries.length || 2, Math.max(0, existingExperiment.flyEntries.findIndex((entry) => entry.role === 'baseline')));
+    const nextBaselineIndex = Math.max(0, existingEntries.findIndex((entry) => entry.role === 'baseline'));
+    setHypothesis(existingExperiment.hypothesis === 'No hypothesis provided' ? '' : existingExperiment.hypothesis);
+    setFlyCount(existingEntries.length as 1 | 2 | 3);
+    setBaselineIndex(nextBaselineIndex);
+    setFlyEntries(existingEntries);
+  }, [existingExperiment]);
 
   const visibleEntries = useMemo(() => flyEntries.slice(0, flyCount), [flyCount, flyEntries]);
   const lastLoggedSpecies = useMemo<TroutSpecies | null>(() => {
@@ -169,8 +184,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     try {
       const status = deriveExperimentStatus(visibleEntries);
       const legacy = getLegacyExperimentFields(visibleEntries);
-
-      await addExperiment({
+      const payload = {
         sessionId,
         hypothesis: hypothesis || 'No hypothesis provided',
         flyEntries: visibleEntries,
@@ -178,7 +192,13 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         winner: status.winner,
         outcome: status.outcome,
         confidenceScore: status.confidenceScore
-      });
+      };
+
+      if (existingExperiment) {
+        await updateExperimentEntry(existingExperiment.id, payload);
+      } else {
+        await addExperiment(payload);
+      }
       setShowSavedExperimentActions(true);
       cancelCatchModal();
     } finally {
@@ -304,7 +324,9 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         ))}
 
         <Pressable onPress={save} disabled={isSaving} style={{ backgroundColor: isSaving ? '#6c757d' : '#264653', padding: 14, borderRadius: 14 }}>
-          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>{isSaving ? 'Saving...' : 'Save Experiment'}</Text>
+          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
+            {isSaving ? (existingExperiment ? 'Updating...' : 'Saving...') : existingExperiment ? 'Update Experiment' : 'Save Experiment'}
+          </Text>
         </Pressable>
 
       </ScrollView>
@@ -391,7 +413,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
       >
         <View style={{ flex: 1, backgroundColor: 'rgba(5, 18, 28, 0.72)', justifyContent: 'center', padding: 20 }}>
           <View style={{ gap: 12, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 20, padding: 16, backgroundColor: 'rgba(245,252,255,0.98)' }}>
-            <Text style={{ fontWeight: '800', fontSize: 20, color: '#102a43' }}>Experiment saved</Text>
+            <Text style={{ fontWeight: '800', fontSize: 20, color: '#102a43' }}>{existingExperiment ? 'Experiment updated' : 'Experiment saved'}</Text>
             <Text style={{ color: '#334e68' }}>What do you want to do next?</Text>
             <Pressable onPress={modifyAndContinue} style={{ backgroundColor: '#2a9d8f', padding: 12, borderRadius: 12 }}>
               <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Modify and continue</Text>

@@ -79,12 +79,18 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
                 </Text>
                 {!!entry.fishSizesInches.length && (
                   <Text style={{ color: '#334e68' }}>
-                    Fish sizes: {entry.fishSizesInches.map((size) => `${size}"`).join(', ')}
+                    Fish log: {entry.fishSizesInches.map((size, fishIndex) => `${size}" ${entry.fishSpecies[fishIndex] ?? 'Trout'}`).join(', ')}
                   </Text>
                 )}
               </View>
             ))}
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+              <Pressable
+                onPress={() => navigation.navigate('Experiment', { sessionId, experimentId: e.id })}
+                style={{ backgroundColor: '#1d3557', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, flex: 1 }}
+              >
+                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Edit</Text>
+              </Pressable>
               <Pressable
                 onPress={() => runSingleExperimentCleanup(e.id, 'archive')}
                 style={{ backgroundColor: '#6c584c', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, flex: 1 }}

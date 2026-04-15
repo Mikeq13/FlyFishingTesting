@@ -4,7 +4,7 @@ import { SavedRiver, Session } from '@/types/session';
 import { UserProfile } from '@/types/user';
 import { FlySetup, SavedFly } from '@/types/fly';
 import { createSession, deleteSessionsForUser, listSessions } from '@/db/sessionRepo';
-import { archiveExperiments, createExperiment, deleteExperiments, deleteExperimentsForUser, listExperiments } from '@/db/experimentRepo';
+import { archiveExperiments, createExperiment, deleteExperiments, deleteExperimentsForUser, listExperiments, updateExperiment } from '@/db/experimentRepo';
 import { createUser, deleteUser, listUsers, updateUser } from '@/db/userRepo';
 import { createSavedFly, deleteSavedFliesForUser, listSavedFlies } from '@/db/savedFlyRepo';
 import { createSavedRiver, deleteSavedRiversForUser, listSavedRivers } from '@/db/savedRiverRepo';
@@ -51,6 +51,7 @@ interface AppStore {
   refresh: (targetUserId?: number | null) => Promise<void>;
   addSession: (payload: Omit<Session, 'id' | 'userId'>) => Promise<number>;
   addExperiment: (payload: Omit<Experiment, 'id' | 'userId'>) => Promise<number>;
+  updateExperimentEntry: (experimentId: number, payload: Omit<Experiment, 'id' | 'userId'>) => Promise<void>;
   archiveInconclusiveExperiments: (range: { from?: string; to?: string }) => Promise<number>;
 }
 
@@ -309,6 +310,10 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
           const id = await createExperiment({ ...payload, userId: activeUserId });
           await refresh();
           return id;
+        },
+        updateExperimentEntry: async (experimentId, payload) => {
+          await updateExperiment(experimentId, payload);
+          await refresh(activeUserId);
         },
         archiveInconclusiveExperiments: async ({ from, to }) => {
           const experimentIds = experiments

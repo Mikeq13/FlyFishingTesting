@@ -46,6 +46,43 @@ export const createExperiment = async (payload: Omit<Experiment, 'id'>): Promise
   return result.lastInsertRowId;
 };
 
+export const updateExperiment = async (experimentId: number, payload: Omit<Experiment, 'id' | 'userId'>): Promise<void> => {
+  if (isWeb) {
+    updateWebRows<Experiment>(WEB_EXPERIMENTS_KEY, (rows) =>
+      rows.map((row) =>
+        row.id === experimentId
+          ? {
+              ...row,
+              ...payload
+            }
+          : row
+      )
+    );
+    return;
+  }
+
+  const db = await getDb();
+  await db.runAsync(
+    `UPDATE experiments
+     SET session_id = ?, hypothesis = ?, fly_entries_json = ?, control_fly_json = ?, variant_fly_json = ?, control_casts = ?, control_catches = ?, variant_casts = ?, variant_catches = ?, winner = ?, outcome = ?, confidence_score = ?, archived_at = ?
+     WHERE id = ?`,
+    payload.sessionId,
+    payload.hypothesis,
+    JSON.stringify(payload.flyEntries),
+    JSON.stringify(payload.controlFly),
+    JSON.stringify(payload.variantFly),
+    payload.controlCasts,
+    payload.controlCatches,
+    payload.variantCasts,
+    payload.variantCatches,
+    payload.winner,
+    payload.outcome,
+    payload.confidenceScore,
+    payload.archivedAt ?? null,
+    experimentId
+  );
+};
+
 export const listExperiments = async (userId: number, options: { includeArchived?: boolean } = {}): Promise<Experiment[]> => {
   const includeArchived = options.includeArchived ?? false;
   if (isWeb) {
