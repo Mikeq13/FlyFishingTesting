@@ -108,7 +108,18 @@ export const AccessScreen = () => {
 
   return (
     <ScreenBackground>
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 12, width: '100%', alignSelf: 'center', maxWidth: contentMaxWidth }} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={{
+          flexGrow: 1,
+          padding: 16,
+          paddingBottom: 40,
+          gap: 12,
+          width: '100%',
+          alignSelf: 'center',
+          maxWidth: contentMaxWidth
+        }}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={{ gap: 4 }}>
           <Text style={{ fontSize: 28, fontWeight: '800', color: '#f7fdff' }}>Access & Billing</Text>
           <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>

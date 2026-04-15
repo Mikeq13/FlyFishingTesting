@@ -12,10 +12,12 @@ export const HomeScreen = ({ navigation }: any) => {
   const [showAnglerList, setShowAnglerList] = React.useState(false);
   const [isCreatingUser, setIsCreatingUser] = React.useState(false);
   const isCompactLayout = width < 720;
+  const shouldCenterContent = Platform.OS !== 'web' && !isCompactLayout;
   const contentContainerStyle = {
     flexGrow: 1,
-    justifyContent: 'center' as const,
+    justifyContent: shouldCenterContent ? 'center' as const : 'flex-start' as const,
     padding: 20,
+    paddingBottom: 40,
     gap: 14,
     width: '100%' as const,
     alignSelf: 'center' as const,
