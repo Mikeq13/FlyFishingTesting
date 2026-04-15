@@ -46,6 +46,7 @@ export const initDb = async (): Promise<void> => {
       water_type TEXT NOT NULL,
       depth_range TEXT NOT NULL,
       river_name TEXT,
+      hypothesis TEXT,
       insect_type TEXT NOT NULL,
       insect_stage TEXT NOT NULL,
       insect_confidence TEXT NOT NULL,
@@ -57,6 +58,7 @@ export const initDb = async (): Promise<void> => {
       user_id INTEGER NOT NULL,
       session_id INTEGER NOT NULL,
       hypothesis TEXT NOT NULL,
+      control_focus TEXT NOT NULL DEFAULT 'pattern',
       fly_entries_json TEXT,
       control_fly_json TEXT NOT NULL,
       variant_fly_json TEXT NOT NULL,
@@ -78,6 +80,7 @@ export const initDb = async (): Promise<void> => {
       intent TEXT NOT NULL,
       hook_size INTEGER NOT NULL DEFAULT 16,
       bead_size_mm REAL NOT NULL,
+      bead_color TEXT NOT NULL DEFAULT 'black',
       body_type TEXT NOT NULL,
       bug_family TEXT NOT NULL DEFAULT 'mayfly',
       bug_stage TEXT NOT NULL DEFAULT 'nymph',
@@ -124,7 +127,13 @@ export const initDb = async (): Promise<void> => {
     await database.execAsync(`ALTER TABLE sessions ADD COLUMN river_name TEXT;`);
   } catch {}
   try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN hypothesis TEXT;`);
+  } catch {}
+  try {
     await database.execAsync(`ALTER TABLE experiments ADD COLUMN outcome TEXT NOT NULL DEFAULT 'inconclusive';`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE experiments ADD COLUMN control_focus TEXT NOT NULL DEFAULT 'pattern';`);
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE experiments ADD COLUMN archived_at TEXT;`);
@@ -137,6 +146,9 @@ export const initDb = async (): Promise<void> => {
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE saved_flies ADD COLUMN bug_family TEXT NOT NULL DEFAULT 'mayfly';`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE saved_flies ADD COLUMN bead_color TEXT NOT NULL DEFAULT 'black';`);
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE saved_flies ADD COLUMN bug_stage TEXT NOT NULL DEFAULT 'nymph';`);

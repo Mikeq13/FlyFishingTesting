@@ -9,26 +9,29 @@ import { FlySetup } from '@/types/fly';
 import { validateExperimentPair } from '@/engine/rules';
 import { deriveExperimentStatus } from '@/engine/experimentStatus';
 import { ScreenBackground } from '@/components/ScreenBackground';
-import { ExperimentFlyEntry, TroutSpecies } from '@/types/experiment';
+import { ExperimentControlFocus, ExperimentFlyEntry, TroutSpecies } from '@/types/experiment';
 import { alignExperimentEntries, createEmptyExperimentEntries, getLegacyExperimentFields } from '@/utils/experimentEntries';
+import { OptionChips } from '@/components/OptionChips';
 
 const FLY_COUNT_OPTIONS = [1, 2, 3] as const;
 const FISH_SIZE_OPTIONS = Array.from({ length: 17 }, (_, index) => index + 8);
 const TROUT_SPECIES_OPTIONS: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow', 'Tiger', 'Whitefish'];
+const CONTROL_FOCUS_OPTIONS: ExperimentControlFocus[] = ['pattern', 'fly type', 'hook size', 'tail', 'collar', 'body type', 'bead size', 'bead color'];
 
 export const ExperimentScreen = ({ route, navigation }: any) => {
   const { width } = useWindowDimensions();
-  const { addExperiment, addSavedFly, savedFlies, users, activeUserId, experiments, updateExperimentEntry } = useAppStore();
+  const { addExperiment, addSavedFly, savedFlies, users, activeUserId, experiments, updateExperimentEntry, sessions } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
   const sessionId: number = route.params.sessionId;
   const experimentId: number | undefined = route.params?.experimentId;
+  const session = useMemo(() => sessions.find((candidate) => candidate.id === sessionId) ?? null, [sessionId, sessions]);
   const existingExperiment = useMemo(
     () => experiments.find((experiment) => experiment.id === experimentId) ?? null,
     [experimentId, experiments]
   );
-  const [hypothesis, setHypothesis] = useState('');
   const [flyCount, setFlyCount] = useState<1 | 2 | 3>(2);
   const [baselineIndex, setBaselineIndex] = useState(0);
+  const [controlFocus, setControlFocus] = useState<ExperimentControlFocus>('pattern');
   const [flyEntries, setFlyEntries] = useState<ExperimentFlyEntry[]>(() => createEmptyExperimentEntries(2, 0));
   const [castStep, setCastStep] = useState<5 | 10>(5);
   const [isSaving, setIsSaving] = useState(false);
@@ -47,9 +50,9 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     if (!existingExperiment) return;
     const existingEntries = alignExperimentEntries(existingExperiment.flyEntries, existingExperiment.flyEntries.length || 2, Math.max(0, existingExperiment.flyEntries.findIndex((entry) => entry.role === 'baseline')));
     const nextBaselineIndex = Math.max(0, existingEntries.findIndex((entry) => entry.role === 'baseline'));
-    setHypothesis(existingExperiment.hypothesis === 'No hypothesis provided' ? '' : existingExperiment.hypothesis);
     setFlyCount(existingEntries.length as 1 | 2 | 3);
     setBaselineIndex(nextBaselineIndex);
+    setControlFocus(existingExperiment.controlFocus ?? 'pattern');
     setFlyEntries(existingEntries);
   }, [existingExperiment]);
 
@@ -81,9 +84,9 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   };
 
   const resetForNextExperiment = () => {
-    setHypothesis('');
     setFlyCount(2);
     setBaselineIndex(0);
+    setControlFocus('pattern');
     setFlyEntries(createEmptyExperimentEntries(2, 0));
     setShowSavedExperimentActions(false);
     setPendingFishEntryIndex(null);
@@ -161,7 +164,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
       const baselineEntry = visibleEntries[baselineIndex];
       const comparisonNote = visibleEntries
         .filter((_, index) => index !== baselineIndex)
-        .map((entry) => ({ entry, check: validateExperimentPair(baselineEntry.fly, entry.fly) }))
+        .map((entry) => ({ entry, check: validateExperimentPair(baselineEntry.fly, entry.fly, controlFocus) }))
         .find(({ check }) => !!check.warning);
 
       if (comparisonNote?.check.warning) {
@@ -186,7 +189,8 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
       const legacy = getLegacyExperimentFields(visibleEntries);
       const payload = {
         sessionId,
-        hypothesis: hypothesis || 'No hypothesis provided',
+        hypothesis: session?.hypothesis || existingExperiment?.hypothesis || 'No hypothesis provided',
+        controlFocus,
         flyEntries: visibleEntries,
         ...legacy,
         winner: status.winner,
@@ -220,8 +224,8 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
             Set your baseline, choose the flies in play, and record cast and catch data cleanly.
           </Text>
           <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Angler: {activeUser?.name ?? 'Loading...'}</Text>
+          {session?.hypothesis ? <Text style={{ color: '#d7f3ff' }}>Hypothesis: {session.hypothesis}</Text> : null}
         </View>
-        <TextInput value={hypothesis} onChangeText={setHypothesis} placeholder="Hypothesis" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
 
         <View style={{ gap: 8, backgroundColor: 'rgba(6, 27, 44, 0.70)', padding: 14, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
           <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>Flies in this experiment</Text>
@@ -244,6 +248,8 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
             ))}
           </View>
         </View>
+
+        <OptionChips label="Control Focus" options={CONTROL_FOCUS_OPTIONS} value={controlFocus} onChange={setControlFocus} />
 
         {flyCount > 1 && (
           <View style={{ gap: 8, backgroundColor: 'rgba(6, 27, 44, 0.70)', padding: 14, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>

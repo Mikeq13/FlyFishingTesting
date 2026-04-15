@@ -235,6 +235,7 @@ export const HistoryScreen = () => {
             {session.riverName ? <Text style={{ color: '#334e68' }}>River: {session.riverName}</Text> : null}
             <Text style={{ color: '#334e68' }}>Water: {session.waterType}</Text>
             <Text style={{ color: '#334e68' }}>Depth: {session.depthRange}</Text>
+            {session.hypothesis ? <Text style={{ color: '#334e68' }}>Session hypothesis: {session.hypothesis}</Text> : null}
             <Text style={{ color: '#334e68' }}>Session catch rate: {(rate * 100).toFixed(1)}%</Text>
             <Text style={{ color: '#334e68' }}>Experiments logged: {sessionExperiments.length}</Text>
 
@@ -250,9 +251,10 @@ export const HistoryScreen = () => {
                   return (
                     <View key={experiment.id} style={{ backgroundColor: '#e9f5fb', borderRadius: 12, padding: 10 }}>
                       <Text style={{ color: '#102a43' }}>Hypothesis: {experiment.hypothesis}</Text>
+                      <Text style={{ color: '#334e68' }}>Control focus: {experiment.controlFocus}</Text>
                       <Text style={{ color: '#334e68' }}>Outcome: {experiment.outcome}</Text>
                       <Text style={{ color: '#334e68' }}>Winner: {experiment.winner}</Text>
-                      <Text style={{ color: '#334e68' }}>Flies: {entries.map((entry) => `${entry.fly.name || entry.label} (#${entry.fly.hookSize})`).join(', ')}</Text>
+                      <Text style={{ color: '#334e68' }}>Flies: {entries.map((entry) => `${entry.fly.name || entry.label} (#${entry.fly.hookSize}, ${entry.fly.beadColor}, ${entry.fly.beadSizeMm})`).join(', ')}</Text>
                       <Text style={{ color: '#334e68' }}>Catch rate: {experimentRate.toFixed(1)}%</Text>
                       {entries.some((entry) => entry.fishSizesInches.length) ? (
                         <Text style={{ color: '#334e68' }}>

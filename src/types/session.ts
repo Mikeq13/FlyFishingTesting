@@ -21,6 +21,7 @@ export interface Session {
   waterType: WaterType;
   depthRange: DepthRange;
   riverName?: string;
+  hypothesis?: string;
   notes?: string;
 }
 

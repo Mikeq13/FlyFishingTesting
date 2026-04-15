@@ -60,6 +60,7 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
             {session.riverName ? <Text style={{ color: '#334e68' }}>River: {session.riverName}</Text> : null}
             <Text style={{ color: '#334e68' }}>Water: {session.waterType}</Text>
             <Text style={{ color: '#334e68' }}>Depth: {session.depthRange}</Text>
+            {session.hypothesis ? <Text style={{ color: '#334e68' }}>Session hypothesis: {session.hypothesis}</Text> : null}
             <Text style={{ color: '#334e68' }}>Catch rate: {(catchRate(totalCatches, totalCasts) * 100).toFixed(1)}%</Text>
           </View>
         ) : (
@@ -72,10 +73,11 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
             <Text style={{ fontWeight: '800', color: '#102a43' }}>#{e.id} Outcome: {e.outcome}</Text>
             <Text style={{ color: '#334e68' }}>Winner: {e.winner}</Text>
             <Text style={{ color: '#334e68' }}>Hypothesis: {e.hypothesis}</Text>
+            <Text style={{ color: '#334e68' }}>Control focus: {e.controlFocus}</Text>
             {getExperimentEntries(e).map((entry) => (
               <View key={`${e.id}-${entry.slotId}`} style={{ gap: 2 }}>
                 <Text style={{ color: '#334e68' }}>
-                  {entry.label} {entry.fly.name || 'Unnamed'} (#{entry.fly.hookSize}): {entry.catches}/{entry.casts}
+                  {entry.label} {entry.fly.name || 'Unnamed'} (#{entry.fly.hookSize}, {entry.fly.beadColor}, {entry.fly.beadSizeMm}): {entry.catches}/{entry.casts}
                 </Text>
                 {!!entry.fishSizesInches.length && (
                   <Text style={{ color: '#334e68' }}>

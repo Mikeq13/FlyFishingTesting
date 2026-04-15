@@ -12,13 +12,14 @@ export const createSession = async (payload: Omit<Session, 'id'>): Promise<numbe
 
   const db = await getDb();
   const result = await db.runAsync(
-    `INSERT INTO sessions (user_id, date, water_type, depth_range, river_name, insect_type, insect_stage, insect_confidence, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO sessions (user_id, date, water_type, depth_range, river_name, hypothesis, insect_type, insect_stage, insect_confidence, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     payload.userId,
     payload.date,
     payload.waterType,
     payload.depthRange,
     payload.riverName ?? null,
+    payload.hypothesis ?? null,
     'mayfly',
     'nymph',
     'low',
@@ -39,6 +40,7 @@ export const listSessions = async (userId: number): Promise<Session[]> => {
     waterType: r.water_type,
     depthRange: r.depth_range,
     riverName: r.river_name ?? undefined,
+    hypothesis: r.hypothesis ?? undefined,
     notes: r.notes ?? undefined
   }));
 };

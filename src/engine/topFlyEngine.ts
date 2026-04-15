@@ -7,6 +7,7 @@ interface TopFlyStat {
   name: string;
   hookSize: number;
   beadSizeMm: number;
+  beadColor: string;
   bugFamily: string;
   bugStage: string;
   casts: number;
@@ -24,6 +25,7 @@ export interface TopFlyRecord {
   name: string;
   hookSize: number;
   beadSizeMm: number;
+  beadColor: string;
   bugFamily: string;
   bugStage: string;
   casts: number;
@@ -40,8 +42,8 @@ export interface TopFlyRecord {
 
 const MIN_CASTS_FOR_TOP_FLY = 15;
 
-const toKey = (name: string, hookSize: number, beadSizeMm: number, bugFamily: string, bugStage: string): string =>
-  `${name.trim().toLowerCase()}|${hookSize}|${beadSizeMm}|${bugFamily}|${bugStage}`;
+const toKey = (name: string, hookSize: number, beadSizeMm: number, beadColor: string, bugFamily: string, bugStage: string): string =>
+  `${name.trim().toLowerCase()}|${hookSize}|${beadSizeMm}|${beadColor}|${bugFamily}|${bugStage}`;
 
 export const buildTopFlyRecords = (sessions: Session[], experiments: Experiment[]): TopFlyRecord[] => {
   const sessionMap = new Map(sessions.map((session) => [session.id, session]));
@@ -51,13 +53,14 @@ export const buildTopFlyRecords = (sessions: Session[], experiments: Experiment[
     const session = sessionMap.get(experiment.sessionId);
     getExperimentEntries(experiment).forEach((entry) => {
       const flyName = entry.fly.name.trim() || entry.label;
-      const key = toKey(flyName, entry.fly.hookSize, entry.fly.beadSizeMm, entry.fly.bugFamily, entry.fly.bugStage);
+      const key = toKey(flyName, entry.fly.hookSize, entry.fly.beadSizeMm, entry.fly.beadColor, entry.fly.bugFamily, entry.fly.bugStage);
       const current =
         stats.get(key) ??
         {
           name: flyName,
           hookSize: entry.fly.hookSize,
           beadSizeMm: entry.fly.beadSizeMm,
+          beadColor: entry.fly.beadColor,
           bugFamily: entry.fly.bugFamily,
           bugStage: entry.fly.bugStage,
           casts: 0,
@@ -97,6 +100,7 @@ export const buildTopFlyRecords = (sessions: Session[], experiments: Experiment[
       name: stat.name,
       hookSize: stat.hookSize,
       beadSizeMm: stat.beadSizeMm,
+      beadColor: stat.beadColor,
       bugFamily: stat.bugFamily,
       bugStage: stat.bugStage,
       casts: stat.casts,
@@ -124,7 +128,7 @@ export const buildTopFlyRecords = (sessions: Session[], experiments: Experiment[
 export const buildTopFlyInsights = (records: TopFlyRecord[]): Insight[] =>
   records.slice(0, 3).map((record, index) => ({
     type: index === 0 ? 'recommendation' : 'pattern',
-    message: `${record.name} (${record.bugFamily}, ${record.bugStage}, #${record.hookSize}, bead ${record.beadSizeMm}) is a top performer at ${(record.rate * 100).toFixed(1)}% over ${record.casts} casts${record.averageSizeInches ? `, averaging ${record.averageSizeInches}" fish` : ''}${record.speciesBreakdown.length ? `, led by ${record.speciesBreakdown[0].species} at ${(record.speciesBreakdown[0].percent * 100).toFixed(0)}%` : ''}.`,
+    message: `${record.name} (${record.bugFamily}, ${record.bugStage}, #${record.hookSize}, ${record.beadColor} bead ${record.beadSizeMm}) is a top performer at ${(record.rate * 100).toFixed(1)}% over ${record.casts} casts${record.averageSizeInches ? `, averaging ${record.averageSizeInches}" fish` : ''}${record.speciesBreakdown.length ? `, led by ${record.speciesBreakdown[0].species} at ${(record.speciesBreakdown[0].percent * 100).toFixed(0)}%` : ''}.`,
     confidence: confidenceFromSamples(record.casts),
     supportingData: record
   }));

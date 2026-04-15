@@ -27,11 +27,11 @@ const sizeBandLabel = (size: number): string => {
   return '20-24"';
 };
 
-const formatExactFlyOption = (flyName: string, hookSize: number, beadSizeMm: number, bugFamily: string, bugStage: string) =>
-  `${flyName} | #${hookSize} | ${beadSizeMm} bead | ${bugFamily} | ${bugStage}`;
+const formatExactFlyOption = (flyName: string, hookSize: number, beadSizeMm: number, beadColor: string, bugFamily: string, bugStage: string) =>
+  `${flyName} | #${hookSize} | ${beadColor} ${beadSizeMm} bead | ${bugFamily} | ${bugStage}`;
 
-const toExactFlyKey = (flyName: string, hookSize: number, beadSizeMm: number, bugFamily: string, bugStage: string) =>
-  formatExactFlyOption(flyName.trim(), hookSize, beadSizeMm, bugFamily, bugStage).toLowerCase();
+const toExactFlyKey = (flyName: string, hookSize: number, beadSizeMm: number, beadColor: string, bugFamily: string, bugStage: string) =>
+  formatExactFlyOption(flyName.trim(), hookSize, beadSizeMm, beadColor, bugFamily, bugStage).toLowerCase();
 
 const renderChartRow = (label: string, value: number, max: number, color: string) => (
   <View key={label} style={{ gap: 4 }}>
@@ -123,7 +123,7 @@ export const InsightsScreen = ({ navigation }: any) => {
         ...[
           ...new Set(
             savedFlies
-              .map((fly) => formatExactFlyOption(fly.name.trim(), fly.hookSize, fly.beadSizeMm, fly.bugFamily, fly.bugStage))
+              .map((fly) => formatExactFlyOption(fly.name.trim(), fly.hookSize, fly.beadSizeMm, fly.beadColor, fly.bugFamily, fly.bugStage))
               .filter((label) => !!label)
           )
         ].sort((left, right) => left.localeCompare(right))
@@ -155,7 +155,7 @@ export const InsightsScreen = ({ navigation }: any) => {
           !normalizedFilters.fly ||
           entries.some((entry) =>
             flyFilterMode === 'exact'
-              ? toExactFlyKey(entry.fly.name || entry.label, entry.fly.hookSize, entry.fly.beadSizeMm, entry.fly.bugFamily, entry.fly.bugStage) === normalizedFilters.fly
+              ? toExactFlyKey(entry.fly.name || entry.label, entry.fly.hookSize, entry.fly.beadSizeMm, entry.fly.beadColor, entry.fly.bugFamily, entry.fly.bugStage) === normalizedFilters.fly
               : (entry.fly.name || '').trim().toLowerCase() === normalizedFilters.fly
           );
         const matchesSpecies =
@@ -454,7 +454,7 @@ export const InsightsScreen = ({ navigation }: any) => {
                         >
                           <Text style={{ color: '#f7fdff', fontWeight: '700', fontSize: 16 }}>{record.name}</Text>
                           <Text style={{ color: '#d7f3ff' }}>
-                            #{record.hookSize} | bead {record.beadSizeMm} | {(record.rate * 100).toFixed(1)}% catch rate
+                            #{record.hookSize} | {record.beadColor} bead {record.beadSizeMm} | {(record.rate * 100).toFixed(1)}% catch rate
                           </Text>
                           <Text style={{ color: '#bde6f6', fontSize: 12 }}>{record.casts} casts logged</Text>
                           {record.averageSizeInches ? (

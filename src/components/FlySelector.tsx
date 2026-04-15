@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { FlySetup, SavedFly } from '@/types/fly';
-import { BEAD_SIZES_MM, BODY_TYPES, BUG_FAMILY_LABEL, BUG_STAGE_LABEL, COLLAR_TYPES, FLY_INTENTS, HOOK_SIZES, INSECT_STAGES_BY_TYPE, INSECT_TYPES, TAIL_TYPES } from '@/constants/options';
+import { BEAD_COLORS, BEAD_SIZES_MM, BODY_TYPES, BUG_FAMILY_LABEL, BUG_STAGE_LABEL, COLLAR_TYPES, FLY_INTENTS, HOOK_SIZES, INSECT_STAGES_BY_TYPE, INSECT_TYPES, TAIL_TYPES } from '@/constants/options';
 
 interface FlySelectorProps {
   title: string;
@@ -69,6 +69,7 @@ export const FlySelector = ({ title, value, savedFlies, onChange, onSave }: FlyS
                       intent: fly.intent,
                       hookSize: fly.hookSize ?? 16,
                       beadSizeMm: fly.beadSizeMm,
+                      beadColor: fly.beadColor ?? 'black',
                       bodyType: fly.bodyType,
                       bugFamily: fly.bugFamily ?? 'mayfly',
                       bugStage: fly.bugStage ?? 'nymph',
@@ -81,7 +82,7 @@ export const FlySelector = ({ title, value, savedFlies, onChange, onSave }: FlyS
                 >
                   <Text style={{ fontWeight: '600', color: '#0b3d3a' }}>{fly.name}</Text>
                   <Text style={{ color: '#4b5563', fontSize: 12 }}>
-                    {fly.bugFamily} | {fly.bugStage} | #{fly.hookSize}
+                    {fly.bugFamily} | {fly.bugStage} | #{fly.hookSize} | {fly.beadColor}
                   </Text>
                 </Pressable>
               ))}
@@ -100,6 +101,7 @@ export const FlySelector = ({ title, value, savedFlies, onChange, onSave }: FlyS
       <ChipGroup label="Fly Type" options={FLY_INTENTS} selected={value.intent} onSelect={(intent) => onChange({ ...value, intent })} />
       <ChipGroup label="Hook Size" options={HOOK_SIZES} selected={value.hookSize ?? 16} onSelect={(hookSize) => onChange({ ...value, hookSize })} />
       <ChipGroup label="Bead Size" options={BEAD_SIZES_MM} selected={value.beadSizeMm} onSelect={(beadSizeMm) => onChange({ ...value, beadSizeMm })} />
+      <ChipGroup label="Bead Color" options={BEAD_COLORS} selected={value.beadColor} onSelect={(beadColor) => onChange({ ...value, beadColor })} />
       <ChipGroup label="Body Type" options={BODY_TYPES} selected={value.bodyType} onSelect={(bodyType) => onChange({ ...value, bodyType })} />
       <ChipGroup label={BUG_FAMILY_LABEL} options={INSECT_TYPES} selected={value.bugFamily} onSelect={(bugFamily) => onChange({ ...value, bugFamily, bugStage: INSECT_STAGES_BY_TYPE[bugFamily][0] })} />
       <ChipGroup label={BUG_STAGE_LABEL} options={availableStages} selected={availableStages.includes(value.bugStage) ? value.bugStage : availableStages[0]} onSelect={(bugStage) => onChange({ ...value, bugStage })} />

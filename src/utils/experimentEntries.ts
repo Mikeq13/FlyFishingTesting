@@ -6,6 +6,7 @@ const emptyFly: FlySetup = {
   intent: 'imitative',
   hookSize: 16,
   beadSizeMm: 0,
+  beadColor: 'black',
   bodyType: 'thread',
   bugFamily: 'mayfly',
   bugStage: 'nymph',
@@ -15,6 +16,7 @@ const emptyFly: FlySetup = {
 const normalizeFly = (fly: FlySetup): FlySetup => ({
   ...fly,
   hookSize: fly.hookSize ?? 16,
+  beadColor: fly.beadColor ?? 'black',
   bugFamily: fly.bugFamily ?? 'mayfly',
   bugStage: fly.bugStage ?? 'nymph',
   tail: fly.tail ?? 'natural'

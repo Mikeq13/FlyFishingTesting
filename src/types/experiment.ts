@@ -4,6 +4,7 @@ export type ExperimentWinner = string;
 export type ExperimentOutcome = 'decisive' | 'tie' | 'inconclusive';
 export type ExperimentFlyRole = 'baseline' | 'test';
 export type TroutSpecies = 'Brook' | 'Brown' | 'Cutthroat' | 'Rainbow' | 'Tiger' | 'Whitefish';
+export type ExperimentControlFocus = 'pattern' | 'fly type' | 'hook size' | 'tail' | 'collar' | 'body type' | 'bead size' | 'bead color';
 
 export interface ExperimentFlyEntry {
   slotId: string;
@@ -21,6 +22,7 @@ export interface Experiment {
   userId: number;
   sessionId: number;
   hypothesis: string;
+  controlFocus: ExperimentControlFocus;
   flyEntries: ExperimentFlyEntry[];
   controlFly: FlySetup;
   variantFly: FlySetup;

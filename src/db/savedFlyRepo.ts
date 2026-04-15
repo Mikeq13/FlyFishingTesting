@@ -17,13 +17,14 @@ export const createSavedFly = async (payload: Omit<SavedFly, 'id' | 'createdAt'>
 
   const db = await getDb();
   const result = await db.runAsync(
-    `INSERT INTO saved_flies (user_id, name, intent, hook_size, bead_size_mm, body_type, bug_family, bug_stage, tail, collar, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO saved_flies (user_id, name, intent, hook_size, bead_size_mm, bead_color, body_type, bug_family, bug_stage, tail, collar, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     payload.userId,
     payload.name,
     payload.intent,
     payload.hookSize,
     payload.beadSizeMm,
+    payload.beadColor,
     payload.bodyType,
     payload.bugFamily,
     payload.bugStage,
@@ -36,7 +37,16 @@ export const createSavedFly = async (payload: Omit<SavedFly, 'id' | 'createdAt'>
 
 export const listSavedFlies = async (userId: number): Promise<SavedFly[]> => {
   if (isWeb) {
-    return listWebRows<SavedFly>(WEB_SAVED_FLIES_KEY).filter((fly) => fly.userId === userId);
+    return listWebRows<SavedFly>(WEB_SAVED_FLIES_KEY)
+      .filter((fly) => fly.userId === userId)
+      .map((fly) => ({
+        ...fly,
+        hookSize: fly.hookSize ?? 16,
+        beadColor: fly.beadColor ?? 'black',
+        bugFamily: fly.bugFamily ?? 'mayfly',
+        bugStage: fly.bugStage ?? 'nymph',
+        tail: fly.tail ?? 'natural'
+      }));
   }
 
   const db = await getDb();
@@ -48,6 +58,7 @@ export const listSavedFlies = async (userId: number): Promise<SavedFly[]> => {
     intent: row.intent,
     hookSize: row.hook_size ?? 16,
     beadSizeMm: row.bead_size_mm,
+    beadColor: row.bead_color ?? 'black',
     bodyType: row.body_type,
     bugFamily: row.bug_family ?? 'mayfly',
     bugStage: row.bug_stage ?? 'nymph',
