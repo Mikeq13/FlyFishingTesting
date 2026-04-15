@@ -87,8 +87,11 @@ export const InsightsScreen = ({ navigation }: any) => {
   );
   const speciesOptions = useMemo(
     () =>
-      [...new Set(experiments.flatMap((experiment) => getExperimentEntries(experiment).flatMap((entry) => entry.fishSpecies)))]
-        .sort((left, right) => left.localeCompare(right)),
+      [
+        'All',
+        ...[...new Set(experiments.flatMap((experiment) => getExperimentEntries(experiment).flatMap((entry) => entry.fishSpecies)))]
+          .sort((left, right) => left.localeCompare(right))
+      ] as string[],
     [experiments]
   );
 
@@ -148,6 +151,7 @@ export const InsightsScreen = ({ navigation }: any) => {
       topSpecies,
       sizeBands,
       maxSpeciesCount: topSpecies[0]?.[1] ?? 0,
+      totalSpeciesCount: topSpecies.reduce((sum, [, count]) => sum + count, 0),
       maxSizeBandCount: sizeBands.reduce((max, [, count]) => Math.max(max, count), 0)
     };
   }, [filteredExperiments]);
@@ -212,10 +216,12 @@ export const InsightsScreen = ({ navigation }: any) => {
               </Pressable>
               {!!speciesOptions.length && (
                 <>
-                  <OptionChips label="Species" options={speciesOptions} value={speciesFilter || null} onChange={setSpeciesFilter} />
-                  <Pressable onPress={() => setSpeciesFilter('')} style={{ backgroundColor: 'rgba(255,255,255,0.12)', padding: 10, borderRadius: 12 }}>
-                    <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Clear Species Filter</Text>
-                  </Pressable>
+                  <OptionChips
+                    label="Species"
+                    options={speciesOptions}
+                    value={speciesFilter || 'All'}
+                    onChange={(value) => setSpeciesFilter(value === 'All' ? '' : value)}
+                  />
                 </>
               )}
               <TextInput
@@ -235,8 +241,15 @@ export const InsightsScreen = ({ navigation }: any) => {
               <Text style={{ color: '#f7fdff', fontWeight: '800', fontSize: 18 }}>Catch Analytics</Text>
               {!!analytics.topSpecies.length ? (
                 <View style={{ gap: 8 }}>
-                  <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Species mix</Text>
-                  {analytics.topSpecies.slice(0, 6).map(([species, count]) => renderChartRow(species, count, analytics.maxSpeciesCount, '#2a9d8f'))}
+                  <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>All species breakdown</Text>
+                  {analytics.topSpecies.slice(0, 6).map(([species, count]) =>
+                    renderChartRow(
+                      `${species} (${analytics.totalSpeciesCount ? ((count / analytics.totalSpeciesCount) * 100).toFixed(0) : 0}%)`,
+                      count,
+                      analytics.maxSpeciesCount,
+                      '#2a9d8f'
+                    )
+                  )}
                 </View>
               ) : (
                 <Text style={{ color: '#d7f3ff' }}>No species data matches the current filters yet.</Text>
@@ -279,6 +292,11 @@ export const InsightsScreen = ({ navigation }: any) => {
                       {!!record.topSpecies.length && (
                         <Text style={{ color: '#bde6f6', fontSize: 12 }}>
                           Common species: {record.topSpecies.join(', ')}
+                        </Text>
+                      )}
+                      {!!record.speciesBreakdown.length && (
+                        <Text style={{ color: '#bde6f6', fontSize: 12 }}>
+                          Species breakdown: {record.speciesBreakdown.map((item) => `${item.species} ${(item.percent * 100).toFixed(0)}%`).join(' | ')}
                         </Text>
                       )}
                     </View>

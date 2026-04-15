@@ -33,6 +33,7 @@ export interface TopFlyRecord {
   averageSizeInches: number | null;
   largestFishInches: number | null;
   topSpecies: string[];
+  speciesBreakdown: Array<{ species: string; count: number; percent: number }>;
   rivers: string[];
   months: string[];
 }
@@ -108,6 +109,13 @@ export const buildTopFlyRecords = (sessions: Session[], experiments: Experiment[
         .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
         .slice(0, 3)
         .map(([species]) => species),
+      speciesBreakdown: [...stat.speciesCounts.entries()]
+        .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+        .map(([species, count]) => ({
+          species,
+          count,
+          percent: stat.fishCount ? count / stat.fishCount : 0
+        })),
       rivers: [...stat.rivers].sort(),
       months: [...stat.months].sort()
     }));
@@ -116,7 +124,7 @@ export const buildTopFlyRecords = (sessions: Session[], experiments: Experiment[
 export const buildTopFlyInsights = (records: TopFlyRecord[]): Insight[] =>
   records.slice(0, 3).map((record, index) => ({
     type: index === 0 ? 'recommendation' : 'pattern',
-    message: `${record.name} (${record.bugFamily}, ${record.bugStage}, #${record.hookSize}, bead ${record.beadSizeMm}) is a top performer at ${(record.rate * 100).toFixed(1)}% over ${record.casts} casts${record.averageSizeInches ? `, averaging ${record.averageSizeInches}" fish` : ''}${record.topSpecies.length ? `, most often ${record.topSpecies.join('/')} trout` : ''}.`,
+    message: `${record.name} (${record.bugFamily}, ${record.bugStage}, #${record.hookSize}, bead ${record.beadSizeMm}) is a top performer at ${(record.rate * 100).toFixed(1)}% over ${record.casts} casts${record.averageSizeInches ? `, averaging ${record.averageSizeInches}" fish` : ''}${record.speciesBreakdown.length ? `, led by ${record.speciesBreakdown[0].species} at ${(record.speciesBreakdown[0].percent * 100).toFixed(0)}%` : ''}.`,
     confidence: confidenceFromSamples(record.casts),
     supportingData: record
   }));
