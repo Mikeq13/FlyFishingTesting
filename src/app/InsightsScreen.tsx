@@ -55,9 +55,11 @@ export const InsightsScreen = ({ navigation }: any) => {
   const [speciesFilter, setSpeciesFilter] = useState('');
   const [flyFilter, setFlyFilter] = useState('');
   const [flyFilterMode, setFlyFilterMode] = useState<'pattern' | 'exact'>('pattern');
+  const [hypothesisFilter, setHypothesisFilter] = useState('');
   const [minimumSizeFilter, setMinimumSizeFilter] = useState('');
   const [showRiverChoices, setShowRiverChoices] = useState(false);
   const [showFlyChoices, setShowFlyChoices] = useState(false);
+  const [showHypothesisChoices, setShowHypothesisChoices] = useState(false);
   const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 980) : undefined;
 
   const normalizedFilters = {
@@ -67,6 +69,7 @@ export const InsightsScreen = ({ navigation }: any) => {
     depth: depthFilter.trim().toLowerCase(),
     species: speciesFilter.trim().toLowerCase(),
     fly: flyFilter.trim().toLowerCase(),
+    hypothesis: hypothesisFilter.trim().toLowerCase(),
     minimumSize: Number(minimumSizeFilter || '0') || 0
   };
 
@@ -127,6 +130,20 @@ export const InsightsScreen = ({ navigation }: any) => {
       ] as string[],
     [savedFlies]
   );
+  const hypothesisOptions = useMemo(
+    () =>
+      [
+        'All',
+        ...[
+          ...new Set(
+            experiments
+              .map((experiment) => experiment.hypothesis.trim())
+              .filter((hypothesis) => !!hypothesis)
+          )
+        ].sort((left, right) => left.localeCompare(right))
+      ] as string[],
+    [experiments]
+  );
 
   const filteredExperiments = useMemo(
     () =>
@@ -147,10 +164,13 @@ export const InsightsScreen = ({ navigation }: any) => {
         const matchesSize =
           !normalizedFilters.minimumSize ||
           entries.some((entry) => entry.fishSizesInches.some((size) => size >= normalizedFilters.minimumSize));
+        const matchesHypothesis =
+          !normalizedFilters.hypothesis ||
+          experiment.hypothesis.trim().toLowerCase() === normalizedFilters.hypothesis;
 
-        return matchesFly && matchesSpecies && matchesSize;
+        return matchesFly && matchesSpecies && matchesSize && matchesHypothesis;
       }),
-    [experiments, filteredSessionIds, flyFilterMode, normalizedFilters.fly, normalizedFilters.minimumSize, normalizedFilters.species]
+    [experiments, filteredSessionIds, flyFilterMode, normalizedFilters.fly, normalizedFilters.hypothesis, normalizedFilters.minimumSize, normalizedFilters.species]
   );
 
   const filteredInsights = useMemo(
@@ -241,6 +261,45 @@ export const InsightsScreen = ({ navigation }: any) => {
                     </ScrollView>
                   )}
                 </>
+              )}
+              {hypothesisOptions.length > 1 && (
+                <View style={{ gap: 6 }}>
+                  <Pressable onPress={() => setShowHypothesisChoices((current) => !current)} style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}>
+                    <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
+                      {showHypothesisChoices ? 'Hide Experiment Questions' : 'Choose Experiment Question'}
+                    </Text>
+                  </Pressable>
+                  {showHypothesisChoices && (
+                    <ScrollView style={{ maxHeight: 220, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)' }}>
+                      <Pressable
+                        onPress={() => {
+                          setHypothesisFilter('');
+                          setShowHypothesisChoices(false);
+                        }}
+                        style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
+                      >
+                        <Text style={{ color: '#0b3d3a', fontWeight: '700' }}>All experiment questions</Text>
+                      </Pressable>
+                      {hypothesisOptions
+                        .filter((option) => option !== 'All')
+                        .map((option) => (
+                          <Pressable
+                            key={option}
+                            onPress={() => {
+                              setHypothesisFilter(option);
+                              setShowHypothesisChoices(false);
+                            }}
+                            style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
+                          >
+                            <Text style={{ color: '#0b3d3a', fontWeight: '600' }}>{option}</Text>
+                          </Pressable>
+                        ))}
+                    </ScrollView>
+                  )}
+                  <Text style={{ color: '#d7f3ff' }}>
+                    Selected experiment question: {hypothesisFilter || 'All experiment questions'}
+                  </Text>
+                </View>
               )}
               <OptionChips label="Month" options={MONTHS} value={monthFilter || null} onChange={setMonthFilter} />
               <Pressable onPress={() => setMonthFilter('')} style={{ backgroundColor: 'rgba(255,255,255,0.12)', padding: 10, borderRadius: 12 }}>

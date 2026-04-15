@@ -1,7 +1,7 @@
 import React from 'react';
 import { Alert, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { ScreenBackground } from '@/components/ScreenBackground';
-import { useAppStore } from './store';
+import { UserDataCleanupCategory, useAppStore } from './store';
 import { getEntitlementLabel, hasPremiumAccess } from '@/engine/entitlementEngine';
 import { beginAppleSubscriptionPurchase, PREMIUM_MONTHLY_PRICE_LABEL, PREMIUM_TRIAL_LABEL } from '@/billing/storekit';
 
@@ -19,6 +19,7 @@ export const AccessScreen = () => {
     markSubscriberAccess,
     clearUserAccess,
     clearFishingDataForUser,
+    clearUserDataCategories,
     deleteAngler
   } = useAppStore();
   const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 980) : undefined;
@@ -65,6 +66,46 @@ export const AccessScreen = () => {
     ]);
   };
 
+  const cleanupConfig: Array<{ key: UserDataCleanupCategory; label: string; description: string; destructive?: boolean }> = [
+    { key: 'experiments', label: 'Clear Experiments', description: 'Removes experiment results but keeps sessions, saved flies, and saved rivers.' },
+    { key: 'sessions', label: 'Clear Sessions', description: 'Removes sessions and their linked experiments, but keeps saved flies and saved rivers.' },
+    { key: 'flies', label: 'Clear Saved Flies', description: 'Removes saved flies but keeps sessions, experiments, and saved rivers.' },
+    { key: 'rivers', label: 'Clear Saved Rivers', description: 'Removes saved rivers but keeps sessions, experiments, and saved flies.' },
+    { key: 'all', label: 'Clear Everything', description: 'Removes sessions, experiments, saved flies, and saved rivers for this profile.', destructive: true }
+  ];
+
+  const renderCleanupActions = (userId: number, userName: string, tone: 'dark' | 'light') => (
+    <View style={{ gap: 8 }}>
+      {cleanupConfig.map((item) => (
+        <Pressable
+          key={`${userId}-${item.key}`}
+          onPress={() =>
+            confirmAdminAction(
+              `${item.label}?`,
+              `${item.description} This only affects ${userName} on this device.`,
+              () => (item.key === 'all' ? clearFishingDataForUser(userId) : clearUserDataCategories(userId, [item.key])),
+              `${item.label.replace('Clear ', '')} finished for ${userName}.`
+            )
+          }
+          style={{
+            backgroundColor:
+              tone === 'dark'
+                ? item.destructive ? '#6c584c' : 'rgba(255,255,255,0.10)'
+                : item.destructive ? '#6c584c' : '#e9f5fb',
+            padding: 12,
+            borderRadius: 12,
+            borderWidth: tone === 'dark' && !item.destructive ? 1 : 0,
+            borderColor: 'rgba(202,240,248,0.16)'
+          }}
+        >
+          <Text style={{ color: tone === 'dark' || item.destructive ? 'white' : '#102a43', textAlign: 'center', fontWeight: '700' }}>
+            {item.label}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+
   return (
     <ScreenBackground>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12, width: '100%', alignSelf: 'center', maxWidth: contentMaxWidth }} keyboardShouldPersistTaps="handled">
@@ -101,19 +142,7 @@ export const AccessScreen = () => {
           <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
             Clean up local fishing data for the active profile without affecting other anglers on this device.
           </Text>
-          <Pressable
-            onPress={() =>
-              confirmAdminAction(
-                'Clear your fishing data?',
-                `This removes ${currentUser.name}'s sessions, experiments, saved flies, and saved rivers from this device. Your angler profile will stay in the app.`,
-                () => clearFishingDataForUser(currentUser.id),
-                `${currentUser.name}'s fishing data was cleared.`
-              )
-            }
-            style={{ backgroundColor: '#6c584c', padding: 12, borderRadius: 12 }}
-          >
-            <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Clear My Fishing Data</Text>
-          </Pressable>
+          {renderCleanupActions(currentUser.id, currentUser.name, 'dark')}
           {currentUser.role !== 'owner' ? (
             <Pressable
               onPress={() =>
@@ -180,19 +209,7 @@ export const AccessScreen = () => {
                     <Pressable onPress={() => runAdminAction(() => clearUserAccess(user.id), `${user.name} was reset to free access.`)} style={{ backgroundColor: '#8d0801', padding: 12, borderRadius: 12 }}>
                       <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Reset Access</Text>
                     </Pressable>
-                    <Pressable
-                      onPress={() =>
-                        confirmAdminAction(
-                          'Clear fishing data?',
-                          `This removes ${user.name}'s sessions, experiments, saved flies, and saved rivers. The angler profile will stay in the app.`,
-                          () => clearFishingDataForUser(user.id),
-                          `${user.name}'s fishing data was cleared.`
-                        )
-                      }
-                      style={{ backgroundColor: '#6c584c', padding: 12, borderRadius: 12 }}
-                    >
-                      <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Clear Fishing Data</Text>
-                    </Pressable>
+                    {renderCleanupActions(user.id, user.name, 'light')}
                     <Pressable
                       onPress={() =>
                         confirmAdminAction(

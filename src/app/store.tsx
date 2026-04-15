@@ -18,6 +18,8 @@ import { buildTopFlyInsights, buildTopFlyRecords, TopFlyRecord } from '@/engine/
 import { isWithinDateRange } from '@/utils/dateRange';
 import { AccessLevel, SubscriptionStatus } from '@/types/user';
 
+export type UserDataCleanupCategory = 'experiments' | 'sessions' | 'flies' | 'rivers' | 'all';
+
 interface AppStore {
   sessions: Session[];
   experiments: Experiment[];
@@ -44,6 +46,7 @@ interface AppStore {
   markSubscriberAccess: (userId: number, expiresAt?: string | null) => Promise<void>;
   clearUserAccess: (userId: number) => Promise<void>;
   clearFishingDataForUser: (userId: number) => Promise<void>;
+  clearUserDataCategories: (userId: number, categories: UserDataCleanupCategory[]) => Promise<void>;
   deleteAngler: (userId: number) => Promise<void>;
   archiveExperiment: (experimentId: number) => Promise<void>;
   deleteExperiment: (experimentId: number) => Promise<void>;
@@ -244,6 +247,28 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
           await deleteSessionsForUser(userId);
           await deleteSavedFliesForUser(userId);
           await deleteSavedRiversForUser(userId);
+          await refresh(activeUserId);
+        },
+        clearUserDataCategories: async (userId, categories) => {
+          const targets = categories.includes('all')
+            ? ['experiments', 'sessions', 'flies', 'rivers']
+            : categories;
+
+          if (targets.includes('sessions')) {
+            await deleteExperimentsForUser(userId);
+            await deleteSessionsForUser(userId);
+          } else if (targets.includes('experiments')) {
+            await deleteExperimentsForUser(userId);
+          }
+
+          if (targets.includes('flies')) {
+            await deleteSavedFliesForUser(userId);
+          }
+
+          if (targets.includes('rivers')) {
+            await deleteSavedRiversForUser(userId);
+          }
+
           await refresh(activeUserId);
         },
         deleteAngler: async (userId) => {
