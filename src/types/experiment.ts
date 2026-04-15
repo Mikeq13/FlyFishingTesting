@@ -3,6 +3,7 @@ import { FlySetup } from './fly';
 export type ExperimentWinner = string;
 export type ExperimentOutcome = 'decisive' | 'tie' | 'inconclusive';
 export type ExperimentFlyRole = 'baseline' | 'test';
+export type TroutSpecies = 'Brook' | 'Brown' | 'Cutthroat' | 'Rainbow' | 'Tiger' | 'Whitefish';
 
 export interface ExperimentFlyEntry {
   slotId: string;
@@ -12,6 +13,7 @@ export interface ExperimentFlyEntry {
   casts: number;
   catches: number;
   fishSizesInches: number[];
+  fishSpecies: TroutSpecies[];
 }
 
 export interface Experiment {

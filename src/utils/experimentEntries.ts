@@ -37,6 +37,11 @@ const normalizeFishSizes = (fishSizesInches: number[] | undefined, catches: numb
     .filter((size): size is number => typeof size === 'number' && Number.isFinite(size))
     .slice(0, Math.max(catches, 0));
 
+const normalizeFishSpecies = (fishSpecies: string[] | undefined, catches: number): string[] =>
+  (fishSpecies ?? [])
+    .filter((species): species is string => typeof species === 'string' && species.trim().length > 0)
+    .slice(0, Math.max(catches, 0));
+
 export const createEmptyExperimentEntries = (count: number, baselineIndex = 0): ExperimentFlyEntry[] =>
   Array.from({ length: count }, (_, index) => ({
     slotId: `slot-${index + 1}`,
@@ -45,7 +50,8 @@ export const createEmptyExperimentEntries = (count: number, baselineIndex = 0): 
     fly: index === 1 ? { ...emptyFly, intent: 'attractor' } : { ...emptyFly },
     casts: 0,
     catches: 0,
-    fishSizesInches: []
+    fishSizesInches: [],
+    fishSpecies: []
   }));
 
 export const alignExperimentEntries = (entries: ExperimentFlyEntry[], count: number, baselineIndex = 0): ExperimentFlyEntry[] => {
@@ -59,7 +65,8 @@ export const alignExperimentEntries = (entries: ExperimentFlyEntry[], count: num
       slotId: existing.slotId || entry.slotId,
       label: createExperimentLabel(index, count, baselineIndex),
       role: index === baselineIndex ? 'baseline' : 'test',
-      fishSizesInches: normalizeFishSizes(existing.fishSizesInches, existing.catches)
+      fishSizesInches: normalizeFishSizes(existing.fishSizesInches, existing.catches),
+      fishSpecies: normalizeFishSpecies(existing.fishSpecies, existing.catches)
     };
   });
 };
@@ -69,7 +76,8 @@ export const getExperimentEntries = (experiment: Experiment): ExperimentFlyEntry
     return experiment.flyEntries.map((entry) => ({
       ...entry,
       fly: normalizeFly(entry.fly),
-      fishSizesInches: normalizeFishSizes(entry.fishSizesInches, entry.catches)
+      fishSizesInches: normalizeFishSizes(entry.fishSizesInches, entry.catches),
+      fishSpecies: normalizeFishSpecies(entry.fishSpecies, entry.catches)
     }));
   }
 
@@ -81,7 +89,8 @@ export const getExperimentEntries = (experiment: Experiment): ExperimentFlyEntry
       fly: normalizeFly(experiment.controlFly),
       casts: experiment.controlCasts,
       catches: experiment.controlCatches,
-      fishSizesInches: []
+      fishSizesInches: [],
+      fishSpecies: []
     },
     {
       slotId: 'slot-2',
@@ -90,7 +99,8 @@ export const getExperimentEntries = (experiment: Experiment): ExperimentFlyEntry
       fly: normalizeFly(experiment.variantFly),
       casts: experiment.variantCasts,
       catches: experiment.variantCatches,
-      fishSizesInches: []
+      fishSizesInches: [],
+      fishSpecies: []
     }
   ];
 };

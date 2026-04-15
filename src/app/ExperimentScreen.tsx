@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { Alert, Modal, Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { CastCounter } from '@/components/CastCounter';
 import { CatchCounter } from '@/components/CatchCounter';
 import { FlySelector } from '@/components/FlySelector';
@@ -9,11 +9,12 @@ import { FlySetup } from '@/types/fly';
 import { validateExperimentPair } from '@/engine/rules';
 import { deriveExperimentStatus } from '@/engine/experimentStatus';
 import { ScreenBackground } from '@/components/ScreenBackground';
-import { ExperimentFlyEntry } from '@/types/experiment';
+import { ExperimentFlyEntry, TroutSpecies } from '@/types/experiment';
 import { alignExperimentEntries, createEmptyExperimentEntries, getLegacyExperimentFields } from '@/utils/experimentEntries';
 
 const FLY_COUNT_OPTIONS = [1, 2, 3] as const;
 const FISH_SIZE_OPTIONS = Array.from({ length: 17 }, (_, index) => index + 8);
+const TROUT_SPECIES_OPTIONS: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow', 'Tiger', 'Whitefish'];
 
 export const ExperimentScreen = ({ route, navigation }: any) => {
   const { width } = useWindowDimensions();
@@ -28,6 +29,8 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   const [isSaving, setIsSaving] = useState(false);
   const [showSavedExperimentActions, setShowSavedExperimentActions] = useState(false);
   const [pendingFishEntryIndex, setPendingFishEntryIndex] = useState<number | null>(null);
+  const [pendingFishSize, setPendingFishSize] = useState<number | null>(null);
+  const [pendingFishSpecies, setPendingFishSpecies] = useState<TroutSpecies | null>(null);
   const isCompactLayout = width < 720;
   const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 980) : undefined;
 
@@ -36,6 +39,10 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   }, [baselineIndex, flyCount]);
 
   const visibleEntries = useMemo(() => flyEntries.slice(0, flyCount), [flyCount, flyEntries]);
+  const lastLoggedSpecies = useMemo<TroutSpecies | null>(() => {
+    const allSpecies = visibleEntries.flatMap((entry) => entry.fishSpecies);
+    return (allSpecies.length ? allSpecies[allSpecies.length - 1] : null) as TroutSpecies | null;
+  }, [visibleEntries]);
 
   const updateEntry = (index: number, nextEntry: ExperimentFlyEntry) => {
     setFlyEntries((current) => current.map((entry, entryIndex) => (entryIndex === index ? nextEntry : entry)));
@@ -65,6 +72,8 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     setFlyEntries(createEmptyExperimentEntries(2, 0));
     setShowSavedExperimentActions(false);
     setPendingFishEntryIndex(null);
+    setPendingFishSize(null);
+    setPendingFishSpecies(null);
   };
 
   const modifyAndContinue = () => {
@@ -73,23 +82,40 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         ...entry,
         casts: 0,
         catches: 0,
-        fishSizesInches: []
+        fishSizesInches: [],
+        fishSpecies: []
       }))
     );
     setShowSavedExperimentActions(false);
     setPendingFishEntryIndex(null);
+    setPendingFishSize(null);
+    setPendingFishSpecies(null);
   };
 
-  const addCatchWithSize = (index: number, fishSizeInches: number) => {
+  const confirmCatch = () => {
+    if (pendingFishEntryIndex === null || pendingFishSize === null || pendingFishSpecies === null) {
+      return;
+    }
+
+    const index = pendingFishEntryIndex;
     const entry = visibleEntries[index];
     if (!entry) return;
 
     updateEntry(index, {
       ...entry,
       catches: entry.catches + 1,
-      fishSizesInches: [...entry.fishSizesInches, fishSizeInches]
+      fishSizesInches: [...entry.fishSizesInches, pendingFishSize],
+      fishSpecies: [...entry.fishSpecies, pendingFishSpecies]
     });
     setPendingFishEntryIndex(null);
+    setPendingFishSize(null);
+    setPendingFishSpecies(null);
+  };
+
+  const cancelCatchModal = () => {
+    setPendingFishEntryIndex(null);
+    setPendingFishSize(null);
+    setPendingFishSpecies(null);
   };
 
   const removeCatch = (index: number) => {
@@ -99,7 +125,8 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     updateEntry(index, {
       ...entry,
       catches: Math.max(0, entry.catches - 1),
-      fishSizesInches: entry.fishSizesInches.slice(0, Math.max(0, entry.fishSizesInches.length - 1))
+      fishSizesInches: entry.fishSizesInches.slice(0, Math.max(0, entry.fishSizesInches.length - 1)),
+      fishSpecies: entry.fishSpecies.slice(0, Math.max(0, entry.fishSpecies.length - 1))
     });
   };
 
@@ -153,7 +180,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         confidenceScore: status.confidenceScore
       });
       setShowSavedExperimentActions(true);
-      setPendingFishEntryIndex(null);
+      cancelCatchModal();
     } finally {
       setIsSaving(false);
     }
@@ -260,44 +287,21 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                 label={`${entry.label} catches`}
                 value={entry.catches}
                 onDecrement={() => removeCatch(index)}
-                onIncrement={() => setPendingFishEntryIndex(index)}
+                onIncrement={() => {
+                  setPendingFishEntryIndex(index);
+                  setPendingFishSize(null);
+                  setPendingFishSpecies(lastLoggedSpecies);
+                }}
               />
             </View>
             {!!entry.fishSizesInches.length && (
               <Text style={{ color: '#bde6f6', fontSize: 12 }}>
-                Fish sizes: {entry.fishSizesInches.map((size) => `${size}"`).join(', ')}
+                Fish log:{' '}
+                {entry.fishSizesInches.map((size, fishIndex) => `${size}" ${entry.fishSpecies[fishIndex] ?? 'Trout'}`).join(', ')}
               </Text>
             )}
           </View>
         ))}
-
-        {pendingFishEntryIndex !== null && visibleEntries[pendingFishEntryIndex] && (
-          <View style={{ gap: 10, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 18, padding: 14, backgroundColor: 'rgba(245,252,255,0.96)' }}>
-            <Text style={{ fontWeight: '800', fontSize: 18, color: '#102a43' }}>
-              Fish size for {visibleEntries[pendingFishEntryIndex].label}
-            </Text>
-            <Text style={{ color: '#334e68' }}>
-              Choose the approximate fish length in inches so the app can learn which flies catch larger fish.
-            </Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {FISH_SIZE_OPTIONS.map((size) => (
-                <Pressable
-                  key={size}
-                  onPress={() => addCatchWithSize(pendingFishEntryIndex, size)}
-                  style={{ backgroundColor: '#1d3557', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, minWidth: 58 }}
-                >
-                  <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>{size}"</Text>
-                </Pressable>
-              ))}
-            </View>
-            <Pressable
-              onPress={() => setPendingFishEntryIndex(null)}
-              style={{ backgroundColor: '#6c757d', padding: 12, borderRadius: 12 }}
-            >
-              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Cancel</Text>
-            </Pressable>
-          </View>
-        )}
 
         <Pressable onPress={save} disabled={isSaving} style={{ backgroundColor: isSaving ? '#6c757d' : '#264653', padding: 14, borderRadius: 14 }}>
           <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>{isSaving ? 'Saving...' : 'Save Experiment'}</Text>
@@ -335,6 +339,80 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         )}
       </ScrollView>
       </KeyboardDismissView>
+      <Modal
+        visible={pendingFishEntryIndex !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={cancelCatchModal}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(5, 18, 28, 0.72)', justifyContent: 'center', padding: 20 }}>
+          <View style={{ gap: 12, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 20, padding: 16, backgroundColor: 'rgba(245,252,255,0.98)' }}>
+            <Text style={{ fontWeight: '800', fontSize: 20, color: '#102a43' }}>
+              Log catch for {pendingFishEntryIndex !== null && visibleEntries[pendingFishEntryIndex] ? visibleEntries[pendingFishEntryIndex].label : 'Fly'}
+            </Text>
+            <Text style={{ color: '#334e68' }}>
+              Choose the trout species and approximate length so the app can track both catch rate and fish quality.
+            </Text>
+
+            <View style={{ gap: 8 }}>
+              <Text style={{ color: '#102a43', fontWeight: '700' }}>Species</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {TROUT_SPECIES_OPTIONS.map((species) => (
+                  <Pressable
+                    key={species}
+                    onPress={() => setPendingFishSpecies(species)}
+                    style={{
+                      backgroundColor: pendingFishSpecies === species ? '#2a9d8f' : 'rgba(29,53,87,0.12)',
+                      paddingVertical: 10,
+                      paddingHorizontal: 12,
+                      borderRadius: 12
+                    }}
+                  >
+                    <Text style={{ color: pendingFishSpecies === species ? 'white' : '#102a43', fontWeight: '700' }}>{species}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            <View style={{ gap: 8 }}>
+              <Text style={{ color: '#102a43', fontWeight: '700' }}>Length</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {FISH_SIZE_OPTIONS.map((size) => (
+                  <Pressable
+                    key={size}
+                    onPress={() => setPendingFishSize(size)}
+                    style={{
+                      backgroundColor: pendingFishSize === size ? '#1d3557' : 'rgba(29,53,87,0.12)',
+                      paddingVertical: 10,
+                      paddingHorizontal: 12,
+                      borderRadius: 12,
+                      minWidth: 58
+                    }}
+                  >
+                    <Text style={{ color: pendingFishSize === size ? 'white' : '#102a43', textAlign: 'center', fontWeight: '700' }}>{size}"</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Pressable
+                onPress={cancelCatchModal}
+                style={{ backgroundColor: '#6c757d', padding: 12, borderRadius: 12, flex: 1 }}
+              >
+                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={confirmCatch}
+                disabled={pendingFishSize === null || pendingFishSpecies === null}
+                style={{ backgroundColor: pendingFishSize !== null && pendingFishSpecies !== null ? '#264653' : '#adb5bd', padding: 12, borderRadius: 12, flex: 1 }}
+              >
+                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Save Catch</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScreenBackground>
   );
 };

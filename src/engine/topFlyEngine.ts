@@ -15,6 +15,7 @@ interface TopFlyStat {
   fishCount: number;
   averageSizeInches: number | null;
   largestFishInches: number | null;
+  speciesCounts: Map<string, number>;
   rivers: Set<string>;
   months: Set<string>;
 }
@@ -31,6 +32,7 @@ export interface TopFlyRecord {
   fishCount: number;
   averageSizeInches: number | null;
   largestFishInches: number | null;
+  topSpecies: string[];
   rivers: string[];
   months: string[];
 }
@@ -63,6 +65,7 @@ export const buildTopFlyRecords = (sessions: Session[], experiments: Experiment[
           fishCount: 0,
           averageSizeInches: null,
           largestFishInches: null,
+          speciesCounts: new Map<string, number>(),
           rivers: new Set<string>(),
           months: new Set<string>()
         };
@@ -76,6 +79,9 @@ export const buildTopFlyRecords = (sessions: Session[], experiments: Experiment[
         current.averageSizeInches = totalKnownSize / current.fishCount;
         current.largestFishInches = Math.max(current.largestFishInches ?? 0, ...fishSizes);
       }
+      (entry.fishSpecies ?? []).forEach((species) => {
+        current.speciesCounts.set(species, (current.speciesCounts.get(species) ?? 0) + 1);
+      });
       if (session?.riverName) current.rivers.add(session.riverName);
       if (session) current.months.add(new Date(session.date).toLocaleString('en-US', { month: 'long' }));
       current.rate = catchRate(current.catches, current.casts);
@@ -98,6 +104,10 @@ export const buildTopFlyRecords = (sessions: Session[], experiments: Experiment[
       fishCount: stat.fishCount,
       averageSizeInches: stat.averageSizeInches ? Number(stat.averageSizeInches.toFixed(1)) : null,
       largestFishInches: stat.largestFishInches,
+      topSpecies: [...stat.speciesCounts.entries()]
+        .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+        .slice(0, 3)
+        .map(([species]) => species),
       rivers: [...stat.rivers].sort(),
       months: [...stat.months].sort()
     }));
@@ -106,7 +116,7 @@ export const buildTopFlyRecords = (sessions: Session[], experiments: Experiment[
 export const buildTopFlyInsights = (records: TopFlyRecord[]): Insight[] =>
   records.slice(0, 3).map((record, index) => ({
     type: index === 0 ? 'recommendation' : 'pattern',
-    message: `${record.name} (${record.bugFamily}, ${record.bugStage}, #${record.hookSize}, bead ${record.beadSizeMm}) is a top performer at ${(record.rate * 100).toFixed(1)}% over ${record.casts} casts${record.averageSizeInches ? `, averaging ${record.averageSizeInches}" fish` : ''}.`,
+    message: `${record.name} (${record.bugFamily}, ${record.bugStage}, #${record.hookSize}, bead ${record.beadSizeMm}) is a top performer at ${(record.rate * 100).toFixed(1)}% over ${record.casts} casts${record.averageSizeInches ? `, averaging ${record.averageSizeInches}" fish` : ''}${record.topSpecies.length ? `, most often ${record.topSpecies.join('/')} trout` : ''}.`,
     confidence: confidenceFromSamples(record.casts),
     supportingData: record
   }));
