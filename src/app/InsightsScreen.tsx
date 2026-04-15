@@ -57,6 +57,7 @@ export const InsightsScreen = ({ navigation }: any) => {
   const [flyFilterMode, setFlyFilterMode] = useState<'pattern' | 'exact'>('pattern');
   const [minimumSizeFilter, setMinimumSizeFilter] = useState('');
   const [showRiverChoices, setShowRiverChoices] = useState(false);
+  const [showFlyChoices, setShowFlyChoices] = useState(false);
   const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 980) : undefined;
 
   const normalizedFilters = {
@@ -264,15 +265,53 @@ export const InsightsScreen = ({ navigation }: any) => {
                 onChange={(value) => {
                   setFlyFilterMode(value === 'Exact Variant' ? 'exact' : 'pattern');
                   setFlyFilter('');
+                  setShowFlyChoices(false);
                 }}
               />
               {(flyFilterMode === 'exact' ? exactFlyOptions.length : flyOptions.length) > 1 && (
-                <OptionChips
-                  label={flyFilterMode === 'exact' ? 'Fly Variant' : 'Fly Pattern'}
-                  options={flyFilterMode === 'exact' ? exactFlyOptions : flyOptions}
-                  value={flyFilter || 'All'}
-                  onChange={(value) => setFlyFilter(value === 'All' ? '' : value)}
-                />
+                <View style={{ gap: 6 }}>
+                  <Pressable onPress={() => setShowFlyChoices((current) => !current)} style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}>
+                    <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
+                      {showFlyChoices
+                        ? `Hide ${flyFilterMode === 'exact' ? 'Fly Variants' : 'Fly Patterns'}`
+                        : `Choose ${flyFilterMode === 'exact' ? 'Fly Variant' : 'Fly Pattern'}`}
+                    </Text>
+                  </Pressable>
+                  {showFlyChoices && (
+                    <ScrollView style={{ maxHeight: 220, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)' }}>
+                      <Pressable
+                        onPress={() => {
+                          setFlyFilter('');
+                          setShowFlyChoices(false);
+                        }}
+                        style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
+                      >
+                        <Text style={{ color: '#0b3d3a', fontWeight: '700' }}>
+                          {flyFilterMode === 'exact' ? 'All fly variants' : 'All fly patterns'}
+                        </Text>
+                      </Pressable>
+                      {(flyFilterMode === 'exact' ? exactFlyOptions : flyOptions)
+                        .filter((option) => option !== 'All')
+                        .map((option) => (
+                          <Pressable
+                            key={option}
+                            onPress={() => {
+                              setFlyFilter(option);
+                              setShowFlyChoices(false);
+                            }}
+                            style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
+                          >
+                            <Text style={{ color: '#0b3d3a', fontWeight: '600' }}>{option}</Text>
+                          </Pressable>
+                        ))}
+                    </ScrollView>
+                  )}
+                  <Text style={{ color: '#d7f3ff' }}>
+                    {flyFilterMode === 'exact'
+                      ? `Selected variant: ${flyFilter || 'All fly variants'}`
+                      : `Selected pattern: ${flyFilter || 'All fly patterns'}`}
+                  </Text>
+                </View>
               )}
               {!!speciesOptions.length && (
                 <>
