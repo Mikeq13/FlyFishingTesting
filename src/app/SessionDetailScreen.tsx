@@ -1,12 +1,12 @@
 import React from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useAppStore } from './store';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { catchRate } from '@/utils/calculations';
 import { getExperimentEntries } from '@/utils/experimentEntries';
 
 export const SessionDetailScreen = ({ route, navigation }: any) => {
-  const { sessions, experiments, users, activeUserId } = useAppStore();
+  const { sessions, experiments, users, activeUserId, archiveExperiment, deleteExperiment } = useAppStore();
   const sessionId = route?.params?.sessionId as number;
   const activeUser = users.find((user) => user.id === activeUserId);
 
@@ -21,6 +21,30 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
     (sum, experiment) => sum + getExperimentEntries(experiment).reduce((entrySum, entry) => entrySum + entry.catches, 0),
     0
   );
+
+  const runSingleExperimentCleanup = (experimentId: number, action: 'archive' | 'delete') => {
+    Alert.alert(
+      action === 'archive' ? 'Archive this experiment?' : 'Delete this experiment?',
+      action === 'archive'
+        ? 'This experiment will be hidden from normal history and insights.'
+        : 'This experiment will be permanently removed from this device.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: action === 'archive' ? 'Archive' : 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (action === 'archive') {
+              await archiveExperiment(experimentId);
+            } else {
+              await deleteExperiment(experimentId);
+            }
+            Alert.alert('Cleanup complete', `Experiment ${action === 'archive' ? 'archived' : 'deleted'}.`);
+          }
+        }
+      ]
+    );
+  };
 
   return (
     <ScreenBackground>
@@ -49,10 +73,31 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
             <Text style={{ color: '#334e68' }}>Winner: {e.winner}</Text>
             <Text style={{ color: '#334e68' }}>Hypothesis: {e.hypothesis}</Text>
             {getExperimentEntries(e).map((entry) => (
-              <Text key={`${e.id}-${entry.slotId}`} style={{ color: '#334e68' }}>
-                {entry.label} {entry.fly.name || 'Unnamed'} (#{entry.fly.hookSize}): {entry.catches}/{entry.casts}
-              </Text>
+              <View key={`${e.id}-${entry.slotId}`} style={{ gap: 2 }}>
+                <Text style={{ color: '#334e68' }}>
+                  {entry.label} {entry.fly.name || 'Unnamed'} (#{entry.fly.hookSize}): {entry.catches}/{entry.casts}
+                </Text>
+                {!!entry.fishSizesInches.length && (
+                  <Text style={{ color: '#334e68' }}>
+                    Fish sizes: {entry.fishSizesInches.map((size) => `${size}"`).join(', ')}
+                  </Text>
+                )}
+              </View>
             ))}
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+              <Pressable
+                onPress={() => runSingleExperimentCleanup(e.id, 'archive')}
+                style={{ backgroundColor: '#6c584c', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, flex: 1 }}
+              >
+                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Archive</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => runSingleExperimentCleanup(e.id, 'delete')}
+                style={{ backgroundColor: '#8d0801', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, flex: 1 }}
+              >
+                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Delete</Text>
+              </Pressable>
+            </View>
           </View>
         ))}
 

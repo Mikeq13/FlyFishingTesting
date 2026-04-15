@@ -99,6 +99,19 @@ export const archiveExperiments = async (experimentIds: number[]): Promise<void>
   await db.runAsync(`UPDATE experiments SET archived_at = ? WHERE id IN (${placeholders})`, archivedAt, ...experimentIds);
 };
 
+export const deleteExperiments = async (experimentIds: number[]): Promise<void> => {
+  if (!experimentIds.length) return;
+
+  if (isWeb) {
+    deleteWebRows<Experiment>(WEB_EXPERIMENTS_KEY, (row) => experimentIds.includes(row.id));
+    return;
+  }
+
+  const db = await getDb();
+  const placeholders = experimentIds.map(() => '?').join(', ');
+  await db.runAsync(`DELETE FROM experiments WHERE id IN (${placeholders})`, ...experimentIds);
+};
+
 export const deleteExperimentsForUser = async (userId: number): Promise<void> => {
   if (isWeb) {
     deleteWebRows<Experiment>(WEB_EXPERIMENTS_KEY, (row) => row.userId === userId);

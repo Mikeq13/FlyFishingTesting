@@ -11,6 +11,7 @@ export interface ExperimentFlyEntry {
   fly: FlySetup;
   casts: number;
   catches: number;
+  fishSizesInches: number[];
 }
 
 export interface Experiment {

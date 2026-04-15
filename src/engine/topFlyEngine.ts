@@ -12,6 +12,9 @@ interface TopFlyStat {
   casts: number;
   catches: number;
   rate: number;
+  fishCount: number;
+  averageSizeInches: number | null;
+  largestFishInches: number | null;
   rivers: Set<string>;
   months: Set<string>;
 }
@@ -25,6 +28,9 @@ export interface TopFlyRecord {
   casts: number;
   catches: number;
   rate: number;
+  fishCount: number;
+  averageSizeInches: number | null;
+  largestFishInches: number | null;
   rivers: string[];
   months: string[];
 }
@@ -54,12 +60,22 @@ export const buildTopFlyRecords = (sessions: Session[], experiments: Experiment[
           casts: 0,
           catches: 0,
           rate: 0,
+          fishCount: 0,
+          averageSizeInches: null,
+          largestFishInches: null,
           rivers: new Set<string>(),
           months: new Set<string>()
         };
 
       current.casts += entry.casts;
       current.catches += entry.catches;
+      const fishSizes = entry.fishSizesInches ?? [];
+      if (fishSizes.length) {
+        const totalKnownSize = (current.averageSizeInches ?? 0) * current.fishCount + fishSizes.reduce((sum, size) => sum + size, 0);
+        current.fishCount += fishSizes.length;
+        current.averageSizeInches = totalKnownSize / current.fishCount;
+        current.largestFishInches = Math.max(current.largestFishInches ?? 0, ...fishSizes);
+      }
       if (session?.riverName) current.rivers.add(session.riverName);
       if (session) current.months.add(new Date(session.date).toLocaleString('en-US', { month: 'long' }));
       current.rate = catchRate(current.catches, current.casts);
@@ -79,6 +95,9 @@ export const buildTopFlyRecords = (sessions: Session[], experiments: Experiment[
       casts: stat.casts,
       catches: stat.catches,
       rate: stat.rate,
+      fishCount: stat.fishCount,
+      averageSizeInches: stat.averageSizeInches ? Number(stat.averageSizeInches.toFixed(1)) : null,
+      largestFishInches: stat.largestFishInches,
       rivers: [...stat.rivers].sort(),
       months: [...stat.months].sort()
     }));
@@ -87,7 +106,7 @@ export const buildTopFlyRecords = (sessions: Session[], experiments: Experiment[
 export const buildTopFlyInsights = (records: TopFlyRecord[]): Insight[] =>
   records.slice(0, 3).map((record, index) => ({
     type: index === 0 ? 'recommendation' : 'pattern',
-    message: `${record.name} (${record.bugFamily}, ${record.bugStage}, #${record.hookSize}, bead ${record.beadSizeMm}) is a top performer at ${(record.rate * 100).toFixed(1)}% over ${record.casts} casts.`,
+    message: `${record.name} (${record.bugFamily}, ${record.bugStage}, #${record.hookSize}, bead ${record.beadSizeMm}) is a top performer at ${(record.rate * 100).toFixed(1)}% over ${record.casts} casts${record.averageSizeInches ? `, averaging ${record.averageSizeInches}" fish` : ''}.`,
     confidence: confidenceFromSamples(record.casts),
     supportingData: record
   }));

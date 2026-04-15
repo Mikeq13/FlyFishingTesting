@@ -16,14 +16,16 @@ const inputStyle = {
 
 export const HistoryScreen = () => {
   const { width } = useWindowDimensions();
-  const { sessions, experiments, users, activeUserId, archiveInconclusiveExperiments } = useAppStore();
+  const { sessions, experiments, users, activeUserId, archiveExperiment, deleteExperiment, cleanupExperimentsForCurrentUser } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
   const [riverFilter, setRiverFilter] = useState('');
   const [monthFilter, setMonthFilter] = useState('');
   const [waterFilter, setWaterFilter] = useState('');
   const [depthFilter, setDepthFilter] = useState('');
-  const [archiveFrom, setArchiveFrom] = useState('');
-  const [archiveTo, setArchiveTo] = useState('');
+  const [cleanupFrom, setCleanupFrom] = useState('');
+  const [cleanupTo, setCleanupTo] = useState('');
+  const [cleanupOutcome, setCleanupOutcome] = useState<'all' | 'decisive' | 'tie' | 'inconclusive'>('inconclusive');
+  const [cleanupAction, setCleanupAction] = useState<'archive' | 'delete'>('archive');
   const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 980) : undefined;
 
   const normalizedFilters = {
@@ -53,29 +55,58 @@ export const HistoryScreen = () => {
     [sessions, normalizedFilters.river, normalizedFilters.month, normalizedFilters.water, normalizedFilters.depth]
   );
 
-  const inconclusiveCount = useMemo(
+  const cleanupCount = useMemo(
     () =>
       experiments.filter((experiment) => {
-        if (experiment.outcome !== 'inconclusive') return false;
         const session = sessionMap.get(experiment.sessionId);
         if (!session) return false;
-        return isWithinDateRange(session.date, { from: archiveFrom || undefined, to: archiveTo || undefined });
+        if (cleanupOutcome !== 'all' && experiment.outcome !== cleanupOutcome) return false;
+        return isWithinDateRange(session.date, { from: cleanupFrom || undefined, to: cleanupTo || undefined });
       }).length,
-    [archiveFrom, archiveTo, experiments, sessionMap]
+    [cleanupFrom, cleanupOutcome, cleanupTo, experiments, sessionMap]
   );
 
-  const runArchive = () => {
+  const runCleanup = () => {
     Alert.alert(
-      'Archive inconclusive experiments',
-      `Hide ${inconclusiveCount} inconclusive experiment${inconclusiveCount === 1 ? '' : 's'} from history and insights?`,
+      cleanupAction === 'archive' ? 'Archive filtered experiments' : 'Delete filtered experiments',
+      `${cleanupAction === 'archive' ? 'Hide' : 'Delete'} ${cleanupCount} ${cleanupOutcome === 'all' ? '' : cleanupOutcome + ' '}experiment${cleanupCount === 1 ? '' : 's'} for this angler?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Archive',
+          text: cleanupAction === 'archive' ? 'Archive' : 'Delete',
           style: 'destructive',
           onPress: async () => {
-            const count = await archiveInconclusiveExperiments({ from: archiveFrom || undefined, to: archiveTo || undefined });
-            Alert.alert('Cleanup complete', `${count} inconclusive experiment${count === 1 ? '' : 's'} archived.`);
+            const count = await cleanupExperimentsForCurrentUser({
+              from: cleanupFrom || undefined,
+              to: cleanupTo || undefined,
+              outcome: cleanupOutcome,
+              action: cleanupAction
+            });
+            Alert.alert('Cleanup complete', `${count} experiment${count === 1 ? '' : 's'} ${cleanupAction === 'archive' ? 'archived' : 'deleted'}.`);
+          }
+        }
+      ]
+    );
+  };
+
+  const runSingleExperimentCleanup = (experimentId: number, action: 'archive' | 'delete') => {
+    Alert.alert(
+      action === 'archive' ? 'Archive this experiment?' : 'Delete this experiment?',
+      action === 'archive'
+        ? 'This experiment will be hidden from normal history and insights.'
+        : 'This experiment will be permanently removed from this device.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: action === 'archive' ? 'Archive' : 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (action === 'archive') {
+              await archiveExperiment(experimentId);
+            } else {
+              await deleteExperiment(experimentId);
+            }
+            Alert.alert('Cleanup complete', `Experiment ${action === 'archive' ? 'archived' : 'deleted'}.`);
           }
         }
       ]
@@ -101,16 +132,40 @@ export const HistoryScreen = () => {
         </View>
 
         <View style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 18, padding: 14, gap: 8, backgroundColor: 'rgba(245,252,255,0.96)' }}>
-          <Text style={{ fontWeight: '800', fontSize: 16, color: '#102a43' }}>Cleanup Inconclusive Results</Text>
-          <TextInput value={archiveFrom} onChangeText={setArchiveFrom} placeholder="From date (YYYY-MM-DD)" placeholderTextColor="#5a6c78" style={inputStyle} />
-          <TextInput value={archiveTo} onChangeText={setArchiveTo} placeholder="To date (YYYY-MM-DD)" placeholderTextColor="#5a6c78" style={inputStyle} />
-          <Text style={{ color: '#334e68' }}>Matching inconclusive experiments: {inconclusiveCount}</Text>
+          <Text style={{ fontWeight: '800', fontSize: 16, color: '#102a43' }}>Cleanup Experiments</Text>
+          <TextInput value={cleanupFrom} onChangeText={setCleanupFrom} placeholder="From date (YYYY-MM-DD)" placeholderTextColor="#5a6c78" style={inputStyle} />
+          <TextInput value={cleanupTo} onChangeText={setCleanupTo} placeholder="To date (YYYY-MM-DD)" placeholderTextColor="#5a6c78" style={inputStyle} />
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {(['inconclusive', 'tie', 'decisive', 'all'] as const).map((outcome) => (
+              <Pressable
+                key={outcome}
+                onPress={() => setCleanupOutcome(outcome)}
+                style={{ backgroundColor: cleanupOutcome === outcome ? '#1d3557' : 'rgba(29,53,87,0.12)', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12 }}
+              >
+                <Text style={{ color: cleanupOutcome === outcome ? 'white' : '#102a43', fontWeight: '700', textTransform: 'capitalize' }}>{outcome}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {(['archive', 'delete'] as const).map((action) => (
+              <Pressable
+                key={action}
+                onPress={() => setCleanupAction(action)}
+                style={{ backgroundColor: cleanupAction === action ? '#8d0801' : 'rgba(141,8,1,0.12)', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, flex: 1 }}
+              >
+                <Text style={{ color: cleanupAction === action ? 'white' : '#8d0801', fontWeight: '700', textAlign: 'center', textTransform: 'capitalize' }}>{action}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <Text style={{ color: '#334e68' }}>Matching experiments: {cleanupCount}</Text>
           <Pressable
-            onPress={runArchive}
-            disabled={!inconclusiveCount}
-            style={{ backgroundColor: inconclusiveCount ? '#8d0801' : '#adb5bd', borderRadius: 12, padding: 12 }}
+            onPress={runCleanup}
+            disabled={!cleanupCount}
+            style={{ backgroundColor: cleanupCount ? '#8d0801' : '#adb5bd', borderRadius: 12, padding: 12 }}
           >
-            <Text style={{ color: 'white', fontWeight: '700', textAlign: 'center' }}>Archive Inconclusive Experiments</Text>
+            <Text style={{ color: 'white', fontWeight: '700', textAlign: 'center' }}>
+              {cleanupAction === 'archive' ? 'Archive Filtered Experiments' : 'Delete Filtered Experiments'}
+            </Text>
           </Pressable>
         </View>
 
@@ -154,6 +209,25 @@ export const HistoryScreen = () => {
                       <Text style={{ color: '#334e68' }}>Winner: {experiment.winner}</Text>
                       <Text style={{ color: '#334e68' }}>Flies: {entries.map((entry) => `${entry.fly.name || entry.label} (#${entry.fly.hookSize})`).join(', ')}</Text>
                       <Text style={{ color: '#334e68' }}>Catch rate: {experimentRate.toFixed(1)}%</Text>
+                      {entries.some((entry) => entry.fishSizesInches.length) ? (
+                        <Text style={{ color: '#334e68' }}>
+                          Fish sizes: {entries.flatMap((entry) => entry.fishSizesInches).map((size) => `${size}"`).join(', ')}
+                        </Text>
+                      ) : null}
+                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+                        <Pressable
+                          onPress={() => runSingleExperimentCleanup(experiment.id, 'archive')}
+                          style={{ backgroundColor: '#6c584c', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, flex: 1 }}
+                        >
+                          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Archive</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => runSingleExperimentCleanup(experiment.id, 'delete')}
+                          style={{ backgroundColor: '#8d0801', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, flex: 1 }}
+                        >
+                          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Delete</Text>
+                        </Pressable>
+                      </View>
                     </View>
                   );
                 })}

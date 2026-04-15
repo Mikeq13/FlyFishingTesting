@@ -32,6 +32,11 @@ export const createExperimentLabel = (index: number, total: number, baselineInde
   return testOrder === 0 ? 'Test A' : 'Test B';
 };
 
+const normalizeFishSizes = (fishSizesInches: number[] | undefined, catches: number): number[] =>
+  (fishSizesInches ?? [])
+    .filter((size): size is number => typeof size === 'number' && Number.isFinite(size))
+    .slice(0, Math.max(catches, 0));
+
 export const createEmptyExperimentEntries = (count: number, baselineIndex = 0): ExperimentFlyEntry[] =>
   Array.from({ length: count }, (_, index) => ({
     slotId: `slot-${index + 1}`,
@@ -39,7 +44,8 @@ export const createEmptyExperimentEntries = (count: number, baselineIndex = 0): 
     role: index === baselineIndex ? 'baseline' : 'test',
     fly: index === 1 ? { ...emptyFly, intent: 'attractor' } : { ...emptyFly },
     casts: 0,
-    catches: 0
+    catches: 0,
+    fishSizesInches: []
   }));
 
 export const alignExperimentEntries = (entries: ExperimentFlyEntry[], count: number, baselineIndex = 0): ExperimentFlyEntry[] => {
@@ -52,7 +58,8 @@ export const alignExperimentEntries = (entries: ExperimentFlyEntry[], count: num
       ...existing,
       slotId: existing.slotId || entry.slotId,
       label: createExperimentLabel(index, count, baselineIndex),
-      role: index === baselineIndex ? 'baseline' : 'test'
+      role: index === baselineIndex ? 'baseline' : 'test',
+      fishSizesInches: normalizeFishSizes(existing.fishSizesInches, existing.catches)
     };
   });
 };
@@ -61,7 +68,8 @@ export const getExperimentEntries = (experiment: Experiment): ExperimentFlyEntry
   if (experiment.flyEntries?.length) {
     return experiment.flyEntries.map((entry) => ({
       ...entry,
-      fly: normalizeFly(entry.fly)
+      fly: normalizeFly(entry.fly),
+      fishSizesInches: normalizeFishSizes(entry.fishSizesInches, entry.catches)
     }));
   }
 
@@ -72,7 +80,8 @@ export const getExperimentEntries = (experiment: Experiment): ExperimentFlyEntry
       role: 'baseline',
       fly: normalizeFly(experiment.controlFly),
       casts: experiment.controlCasts,
-      catches: experiment.controlCatches
+      catches: experiment.controlCatches,
+      fishSizesInches: []
     },
     {
       slotId: 'slot-2',
@@ -80,7 +89,8 @@ export const getExperimentEntries = (experiment: Experiment): ExperimentFlyEntry
       role: 'test',
       fly: normalizeFly(experiment.variantFly),
       casts: experiment.variantCasts,
-      catches: experiment.variantCatches
+      catches: experiment.variantCatches,
+      fishSizesInches: []
     }
   ];
 };

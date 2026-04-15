@@ -4,7 +4,7 @@ import { SavedRiver, Session } from '@/types/session';
 import { UserProfile } from '@/types/user';
 import { FlySetup, SavedFly } from '@/types/fly';
 import { createSession, deleteSessionsForUser, listSessions } from '@/db/sessionRepo';
-import { archiveExperiments, createExperiment, deleteExperimentsForUser, listExperiments } from '@/db/experimentRepo';
+import { archiveExperiments, createExperiment, deleteExperiments, deleteExperimentsForUser, listExperiments } from '@/db/experimentRepo';
 import { createUser, deleteUser, listUsers, updateUser } from '@/db/userRepo';
 import { createSavedFly, deleteSavedFliesForUser, listSavedFlies } from '@/db/savedFlyRepo';
 import { createSavedRiver, deleteSavedRiversForUser, listSavedRivers } from '@/db/savedRiverRepo';
@@ -45,6 +45,9 @@ interface AppStore {
   clearUserAccess: (userId: number) => Promise<void>;
   clearFishingDataForUser: (userId: number) => Promise<void>;
   deleteAngler: (userId: number) => Promise<void>;
+  archiveExperiment: (experimentId: number) => Promise<void>;
+  deleteExperiment: (experimentId: number) => Promise<void>;
+  cleanupExperimentsForCurrentUser: (filters: { from?: string; to?: string; outcome?: Experiment['outcome'] | 'all'; action: 'archive' | 'delete'; }) => Promise<number>;
   refresh: (targetUserId?: number | null) => Promise<void>;
   addSession: (payload: Omit<Session, 'id' | 'userId'>) => Promise<number>;
   addExperiment: (payload: Omit<Experiment, 'id' | 'userId'>) => Promise<number>;
@@ -53,6 +56,7 @@ interface AppStore {
 
 const Ctx = createContext<AppStore | null>(null);
 const TESTING_PREMIUM_OVERRIDE = true;
+const TESTING_ADMIN_OVERRIDE = true;
 
 export const AppStoreProvider = ({ children }: { children: React.ReactNode }) => {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -65,7 +69,11 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const [activeUserId, setActiveUserId] = useState<number | null>(null);
   const sessionMap = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
   const currentUser = useMemo(() => users.find((user) => user.id === activeUserId) ?? null, [activeUserId, users]);
-  const ownerUser = useMemo(() => users.find((user) => user.role === 'owner') ?? null, [users]);
+  const storedOwnerUser = useMemo(() => users.find((user) => user.role === 'owner') ?? null, [users]);
+  const ownerUser = useMemo(
+    () => storedOwnerUser ?? (TESTING_ADMIN_OVERRIDE ? currentUser : null),
+    [currentUser, storedOwnerUser]
+  );
 
   const selectActiveUser = async (id: number) => {
     setActiveUserId(id);
@@ -163,7 +171,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         currentUser,
         currentEntitlementLabel: TESTING_PREMIUM_OVERRIDE ? 'Testing access enabled' : getEntitlementLabel(currentUser),
         currentHasPremiumAccess: TESTING_PREMIUM_OVERRIDE ? true : hasPremiumAccess(currentUser) || hasPremiumAccess(ownerUser),
-        canManageAccess: !!ownerUser,
+        canManageAccess: TESTING_ADMIN_OVERRIDE ? true : !!ownerUser,
         savedFlies,
         savedRivers,
         activeUserId,
@@ -259,6 +267,35 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
           }
 
           await refresh(fallbackUserId ?? activeUserId);
+        },
+        archiveExperiment: async (experimentId) => {
+          await archiveExperiments([experimentId]);
+          await refresh(activeUserId);
+        },
+        deleteExperiment: async (experimentId) => {
+          await deleteExperiments([experimentId]);
+          await refresh(activeUserId);
+        },
+        cleanupExperimentsForCurrentUser: async ({ from, to, outcome = 'all', action }) => {
+          const experimentIds = experiments
+            .filter((experiment) => {
+              const session = sessionMap.get(experiment.sessionId);
+              if (!session) return false;
+              if (outcome !== 'all' && experiment.outcome !== outcome) return false;
+              return isWithinDateRange(session.date, { from, to });
+            })
+            .map((experiment) => experiment.id);
+
+          if (!experimentIds.length) return 0;
+
+          if (action === 'archive') {
+            await archiveExperiments(experimentIds);
+          } else {
+            await deleteExperiments(experimentIds);
+          }
+
+          await refresh(activeUserId);
+          return experimentIds.length;
         },
         refresh,
         addSession: async (payload) => {

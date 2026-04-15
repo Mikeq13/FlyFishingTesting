@@ -44,6 +44,11 @@ export const InsightsScreen = ({ navigation }: any) => {
                     #{record.hookSize} | bead {record.beadSizeMm} | {(record.rate * 100).toFixed(1)}% catch rate
                   </Text>
                   <Text style={{ color: '#bde6f6', fontSize: 12 }}>{record.casts} casts logged</Text>
+                  {record.averageSizeInches ? (
+                    <Text style={{ color: '#bde6f6', fontSize: 12 }}>
+                      Avg fish size: {record.averageSizeInches}"{record.largestFishInches ? ` | Largest: ${record.largestFishInches}"` : ''}
+                    </Text>
+                  ) : null}
                 </View>
               ))}
             </View>
