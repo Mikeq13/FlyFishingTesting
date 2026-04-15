@@ -13,7 +13,7 @@ export const ScreenBackground = ({ children }: { children: React.ReactNode }) =>
   const background = useMemo(() => backgrounds[Math.floor(Math.random() * backgrounds.length)], []);
   const isLandscape = width > height;
   const isWideWeb = Platform.OS === 'web' && width >= 900;
-  const minHeight = Platform.OS === 'web' ? undefined : height;
+  const minHeight = Platform.OS === 'web' ? height : undefined;
 
   return (
     <View style={[styles.root, minHeight ? { minHeight } : null]}>
