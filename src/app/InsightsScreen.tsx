@@ -27,6 +27,12 @@ const sizeBandLabel = (size: number): string => {
   return '20-24"';
 };
 
+const formatExactFlyOption = (flyName: string, hookSize: number, beadSizeMm: number, bugFamily: string, bugStage: string) =>
+  `${flyName} | #${hookSize} | ${beadSizeMm} bead | ${bugFamily} | ${bugStage}`;
+
+const toExactFlyKey = (flyName: string, hookSize: number, beadSizeMm: number, bugFamily: string, bugStage: string) =>
+  formatExactFlyOption(flyName.trim(), hookSize, beadSizeMm, bugFamily, bugStage).toLowerCase();
+
 const renderChartRow = (label: string, value: number, max: number, color: string) => (
   <View key={label} style={{ gap: 4 }}>
     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -41,12 +47,14 @@ const renderChartRow = (label: string, value: number, max: number, color: string
 
 export const InsightsScreen = ({ navigation }: any) => {
   const { width } = useWindowDimensions();
-  const { sessions, experiments, anglerComparisons, currentHasPremiumAccess } = useAppStore();
+  const { sessions, experiments, anglerComparisons, currentHasPremiumAccess, savedFlies } = useAppStore();
   const [riverFilter, setRiverFilter] = useState('');
   const [monthFilter, setMonthFilter] = useState('');
   const [waterFilter, setWaterFilter] = useState('');
   const [depthFilter, setDepthFilter] = useState('');
   const [speciesFilter, setSpeciesFilter] = useState('');
+  const [flyFilter, setFlyFilter] = useState('');
+  const [flyFilterMode, setFlyFilterMode] = useState<'pattern' | 'exact'>('pattern');
   const [minimumSizeFilter, setMinimumSizeFilter] = useState('');
   const [showRiverChoices, setShowRiverChoices] = useState(false);
   const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 980) : undefined;
@@ -57,6 +65,7 @@ export const InsightsScreen = ({ navigation }: any) => {
     water: waterFilter.trim().toLowerCase(),
     depth: depthFilter.trim().toLowerCase(),
     species: speciesFilter.trim().toLowerCase(),
+    fly: flyFilter.trim().toLowerCase(),
     minimumSize: Number(minimumSizeFilter || '0') || 0
   };
 
@@ -94,6 +103,29 @@ export const InsightsScreen = ({ navigation }: any) => {
       ] as string[],
     [experiments]
   );
+  const flyOptions = useMemo(
+    () =>
+      [
+        'All',
+        ...[...new Set(savedFlies.map((fly) => fly.name.trim()).filter((name) => !!name))]
+          .sort((left, right) => left.localeCompare(right))
+      ] as string[],
+    [savedFlies]
+  );
+  const exactFlyOptions = useMemo(
+    () =>
+      [
+        'All',
+        ...[
+          ...new Set(
+            savedFlies
+              .map((fly) => formatExactFlyOption(fly.name.trim(), fly.hookSize, fly.beadSizeMm, fly.bugFamily, fly.bugStage))
+              .filter((label) => !!label)
+          )
+        ].sort((left, right) => left.localeCompare(right))
+      ] as string[],
+    [savedFlies]
+  );
 
   const filteredExperiments = useMemo(
     () =>
@@ -101,6 +133,13 @@ export const InsightsScreen = ({ navigation }: any) => {
         if (!filteredSessionIds.has(experiment.sessionId)) return false;
 
         const entries = getExperimentEntries(experiment);
+        const matchesFly =
+          !normalizedFilters.fly ||
+          entries.some((entry) =>
+            flyFilterMode === 'exact'
+              ? toExactFlyKey(entry.fly.name || entry.label, entry.fly.hookSize, entry.fly.beadSizeMm, entry.fly.bugFamily, entry.fly.bugStage) === normalizedFilters.fly
+              : (entry.fly.name || '').trim().toLowerCase() === normalizedFilters.fly
+          );
         const matchesSpecies =
           !normalizedFilters.species ||
           entries.some((entry) => entry.fishSpecies.some((species) => species.toLowerCase().includes(normalizedFilters.species)));
@@ -108,9 +147,9 @@ export const InsightsScreen = ({ navigation }: any) => {
           !normalizedFilters.minimumSize ||
           entries.some((entry) => entry.fishSizesInches.some((size) => size >= normalizedFilters.minimumSize));
 
-        return matchesSpecies && matchesSize;
+        return matchesFly && matchesSpecies && matchesSize;
       }),
-    [experiments, filteredSessionIds, normalizedFilters.minimumSize, normalizedFilters.species]
+    [experiments, filteredSessionIds, flyFilterMode, normalizedFilters.fly, normalizedFilters.minimumSize, normalizedFilters.species]
   );
 
   const filteredInsights = useMemo(
@@ -206,14 +245,35 @@ export const InsightsScreen = ({ navigation }: any) => {
               <Pressable onPress={() => setMonthFilter('')} style={{ backgroundColor: 'rgba(255,255,255,0.12)', padding: 10, borderRadius: 12 }}>
                 <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Clear Month Filter</Text>
               </Pressable>
-              <OptionChips label="Water Type" options={WATER_TYPES} value={waterFilter || null} onChange={setWaterFilter} />
-              <Pressable onPress={() => setWaterFilter('')} style={{ backgroundColor: 'rgba(255,255,255,0.12)', padding: 10, borderRadius: 12 }}>
-                <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Clear Water Filter</Text>
-              </Pressable>
-              <OptionChips label="Depth Range" options={DEPTH_RANGES} value={depthFilter || null} onChange={setDepthFilter} />
-              <Pressable onPress={() => setDepthFilter('')} style={{ backgroundColor: 'rgba(255,255,255,0.12)', padding: 10, borderRadius: 12 }}>
-                <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Clear Depth Filter</Text>
-              </Pressable>
+              <OptionChips
+                label="Water Type"
+                options={['All', ...WATER_TYPES] as string[]}
+                value={waterFilter || 'All'}
+                onChange={(value) => setWaterFilter(value === 'All' ? '' : value)}
+              />
+              <OptionChips
+                label="Depth Range"
+                options={['All', ...DEPTH_RANGES] as string[]}
+                value={depthFilter || 'All'}
+                onChange={(value) => setDepthFilter(value === 'All' ? '' : value)}
+              />
+              <OptionChips
+                label="Fly View"
+                options={['Pattern', 'Exact Variant']}
+                value={flyFilterMode === 'exact' ? 'Exact Variant' : 'Pattern'}
+                onChange={(value) => {
+                  setFlyFilterMode(value === 'Exact Variant' ? 'exact' : 'pattern');
+                  setFlyFilter('');
+                }}
+              />
+              {(flyFilterMode === 'exact' ? exactFlyOptions.length : flyOptions.length) > 1 && (
+                <OptionChips
+                  label={flyFilterMode === 'exact' ? 'Fly Variant' : 'Fly Pattern'}
+                  options={flyFilterMode === 'exact' ? exactFlyOptions : flyOptions}
+                  value={flyFilter || 'All'}
+                  onChange={(value) => setFlyFilter(value === 'All' ? '' : value)}
+                />
+              )}
               {!!speciesOptions.length && (
                 <>
                   <OptionChips
@@ -275,31 +335,53 @@ export const InsightsScreen = ({ navigation }: any) => {
                 ))}
                 <View style={{ gap: 8 }}>
                   {filteredTopFlyRecords.slice(0, 5).map((record) => (
-                    <View
-                      key={`${record.name}-${record.hookSize}-${record.beadSizeMm}`}
-                      style={{ backgroundColor: 'rgba(6, 27, 44, 0.70)', borderRadius: 16, padding: 12, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}
-                    >
-                      <Text style={{ color: '#f7fdff', fontWeight: '700', fontSize: 16 }}>{record.name}</Text>
-                      <Text style={{ color: '#d7f3ff' }}>
-                        #{record.hookSize} | bead {record.beadSizeMm} | {(record.rate * 100).toFixed(1)}% catch rate
-                      </Text>
-                      <Text style={{ color: '#bde6f6', fontSize: 12 }}>{record.casts} casts logged</Text>
-                      {record.averageSizeInches ? (
-                        <Text style={{ color: '#bde6f6', fontSize: 12 }}>
-                          Avg fish size: {record.averageSizeInches}"{record.largestFishInches ? ` | Largest: ${record.largestFishInches}"` : ''}
-                        </Text>
-                      ) : null}
-                      {!!record.topSpecies.length && (
-                        <Text style={{ color: '#bde6f6', fontSize: 12 }}>
-                          Common species: {record.topSpecies.join(', ')}
-                        </Text>
-                      )}
-                      {!!record.speciesBreakdown.length && (
-                        <Text style={{ color: '#bde6f6', fontSize: 12 }}>
-                          Species breakdown: {record.speciesBreakdown.map((item) => `${item.species} ${(item.percent * 100).toFixed(0)}%`).join(' | ')}
-                        </Text>
-                      )}
-                    </View>
+                    (() => {
+                      const selectedSpeciesCount = normalizedFilters.species
+                        ? record.speciesBreakdown.find((item) => item.species.toLowerCase() === normalizedFilters.species)?.count ?? 0
+                        : 0;
+                      const selectedSpeciesTotal = normalizedFilters.species
+                        ? filteredTopFlyRecords.reduce(
+                            (sum, flyRecord) =>
+                              sum +
+                              (flyRecord.speciesBreakdown.find((item) => item.species.toLowerCase() === normalizedFilters.species)?.count ?? 0),
+                            0
+                          )
+                        : 0;
+                      const selectedSpeciesPercent = selectedSpeciesTotal ? (selectedSpeciesCount / selectedSpeciesTotal) * 100 : 0;
+
+                      return (
+                        <View
+                          key={`${record.name}-${record.hookSize}-${record.beadSizeMm}`}
+                          style={{ backgroundColor: 'rgba(6, 27, 44, 0.70)', borderRadius: 16, padding: 12, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}
+                        >
+                          <Text style={{ color: '#f7fdff', fontWeight: '700', fontSize: 16 }}>{record.name}</Text>
+                          <Text style={{ color: '#d7f3ff' }}>
+                            #{record.hookSize} | bead {record.beadSizeMm} | {(record.rate * 100).toFixed(1)}% catch rate
+                          </Text>
+                          <Text style={{ color: '#bde6f6', fontSize: 12 }}>{record.casts} casts logged</Text>
+                          {record.averageSizeInches ? (
+                            <Text style={{ color: '#bde6f6', fontSize: 12 }}>
+                              Avg fish size: {record.averageSizeInches}"{record.largestFishInches ? ` | Largest: ${record.largestFishInches}"` : ''}
+                            </Text>
+                          ) : null}
+                          {!!record.topSpecies.length && !normalizedFilters.species && (
+                            <Text style={{ color: '#bde6f6', fontSize: 12 }}>
+                              Common species: {record.topSpecies.join(', ')}
+                            </Text>
+                          )}
+                          {!!record.speciesBreakdown.length && !normalizedFilters.species && (
+                            <Text style={{ color: '#bde6f6', fontSize: 12 }}>
+                              Species breakdown: {record.speciesBreakdown.map((item) => `${item.species} ${(item.percent * 100).toFixed(0)}%`).join(' | ')}
+                            </Text>
+                          )}
+                          {!!normalizedFilters.species && (
+                            <Text style={{ color: '#bde6f6', fontSize: 12 }}>
+                              {selectedSpeciesCount} {speciesFilter} caught | {selectedSpeciesPercent.toFixed(0)}% of filtered {speciesFilter} catches
+                            </Text>
+                          )}
+                        </View>
+                      );
+                    })()
                   ))}
                 </View>
               </>
