@@ -75,6 +75,38 @@ export const initDb = async (): Promise<void> => {
       FOREIGN KEY(user_id) REFERENCES users(id),
       FOREIGN KEY(session_id) REFERENCES sessions(id)
     )`,
+    `CREATE TABLE IF NOT EXISTS session_segments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      session_id INTEGER NOT NULL,
+      session_mode TEXT NOT NULL DEFAULT 'practice',
+      river_name TEXT,
+      water_type TEXT NOT NULL,
+      depth_range TEXT NOT NULL,
+      started_at TEXT NOT NULL,
+      ended_at TEXT,
+      fly_snapshots_json TEXT NOT NULL,
+      notes TEXT,
+      FOREIGN KEY(user_id) REFERENCES users(id),
+      FOREIGN KEY(session_id) REFERENCES sessions(id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS catch_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      session_id INTEGER NOT NULL,
+      segment_id INTEGER,
+      session_mode TEXT NOT NULL DEFAULT 'practice',
+      fly_name TEXT,
+      fly_snapshot_json TEXT,
+      species TEXT,
+      length_value REAL,
+      length_unit TEXT NOT NULL DEFAULT 'in',
+      caught_at TEXT NOT NULL,
+      notes TEXT,
+      FOREIGN KEY(user_id) REFERENCES users(id),
+      FOREIGN KEY(session_id) REFERENCES sessions(id),
+      FOREIGN KEY(segment_id) REFERENCES session_segments(id)
+    )`,
     `CREATE TABLE IF NOT EXISTS saved_flies (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -129,9 +161,6 @@ export const initDb = async (): Promise<void> => {
     await database.execAsync(`ALTER TABLE sessions ADD COLUMN river_name TEXT;`);
   } catch {}
   try {
-    await database.execAsync(`ALTER TABLE sessions ADD COLUMN session_mode TEXT NOT NULL DEFAULT 'experiment';`);
-  } catch {}
-  try {
     await database.execAsync(`ALTER TABLE sessions ADD COLUMN hypothesis TEXT;`);
   } catch {}
   try {
@@ -148,6 +177,9 @@ export const initDb = async (): Promise<void> => {
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE experiments ADD COLUMN fly_entries_json TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN session_mode TEXT NOT NULL DEFAULT 'experiment';`);
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE saved_flies ADD COLUMN hook_size INTEGER NOT NULL DEFAULT 16;`);

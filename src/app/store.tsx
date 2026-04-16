@@ -3,11 +3,14 @@ import { Experiment, Insight } from '@/types/experiment';
 import { SavedRiver, Session } from '@/types/session';
 import { UserProfile } from '@/types/user';
 import { FlySetup, SavedFly } from '@/types/fly';
+import { CatchEvent, SessionSegment } from '@/types/activity';
 import { createSession, deleteSessionsForUser, listSessions } from '@/db/sessionRepo';
 import { archiveExperiments, createExperiment, deleteDraftExperimentsForUser, deleteExperiments, deleteExperimentsForUser, listExperiments, updateExperiment } from '@/db/experimentRepo';
 import { createUser, deleteUser, listUsers, updateUser } from '@/db/userRepo';
 import { createSavedFly, deleteSavedFliesForUser, listSavedFlies } from '@/db/savedFlyRepo';
 import { createSavedRiver, deleteSavedRiversForUser, listSavedRivers } from '@/db/savedRiverRepo';
+import { createSessionSegment, deleteSessionSegmentsForUser, listSessionSegments, updateSessionSegment } from '@/db/sessionSegmentRepo';
+import { createCatchEvent, deleteCatchEventsForUser, listCatchEvents } from '@/db/catchEventRepo';
 import { getActiveUserId as loadActiveUserId, setActiveUserId as saveActiveUserId } from '@/db/settingsRepo';
 import { initDb } from '@/db/schema';
 import { buildAggregates } from '@/engine/aggregationEngine';
@@ -22,6 +25,8 @@ export type UserDataCleanupCategory = 'drafts' | 'experiments' | 'sessions' | 'f
 
 interface AppStore {
   sessions: Session[];
+  sessionSegments: SessionSegment[];
+  catchEvents: CatchEvent[];
   experiments: Experiment[];
   insights: Insight[];
   anglerComparisons: Insight[];
@@ -53,6 +58,9 @@ interface AppStore {
   cleanupExperimentsForCurrentUser: (filters: { from?: string; to?: string; outcome?: Experiment['outcome'] | 'all'; action: 'archive' | 'delete'; }) => Promise<number>;
   refresh: (targetUserId?: number | null) => Promise<void>;
   addSession: (payload: Omit<Session, 'id' | 'userId'>) => Promise<number>;
+  addSessionSegment: (payload: Omit<SessionSegment, 'id' | 'userId'>) => Promise<number>;
+  updateSessionSegmentEntry: (segmentId: number, payload: Omit<SessionSegment, 'id' | 'userId'>) => Promise<void>;
+  addCatchEvent: (payload: Omit<CatchEvent, 'id' | 'userId'>) => Promise<number>;
   addExperiment: (payload: Omit<Experiment, 'id' | 'userId'>) => Promise<number>;
   updateExperimentEntry: (experimentId: number, payload: Omit<Experiment, 'id' | 'userId'>) => Promise<void>;
   archiveInconclusiveExperiments: (range: { from?: string; to?: string }) => Promise<number>;
@@ -64,6 +72,8 @@ const TESTING_ADMIN_OVERRIDE = true;
 
 export const AppStoreProvider = ({ children }: { children: React.ReactNode }) => {
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [sessionSegments, setSessionSegments] = useState<SessionSegment[]>([]);
+  const [catchEvents, setCatchEvents] = useState<CatchEvent[]>([]);
   const [experiments, setExperiments] = useState<Experiment[]>([]);
   const [anglerComparisons, setAnglerComparisons] = useState<Insight[]>([]);
   const [topFlyRecords, setTopFlyRecords] = useState<TopFlyRecord[]>([]);
@@ -118,6 +128,8 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     const uid = targetUserId ?? activeUserId ?? allUsers[0]?.id;
     if (!uid) {
       setSessions([]);
+      setSessionSegments([]);
+      setCatchEvents([]);
       setExperiments([]);
       setSavedFlies([]);
       setSavedRivers([]);
@@ -125,10 +137,19 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       setTopFlyRecords([]);
       return;
     }
-    const [s, e, flies, rivers] = await Promise.all([listSessions(uid), listExperiments(uid), listSavedFlies(uid), listSavedRivers(uid)]);
+    const [s, segments, catches, e, flies, rivers] = await Promise.all([
+      listSessions(uid),
+      listSessionSegments(uid),
+      listCatchEvents(uid),
+      listExperiments(uid),
+      listSavedFlies(uid),
+      listSavedRivers(uid)
+    ]);
     const allSessionLists = await Promise.all(allUsers.map((user) => listSessions(user.id)));
     const allExperimentLists = await Promise.all(allUsers.map((user) => listExperiments(user.id)));
     setSessions(s);
+    setSessionSegments(segments);
+    setCatchEvents(catches);
     setExperiments(e);
     setSavedFlies(flies);
     setSavedRivers(rivers);
@@ -172,6 +193,8 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     <Ctx.Provider
       value={{
         sessions,
+        sessionSegments,
+        catchEvents,
         experiments,
         insights,
         anglerComparisons,
@@ -250,6 +273,8 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
           });
         },
         clearFishingDataForUser: async (userId) => {
+          await deleteCatchEventsForUser(userId);
+          await deleteSessionSegmentsForUser(userId);
           await deleteExperimentsForUser(userId);
           await deleteSessionsForUser(userId);
           await deleteSavedFliesForUser(userId);
@@ -262,6 +287,8 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
             : categories;
 
           if (targets.includes('sessions')) {
+            await deleteCatchEventsForUser(userId);
+            await deleteSessionSegmentsForUser(userId);
             await deleteExperimentsForUser(userId);
             await deleteSessionsForUser(userId);
           } else if (targets.includes('experiments')) {
@@ -289,6 +316,8 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
           }
 
           await deleteExperimentsForUser(userId);
+          await deleteCatchEventsForUser(userId);
+          await deleteSessionSegmentsForUser(userId);
           await deleteSessionsForUser(userId);
           await deleteSavedFliesForUser(userId);
           await deleteSavedRiversForUser(userId);
@@ -339,6 +368,22 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
           if (!activeUserId) throw new Error('No active user selected.');
           const id = await createSession({ ...payload, userId: activeUserId });
           await refresh();
+          return id;
+        },
+        addSessionSegment: async (payload) => {
+          if (!activeUserId) throw new Error('No active user selected.');
+          const id = await createSessionSegment({ ...payload, userId: activeUserId });
+          await refresh(activeUserId);
+          return id;
+        },
+        updateSessionSegmentEntry: async (segmentId, payload) => {
+          await updateSessionSegment(segmentId, payload);
+          await refresh(activeUserId);
+        },
+        addCatchEvent: async (payload) => {
+          if (!activeUserId) throw new Error('No active user selected.');
+          const id = await createCatchEvent({ ...payload, userId: activeUserId });
+          await refresh(activeUserId);
           return id;
         },
         addExperiment: async (payload) => {
