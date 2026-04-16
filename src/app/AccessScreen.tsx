@@ -1,9 +1,10 @@
 import React from 'react';
-import { Alert, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { UserDataCleanupCategory, useAppStore } from './store';
 import { getEntitlementLabel, hasPremiumAccess } from '@/engine/entitlementEngine';
 import { beginAppleSubscriptionPurchase, PREMIUM_MONTHLY_PRICE_LABEL, PREMIUM_TRIAL_LABEL } from '@/billing/storekit';
+import { formatLocalDateTimeInput, formatReadableDateTime, parseLocalDateTimeInput } from '@/utils/dateTime';
 
 export const AccessScreen = () => {
   const { width } = useWindowDimensions();
@@ -20,9 +21,53 @@ export const AccessScreen = () => {
     clearUserAccess,
     clearFishingDataForUser,
     clearUserDataCategories,
-    deleteAngler
+    deleteAngler,
+    groups,
+    groupMemberships,
+    sharePreferences,
+    competitions,
+    competitionParticipants,
+    competitionAssignments,
+    createGroup,
+    joinGroup,
+    updateSharePreference,
+    createCompetition,
+    joinCompetition
   } = useAppStore();
   const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 980) : undefined;
+  const [newGroupName, setNewGroupName] = React.useState('');
+  const [joinGroupCode, setJoinGroupCode] = React.useState('');
+  const [newCompetitionName, setNewCompetitionName] = React.useState('');
+  const [selectedCompetitionGroupId, setSelectedCompetitionGroupId] = React.useState<number | null>(null);
+  const [competitionJoinCode, setCompetitionJoinCode] = React.useState('');
+  const [competitionStartInput, setCompetitionStartInput] = React.useState(() => formatLocalDateTimeInput(new Date()));
+  const [competitionEndInput, setCompetitionEndInput] = React.useState(() => formatLocalDateTimeInput(new Date(Date.now() + 3 * 60 * 60 * 1000)));
+
+  const joinedMemberships = React.useMemo(
+    () => groupMemberships.filter((membership) => membership.userId === currentUser?.id),
+    [currentUser?.id, groupMemberships]
+  );
+  const joinedGroups = React.useMemo(
+    () =>
+      joinedMemberships
+        .map((membership) => groups.find((group) => group.id === membership.groupId))
+        .filter((group): group is (typeof groups)[number] => !!group),
+    [groups, joinedMemberships]
+  );
+  const joinedCompetitionList = React.useMemo(
+    () =>
+      competitionParticipants
+        .filter((participant) => participant.userId === currentUser?.id)
+        .map((participant) => competitions.find((competition) => competition.id === participant.competitionId))
+        .filter((competition): competition is (typeof competitions)[number] => !!competition),
+    [competitionParticipants, competitions, currentUser?.id]
+  );
+
+  React.useEffect(() => {
+    if (!selectedCompetitionGroupId && joinedGroups[0]) {
+      setSelectedCompetitionGroupId(joinedGroups[0].id);
+    }
+  }, [joinedGroups, selectedCompetitionGroupId]);
 
   if (!currentUser) {
     return (
@@ -145,6 +190,50 @@ export const AccessScreen = () => {
     </View>
   );
 
+  const saveGroup = async () => {
+    const name = newGroupName.trim();
+    if (!name) {
+      Alert.alert('Group name needed', 'Give the group a name before creating it.');
+      return;
+    }
+    const created = await createGroup(name);
+    setNewGroupName('');
+    Alert.alert('Group created', `${created.name} is ready. Join code: ${created.joinCode}`);
+  };
+
+  const handleJoinGroup = async () => {
+    const code = joinGroupCode.trim();
+    if (!code) return;
+    await joinGroup(code);
+    setJoinGroupCode('');
+    Alert.alert('Group joined', 'You can now decide what information to share with this group.');
+  };
+
+  const saveCompetition = async () => {
+    const parsedStart = parseLocalDateTimeInput(competitionStartInput);
+    const parsedEnd = parseLocalDateTimeInput(competitionEndInput);
+    if (!newCompetitionName.trim() || !selectedCompetitionGroupId || !parsedStart || !parsedEnd || new Date(parsedEnd) <= new Date(parsedStart)) {
+      Alert.alert('Competition details incomplete', 'Enter a name, choose a group, and use valid start/end times.');
+      return;
+    }
+    const created = await createCompetition({
+      groupId: selectedCompetitionGroupId,
+      name: newCompetitionName.trim(),
+      startAt: parsedStart,
+      endAt: parsedEnd
+    });
+    setNewCompetitionName('');
+    Alert.alert('Competition created', `${created.name} is ready. Join code: ${created.joinCode}`);
+  };
+
+  const handleJoinCompetition = async () => {
+    const code = competitionJoinCode.trim();
+    if (!code) return;
+    await joinCompetition(code);
+    setCompetitionJoinCode('');
+    Alert.alert('Competition joined', 'Enter your assignment details from the comp website when you start your session.');
+  };
+
   return (
     <ScreenBackground>
       <ScrollView
@@ -214,6 +303,147 @@ export const AccessScreen = () => {
               </Text>
             </View>
           )}
+        </View>
+
+        <View style={{ gap: 10, backgroundColor: 'rgba(6, 27, 44, 0.72)', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
+          <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>Groups & Sharing</Text>
+          <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
+            Create or join a group, then choose what this angler shares with that crew for joint learning.
+          </Text>
+          <TextInput
+            value={newGroupName}
+            onChangeText={setNewGroupName}
+            placeholder="New group name"
+            placeholderTextColor="#5a6c78"
+            style={{ borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+          />
+          <Pressable onPress={() => saveGroup().catch((error) => Alert.alert('Unable to create group', error instanceof Error ? error.message : 'Please try again.'))} style={{ backgroundColor: '#2a9d8f', padding: 12, borderRadius: 12 }}>
+            <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Create Group</Text>
+          </Pressable>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TextInput
+              value={joinGroupCode}
+              onChangeText={setJoinGroupCode}
+              placeholder="Join group code"
+              placeholderTextColor="#5a6c78"
+              autoCapitalize="characters"
+              style={{ flex: 1, borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+            />
+            <Pressable onPress={() => handleJoinGroup().catch((error) => Alert.alert('Unable to join group', error instanceof Error ? error.message : 'Please try again.'))} style={{ backgroundColor: '#1d3557', paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, justifyContent: 'center' }}>
+              <Text style={{ color: 'white', fontWeight: '700' }}>Join</Text>
+            </Pressable>
+          </View>
+
+          {joinedGroups.map((group) => {
+            const pref = sharePreferences.find((item) => item.groupId === group.id && item.userId === currentUser.id);
+            const membership = joinedMemberships.find((item) => item.groupId === group.id);
+            return (
+              <View key={group.id} style={{ gap: 8, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: 12 }}>
+                <Text style={{ color: '#f7fdff', fontWeight: '800' }}>{group.name}</Text>
+                <Text style={{ color: '#bde6f6' }}>Join code: {group.joinCode} | Role: {membership?.role ?? 'member'}</Text>
+                {[
+                  ['Journal Entries', 'shareJournalEntries'],
+                  ['Practice Sessions', 'sharePracticeSessions'],
+                  ['Competition Sessions', 'shareCompetitionSessions'],
+                  ['Insights', 'shareInsights']
+                ].map(([label, key]) => (
+                  <View key={key} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>{label}</Text>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      {(['On', 'Off'] as const).map((option) => {
+                        const enabled = pref ? pref[key as keyof typeof pref] : false;
+                        const selected = option === 'On' ? enabled : !enabled;
+                        return (
+                          <Pressable
+                            key={option}
+                            onPress={() =>
+                              updateSharePreference(group.id, {
+                                shareJournalEntries: pref?.shareJournalEntries ?? false,
+                                sharePracticeSessions: pref?.sharePracticeSessions ?? false,
+                                shareCompetitionSessions: pref?.shareCompetitionSessions ?? false,
+                                shareInsights: pref?.shareInsights ?? false,
+                                [key]: option === 'On'
+                              } as any).catch((error) =>
+                                Alert.alert('Unable to update sharing', error instanceof Error ? error.message : 'Please try again.')
+                              )
+                            }
+                            style={{ backgroundColor: selected ? '#2a9d8f' : 'rgba(255,255,255,0.12)', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999 }}
+                          >
+                            <Text style={{ color: 'white', fontWeight: '700' }}>{option}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            );
+          })}
+        </View>
+
+        <View style={{ gap: 10, backgroundColor: 'rgba(6, 27, 44, 0.72)', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
+          <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>Competitions</Text>
+          <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
+            Organizers create a comp and share the join code. Each angler joins, then enters their own group, beat, and session details from the external draw website.
+          </Text>
+          {!!joinedGroups.length ? (
+            <>
+              <TextInput
+                value={newCompetitionName}
+                onChangeText={setNewCompetitionName}
+                placeholder="Competition name"
+                placeholderTextColor="#5a6c78"
+                style={{ borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+              />
+              <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Competition Group</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                {joinedGroups.map((group) => (
+                  <Pressable
+                    key={group.id}
+                    onPress={() => setSelectedCompetitionGroupId(group.id)}
+                    style={{ backgroundColor: selectedCompetitionGroupId === group.id ? '#2a9d8f' : 'rgba(255,255,255,0.12)', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 999 }}
+                  >
+                    <Text style={{ color: 'white', fontWeight: '700' }}>{group.name}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+              <TextInput value={competitionStartInput} onChangeText={setCompetitionStartInput} placeholder="Start (YYYY-MM-DD HH:MM)" placeholderTextColor="#5a6c78" style={{ borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
+              <TextInput value={competitionEndInput} onChangeText={setCompetitionEndInput} placeholder="End (YYYY-MM-DD HH:MM)" placeholderTextColor="#5a6c78" style={{ borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
+              <Pressable onPress={() => saveCompetition().catch((error) => Alert.alert('Unable to create competition', error instanceof Error ? error.message : 'Please try again.'))} style={{ backgroundColor: '#2a9d8f', padding: 12, borderRadius: 12 }}>
+                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Create Competition</Text>
+              </Pressable>
+            </>
+          ) : (
+            <Text style={{ color: '#bde6f6' }}>Join or create a group first so the competition has a shared roster.</Text>
+          )}
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TextInput
+              value={competitionJoinCode}
+              onChangeText={setCompetitionJoinCode}
+              placeholder="Competition join code"
+              placeholderTextColor="#5a6c78"
+              autoCapitalize="characters"
+              style={{ flex: 1, borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+            />
+            <Pressable onPress={() => handleJoinCompetition().catch((error) => Alert.alert('Unable to join competition', error instanceof Error ? error.message : 'Please try again.'))} style={{ backgroundColor: '#1d3557', paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, justifyContent: 'center' }}>
+              <Text style={{ color: 'white', fontWeight: '700' }}>Join</Text>
+            </Pressable>
+          </View>
+
+          {joinedCompetitionList.map((competition) => {
+            const group = groups.find((item) => item.id === competition.groupId);
+            const participants = competitionParticipants.filter((participant) => participant.competitionId === competition.id);
+            const assignments = competitionAssignments.filter((assignment) => assignment.competitionId === competition.id);
+            return (
+              <View key={competition.id} style={{ gap: 6, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: 12 }}>
+                <Text style={{ color: '#f7fdff', fontWeight: '800' }}>{competition.name}</Text>
+                <Text style={{ color: '#bde6f6' }}>Join code: {competition.joinCode}</Text>
+                <Text style={{ color: '#bde6f6' }}>Group: {group?.name ?? 'Unknown group'}</Text>
+                <Text style={{ color: '#bde6f6' }}>Window: {formatReadableDateTime(competition.startAt)} to {formatReadableDateTime(competition.endAt)}</Text>
+                <Text style={{ color: '#d7f3ff' }}>Participants: {participants.length} | Assignments entered: {new Set(assignments.map((assignment) => assignment.userId)).size}</Text>
+              </View>
+            );
+          })}
         </View>
 
         {canManageAccess && (

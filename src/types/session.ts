@@ -1,9 +1,11 @@
 import { RigSetup } from './rig';
+import { CompetitionSessionRole } from './group';
 
 export type WaterType = 'riffle' | 'run' | 'glide' | 'pool' | 'pocket water' | 'lake';
 export type DepthRange = '<1.5 ft' | '1.5-3 ft' | '3-5 ft' | '>5 ft';
 export type SessionMode = 'experiment' | 'practice' | 'competition';
 export type CompetitionLengthUnit = 'mm' | 'cm';
+export type PracticeLengthUnit = 'in' | 'mm' | 'cm';
 export type InsectType =
   | 'mayfly'
   | 'caddis'
@@ -29,8 +31,17 @@ export interface Session {
   notificationSoundEnabled?: boolean;
   notificationVibrationEnabled?: boolean;
   endedAt?: string;
+  startAt?: string;
+  endAt?: string;
   waterType: WaterType;
   depthRange: DepthRange;
+  sharedGroupId?: number;
+  practiceMeasurementEnabled?: boolean;
+  practiceLengthUnit?: PracticeLengthUnit;
+  competitionId?: number;
+  competitionAssignmentId?: number;
+  competitionAssignedGroup?: string;
+  competitionRole?: CompetitionSessionRole;
   competitionBeat?: string;
   competitionSessionNumber?: number;
   competitionRequiresMeasurement?: boolean;

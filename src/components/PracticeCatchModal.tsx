@@ -1,6 +1,7 @@
 import React from 'react';
-import { Modal, Pressable, Text, View } from 'react-native';
+import { Modal, Pressable, Text, TextInput, View } from 'react-native';
 import { TroutSpecies } from '@/types/experiment';
+import { CatchLengthUnit } from '@/types/activity';
 
 const TROUT_SPECIES_OPTIONS: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow', 'Tiger', 'Whitefish'];
 
@@ -8,7 +9,11 @@ interface PracticeCatchModalProps {
   visible: boolean;
   title: string;
   selectedSpecies: TroutSpecies | null;
+  measurementEnabled?: boolean;
+  lengthUnit?: CatchLengthUnit;
+  selectedLength?: string;
   onSelectSpecies: (species: TroutSpecies) => void;
+  onSelectLength?: (value: string) => void;
   onCancel: () => void;
   onConfirm: () => void;
 }
@@ -17,7 +22,11 @@ export const PracticeCatchModal = ({
   visible,
   title,
   selectedSpecies,
+  measurementEnabled = false,
+  lengthUnit = 'in',
+  selectedLength = '',
   onSelectSpecies,
+  onSelectLength,
   onCancel,
   onConfirm
 }: PracticeCatchModalProps) => (
@@ -47,6 +56,19 @@ export const PracticeCatchModal = ({
             ))}
           </View>
         </View>
+        {measurementEnabled ? (
+          <View style={{ gap: 8 }}>
+            <Text style={{ color: '#102a43', fontWeight: '700' }}>Optional length ({lengthUnit})</Text>
+            <TextInput
+              value={selectedLength}
+              onChangeText={onSelectLength}
+              keyboardType="decimal-pad"
+              placeholder={`Length in ${lengthUnit}`}
+              placeholderTextColor="#5a6c78"
+              style={{ borderWidth: 1, borderColor: '#cbd5e1', padding: 12, borderRadius: 12, backgroundColor: 'white', color: '#102a43' }}
+            />
+          </View>
+        ) : null}
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <Pressable onPress={onCancel} style={{ backgroundColor: '#6c757d', padding: 12, borderRadius: 12, flex: 1 }}>
             <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Cancel</Text>

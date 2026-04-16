@@ -4,9 +4,12 @@ import { SavedRiver, Session } from '@/types/session';
 import { UserProfile } from '@/types/user';
 import { FlySetup, SavedFly } from '@/types/fly';
 import { CatchEvent, SessionSegment } from '@/types/activity';
+import { Competition, CompetitionParticipant, CompetitionSessionAssignment, Group, GroupMembership, SharePreference } from '@/types/group';
 import { LeaderFormula, RigPreset } from '@/types/rig';
 import { createSession, deleteSessionsForUser, listSessions, updateSession } from '@/db/sessionRepo';
+import { createCompetition, createCompetitionParticipant, deleteCompetitionsForUser, listCompetitionAssignments, listCompetitionParticipants, listCompetitions, upsertCompetitionAssignment } from '@/db/competitionRepo';
 import { archiveExperiments, createExperiment, deleteDraftExperimentsForUser, deleteExperiments, deleteExperimentsForUser, listExperiments, updateExperiment } from '@/db/experimentRepo';
+import { createGroup, createGroupMembership, createSharePreference, deleteGroupsForUser, listGroupMemberships, listGroups, listSharePreferences, upsertSharePreference } from '@/db/groupRepo';
 import { createUser, deleteUser, listUsers, updateUser } from '@/db/userRepo';
 import { createSavedFly, deleteSavedFliesForUser, listSavedFlies } from '@/db/savedFlyRepo';
 import { createSavedLeaderFormula, deleteSavedLeaderFormula, deleteSavedLeaderFormulasForUser, listSavedLeaderFormulas } from '@/db/savedLeaderFormulaRepo';
@@ -28,9 +31,12 @@ export type UserDataCleanupCategory = 'drafts' | 'experiments' | 'sessions' | 'f
 
 interface AppStore {
   sessions: Session[];
+  allSessions: Session[];
   sessionSegments: SessionSegment[];
   catchEvents: CatchEvent[];
+  allCatchEvents: CatchEvent[];
   experiments: Experiment[];
+  allExperiments: Experiment[];
   insights: Insight[];
   anglerComparisons: Insight[];
   topFlyRecords: TopFlyRecord[];
@@ -45,6 +51,12 @@ interface AppStore {
   savedLeaderFormulas: LeaderFormula[];
   savedRigPresets: RigPreset[];
   savedRivers: SavedRiver[];
+  groups: Group[];
+  groupMemberships: GroupMembership[];
+  sharePreferences: SharePreference[];
+  competitions: Competition[];
+  competitionParticipants: CompetitionParticipant[];
+  competitionAssignments: CompetitionSessionAssignment[];
   activeUserId: number | null;
   setActiveUserId: (id: number) => Promise<void>;
   addUser: (name: string) => Promise<number>;
@@ -54,6 +66,12 @@ interface AppStore {
   addSavedRigPreset: (payload: Omit<RigPreset, 'id' | 'userId' | 'createdAt'>) => Promise<number>;
   deleteSavedRigPreset: (presetId: number) => Promise<void>;
   addSavedRiver: (name: string) => Promise<number>;
+  createGroup: (name: string) => Promise<Group>;
+  joinGroup: (joinCode: string) => Promise<GroupMembership>;
+  updateSharePreference: (groupId: number, updates: Omit<SharePreference, 'id' | 'userId' | 'groupId' | 'updatedAt'>) => Promise<void>;
+  createCompetition: (payload: Omit<Competition, 'id' | 'organizerUserId' | 'createdAt' | 'joinCode'>) => Promise<Competition>;
+  joinCompetition: (joinCode: string) => Promise<CompetitionParticipant>;
+  upsertCompetitionAssignment: (payload: Omit<CompetitionSessionAssignment, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => Promise<CompetitionSessionAssignment>;
   updateUserAccess: (userId: number, next: { accessLevel: AccessLevel; subscriptionStatus: SubscriptionStatus; trialStartedAt?: string | null; trialEndsAt?: string | null; subscriptionExpiresAt?: string | null; grantedByUserId?: number | null; }) => Promise<void>;
   startTrialForUser: (userId: number) => Promise<void>;
   grantPowerUserAccess: (userId: number) => Promise<void>;
@@ -82,9 +100,12 @@ const TESTING_ADMIN_OVERRIDE = true;
 
 export const AppStoreProvider = ({ children }: { children: React.ReactNode }) => {
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [allSessions, setAllSessions] = useState<Session[]>([]);
   const [sessionSegments, setSessionSegments] = useState<SessionSegment[]>([]);
   const [catchEvents, setCatchEvents] = useState<CatchEvent[]>([]);
+  const [allCatchEvents, setAllCatchEvents] = useState<CatchEvent[]>([]);
   const [experiments, setExperiments] = useState<Experiment[]>([]);
+  const [allExperiments, setAllExperiments] = useState<Experiment[]>([]);
   const [anglerComparisons, setAnglerComparisons] = useState<Insight[]>([]);
   const [topFlyRecords, setTopFlyRecords] = useState<TopFlyRecord[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -92,6 +113,12 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const [savedLeaderFormulas, setSavedLeaderFormulas] = useState<LeaderFormula[]>([]);
   const [savedRigPresets, setSavedRigPresets] = useState<RigPreset[]>([]);
   const [savedRivers, setSavedRivers] = useState<SavedRiver[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [groupMemberships, setGroupMemberships] = useState<GroupMembership[]>([]);
+  const [sharePreferences, setSharePreferences] = useState<SharePreference[]>([]);
+  const [competitions, setCompetitions] = useState<Competition[]>([]);
+  const [competitionParticipants, setCompetitionParticipants] = useState<CompetitionParticipant[]>([]);
+  const [competitionAssignments, setCompetitionAssignments] = useState<CompetitionSessionAssignment[]>([]);
   const [activeUserId, setActiveUserId] = useState<number | null>(null);
   const sessionMap = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
   const currentUser = useMemo(() => users.find((user) => user.id === activeUserId) ?? null, [activeUserId, users]);
@@ -140,18 +167,27 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     const uid = targetUserId ?? activeUserId ?? allUsers[0]?.id;
     if (!uid) {
       setSessions([]);
+      setAllSessions([]);
       setSessionSegments([]);
       setCatchEvents([]);
+      setAllCatchEvents([]);
       setExperiments([]);
+      setAllExperiments([]);
       setSavedFlies([]);
       setSavedLeaderFormulas([]);
       setSavedRigPresets([]);
       setSavedRivers([]);
+      setGroups([]);
+      setGroupMemberships([]);
+      setSharePreferences([]);
+      setCompetitions([]);
+      setCompetitionParticipants([]);
+      setCompetitionAssignments([]);
       setAnglerComparisons([]);
       setTopFlyRecords([]);
       return;
     }
-    const [s, segments, catches, e, flies, leaderFormulas, rigPresets, rivers] = await Promise.all([
+    const [s, segments, catches, e, flies, leaderFormulas, rigPresets, rivers, allGroups, memberships, preferences, allCompetitions, participants, assignments] = await Promise.all([
       listSessions(uid),
       listSessionSegments(uid),
       listCatchEvents(uid),
@@ -159,18 +195,34 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       listSavedFlies(uid),
       listSavedLeaderFormulas(uid),
       listSavedRigPresets(uid),
-      listSavedRivers(uid)
+      listSavedRivers(uid),
+      listGroups(),
+      listGroupMemberships(),
+      listSharePreferences(),
+      listCompetitions(),
+      listCompetitionParticipants(),
+      listCompetitionAssignments()
     ]);
     const allSessionLists = await Promise.all(allUsers.map((user) => listSessions(user.id)));
     const allExperimentLists = await Promise.all(allUsers.map((user) => listExperiments(user.id)));
+    const allCatchLists = await Promise.all(allUsers.map((user) => listCatchEvents(user.id)));
     setSessions(s);
+    setAllSessions(allSessionLists.flat());
     setSessionSegments(segments);
     setCatchEvents(catches);
+    setAllCatchEvents(allCatchLists.flat());
     setExperiments(e);
+    setAllExperiments(allExperimentLists.flat());
     setSavedFlies(flies);
     setSavedLeaderFormulas(leaderFormulas);
     setSavedRigPresets(rigPresets);
     setSavedRivers(rivers);
+    setGroups(allGroups);
+    setGroupMemberships(memberships);
+    setSharePreferences(preferences);
+    setCompetitions(allCompetitions);
+    setCompetitionParticipants(participants);
+    setCompetitionAssignments(assignments);
     setAnglerComparisons(
       generateAnglerComparisons(
         allUsers,
@@ -211,9 +263,12 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     <Ctx.Provider
       value={{
         sessions,
+        allSessions,
         sessionSegments,
         catchEvents,
+        allCatchEvents,
         experiments,
+        allExperiments,
         insights,
         anglerComparisons,
         topFlyRecords,
@@ -228,6 +283,12 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         savedLeaderFormulas,
         savedRigPresets,
         savedRivers,
+        groups,
+        groupMemberships,
+        sharePreferences,
+        competitions,
+        competitionParticipants,
+        competitionAssignments,
         activeUserId,
         setActiveUserId: selectActiveUser,
         addUser: async (name) => {
@@ -268,6 +329,73 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
           const id = await createSavedRiver({ userId: activeUserId, name });
           await refresh(activeUserId);
           return id;
+        },
+        createGroup: async (name) => {
+          if (!activeUserId) throw new Error('No active user selected.');
+          const group = await createGroup({ name, createdByUserId: activeUserId });
+          await createGroupMembership({ groupId: group.id, userId: activeUserId, role: 'organizer' });
+          await createSharePreference({
+            groupId: group.id,
+            userId: activeUserId,
+            shareJournalEntries: false,
+            sharePracticeSessions: false,
+            shareCompetitionSessions: false,
+            shareInsights: false
+          });
+          await refresh(activeUserId);
+          return group;
+        },
+        joinGroup: async (joinCode) => {
+          if (!activeUserId) throw new Error('No active user selected.');
+          const target = groups.find((group) => group.joinCode.toLowerCase() === joinCode.trim().toLowerCase());
+          if (!target) throw new Error('Group code not found.');
+          const existing = groupMemberships.find((membership) => membership.groupId === target.id && membership.userId === activeUserId);
+          if (existing) return existing;
+          const membership = await createGroupMembership({ groupId: target.id, userId: activeUserId, role: 'member' });
+          await createSharePreference({
+            groupId: target.id,
+            userId: activeUserId,
+            shareJournalEntries: false,
+            sharePracticeSessions: false,
+            shareCompetitionSessions: false,
+            shareInsights: false
+          });
+          await refresh(activeUserId);
+          return membership;
+        },
+        updateSharePreference: async (groupId, updates) => {
+          if (!activeUserId) throw new Error('No active user selected.');
+          await upsertSharePreference({
+            userId: activeUserId,
+            groupId,
+            ...updates
+          });
+          await refresh(activeUserId);
+        },
+        createCompetition: async (payload) => {
+          if (!activeUserId) throw new Error('No active user selected.');
+          const competition = await createCompetition({ ...payload, organizerUserId: activeUserId });
+          await createCompetitionParticipant({ competitionId: competition.id, userId: activeUserId });
+          await refresh(activeUserId);
+          return competition;
+        },
+        joinCompetition: async (joinCode) => {
+          if (!activeUserId) throw new Error('No active user selected.');
+          const target = competitions.find((competition) => competition.joinCode.toLowerCase() === joinCode.trim().toLowerCase());
+          if (!target) throw new Error('Competition code not found.');
+          const existing = competitionParticipants.find(
+            (participant) => participant.competitionId === target.id && participant.userId === activeUserId
+          );
+          if (existing) return existing;
+          const participant = await createCompetitionParticipant({ competitionId: target.id, userId: activeUserId });
+          await refresh(activeUserId);
+          return participant;
+        },
+        upsertCompetitionAssignment: async (payload) => {
+          if (!activeUserId) throw new Error('No active user selected.');
+          const assignment = await upsertCompetitionAssignment({ ...payload, userId: activeUserId });
+          await refresh(activeUserId);
+          return assignment;
         },
         updateUserAccess,
         startTrialForUser: async (userId) => {
@@ -317,6 +445,8 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
           await deleteSessionSegmentsForUser(userId);
           await deleteExperimentsForUser(userId);
           await deleteSessionsForUser(userId);
+          await deleteCompetitionsForUser(userId);
+          await deleteGroupsForUser(userId);
           await deleteSavedFliesForUser(userId);
           await deleteSavedLeaderFormulasForUser(userId);
           await deleteSavedRigPresetsForUser(userId);
@@ -369,6 +499,8 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
           await deleteCatchEventsForUser(userId);
           await deleteSessionSegmentsForUser(userId);
           await deleteSessionsForUser(userId);
+          await deleteCompetitionsForUser(userId);
+          await deleteGroupsForUser(userId);
           await deleteSavedFliesForUser(userId);
           await deleteSavedLeaderFormulasForUser(userId);
           await deleteSavedRigPresetsForUser(userId);

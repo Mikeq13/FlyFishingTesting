@@ -50,8 +50,17 @@ export const initDb = async (): Promise<void> => {
       notification_sound_enabled INTEGER NOT NULL DEFAULT 1,
       notification_vibration_enabled INTEGER NOT NULL DEFAULT 1,
       ended_at TEXT,
+      start_at TEXT,
+      end_at TEXT,
       water_type TEXT NOT NULL,
       depth_range TEXT NOT NULL,
+      shared_group_id INTEGER,
+      practice_measurement_enabled INTEGER NOT NULL DEFAULT 0,
+      practice_length_unit TEXT NOT NULL DEFAULT 'in',
+      competition_id INTEGER,
+      competition_assignment_id INTEGER,
+      competition_assigned_group TEXT,
+      competition_role TEXT NOT NULL DEFAULT 'fishing',
       competition_beat TEXT,
       competition_session_number INTEGER,
       competition_requires_measurement INTEGER NOT NULL DEFAULT 1,
@@ -64,6 +73,72 @@ export const initDb = async (): Promise<void> => {
       insect_confidence TEXT NOT NULL,
       notes TEXT,
       FOREIGN KEY(user_id) REFERENCES users(id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS groups (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      join_code TEXT NOT NULL,
+      created_by_user_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(created_by_user_id) REFERENCES users(id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS group_memberships (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      group_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      membership_role TEXT NOT NULL DEFAULT 'member',
+      joined_at TEXT NOT NULL,
+      FOREIGN KEY(group_id) REFERENCES groups(id),
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS share_preferences (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      group_id INTEGER NOT NULL,
+      share_journal_entries INTEGER NOT NULL DEFAULT 0,
+      share_practice_sessions INTEGER NOT NULL DEFAULT 0,
+      share_competition_sessions INTEGER NOT NULL DEFAULT 0,
+      share_insights INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id),
+      FOREIGN KEY(group_id) REFERENCES groups(id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS competitions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      group_id INTEGER NOT NULL,
+      organizer_user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      join_code TEXT NOT NULL,
+      start_at TEXT NOT NULL,
+      end_at TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(group_id) REFERENCES groups(id),
+      FOREIGN KEY(organizer_user_id) REFERENCES users(id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS competition_participants (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      competition_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      joined_at TEXT NOT NULL,
+      FOREIGN KEY(competition_id) REFERENCES competitions(id),
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS competition_session_assignments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      competition_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      assigned_group TEXT NOT NULL,
+      session_number INTEGER NOT NULL,
+      beat TEXT NOT NULL,
+      assignment_role TEXT NOT NULL DEFAULT 'fishing',
+      start_at TEXT NOT NULL,
+      end_at TEXT NOT NULL,
+      session_id INTEGER,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(competition_id) REFERENCES competitions(id),
+      FOREIGN KEY(user_id) REFERENCES users(id),
+      FOREIGN KEY(session_id) REFERENCES sessions(id)
     )`,
     `CREATE TABLE IF NOT EXISTS experiments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -211,6 +286,33 @@ export const initDb = async (): Promise<void> => {
     await database.execAsync(`ALTER TABLE sessions ADD COLUMN ended_at TEXT;`);
   } catch {}
   try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN start_at TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN end_at TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN shared_group_id INTEGER;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN practice_measurement_enabled INTEGER NOT NULL DEFAULT 0;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN practice_length_unit TEXT NOT NULL DEFAULT 'in';`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN competition_id INTEGER;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN competition_assignment_id INTEGER;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN competition_assigned_group TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN competition_role TEXT NOT NULL DEFAULT 'fishing';`);
+  } catch {}
+  try {
     await database.execAsync(`ALTER TABLE sessions ADD COLUMN competition_beat TEXT;`);
   } catch {}
   try {
@@ -282,6 +384,84 @@ export const initDb = async (): Promise<void> => {
       preset_json TEXT NOT NULL,
       created_at TEXT NOT NULL,
       FOREIGN KEY(user_id) REFERENCES users(id)
+    )`);
+  } catch {}
+  try {
+    await database.execAsync(`CREATE TABLE IF NOT EXISTS groups (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      join_code TEXT NOT NULL,
+      created_by_user_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(created_by_user_id) REFERENCES users(id)
+    )`);
+  } catch {}
+  try {
+    await database.execAsync(`CREATE TABLE IF NOT EXISTS group_memberships (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      group_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      membership_role TEXT NOT NULL DEFAULT 'member',
+      joined_at TEXT NOT NULL,
+      FOREIGN KEY(group_id) REFERENCES groups(id),
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    )`);
+  } catch {}
+  try {
+    await database.execAsync(`CREATE TABLE IF NOT EXISTS share_preferences (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      group_id INTEGER NOT NULL,
+      share_journal_entries INTEGER NOT NULL DEFAULT 0,
+      share_practice_sessions INTEGER NOT NULL DEFAULT 0,
+      share_competition_sessions INTEGER NOT NULL DEFAULT 0,
+      share_insights INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id),
+      FOREIGN KEY(group_id) REFERENCES groups(id)
+    )`);
+  } catch {}
+  try {
+    await database.execAsync(`CREATE TABLE IF NOT EXISTS competitions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      group_id INTEGER NOT NULL,
+      organizer_user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      join_code TEXT NOT NULL,
+      start_at TEXT NOT NULL,
+      end_at TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(group_id) REFERENCES groups(id),
+      FOREIGN KEY(organizer_user_id) REFERENCES users(id)
+    )`);
+  } catch {}
+  try {
+    await database.execAsync(`CREATE TABLE IF NOT EXISTS competition_participants (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      competition_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      joined_at TEXT NOT NULL,
+      FOREIGN KEY(competition_id) REFERENCES competitions(id),
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    )`);
+  } catch {}
+  try {
+    await database.execAsync(`CREATE TABLE IF NOT EXISTS competition_session_assignments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      competition_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      assigned_group TEXT NOT NULL,
+      session_number INTEGER NOT NULL,
+      beat TEXT NOT NULL,
+      assignment_role TEXT NOT NULL DEFAULT 'fishing',
+      start_at TEXT NOT NULL,
+      end_at TEXT NOT NULL,
+      session_id INTEGER,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(competition_id) REFERENCES competitions(id),
+      FOREIGN KEY(user_id) REFERENCES users(id),
+      FOREIGN KEY(session_id) REFERENCES sessions(id)
     )`);
   } catch {}
 };

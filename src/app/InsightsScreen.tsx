@@ -2,13 +2,16 @@ import React, { useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { InsightCard } from '@/components/InsightCard';
 import { InsightsFilterPanel } from '@/components/InsightsFilterPanel';
+import { OptionChips } from '@/components/OptionChips';
 import { PremiumFeatureGate } from '@/components/PremiumFeatureGate';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { buildAggregates } from '@/engine/aggregationEngine';
+import { generateAnglerComparisons } from '@/engine/anglerComparisonEngine';
 import { generateInsights } from '@/engine/insightEngine';
 import { buildTopFlyInsights, buildTopFlyRecords } from '@/engine/topFlyEngine';
 import { getExperimentEntries } from '@/utils/experimentEntries';
 import { useAppStore } from './store';
+import { InsightsContextMode } from '@/types/group';
 
 const sizeBandLabel = (size: number): string => {
   if (size < 12) return '8-11"';
@@ -37,7 +40,10 @@ const renderChartRow = (label: string, value: number, max: number, color: string
 
 export const InsightsScreen = ({ navigation }: any) => {
   const { width } = useWindowDimensions();
-  const { sessions, experiments, anglerComparisons, currentHasPremiumAccess, savedFlies } = useAppStore();
+  const { sessions, allSessions, experiments, allExperiments, allCatchEvents, groups, groupMemberships, sharePreferences, users, currentUser, currentHasPremiumAccess, savedFlies } = useAppStore();
+  const [insightsContext, setInsightsContext] = useState<InsightsContextMode>('mine');
+  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
+  const [selectedFriendUserId, setSelectedFriendUserId] = useState<number | null>(null);
   const [riverFilter, setRiverFilter] = useState('');
   const [monthFilter, setMonthFilter] = useState('');
   const [waterFilter, setWaterFilter] = useState('');
@@ -51,6 +57,45 @@ export const InsightsScreen = ({ navigation }: any) => {
   const [showFlyChoices, setShowFlyChoices] = useState(false);
   const [showHypothesisChoices, setShowHypothesisChoices] = useState(false);
   const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 980) : undefined;
+  const joinedGroups = useMemo(
+    () =>
+      groupMemberships
+        .filter((membership) => membership.userId === currentUser?.id)
+        .map((membership) => groups.find((group) => group.id === membership.groupId))
+        .filter((group): group is (typeof groups)[number] => !!group),
+    [currentUser?.id, groupMemberships, groups]
+  );
+
+  React.useEffect(() => {
+    if (!joinedGroups.length) return;
+    setSelectedGroupId((current) => (current && joinedGroups.some((group) => group.id === current) ? current : joinedGroups[0].id));
+  }, [joinedGroups]);
+
+  const visibleFriendOptions = useMemo(() => {
+    if (!selectedGroupId) return [];
+    return groupMemberships
+      .filter((membership) => membership.groupId === selectedGroupId && membership.userId !== currentUser?.id)
+      .map((membership) => users.find((user) => user.id === membership.userId))
+      .filter((user): user is (typeof users)[number] => !!user);
+  }, [currentUser?.id, groupMemberships, selectedGroupId, users]);
+
+  React.useEffect(() => {
+    if (!visibleFriendOptions.length) {
+      setSelectedFriendUserId(null);
+      return;
+    }
+    setSelectedFriendUserId((current) =>
+      current && visibleFriendOptions.some((user) => user.id === current) ? current : visibleFriendOptions[0].id
+    );
+  }, [visibleFriendOptions]);
+
+  const canShareCategory = (userId: number, groupId: number, mode: 'experiment' | 'practice' | 'competition') => {
+    const preference = sharePreferences.find((item) => item.userId === userId && item.groupId === groupId);
+    if (!preference) return false;
+    if (mode === 'practice') return preference.sharePracticeSessions;
+    if (mode === 'competition') return preference.shareCompetitionSessions;
+    return preference.shareJournalEntries;
+  };
 
   const normalizedFilters = {
     river: riverFilter.trim().toLowerCase(),
@@ -63,9 +108,26 @@ export const InsightsScreen = ({ navigation }: any) => {
     minimumSize: Number(minimumSizeFilter || '0') || 0
   };
 
+  const sourceSessions = insightsContext === 'mine' ? sessions : allSessions;
+  const sourceExperiments = insightsContext === 'mine' ? experiments : allExperiments;
+
+  const contextSessions = useMemo(
+    () =>
+      sourceSessions.filter((session) => {
+        if (insightsContext === 'mine') return session.userId === currentUser?.id;
+        if (!selectedGroupId || session.sharedGroupId !== selectedGroupId) return false;
+        if (!canShareCategory(session.userId, selectedGroupId, session.mode)) return false;
+        if (insightsContext === 'friend') {
+          return session.userId === selectedFriendUserId;
+        }
+        return true;
+      }),
+    [allSessions, canShareCategory, currentUser?.id, insightsContext, selectedFriendUserId, selectedGroupId, sessions, sourceSessions]
+  );
+
   const filteredSessions = useMemo(
     () =>
-      sessions.filter((session) => {
+      contextSessions.filter((session) => {
         const river = session.riverName?.toLowerCase() ?? '';
         const month = new Date(session.date).toLocaleString('en-US', { month: 'long' }).toLowerCase();
         const water = session.waterType.toLowerCase();
@@ -78,24 +140,24 @@ export const InsightsScreen = ({ navigation }: any) => {
           (!normalizedFilters.depth || depth.includes(normalizedFilters.depth))
         );
       }),
-    [normalizedFilters.depth, normalizedFilters.month, normalizedFilters.river, normalizedFilters.water, sessions]
+    [contextSessions, normalizedFilters.depth, normalizedFilters.month, normalizedFilters.river, normalizedFilters.water]
   );
 
   const filteredSessionIds = useMemo(() => new Set(filteredSessions.map((session) => session.id)), [filteredSessions]);
   const riverOptions = useMemo(
     () =>
-      [...new Set(sessions.map((session) => session.riverName?.trim()).filter((river): river is string => !!river))]
+      [...new Set(contextSessions.map((session) => session.riverName?.trim()).filter((river): river is string => !!river))]
         .sort((left, right) => left.localeCompare(right)),
-    [sessions]
+    [contextSessions]
   );
   const speciesOptions = useMemo(
     () =>
       [
         'All',
-        ...[...new Set(experiments.flatMap((experiment) => getExperimentEntries(experiment).flatMap((entry) => entry.fishSpecies)))]
+        ...[...new Set(sourceExperiments.flatMap((experiment) => getExperimentEntries(experiment).flatMap((entry) => entry.fishSpecies)))]
           .sort((left, right) => left.localeCompare(right))
       ] as string[],
-    [experiments]
+    [sourceExperiments]
   );
   const flyOptions = useMemo(
     () =>
@@ -126,18 +188,18 @@ export const InsightsScreen = ({ navigation }: any) => {
         'All',
         ...[
           ...new Set(
-            experiments
+            sourceExperiments
               .map((experiment) => experiment.hypothesis.trim())
               .filter((hypothesis) => !!hypothesis)
           )
         ].sort((left, right) => left.localeCompare(right))
       ] as string[],
-    [experiments]
+    [sourceExperiments]
   );
 
   const filteredExperiments = useMemo(
     () =>
-      experiments.filter((experiment) => {
+      sourceExperiments.filter((experiment) => {
         if (!filteredSessionIds.has(experiment.sessionId)) return false;
 
         const entries = getExperimentEntries(experiment);
@@ -160,7 +222,12 @@ export const InsightsScreen = ({ navigation }: any) => {
 
         return matchesFly && matchesSpecies && matchesSize && matchesHypothesis;
       }),
-    [experiments, filteredSessionIds, flyFilterMode, normalizedFilters.fly, normalizedFilters.hypothesis, normalizedFilters.minimumSize, normalizedFilters.species]
+    [filteredSessionIds, flyFilterMode, normalizedFilters.fly, normalizedFilters.hypothesis, normalizedFilters.minimumSize, normalizedFilters.species, sourceExperiments]
+  );
+
+  const filteredCatchEvents = useMemo(
+    () => allCatchEvents.filter((event) => filteredSessionIds.has(event.sessionId)),
+    [allCatchEvents, filteredSessionIds]
   );
 
   const filteredInsights = useMemo(
@@ -192,6 +259,16 @@ export const InsightsScreen = ({ navigation }: any) => {
       });
     });
 
+    filteredCatchEvents.forEach((event) => {
+      if (event.species) {
+        speciesCounts.set(event.species, (speciesCounts.get(event.species) ?? 0) + 1);
+      }
+      if (typeof event.lengthValue === 'number' && Number.isFinite(event.lengthValue) && event.lengthUnit === 'in') {
+        const band = sizeBandLabel(event.lengthValue);
+        sizeBandCounts.set(band, (sizeBandCounts.get(band) ?? 0) + 1);
+      }
+    });
+
     const topSpecies = [...speciesCounts.entries()].sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]));
     const sizeBands = ['8-11"', '12-15"', '16-19"', '20-24"']
       .map((band) => [band, sizeBandCounts.get(band) ?? 0] as const)
@@ -204,7 +281,19 @@ export const InsightsScreen = ({ navigation }: any) => {
       totalSpeciesCount: topSpecies.reduce((sum, [, count]) => sum + count, 0),
       maxSizeBandCount: sizeBands.reduce((max, [, count]) => Math.max(max, count), 0)
     };
-  }, [filteredExperiments]);
+  }, [filteredCatchEvents, filteredExperiments]);
+
+  const contextComparisons = useMemo(() => {
+    if (insightsContext === 'mine') {
+      return [];
+    }
+    const relevantUsers = insightsContext === 'friend'
+      ? users.filter((user) => user.id === currentUser?.id || user.id === selectedFriendUserId)
+      : users.filter((user) =>
+          groupMemberships.some((membership) => membership.groupId === selectedGroupId && membership.userId === user.id)
+        );
+    return generateAnglerComparisons(relevantUsers, filteredSessions, filteredExperiments);
+  }, [currentUser?.id, filteredExperiments, filteredSessions, groupMemberships, insightsContext, selectedFriendUserId, selectedGroupId, users]);
 
   return (
     <ScreenBackground>
@@ -222,6 +311,35 @@ export const InsightsScreen = ({ navigation }: any) => {
                 Review the strongest patterns in your data, your best flies, and where anglers overlap.
               </Text>
             </View>
+
+            <OptionChips
+              label="Insights Context"
+              options={['mine', 'group', 'friend'] as const}
+              value={insightsContext}
+              onChange={(value) => setInsightsContext(value as InsightsContextMode)}
+            />
+            {insightsContext !== 'mine' && joinedGroups.length ? (
+              <OptionChips
+                label="Shared Group"
+                options={joinedGroups.map((group) => group.name)}
+                value={joinedGroups.find((group) => group.id === selectedGroupId)?.name ?? joinedGroups[0]?.name}
+                onChange={(value) => {
+                  const selected = joinedGroups.find((group) => group.name === value);
+                  setSelectedGroupId(selected?.id ?? null);
+                }}
+              />
+            ) : null}
+            {insightsContext === 'friend' && visibleFriendOptions.length ? (
+              <OptionChips
+                label="Specific Friend"
+                options={visibleFriendOptions.map((user) => user.name)}
+                value={visibleFriendOptions.find((user) => user.id === selectedFriendUserId)?.name ?? visibleFriendOptions[0]?.name}
+                onChange={(value) => {
+                  const selected = visibleFriendOptions.find((user) => user.name === value);
+                  setSelectedFriendUserId(selected?.id ?? null);
+                }}
+              />
+            ) : null}
 
             <InsightsFilterPanel
               riverOptions={riverOptions}
@@ -373,10 +491,10 @@ export const InsightsScreen = ({ navigation }: any) => {
               </>
             )}
 
-            {!!anglerComparisons.length && (
+            {!!contextComparisons.length && (
               <>
                 <Text style={{ fontSize: 20, fontWeight: '800', marginTop: 4, marginBottom: 2, color: '#f7fdff' }}>Across Anglers</Text>
-                {anglerComparisons.map((insight, idx) => (
+                {contextComparisons.map((insight, idx) => (
                   <InsightCard key={`comparison-${idx}`} insight={insight} />
                 ))}
               </>

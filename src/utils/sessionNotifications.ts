@@ -85,10 +85,15 @@ export const scheduleSessionNotifications = async (session: Session): Promise<vo
 
   await cancelSessionNotifications(session.id);
 
-  const startedAtMs = new Date(session.date).getTime();
+  const startedAtMs = new Date(session.startAt ?? session.date).getTime();
   const nowMs = Date.now();
+  const plannedDurationMinutes =
+    session.plannedDurationMinutes ??
+    (session.startAt && session.endAt
+      ? Math.max(0, Math.round((new Date(session.endAt).getTime() - new Date(session.startAt).getTime()) / 60000))
+      : undefined);
   const elapsedMinutes = Math.max(0, Math.floor((nowMs - startedAtMs) / 60000));
-  const markers = normalizeReminderMarkers(session.alertMarkersMinutes ?? [], session.plannedDurationMinutes).filter(
+  const markers = normalizeReminderMarkers(session.alertMarkersMinutes ?? [], plannedDurationMinutes).filter(
     (minute) => minute > elapsedMinutes
   );
 

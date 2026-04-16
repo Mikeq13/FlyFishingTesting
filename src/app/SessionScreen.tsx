@@ -11,6 +11,8 @@ import { CompetitionLengthUnit, SessionMode, WaterType } from '@/types/session';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { applyRigPresetToRig, createDefaultRigSetup, setRigFlyCount } from '@/utils/rigSetup';
 import { getInvalidReminderMarkers, isReminderMarkerAllowed } from '@/utils/sessionReminders';
+import { CompetitionSessionRole, Group } from '@/types/group';
+import { formatLocalDateTimeInput, parseLocalDateTimeInput } from '@/utils/dateTime';
 
 const MODE_COPY: Record<SessionMode, { title: string; subtitle: string; button: string }> = {
   experiment: {
@@ -32,7 +34,7 @@ const MODE_COPY: Record<SessionMode, { title: string; subtitle: string; button: 
 
 export const SessionScreen = ({ navigation, route }: any) => {
   const { width } = useWindowDimensions();
-  const { addSession, addSavedFly, addSavedLeaderFormula, deleteSavedLeaderFormula, addSavedRigPreset, deleteSavedRigPreset, addSavedRiver, savedFlies, savedLeaderFormulas, savedRigPresets, savedRivers, users, activeUserId, sessions, experiments } = useAppStore();
+  const { addSession, updateSessionEntry, addSavedFly, addSavedLeaderFormula, deleteSavedLeaderFormula, addSavedRigPreset, deleteSavedRigPreset, addSavedRiver, savedFlies, savedLeaderFormulas, savedRigPresets, savedRivers, users, activeUserId, sessions, experiments, groups, groupMemberships, competitions, competitionParticipants, upsertCompetitionAssignment } = useAppStore();
   const mode = (route?.params?.mode ?? 'experiment') as SessionMode;
   const modeCopy = MODE_COPY[mode] ?? MODE_COPY.experiment;
   const activeUser = users.find((user) => user.id === activeUserId);
@@ -50,6 +52,14 @@ export const SessionScreen = ({ navigation, route }: any) => {
   const [competitionSessionNumber, setCompetitionSessionNumber] = useState('1');
   const [competitionRequiresMeasurement, setCompetitionRequiresMeasurement] = useState(true);
   const [competitionLengthUnit, setCompetitionLengthUnit] = useState<CompetitionLengthUnit>('mm');
+  const [selectedSharedGroupId, setSelectedSharedGroupId] = useState<number | null>(null);
+  const [practiceMeasurementEnabled, setPracticeMeasurementEnabled] = useState(false);
+  const [practiceLengthUnit, setPracticeLengthUnit] = useState<'in' | 'cm' | 'mm'>('in');
+  const [selectedCompetitionId, setSelectedCompetitionId] = useState<number | null>(null);
+  const [competitionAssignedGroup, setCompetitionAssignedGroup] = useState('');
+  const [competitionRole, setCompetitionRole] = useState<CompetitionSessionRole>('fishing');
+  const [competitionStartAtInput, setCompetitionStartAtInput] = useState(() => formatLocalDateTimeInput(new Date()));
+  const [competitionEndAtInput, setCompetitionEndAtInput] = useState(() => formatLocalDateTimeInput(new Date(Date.now() + 3 * 60 * 60 * 1000)));
   const [notificationSoundEnabled, setNotificationSoundEnabled] = useState(true);
   const [notificationVibrationEnabled, setNotificationVibrationEnabled] = useState(true);
   const [practiceRigSetup, setPracticeRigSetup] = useState(() => createDefaultRigSetup([]));
@@ -69,6 +79,44 @@ export const SessionScreen = ({ navigation, route }: any) => {
     [experiments, sessions]
   );
   const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 920) : undefined;
+  const joinedGroupMemberships = useMemo(
+    () => groupMemberships.filter((membership) => membership.userId === activeUserId),
+    [activeUserId, groupMemberships]
+  );
+  const joinedGroups = useMemo(
+    () =>
+      joinedGroupMemberships
+        .map((membership) => groups.find((group) => group.id === membership.groupId))
+        .filter((group): group is Group => !!group),
+    [groups, joinedGroupMemberships]
+  );
+  const joinedCompetitions = useMemo(
+    () =>
+      competitionParticipants
+        .filter((participant) => participant.userId === activeUserId)
+        .map((participant) => competitions.find((competition) => competition.id === participant.competitionId))
+        .filter((competition): competition is (typeof competitions)[number] => !!competition),
+    [activeUserId, competitionParticipants, competitions]
+  );
+
+  React.useEffect(() => {
+    if (!joinedGroups.length) return;
+    setSelectedSharedGroupId((current) => (current && joinedGroups.some((group) => group.id === current) ? current : joinedGroups[0].id));
+  }, [joinedGroups]);
+
+  React.useEffect(() => {
+    if (!selectedCompetitionId) return;
+    const selectedCompetition = joinedCompetitions.find((competition) => competition.id === selectedCompetitionId);
+    if (!selectedCompetition) return;
+    setCompetitionStartAtInput(formatLocalDateTimeInput(selectedCompetition.startAt));
+    setCompetitionEndAtInput(formatLocalDateTimeInput(selectedCompetition.endAt));
+    setSelectedSharedGroupId(selectedCompetition.groupId);
+  }, [joinedCompetitions, selectedCompetitionId]);
+
+  React.useEffect(() => {
+    if (!joinedCompetitions.length || selectedCompetitionId) return;
+    setSelectedCompetitionId(joinedCompetitions[0].id);
+  }, [joinedCompetitions, selectedCompetitionId]);
 
   const saveRiver = async () => {
     const normalizedRiverName = riverName.trim();
@@ -79,17 +127,28 @@ export const SessionScreen = ({ navigation, route }: any) => {
 
   const plannedDurationMinutes = useMemo(() => {
     if (mode === 'experiment') return undefined;
+    if (mode === 'competition') {
+      const parsedStartAt = parseLocalDateTimeInput(competitionStartAtInput);
+      const parsedEndAt = parseLocalDateTimeInput(competitionEndAtInput);
+      if (!parsedStartAt || !parsedEndAt) return undefined;
+      return Math.max(0, Math.round((new Date(parsedEndAt).getTime() - new Date(parsedStartAt).getTime()) / 60000));
+    }
     const hours = Math.max(0, Number(durationHours || '0'));
     const minutes = Math.max(0, Number(durationMinutes || '0'));
     const total = hours * 60 + minutes;
     return Number.isFinite(total) && total > 0 ? total : undefined;
-  }, [durationHours, durationMinutes, mode]);
+  }, [competitionEndAtInput, competitionStartAtInput, durationHours, durationMinutes, mode]);
 
   const plannedEndLabel = useMemo(() => {
     if (mode === 'experiment' || !plannedDurationMinutes) return null;
-    const plannedEnd = new Date(Date.now() + plannedDurationMinutes * 60 * 1000);
+    const plannedEnd =
+      mode === 'competition'
+        ? parseLocalDateTimeInput(competitionEndAtInput)
+          ? new Date(parseLocalDateTimeInput(competitionEndAtInput)!)
+          : new Date(Date.now() + plannedDurationMinutes * 60 * 1000)
+        : new Date(Date.now() + plannedDurationMinutes * 60 * 1000);
     return plannedEnd.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  }, [mode, plannedDurationMinutes]);
+  }, [competitionEndAtInput, mode, plannedDurationMinutes]);
 
   const alertIntervalMinutes = useMemo(() => {
     if (mode === 'experiment') return undefined;
@@ -125,21 +184,35 @@ export const SessionScreen = ({ navigation, route }: any) => {
     if (invalidReminderMarkers.length) {
       return;
     }
+    const competitionStartAt = mode === 'competition' ? parseLocalDateTimeInput(competitionStartAtInput) : null;
+    const competitionEndAt = mode === 'competition' ? parseLocalDateTimeInput(competitionEndAtInput) : null;
+    if (mode === 'competition' && (!competitionStartAt || !competitionEndAt || new Date(competitionEndAt) <= new Date(competitionStartAt))) {
+      setCustomAlertError('Competition sessions need a valid start and end time.');
+      return;
+    }
     const normalizedRiverName = riverName.trim();
     if (normalizedRiverName) {
       await saveRiver();
     }
 
     const id = await addSession({
-      date: new Date().toISOString(),
+      date: mode === 'competition' ? competitionStartAt! : new Date().toISOString(),
       mode,
       plannedDurationMinutes,
       alertIntervalMinutes,
       alertMarkersMinutes,
       notificationSoundEnabled: mode === 'experiment' ? undefined : notificationSoundEnabled,
       notificationVibrationEnabled: mode === 'experiment' ? undefined : notificationVibrationEnabled,
+      startAt: mode === 'competition' ? competitionStartAt! : undefined,
+      endAt: mode === 'competition' ? competitionEndAt! : undefined,
       waterType,
       depthRange,
+      sharedGroupId: selectedSharedGroupId ?? undefined,
+      practiceMeasurementEnabled: mode === 'practice' ? practiceMeasurementEnabled : undefined,
+      practiceLengthUnit: mode === 'practice' ? practiceLengthUnit : undefined,
+      competitionId: mode === 'competition' ? selectedCompetitionId ?? undefined : undefined,
+      competitionAssignedGroup: mode === 'competition' ? competitionAssignedGroup.trim() || undefined : undefined,
+      competitionRole: mode === 'competition' ? competitionRole : undefined,
       competitionBeat: mode === 'competition' ? competitionBeat.trim() || undefined : undefined,
       competitionSessionNumber: mode === 'competition' ? Number(competitionSessionNumber || '0') || undefined : undefined,
       competitionRequiresMeasurement: mode === 'competition' ? competitionRequiresMeasurement : undefined,
@@ -149,6 +222,47 @@ export const SessionScreen = ({ navigation, route }: any) => {
       hypothesis: hypothesis.trim() || undefined,
       notes
     });
+    if (mode === 'competition' && selectedCompetitionId) {
+      const assignment = await upsertCompetitionAssignment({
+        competitionId: selectedCompetitionId,
+        assignedGroup: competitionAssignedGroup.trim() || 'Open Group',
+        sessionNumber: Number(competitionSessionNumber || '0') || 1,
+        beat: competitionBeat.trim() || 'Open Beat',
+        role: competitionRole,
+        startAt: competitionStartAt!,
+        endAt: competitionEndAt!,
+        sessionId: id
+      });
+      await updateSessionEntry(id, {
+        date: competitionStartAt!,
+        mode,
+        plannedDurationMinutes,
+        alertIntervalMinutes,
+        alertMarkersMinutes,
+        notificationSoundEnabled,
+        notificationVibrationEnabled,
+        startAt: competitionStartAt!,
+        endAt: competitionEndAt!,
+        endedAt: undefined,
+        waterType,
+        depthRange,
+        sharedGroupId: selectedSharedGroupId ?? undefined,
+        practiceMeasurementEnabled: undefined,
+        practiceLengthUnit: undefined,
+        competitionId: selectedCompetitionId,
+        competitionAssignmentId: assignment.id,
+        competitionAssignedGroup: competitionAssignedGroup.trim() || undefined,
+        competitionRole,
+        competitionBeat: competitionBeat.trim() || undefined,
+        competitionSessionNumber: Number(competitionSessionNumber || '0') || undefined,
+        competitionRequiresMeasurement,
+        competitionLengthUnit,
+        startingRigSetup: undefined,
+        riverName: normalizedRiverName || undefined,
+        hypothesis: hypothesis.trim() || undefined,
+        notes
+      });
+    }
     navigation.navigate(mode === 'experiment' ? 'Experiment' : mode === 'practice' ? 'Practice' : 'Competition', { sessionId: id });
   };
 
@@ -205,10 +319,35 @@ export const SessionScreen = ({ navigation, route }: any) => {
               <Text style={{ color: '#bde6f6', lineHeight: 20 }}>
                 Competition sessions are beat-based. Track the beat you drew, the session number, and whether fish will be measured or counted only.
               </Text>
+              {!!joinedCompetitions.length ? (
+                <OptionChips
+                  label="Competition"
+                  options={joinedCompetitions.map((competition) => competition.name)}
+                  value={joinedCompetitions.find((competition) => competition.id === selectedCompetitionId)?.name ?? joinedCompetitions[0]?.name}
+                  onChange={(value) => {
+                    const selected = joinedCompetitions.find((competition) => competition.name === value);
+                    setSelectedCompetitionId(selected?.id ?? null);
+                  }}
+                />
+              ) : (
+                <Text style={{ color: '#bde6f6' }}>Join or create a competition in Access & Billing before starting a comp session.</Text>
+              )}
+              <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Assigned Group</Text>
+              <TextInput value={competitionAssignedGroup} onChangeText={setCompetitionAssignedGroup} placeholder="Ex: Group A" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
               <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Beat / Section</Text>
               <TextInput value={competitionBeat} onChangeText={setCompetitionBeat} placeholder="Beat / section name" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
               <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Session Number</Text>
               <TextInput value={competitionSessionNumber} onChangeText={setCompetitionSessionNumber} placeholder="Session number" keyboardType="number-pad" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
+              <OptionChips
+                label="Your Role"
+                options={['fishing', 'controlling'] as const}
+                value={competitionRole}
+                onChange={(value) => setCompetitionRole(value as CompetitionSessionRole)}
+              />
+              <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Competition Start (YYYY-MM-DD HH:MM)</Text>
+              <TextInput value={competitionStartAtInput} onChangeText={setCompetitionStartAtInput} placeholder="2026-04-16 08:00" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
+              <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Competition End (YYYY-MM-DD HH:MM)</Text>
+              <TextInput value={competitionEndAtInput} onChangeText={setCompetitionEndAtInput} placeholder="2026-04-16 11:00" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
               <OptionChips
                 label="Measure Fish This Session?"
                 options={['Yes', 'No'] as const}
@@ -283,14 +422,42 @@ export const SessionScreen = ({ navigation, route }: any) => {
                   await addSavedFly(normalizedFly);
                 }}
               />
+              <OptionChips
+                label="Measure Fish In Practice?"
+                options={['Yes', 'No'] as const}
+                value={practiceMeasurementEnabled ? 'Yes' : 'No'}
+                onChange={(value) => setPracticeMeasurementEnabled(value === 'Yes')}
+              />
+              {practiceMeasurementEnabled ? (
+                <OptionChips
+                  label="Practice Length Unit"
+                  options={['in', 'cm', 'mm'] as const}
+                  value={practiceLengthUnit}
+                  onChange={(value) => setPracticeLengthUnit(value as 'in' | 'cm' | 'mm')}
+                />
+              ) : null}
             </>
+          ) : null}
+          {!!joinedGroups.length ? (
+            <OptionChips
+              label="Share With Group"
+              options={['Private', ...joinedGroups.map((group) => group.name)]}
+              value={selectedSharedGroupId ? joinedGroups.find((group) => group.id === selectedSharedGroupId)?.name ?? 'Private' : 'Private'}
+              onChange={(value) => {
+                const selected = joinedGroups.find((group) => group.name === value);
+                setSelectedSharedGroupId(selected?.id ?? null);
+              }}
+            />
           ) : null}
           {mode !== 'experiment' ? (
             <>
               <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>Session Timer</Text>
               <Text style={{ color: '#bde6f6', lineHeight: 20 }}>
-                Set the total time you plan to fish in this session. Reminder markers fire based on elapsed time from when you begin.
+                {mode === 'competition'
+                  ? 'Competition reminders follow the absolute start and end times above.'
+                  : 'Set the total time you plan to fish in this session. Reminder markers fire based on elapsed time from when you begin.'}
               </Text>
+              {mode === 'practice' ? (
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <View style={{ flex: 1, gap: 6 }}>
                   <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Hours</Text>
@@ -315,6 +482,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
                   />
                 </View>
               </View>
+              ) : null}
               {plannedEndLabel ? (
                 <Text style={{ color: '#bde6f6' }}>If you begin now, your planned end time is {plannedEndLabel}.</Text>
               ) : null}

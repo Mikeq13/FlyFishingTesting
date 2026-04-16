@@ -11,7 +11,7 @@ const TROUT_SPECIES: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow',
 
 export const CompetitionScreen = ({ route }: any) => {
   const sessionId = route?.params?.sessionId as number;
-  const { sessions, catchEvents, addCatchEvent, updateSessionEntry } = useAppStore();
+  const { sessions, allSessions, catchEvents, allCatchEvents, users, competitionAssignments, addCatchEvent, updateSessionEntry, upsertCompetitionAssignment } = useAppStore();
   const session = sessions.find((candidate) => candidate.id === sessionId) ?? null;
   const [showCatchModal, setShowCatchModal] = useState(false);
   const [species, setSpecies] = useState<TroutSpecies>('Rainbow');
@@ -24,12 +24,46 @@ export const CompetitionScreen = ({ route }: any) => {
   const competitionLengthUnit = session?.competitionLengthUnit ?? 'mm';
   const competitionRequiresMeasurement = session?.competitionRequiresMeasurement ?? true;
   const timer = useSessionTimer({
-    startedAt: session?.date ?? new Date().toISOString(),
+    startedAt: session?.startAt ?? session?.date ?? new Date().toISOString(),
     endedAt: session?.endedAt,
-    plannedDurationMinutes: session?.plannedDurationMinutes,
+    plannedDurationMinutes:
+      session?.plannedDurationMinutes ??
+      (session?.startAt && session?.endAt
+        ? Math.max(0, Math.round((new Date(session.endAt).getTime() - new Date(session.startAt).getTime()) / 60000))
+        : undefined),
     alertIntervalMinutes: session?.alertIntervalMinutes,
     alertMarkersMinutes: session?.alertMarkersMinutes
   });
+  const competitionSummaryRows = useMemo(() => {
+    if (!session?.competitionId || !session.competitionAssignedGroup || !session.competitionSessionNumber) return [];
+    const relevantAssignments = competitionAssignments.filter(
+      (assignment) =>
+        assignment.competitionId === session.competitionId &&
+        assignment.assignedGroup.toLowerCase() === session.competitionAssignedGroup?.toLowerCase() &&
+        assignment.sessionNumber === session.competitionSessionNumber
+    );
+
+    return relevantAssignments.map((assignment) => {
+      const owner = users.find((user) => user.id === assignment.userId);
+      const assignmentSession = allSessions.find((candidate) => candidate.id === assignment.sessionId);
+      const assignmentCatches = allCatchEvents.filter((event) => event.sessionId === assignment.sessionId);
+      return {
+        assignment,
+        name: owner?.name ?? `Angler ${assignment.userId}`,
+        fishCount: assignment.role === 'controlling' ? 0 : assignmentCatches.length,
+        totalLength: assignmentCatches.reduce((sum, event) => sum + (event.lengthValue ?? 0), 0),
+        status:
+          assignment.role === 'controlling'
+            ? 'controlling'
+            : assignmentSession?.endedAt || (assignmentSession?.endAt && new Date(assignmentSession.endAt).getTime() <= Date.now())
+              ? 'finished'
+              : 'still active'
+      };
+    });
+  }, [allCatchEvents, allSessions, competitionAssignments, session, users]);
+  const isCompetitionSummaryReady =
+    !!competitionSummaryRows.length &&
+    competitionSummaryRows.every((row) => row.status === 'finished' || row.status === 'controlling');
 
   React.useEffect(() => {
     if (!session) return;
@@ -56,6 +90,9 @@ export const CompetitionScreen = ({ route }: any) => {
   }
 
   const logCompetitionCatch = async () => {
+    if (session.competitionRole === 'controlling') {
+      return;
+    }
     const parsedLength = Number(lengthValue);
     const minimumLength = competitionLengthUnit === 'cm' ? 20 : 200;
 
@@ -94,8 +131,17 @@ export const CompetitionScreen = ({ route }: any) => {
             notificationSoundEnabled: session.notificationSoundEnabled,
             notificationVibrationEnabled: session.notificationVibrationEnabled,
             endedAt,
+            startAt: session.startAt,
+            endAt: session.endAt,
             waterType: session.waterType,
             depthRange: session.depthRange,
+            sharedGroupId: session.sharedGroupId,
+            practiceMeasurementEnabled: session.practiceMeasurementEnabled,
+            practiceLengthUnit: session.practiceLengthUnit,
+            competitionId: session.competitionId,
+            competitionAssignmentId: session.competitionAssignmentId,
+            competitionAssignedGroup: session.competitionAssignedGroup,
+            competitionRole: session.competitionRole,
             competitionBeat: session.competitionBeat,
             competitionSessionNumber: session.competitionSessionNumber,
             competitionRequiresMeasurement: session.competitionRequiresMeasurement,
@@ -105,6 +151,18 @@ export const CompetitionScreen = ({ route }: any) => {
             hypothesis: session.hypothesis,
             notes: session.notes
           });
+          if (session.competitionId && session.competitionSessionNumber) {
+            await upsertCompetitionAssignment({
+              competitionId: session.competitionId,
+              assignedGroup: session.competitionAssignedGroup ?? 'Open Group',
+              sessionNumber: session.competitionSessionNumber,
+              beat: session.competitionBeat ?? 'Open Beat',
+              role: session.competitionRole ?? 'fishing',
+              startAt: session.startAt ?? session.date,
+              endAt: session.endAt ?? endedAt,
+              sessionId: session.id
+            });
+          }
           await cancelSessionNotifications(session.id);
         }
       }
@@ -119,8 +177,10 @@ export const CompetitionScreen = ({ route }: any) => {
           <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
             Track every fish quickly with exact times, species, and score-ready totals for post-session review and tie-break scenarios.
           </Text>
+          {session.competitionAssignedGroup ? <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Assigned group: {session.competitionAssignedGroup}</Text> : null}
           {session.competitionBeat ? <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Beat: {session.competitionBeat}</Text> : null}
           {session.competitionSessionNumber ? <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Session #{session.competitionSessionNumber}</Text> : null}
+          <Text style={{ color: '#d7f3ff' }}>Role: {session.competitionRole ?? 'fishing'}</Text>
         </View>
 
         {timer.activeAlertMinute ? (
@@ -154,10 +214,23 @@ export const CompetitionScreen = ({ route }: any) => {
           ) : (
             <Text style={{ color: '#334e68' }}>This session is counting fish only. No length entry required.</Text>
           )}
-          <Pressable disabled={timer.hasEnded} onPress={() => setShowCatchModal(true)} style={{ backgroundColor: timer.hasEnded ? '#5b7282' : '#264653', padding: 12, borderRadius: 12 }}>
-            <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Log Competition Fish</Text>
+          <Pressable disabled={timer.hasEnded || session.competitionRole === 'controlling'} onPress={() => setShowCatchModal(true)} style={{ backgroundColor: timer.hasEnded || session.competitionRole === 'controlling' ? '#5b7282' : '#264653', padding: 12, borderRadius: 12 }}>
+            <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>{session.competitionRole === 'controlling' ? 'Controlling This Session' : 'Log Competition Fish'}</Text>
           </Pressable>
         </View>
+
+        {isCompetitionSummaryReady ? (
+          <View style={{ backgroundColor: 'rgba(245,252,255,0.96)', borderRadius: 18, padding: 14, gap: 8 }}>
+            <Text style={{ color: '#102a43', fontWeight: '800', fontSize: 18 }}>Group Session Summary</Text>
+            {competitionSummaryRows.map((row) => (
+              <Text key={row.assignment.id} style={{ color: '#334e68' }}>
+                {row.name}: {row.status === 'controlling' ? 'controlling' : `${row.fishCount} fish`}
+                {session.competitionRequiresMeasurement && row.status !== 'controlling' ? ` | ${Math.round(row.totalLength)} ${competitionLengthUnit}` : ''}
+                {row.status === 'still active' ? ' | still active' : ''}
+              </Text>
+            ))}
+          </View>
+        ) : null}
 
         <View style={{ backgroundColor: 'rgba(245,252,255,0.96)', borderRadius: 18, padding: 14, gap: 8 }}>
           <Text style={{ color: '#102a43', fontWeight: '800', fontSize: 18 }}>Catch Times</Text>

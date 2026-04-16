@@ -39,6 +39,7 @@ export const PracticeScreen = ({ route }: any) => {
   const [isBootstrappingSegment, setIsBootstrappingSegment] = useState(false);
   const [pendingCatchFly, setPendingCatchFly] = useState<FlySetup | null>(null);
   const [pendingCatchSpecies, setPendingCatchSpecies] = useState<TroutSpecies | null>(null);
+  const [pendingCatchLength, setPendingCatchLength] = useState('');
   const activeSegment = useMemo(
     () =>
       sessionSegments
@@ -54,9 +55,13 @@ export const PracticeScreen = ({ route }: any) => {
     [catchEvents, sessionId]
   );
   const timer = useSessionTimer({
-    startedAt: session?.date ?? new Date().toISOString(),
+    startedAt: session?.startAt ?? session?.date ?? new Date().toISOString(),
     endedAt: session?.endedAt,
-    plannedDurationMinutes: session?.plannedDurationMinutes,
+    plannedDurationMinutes:
+      session?.plannedDurationMinutes ??
+      (session?.startAt && session?.endAt
+        ? Math.max(0, Math.round((new Date(session.endAt).getTime() - new Date(session.startAt).getTime()) / 60000))
+        : undefined),
     alertIntervalMinutes: session?.alertIntervalMinutes,
     alertMarkersMinutes: session?.alertMarkersMinutes
   });
@@ -158,6 +163,7 @@ export const PracticeScreen = ({ route }: any) => {
 
   const confirmPracticeCatch = async () => {
     if (!activeSegment || !pendingCatchFly || !pendingCatchSpecies) return;
+    const parsedLength = Number(pendingCatchLength);
     await addCatchEvent({
       sessionId: session.id,
       segmentId: activeSegment.id,
@@ -165,11 +171,14 @@ export const PracticeScreen = ({ route }: any) => {
       flyName: pendingCatchFly.name,
       flySnapshot: pendingCatchFly,
       species: pendingCatchSpecies,
-      lengthUnit: 'in',
+      lengthValue:
+        session.practiceMeasurementEnabled && Number.isFinite(parsedLength) && parsedLength > 0 ? parsedLength : undefined,
+      lengthUnit: session.practiceLengthUnit ?? 'in',
       caughtAt: new Date().toISOString()
     });
     setPendingCatchFly(null);
     setPendingCatchSpecies(null);
+    setPendingCatchLength('');
   };
 
   const endSessionEarly = () => {
@@ -206,8 +215,17 @@ export const PracticeScreen = ({ route }: any) => {
             notificationSoundEnabled: session.notificationSoundEnabled,
             notificationVibrationEnabled: session.notificationVibrationEnabled,
             endedAt,
+            startAt: session.startAt,
+            endAt: session.endAt,
             waterType: session.waterType,
             depthRange: session.depthRange,
+            sharedGroupId: session.sharedGroupId,
+            practiceMeasurementEnabled: session.practiceMeasurementEnabled,
+            practiceLengthUnit: session.practiceLengthUnit,
+            competitionId: session.competitionId,
+            competitionAssignmentId: session.competitionAssignmentId,
+            competitionAssignedGroup: session.competitionAssignedGroup,
+            competitionRole: session.competitionRole,
             competitionBeat: session.competitionBeat,
             competitionSessionNumber: session.competitionSessionNumber,
             competitionRequiresMeasurement: session.competitionRequiresMeasurement,
@@ -247,6 +265,11 @@ export const PracticeScreen = ({ route }: any) => {
           {timer.remainingLabel ? <Text style={{ color: '#d7f3ff' }}>Remaining: {timer.remainingLabel}</Text> : null}
           {timer.hasEnded ? <Text style={{ color: '#fca5a5', fontWeight: '700' }}>Session ended early.</Text> : null}
           {!timer.hasEnded && timer.nextAlertMinute ? <Text style={{ color: '#d7f3ff' }}>Next alert: {timer.nextAlertMinute} min</Text> : null}
+          {session.practiceMeasurementEnabled ? (
+            <Text style={{ color: '#bde6f6' }}>
+              Practice measuring is on. Add length in {session.practiceLengthUnit ?? 'in'} whenever it helps your scouting notes.
+            </Text>
+          ) : null}
           {!timer.hasEnded ? (
             <Pressable onPress={endSessionEarly} style={{ backgroundColor: 'rgba(145, 48, 48, 0.95)', padding: 12, borderRadius: 12 }}>
               <Text style={{ color: '#fff8f8', textAlign: 'center', fontWeight: '700' }}>End Session Early</Text>
@@ -337,6 +360,7 @@ export const PracticeScreen = ({ route }: any) => {
                   onPress={() => {
                     setPendingCatchFly(assignment.fly);
                     setPendingCatchSpecies(null);
+                    setPendingCatchLength('');
                   }}
                   style={{ backgroundColor: timer.hasEnded ? '#5b7282' : '#264653', padding: 10, borderRadius: 10 }}
                 >
@@ -364,10 +388,15 @@ export const PracticeScreen = ({ route }: any) => {
         visible={pendingCatchFly !== null}
         title={`Log catch for ${pendingCatchFly?.name ?? 'Fly'}`}
         selectedSpecies={pendingCatchSpecies}
+        measurementEnabled={session.practiceMeasurementEnabled}
+        lengthUnit={session.practiceLengthUnit ?? 'in'}
+        selectedLength={pendingCatchLength}
         onSelectSpecies={setPendingCatchSpecies}
+        onSelectLength={setPendingCatchLength}
         onCancel={() => {
           setPendingCatchFly(null);
           setPendingCatchSpecies(null);
+          setPendingCatchLength('');
         }}
         onConfirm={() => {
           confirmPracticeCatch().catch(console.error);

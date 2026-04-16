@@ -5,6 +5,7 @@ export const WATER_TYPES: WaterType[] = ['glide', 'pocket water', 'pool', 'riffl
 export const DEPTH_RANGES: DepthRange[] = ['<1.5 ft', '1.5-3 ft', '3-5 ft', '>5 ft'];
 export const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] as const;
 export const SESSION_ALERT_INTERVALS = ['Off', '15 min', '30 min', '60 min'] as const;
+export const SESSION_ALERT_MARKERS = [15, 30, 45, 60, 90, 120, 150, 180] as const;
 export const INSECT_TYPES: InsectType[] = ['ant', 'beetle', 'caddis', 'grasshopper', 'leech', 'mayfly', 'midge', 'scud/sowbug', 'stonefly', 'yellow sally'];
 export const INSECT_STAGES_BY_TYPE: Record<InsectType, InsectStage[]> = {
   ant: ['adult'],
