@@ -252,7 +252,9 @@ export const HistoryScreen = ({ navigation }: any) => {
                     <View key={experiment.id} style={{ backgroundColor: '#e9f5fb', borderRadius: 12, padding: 10 }}>
                       <Text style={{ color: '#102a43' }}>Hypothesis: {experiment.hypothesis}</Text>
                       <Text style={{ color: '#334e68' }}>Control focus: {experiment.controlFocus}</Text>
-                      <Text style={{ color: '#334e68' }}>Status: {experiment.status === 'draft' ? 'Draft' : 'Complete'}</Text>
+                      <Text style={{ color: '#334e68' }}>
+                        Status: {experiment.status === 'draft' ? 'Incomplete Entry' : 'Complete'}
+                      </Text>
                       <Text style={{ color: '#334e68' }}>Outcome: {experiment.outcome}</Text>
                       <Text style={{ color: '#334e68' }}>Winner: {experiment.winner}</Text>
                       <Text style={{ color: '#334e68' }}>Flies: {entries.map((entry) => `${entry.fly.name || entry.label} (#${entry.fly.hookSize}, ${entry.fly.beadColor}, ${entry.fly.beadSizeMm})`).join(', ')}</Text>
@@ -288,10 +290,15 @@ export const HistoryScreen = ({ navigation }: any) => {
                           style={{ backgroundColor: '#8d0801', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, flex: 1 }}
                         >
                           <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
-                            {experiment.status === 'draft' ? 'Delete Draft' : 'Delete'}
+                            {experiment.status === 'draft' ? 'Delete Incomplete' : 'Delete'}
                           </Text>
                         </Pressable>
                       </View>
+                      {experiment.status === 'draft' ? (
+                        <Text style={{ color: '#6b7280', marginTop: 6 }}>
+                          Incomplete entries can be edited if you remember the missing details, or removed if they are no longer useful.
+                        </Text>
+                      ) : null}
                     </View>
                   );
                 })}
