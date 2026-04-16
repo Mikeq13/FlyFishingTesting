@@ -10,7 +10,7 @@ import { ScreenBackground } from '@/components/ScreenBackground';
 
 export const SessionScreen = ({ navigation }: any) => {
   const { width } = useWindowDimensions();
-  const { addSession, addSavedRiver, savedRivers, users, activeUserId } = useAppStore();
+  const { addSession, addSavedRiver, savedRivers, users, activeUserId, sessions, experiments } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
   const [waterType, setWaterType] = useState<WaterType>('run');
   const [depthRange, setDepthRange] = useState<typeof DEPTH_RANGES[number]>('1.5-3 ft');
@@ -18,7 +18,20 @@ export const SessionScreen = ({ navigation }: any) => {
   const [hypothesis, setHypothesis] = useState('');
   const [notes, setNotes] = useState('');
   const [showSavedRiverList, setShowSavedRiverList] = useState(false);
+  const [showSavedHypothesisList, setShowSavedHypothesisList] = useState(false);
   const sortedSavedRivers = useMemo(() => [...savedRivers].sort((a, b) => a.name.localeCompare(b.name)), [savedRivers]);
+  const savedHypotheses = useMemo(
+    () =>
+      [
+        ...new Set(
+          [
+            ...sessions.map((session) => session.hypothesis?.trim() ?? ''),
+            ...experiments.map((experiment) => experiment.hypothesis?.trim() ?? '')
+          ].filter((value) => value && value !== 'No hypothesis provided')
+        )
+      ].sort((left, right) => left.localeCompare(right)),
+    [experiments, sessions]
+  );
   const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 920) : undefined;
 
   const saveRiver = async () => {
@@ -54,8 +67,8 @@ export const SessionScreen = ({ navigation }: any) => {
         keyboardDismissMode="on-drag"
       >
         <View style={{ gap: 4 }}>
-          <Text style={{ fontSize: 28, fontWeight: '800', color: '#f7fdff' }}>Session Setup</Text>
-          <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>Capture the fishing context and research question before you start comparing flies.</Text>
+          <Text style={{ fontSize: 28, fontWeight: '800', color: '#f7fdff' }}>Journal Entry</Text>
+          <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>What will you be discovering in your journal entry today?</Text>
           <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Angler: {activeUser?.name ?? 'Loading...'}</Text>
         </View>
         <View style={{ gap: 8, backgroundColor: 'rgba(6, 27, 44, 0.70)', padding: 14, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
@@ -89,11 +102,36 @@ export const SessionScreen = ({ navigation }: any) => {
           <OptionChips label="Water Type" options={WATER_TYPES} value={waterType} onChange={setWaterType} />
           <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Water Depth</Text>
           <DepthSelector value={depthRange} onChange={setDepthRange} />
+          {!!savedHypotheses.length && (
+            <>
+              <Pressable onPress={() => setShowSavedHypothesisList((current) => !current)} style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}>
+                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
+                  {showSavedHypothesisList ? 'Hide Saved Hypotheses' : 'Choose Saved Hypothesis'}
+                </Text>
+              </Pressable>
+              {showSavedHypothesisList && (
+                <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)' }}>
+                  {savedHypotheses.map((savedHypothesis) => (
+                    <Pressable
+                      key={savedHypothesis}
+                      onPress={() => {
+                        setHypothesis(savedHypothesis);
+                        setShowSavedHypothesisList(false);
+                      }}
+                      style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
+                    >
+                      <Text style={{ color: '#0b3d3a', fontWeight: '600' }}>{savedHypothesis}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              )}
+            </>
+          )}
           <TextInput value={hypothesis} onChangeText={setHypothesis} placeholder="Hypothesis" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
           <TextInput value={notes} onChangeText={setNotes} placeholder="Session notes" placeholderTextColor="#5a6c78" multiline style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43', minHeight: 96, textAlignVertical: 'top' }} />
         </View>
         <Pressable onPress={onStart} style={{ backgroundColor: '#2a9d8f', padding: 14, borderRadius: 14, width: '100%' }}>
-          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Start Experiment</Text>
+          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Begin Journal Entry</Text>
         </Pressable>
       </ScrollView>
       </KeyboardDismissView>
