@@ -1,24 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import { Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { InsightCard } from '@/components/InsightCard';
-import { OptionChips } from '@/components/OptionChips';
+import { InsightsFilterPanel } from '@/components/InsightsFilterPanel';
 import { PremiumFeatureGate } from '@/components/PremiumFeatureGate';
 import { ScreenBackground } from '@/components/ScreenBackground';
-import { DEPTH_RANGES, MONTHS, WATER_TYPES } from '@/constants/options';
 import { buildAggregates } from '@/engine/aggregationEngine';
 import { generateInsights } from '@/engine/insightEngine';
 import { buildTopFlyInsights, buildTopFlyRecords } from '@/engine/topFlyEngine';
 import { getExperimentEntries } from '@/utils/experimentEntries';
 import { useAppStore } from './store';
-
-const inputStyle = {
-  borderWidth: 1,
-  borderColor: 'rgba(202,240,248,0.18)',
-  padding: 12,
-  borderRadius: 12,
-  backgroundColor: 'rgba(245,252,255,0.96)',
-  color: '#102a43'
-};
 
 const sizeBandLabel = (size: number): string => {
   if (size < 12) return '8-11"';
@@ -233,167 +223,65 @@ export const InsightsScreen = ({ navigation }: any) => {
               </Text>
             </View>
 
-            <View style={{ gap: 8, backgroundColor: 'rgba(6, 27, 44, 0.70)', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
-              {!!riverOptions.length && (
-                <>
-                  <Pressable onPress={() => setShowRiverChoices((current) => !current)} style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}>
-                    <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
-                      {showRiverChoices ? 'Hide Rivers' : 'Choose River'}
-                    </Text>
-                  </Pressable>
-                  {showRiverChoices && (
-                    <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)' }}>
-                      <Pressable onPress={() => { setRiverFilter(''); setShowRiverChoices(false); }} style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}>
-                        <Text style={{ color: '#0b3d3a', fontWeight: '700' }}>All rivers</Text>
-                      </Pressable>
-                      {riverOptions.map((river) => (
-                        <Pressable
-                          key={river}
-                          onPress={() => {
-                            setRiverFilter(river);
-                            setShowRiverChoices(false);
-                          }}
-                          style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
-                        >
-                          <Text style={{ color: '#0b3d3a', fontWeight: '600' }}>{river}</Text>
-                        </Pressable>
-                      ))}
-                    </ScrollView>
-                  )}
-                </>
-              )}
-              {hypothesisOptions.length > 1 && (
-                <View style={{ gap: 6 }}>
-                  <Pressable onPress={() => setShowHypothesisChoices((current) => !current)} style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}>
-                    <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
-                      {showHypothesisChoices ? 'Hide Experiment Questions' : 'Choose Experiment Question'}
-                    </Text>
-                  </Pressable>
-                  {showHypothesisChoices && (
-                    <ScrollView style={{ maxHeight: 220, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)' }}>
-                      <Pressable
-                        onPress={() => {
-                          setHypothesisFilter('');
-                          setShowHypothesisChoices(false);
-                        }}
-                        style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
-                      >
-                        <Text style={{ color: '#0b3d3a', fontWeight: '700' }}>All experiment questions</Text>
-                      </Pressable>
-                      {hypothesisOptions
-                        .filter((option) => option !== 'All')
-                        .map((option) => (
-                          <Pressable
-                            key={option}
-                            onPress={() => {
-                              setHypothesisFilter(option);
-                              setShowHypothesisChoices(false);
-                            }}
-                            style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
-                          >
-                            <Text style={{ color: '#0b3d3a', fontWeight: '600' }}>{option}</Text>
-                          </Pressable>
-                        ))}
-                    </ScrollView>
-                  )}
-                  <Text style={{ color: '#d7f3ff' }}>
-                    Selected experiment question: {hypothesisFilter || 'All experiment questions'}
-                  </Text>
-                </View>
-              )}
-              <OptionChips label="Month" options={MONTHS} value={monthFilter || null} onChange={setMonthFilter} />
-              <Pressable onPress={() => setMonthFilter('')} style={{ backgroundColor: 'rgba(255,255,255,0.12)', padding: 10, borderRadius: 12 }}>
-                <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Clear Month Filter</Text>
-              </Pressable>
-              <OptionChips
-                label="Water Type"
-                options={['All', ...WATER_TYPES] as string[]}
-                value={waterFilter || 'All'}
-                onChange={(value) => setWaterFilter(value === 'All' ? '' : value)}
-              />
-              <OptionChips
-                label="Depth Range"
-                options={['All', ...DEPTH_RANGES] as string[]}
-                value={depthFilter || 'All'}
-                onChange={(value) => setDepthFilter(value === 'All' ? '' : value)}
-              />
-              <OptionChips
-                label="Fly View"
-                options={['Pattern', 'Detailed Fly']}
-                value={flyFilterMode === 'exact' ? 'Detailed Fly' : 'Pattern'}
-                onChange={(value) => {
-                  setFlyFilterMode(value === 'Detailed Fly' ? 'exact' : 'pattern');
-                  setFlyFilter('');
-                  setShowFlyChoices(false);
-                }}
-              />
-              {(flyFilterMode === 'exact' ? exactFlyOptions.length : flyOptions.length) > 1 && (
-                <View style={{ gap: 6 }}>
-                  <Pressable onPress={() => setShowFlyChoices((current) => !current)} style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}>
-                    <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
-                      {showFlyChoices
-                        ? `Hide ${flyFilterMode === 'exact' ? 'Detailed Flies' : 'Fly Patterns'}`
-                        : `Choose ${flyFilterMode === 'exact' ? 'Detailed Fly' : 'Fly Pattern'}`}
-                    </Text>
-                  </Pressable>
-                  {showFlyChoices && (
-                    <ScrollView style={{ maxHeight: 220, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)' }}>
-                      <Pressable
-                        onPress={() => {
-                          setFlyFilter('');
-                          setShowFlyChoices(false);
-                        }}
-                        style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
-                      >
-                        <Text style={{ color: '#0b3d3a', fontWeight: '700' }}>
-                          {flyFilterMode === 'exact' ? 'All detailed flies' : 'All fly patterns'}
-                        </Text>
-                      </Pressable>
-                      {(flyFilterMode === 'exact' ? exactFlyOptions : flyOptions)
-                        .filter((option) => option !== 'All')
-                        .map((option) => (
-                          <Pressable
-                            key={option}
-                            onPress={() => {
-                              setFlyFilter(option);
-                              setShowFlyChoices(false);
-                            }}
-                            style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
-                          >
-                            <Text style={{ color: '#0b3d3a', fontWeight: '600' }}>{option}</Text>
-                          </Pressable>
-                        ))}
-                    </ScrollView>
-                  )}
-                  <Text style={{ color: '#d7f3ff' }}>
-                    {flyFilterMode === 'exact'
-                      ? `Selected detailed fly: ${flyFilter || 'All detailed flies'}`
-                      : `Selected pattern: ${flyFilter || 'All fly patterns'}`}
-                  </Text>
-                </View>
-              )}
-              {!!speciesOptions.length && (
-                <>
-                  <OptionChips
-                    label="Species"
-                    options={speciesOptions}
-                    value={speciesFilter || 'All'}
-                    onChange={(value) => setSpeciesFilter(value === 'All' ? '' : value)}
-                  />
-                </>
-              )}
-              <TextInput
-                value={minimumSizeFilter}
-                onChangeText={setMinimumSizeFilter}
-                placeholder="Minimum fish size (inches)"
-                placeholderTextColor="#5a6c78"
-                keyboardType="numeric"
-                style={inputStyle}
-              />
-              <Text style={{ color: '#d7f3ff' }}>
-                Reviewing {filteredExperiments.length} experiment{filteredExperiments.length === 1 ? '' : 's'} across {filteredSessions.length} session{filteredSessions.length === 1 ? '' : 's'}.
-              </Text>
-            </View>
+            <InsightsFilterPanel
+              riverOptions={riverOptions}
+              riverFilter={riverFilter}
+              showRiverChoices={showRiverChoices}
+              onToggleRiverChoices={() => setShowRiverChoices((current) => !current)}
+              onSelectRiver={(river) => {
+                setRiverFilter(river);
+                setShowRiverChoices(false);
+              }}
+              onClearRiver={() => {
+                setRiverFilter('');
+                setShowRiverChoices(false);
+              }}
+              hypothesisOptions={hypothesisOptions}
+              hypothesisFilter={hypothesisFilter}
+              showHypothesisChoices={showHypothesisChoices}
+              onToggleHypothesisChoices={() => setShowHypothesisChoices((current) => !current)}
+              onSelectHypothesis={(value) => {
+                setHypothesisFilter(value);
+                setShowHypothesisChoices(false);
+              }}
+              onClearHypothesis={() => {
+                setHypothesisFilter('');
+                setShowHypothesisChoices(false);
+              }}
+              monthFilter={monthFilter}
+              onMonthChange={setMonthFilter}
+              onClearMonth={() => setMonthFilter('')}
+              waterFilter={waterFilter}
+              onWaterChange={setWaterFilter}
+              depthFilter={depthFilter}
+              onDepthChange={setDepthFilter}
+              flyFilterMode={flyFilterMode}
+              onFlyFilterModeChange={(value) => {
+                setFlyFilterMode(value);
+                setFlyFilter('');
+                setShowFlyChoices(false);
+              }}
+              flyOptions={flyOptions}
+              exactFlyOptions={exactFlyOptions}
+              flyFilter={flyFilter}
+              showFlyChoices={showFlyChoices}
+              onToggleFlyChoices={() => setShowFlyChoices((current) => !current)}
+              onSelectFly={(value) => {
+                setFlyFilter(value);
+                setShowFlyChoices(false);
+              }}
+              onClearFly={() => {
+                setFlyFilter('');
+                setShowFlyChoices(false);
+              }}
+              speciesOptions={speciesOptions}
+              speciesFilter={speciesFilter}
+              onSpeciesChange={setSpeciesFilter}
+              minimumSizeFilter={minimumSizeFilter}
+              onMinimumSizeChange={setMinimumSizeFilter}
+              filteredExperimentCount={filteredExperiments.length}
+              filteredSessionCount={filteredSessions.length}
+            />
 
             <View style={{ gap: 10, backgroundColor: 'rgba(6, 27, 44, 0.70)', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
               <Text style={{ color: '#f7fdff', fontWeight: '800', fontSize: 18 }}>Catch Analytics</Text>
