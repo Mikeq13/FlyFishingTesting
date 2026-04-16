@@ -147,6 +147,14 @@ export const initDb = async (): Promise<void> => {
       sections_json TEXT NOT NULL,
       created_at TEXT NOT NULL,
       FOREIGN KEY(user_id) REFERENCES users(id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS saved_rig_presets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      preset_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id)
     )`
   ];
 
@@ -250,6 +258,16 @@ export const initDb = async (): Promise<void> => {
       user_id INTEGER NOT NULL,
       name TEXT NOT NULL,
       sections_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    )`);
+  } catch {}
+  try {
+    await database.execAsync(`CREATE TABLE IF NOT EXISTS saved_rig_presets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      preset_json TEXT NOT NULL,
       created_at TEXT NOT NULL,
       FOREIGN KEY(user_id) REFERENCES users(id)
     )`);

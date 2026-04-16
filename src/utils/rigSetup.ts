@@ -1,5 +1,5 @@
 import { FlySetup } from '@/types/fly';
-import { AddedTippetSection, LeaderFormula, RigFlyAssignment, RigFlyPosition, RigSetup, TippetSize } from '@/types/rig';
+import { AddedTippetSection, LeaderFormula, RigFlyAssignment, RigFlyPosition, RigPreset, RigSetup, TippetSize } from '@/types/rig';
 
 export const createEmptyFly = (): FlySetup => ({
   name: '',
@@ -20,6 +20,12 @@ export const getRigPositionsForCount = (count: number): RigFlyPosition[] => {
   return ['dropper', 'middle dropper', 'point'];
 };
 
+export const getFlyCount = (count: number): 1 | 2 | 3 => {
+  if (count <= 1) return 1;
+  if (count === 2) return 2;
+  return 3;
+};
+
 const inferBaseTippetSize = (sections: LeaderFormula['sections']): TippetSize =>
   (sections
     .slice()
@@ -28,9 +34,9 @@ const inferBaseTippetSize = (sections: LeaderFormula['sections']): TippetSize =>
     .find(Boolean)?.[1] as TippetSize | undefined) ?? '5x';
 
 const defaultTippetLabelsForCount = (count: number): string[] => {
-  if (count <= 1) return ['Point Section'];
-  if (count === 2) return ['Dropper Section', 'Point Section'];
-  return ['Dropper Section', 'Middle Section', 'Point Section'];
+  if (count <= 1) return ['Point Tippet'];
+  if (count === 2) return ['Dropper Tippet', 'Point Tippet'];
+  return ['Dropper Tippet', 'Middle Tippet', 'Point Tippet'];
 };
 
 export const createRigAssignments = (flies: FlySetup[] = []): RigFlyAssignment[] =>
@@ -39,48 +45,11 @@ export const createRigAssignments = (flies: FlySetup[] = []): RigFlyAssignment[]
     fly
   }));
 
-export const createDefaultRigSetup = (flies: FlySetup[] = [], baseSections: LeaderFormula['sections'] = []): RigSetup => {
-  const assignments = createRigAssignments(flies);
-  const baseTippetSize = inferBaseTippetSize(baseSections);
-  return {
-    leaderFormulaSectionsSnapshot: baseSections,
-    assignments,
-    addedTippetSections: defaultTippetLabelsForCount(assignments.length || 1).map((label, index) => ({
-      order: index,
-      label,
-      size: baseTippetSize
-    })),
-    lengthToFirstDropperInches: undefined,
-    firstToSecondDropperInches: undefined
-  };
-};
-
-export const applyLeaderFormulaToRig = (rigSetup: RigSetup, formula: LeaderFormula | null): RigSetup => {
-  if (!formula) {
-    return {
-      ...rigSetup,
-      leaderFormulaId: undefined,
-      leaderFormulaName: undefined,
-      leaderFormulaSectionsSnapshot: [],
-      addedTippetSections: rigSetup.addedTippetSections.map((section) => ({
-        ...section,
-        size: '5x'
-      }))
-    };
-  }
-
-  const inferredTippetSize = inferBaseTippetSize(formula.sections);
-  return {
-    ...rigSetup,
-    leaderFormulaId: formula.id,
-    leaderFormulaName: formula.name,
-    leaderFormulaSectionsSnapshot: formula.sections.map((section) => ({ ...section })),
-    addedTippetSections: rigSetup.addedTippetSections.map((section) => ({
-      ...section,
-      size: section.size || inferredTippetSize
-    }))
-  };
-};
+const createEmptyAssignments = (count: 1 | 2 | 3): RigFlyAssignment[] =>
+  getRigPositionsForCount(count).map((position) => ({
+    position,
+    fly: createEmptyFly()
+  }));
 
 const normalizeTippetSections = (sections: AddedTippetSection[], count: number, fallbackSize: TippetSize): AddedTippetSection[] => {
   const labels = defaultTippetLabelsForCount(count || 1);
@@ -93,6 +62,40 @@ const normalizeTippetSections = (sections: AddedTippetSection[], count: number, 
       lengthFeet: existing?.lengthFeet
     };
   });
+};
+
+export const createDefaultRigSetup = (flies: FlySetup[] = [], baseSections: LeaderFormula['sections'] = []): RigSetup => {
+  const count = getFlyCount(flies.length || 1);
+  const assignments = flies.length ? createRigAssignments(flies) : createEmptyAssignments(count);
+  const baseTippetSize = inferBaseTippetSize(baseSections);
+  return {
+    leaderFormulaSectionsSnapshot: baseSections,
+    assignments,
+    addedTippetSections: normalizeTippetSections([], assignments.length || 1, baseTippetSize),
+    lengthToFirstDropperInches: undefined,
+    firstToSecondDropperInches: undefined
+  };
+};
+
+export const applyLeaderFormulaToRig = (rigSetup: RigSetup, formula: LeaderFormula | null): RigSetup => {
+  if (!formula) {
+    return {
+      ...rigSetup,
+      leaderFormulaId: undefined,
+      leaderFormulaName: undefined,
+      leaderFormulaSectionsSnapshot: [],
+      addedTippetSections: normalizeTippetSections(rigSetup.addedTippetSections, rigSetup.assignments.length || 1, '5x')
+    };
+  }
+
+  const inferredTippetSize = inferBaseTippetSize(formula.sections);
+  return {
+    ...rigSetup,
+    leaderFormulaId: formula.id,
+    leaderFormulaName: formula.name,
+    leaderFormulaSectionsSnapshot: formula.sections.map((section) => ({ ...section })),
+    addedTippetSections: normalizeTippetSections(rigSetup.addedTippetSections, rigSetup.assignments.length || 1, inferredTippetSize)
+  };
 };
 
 export const syncRigAssignments = (rigSetup: RigSetup, assignments: RigFlyAssignment[]): RigSetup => {
@@ -111,6 +114,30 @@ export const syncRigAssignments = (rigSetup: RigSetup, assignments: RigFlyAssign
     lengthToFirstDropperInches: nextAssignments.length > 1 ? rigSetup.lengthToFirstDropperInches : undefined,
     firstToSecondDropperInches: nextAssignments.length > 2 ? rigSetup.firstToSecondDropperInches : undefined
   };
+};
+
+export const setRigFlyCount = (
+  rigSetup: RigSetup,
+  nextCount: 1 | 2 | 3,
+  options: { clearPointFly?: boolean } = {}
+): RigSetup => {
+  const currentByPosition = new Map(rigSetup.assignments.map((assignment) => [assignment.position, assignment.fly]));
+  const nextPositions = getRigPositionsForCount(nextCount);
+  const nextAssignments = nextPositions.map((position) => {
+    if (nextCount === 1 && options.clearPointFly) {
+      return {
+        position,
+        fly: createEmptyFly()
+      };
+    }
+
+    return {
+      position,
+      fly: currentByPosition.get(position) ?? createEmptyFly()
+    };
+  });
+
+  return syncRigAssignments(rigSetup, nextAssignments);
 };
 
 export const replaceRigAssignmentPosition = (
@@ -138,4 +165,55 @@ export const syncRigSetupFromFlies = (rigSetup: RigSetup, flies: FlySetup[]): Ri
     position: getRigPositionsForCount(flies.slice(0, 3).length)[index]
   }));
   return syncRigAssignments(rigSetup, nextAssignments);
+};
+
+export const replaceRigAssignmentFly = (rigSetup: RigSetup, targetIndex: number, fly: FlySetup): RigSetup =>
+  syncRigAssignments(
+    rigSetup,
+    rigSetup.assignments.map((assignment, index) => (index === targetIndex ? { ...assignment, fly } : assignment))
+  );
+
+export const clearRigAssignmentFly = (rigSetup: RigSetup, targetIndex: number): RigSetup =>
+  replaceRigAssignmentFly(rigSetup, targetIndex, createEmptyFly());
+
+export const createRigPresetPayload = (rigSetup: RigSetup, name: string): Omit<RigPreset, 'id' | 'userId' | 'createdAt'> => ({
+  name,
+  leaderFormulaId: rigSetup.leaderFormulaId,
+  leaderFormulaName: rigSetup.leaderFormulaName,
+  leaderFormulaSectionsSnapshot: rigSetup.leaderFormulaSectionsSnapshot.map((section) => ({ ...section })),
+  flyCount: getFlyCount(rigSetup.assignments.length || 1),
+  positions: rigSetup.assignments.map((assignment) => assignment.position),
+  addedTippetSections: rigSetup.addedTippetSections.map((section) => ({ ...section })),
+  lengthToFirstDropperInches: rigSetup.lengthToFirstDropperInches,
+  firstToSecondDropperInches: rigSetup.firstToSecondDropperInches
+});
+
+export const applyRigPresetToRig = (
+  rigSetup: RigSetup,
+  preset: RigPreset,
+  options: { clearSinglePointFly?: boolean } = {}
+): RigSetup => {
+  const nextCount = getFlyCount(preset.flyCount || preset.positions.length || 1);
+  const currentByPosition = new Map(rigSetup.assignments.map((assignment) => [assignment.position, assignment.fly]));
+  const nextPositions = preset.positions?.length ? preset.positions : getRigPositionsForCount(nextCount);
+  const nextAssignments = nextPositions.map((position) => {
+    const shouldClearPoint = nextCount === 1 && position === 'point' && options.clearSinglePointFly;
+    return {
+      position,
+      fly: shouldClearPoint ? createEmptyFly() : currentByPosition.get(position) ?? createEmptyFly()
+    };
+  });
+
+  return syncRigAssignments(
+    {
+      ...rigSetup,
+      leaderFormulaId: preset.leaderFormulaId,
+      leaderFormulaName: preset.leaderFormulaName,
+      leaderFormulaSectionsSnapshot: preset.leaderFormulaSectionsSnapshot.map((section) => ({ ...section })),
+      addedTippetSections: preset.addedTippetSections.map((section) => ({ ...section })),
+      lengthToFirstDropperInches: nextCount > 1 ? preset.lengthToFirstDropperInches : undefined,
+      firstToSecondDropperInches: nextCount > 2 ? preset.firstToSecondDropperInches : undefined
+    },
+    nextAssignments
+  );
 };

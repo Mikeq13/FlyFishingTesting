@@ -14,14 +14,14 @@ import { ScreenBackground } from '@/components/ScreenBackground';
 import { ExperimentControlFocus, ExperimentFlyEntry, ExperimentStatus, TroutSpecies } from '@/types/experiment';
 import { RigSetup } from '@/types/rig';
 import { alignExperimentEntries, createEmptyExperimentEntries, getExperimentRigSetup, getLegacyExperimentFields } from '@/utils/experimentEntries';
-import { createDefaultRigSetup, syncRigSetupFromFlies } from '@/utils/rigSetup';
+import { applyRigPresetToRig, createDefaultRigSetup, getFlyCount, syncRigSetupFromFlies } from '@/utils/rigSetup';
 
 const isDraftExperiment = (entries: ExperimentFlyEntry[]) =>
   entries.some((entry) => entry.casts <= 0 || !entry.fly.name.trim());
 
 export const ExperimentScreen = ({ route, navigation }: any) => {
   const { width } = useWindowDimensions();
-  const { addExperiment, addSavedFly, addSavedLeaderFormula, deleteSavedLeaderFormula, savedFlies, savedLeaderFormulas, users, activeUserId, experiments, updateExperimentEntry, sessions } = useAppStore();
+  const { addExperiment, addSavedFly, addSavedLeaderFormula, deleteSavedLeaderFormula, addSavedRigPreset, deleteSavedRigPreset, savedFlies, savedLeaderFormulas, savedRigPresets, users, activeUserId, experiments, updateExperimentEntry, sessions } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
   const sessionId: number = route.params.sessionId;
   const experimentId: number | undefined = route.params?.experimentId;
@@ -262,6 +262,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           rigSetup={rigSetup}
           flyCount={visibleEntries.length}
           savedLeaderFormulas={savedLeaderFormulas}
+          savedRigPresets={savedRigPresets}
           onChange={setRigSetup}
           onCreateLeaderFormula={async (payload) => {
             const id = await addSavedLeaderFormula(payload);
@@ -273,7 +274,21 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
               createdAt: new Date().toISOString()
             };
           }}
+          onCreateRigPreset={async (payload) => {
+            const id = await addSavedRigPreset(payload);
+            return {
+              id,
+              userId: activeUserId ?? 0,
+              ...payload,
+              createdAt: new Date().toISOString()
+            };
+          }}
+          onApplyRigPreset={(preset) => {
+            setFlyCount(getFlyCount(preset.flyCount));
+            setRigSetup((current) => applyRigPresetToRig(current, preset, { clearSinglePointFly: false }));
+          }}
           onDeleteLeaderFormula={deleteSavedLeaderFormula}
+          onDeleteRigPreset={deleteSavedRigPreset}
         />
 
         {visibleEntries.map((entry, index) => (

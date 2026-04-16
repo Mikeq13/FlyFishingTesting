@@ -12,7 +12,7 @@ import { useSessionTimer } from '@/hooks/useSessionTimer';
 import { FlySetup } from '@/types/fly';
 import { TroutSpecies } from '@/types/experiment';
 import { RigSetup } from '@/types/rig';
-import { createDefaultRigSetup } from '@/utils/rigSetup';
+import { applyRigPresetToRig, createDefaultRigSetup } from '@/utils/rigSetup';
 
 export const PracticeScreen = ({ route }: any) => {
   const sessionId = route?.params?.sessionId as number;
@@ -22,10 +22,13 @@ export const PracticeScreen = ({ route }: any) => {
     catchEvents,
     savedFlies,
     savedLeaderFormulas,
+    savedRigPresets,
     activeUserId,
     addSavedFly,
     addSavedLeaderFormula,
     deleteSavedLeaderFormula,
+    addSavedRigPreset,
+    deleteSavedRigPreset,
     addSessionSegment,
     updateSessionSegmentEntry,
     addCatchEvent
@@ -208,6 +211,7 @@ export const PracticeScreen = ({ route }: any) => {
           rigSetup={currentRigSetup}
           flyCount={currentRigSetup.assignments.length}
           savedLeaderFormulas={savedLeaderFormulas}
+          savedRigPresets={savedRigPresets}
           onChange={(nextRigSetup) => {
             updateActiveSegment(nextRigSetup).catch(console.error);
           }}
@@ -221,7 +225,20 @@ export const PracticeScreen = ({ route }: any) => {
               createdAt: new Date().toISOString()
             };
           }}
+          onCreateRigPreset={async (payload) => {
+            const id = await addSavedRigPreset(payload);
+            return {
+              id,
+              userId: activeUserId ?? 0,
+              ...payload,
+              createdAt: new Date().toISOString()
+            };
+          }}
+          onApplyRigPreset={(preset) => {
+            updateActiveSegment(applyRigPresetToRig(currentRigSetup, preset, { clearSinglePointFly: preset.flyCount === 1 })).catch(console.error);
+          }}
           onDeleteLeaderFormula={deleteSavedLeaderFormula}
+          onDeleteRigPreset={deleteSavedRigPreset}
         />
 
         <View style={{ backgroundColor: 'rgba(6, 27, 44, 0.72)', borderRadius: 18, padding: 14, gap: 10, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>

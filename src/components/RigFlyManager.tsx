@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { FlySetup, SavedFly } from '@/types/fly';
 import { FlySelector } from './FlySelector';
 import { RigFlyAssignment, RigSetup } from '@/types/rig';
-import { createEmptyFly, getRigPositionsForCount, replaceRigAssignmentPosition, syncRigAssignments } from '@/utils/rigSetup';
+import { clearRigAssignmentFly, createEmptyFly, getFlyCount, getRigPositionsForCount, replaceRigAssignmentFly, replaceRigAssignmentPosition, setRigFlyCount, syncRigAssignments } from '@/utils/rigSetup';
 import { OptionChips } from './OptionChips';
 
 const sameFly = (left: FlySetup, right: FlySetup) =>
@@ -30,19 +30,51 @@ export const RigFlyManager = ({ title, rigSetup, savedFlies, onChange, onCreateF
   const [showSavedFlyList, setShowSavedFlyList] = useState(false);
   const [showAddFly, setShowAddFly] = useState(false);
   const [draftFly, setDraftFly] = useState<FlySetup>(createEmptyFly());
+  const [targetAssignmentIndex, setTargetAssignmentIndex] = useState<number | null>(null);
   const sortedSavedFlies = useMemo(() => [...savedFlies].sort((a, b) => a.name.localeCompare(b.name)), [savedFlies]);
   const selectedAssignments = rigSetup.assignments;
   const allowedPositions = getRigPositionsForCount(selectedAssignments.length || 1);
+  const previousSignature = useRef(`${selectedAssignments.length}:${selectedAssignments.map((assignment) => assignment.fly.name).join('|')}`);
 
-  const addFlyToRig = (fly: FlySetup) => {
-    if (selectedAssignments.length >= 3) return;
-    const nextAssignments = [...selectedAssignments, { fly, position: 'point' as const }];
-    onChange(syncRigAssignments(rigSetup, nextAssignments));
+  useEffect(() => {
+    const currentSignature = `${selectedAssignments.length}:${selectedAssignments.map((assignment) => assignment.fly.name).join('|')}`;
+    if (previousSignature.current !== currentSignature) {
+      const firstEmptyIndex = selectedAssignments.findIndex((assignment) => !assignment.fly.name.trim());
+      if (firstEmptyIndex >= 0) {
+        setTargetAssignmentIndex(firstEmptyIndex);
+        setShowSavedFlyList(true);
+      }
+      previousSignature.current = currentSignature;
+    }
+  }, [selectedAssignments]);
+
+  const openChooserForIndex = (index: number) => {
+    setTargetAssignmentIndex(index);
+    setShowSavedFlyList(true);
+    setShowAddFly(false);
+  };
+
+  const assignFlyAtIndex = (index: number, fly: FlySetup) => {
+    onChange(replaceRigAssignmentFly(rigSetup, index, fly));
+    setTargetAssignmentIndex(null);
+    setShowSavedFlyList(false);
   };
 
   return (
     <View style={{ gap: 10, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)', borderRadius: 18, padding: 14, backgroundColor: 'rgba(6, 27, 44, 0.70)' }}>
       <Text style={{ fontWeight: '800', fontSize: 18, color: '#f7fdff' }}>{title}</Text>
+      <OptionChips
+        label="Fly Count"
+        options={['1', '2', '3'] as const}
+        value={String(getFlyCount(selectedAssignments.length || 1))}
+        onChange={(value) => {
+          const nextCount = Number(value) as 1 | 2 | 3;
+          const nextRigSetup = setRigFlyCount(rigSetup, nextCount, {
+            clearPointFly: nextCount === 1 && selectedAssignments.length > 1
+          });
+          onChange(nextRigSetup);
+        }}
+      />
       {!!sortedSavedFlies.length ? (
         <>
           <Pressable onPress={() => setShowSavedFlyList((current) => !current)} style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}>
@@ -58,16 +90,18 @@ export const RigFlyManager = ({ title, rigSetup, savedFlies, onChange, onCreateF
                   <Pressable
                     key={savedFly.id}
                     onPress={() => {
-                      if (selected) {
-                        onChange(
-                          syncRigAssignments(
-                            rigSetup,
-                            selectedAssignments.filter((assignment) => !sameFly(assignment.fly, savedFly))
-                          )
-                        );
+                      if (targetAssignmentIndex !== null) {
+                        assignFlyAtIndex(targetAssignmentIndex, { ...savedFly });
                         return;
                       }
-                      addFlyToRig({ ...savedFly });
+                      const firstEmptyIndex = selectedAssignments.findIndex((assignment) => !assignment.fly.name.trim());
+                      if (firstEmptyIndex >= 0) {
+                        assignFlyAtIndex(firstEmptyIndex, { ...savedFly });
+                        return;
+                      }
+                      if (selected) {
+                        return;
+                      }
                     }}
                     style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb', backgroundColor: selected ? 'rgba(42,157,143,0.18)' : 'transparent' }}
                   >
@@ -97,7 +131,9 @@ export const RigFlyManager = ({ title, rigSetup, savedFlies, onChange, onCreateF
           onChange={setDraftFly}
           onSave={async () => {
             await onCreateFly(draftFly);
-            addFlyToRig(draftFly);
+            if (targetAssignmentIndex !== null) {
+              assignFlyAtIndex(targetAssignmentIndex, draftFly);
+            }
             setShowAddFly(false);
             setDraftFly(createEmptyFly());
           }}
@@ -111,10 +147,12 @@ export const RigFlyManager = ({ title, rigSetup, savedFlies, onChange, onCreateF
         selectedAssignments.map((assignment, index) => (
           <View key={`${assignment.fly.name}-${index}`} style={{ gap: 8, borderRadius: 12, padding: 10, backgroundColor: 'rgba(255,255,255,0.08)' }}>
             <Text style={{ color: '#f7fdff', fontWeight: '700' }}>
-              {assignment.fly.name}
+              {assignment.position}
             </Text>
             <Text style={{ color: '#d7f3ff' }}>
-              #{assignment.fly.hookSize} | {assignment.fly.beadColor} | {assignment.fly.beadSizeMm}
+              {assignment.fly.name.trim()
+                ? `${assignment.fly.name} #${assignment.fly.hookSize} | ${assignment.fly.beadColor} | ${assignment.fly.beadSizeMm}`
+                : 'No fly selected yet'}
             </Text>
             <OptionChips
               label="Fly Position"
@@ -130,18 +168,24 @@ export const RigFlyManager = ({ title, rigSetup, savedFlies, onChange, onCreateF
               }
             />
             <Pressable
-              onPress={() =>
-                onChange(
-                  syncRigAssignments(
-                    rigSetup,
-                    selectedAssignments.filter((_, flyIndex) => flyIndex !== index)
-                  )
-                )
-              }
-              style={{ backgroundColor: 'rgba(91,11,11,0.92)', padding: 10, borderRadius: 10 }}
+              onPress={() => openChooserForIndex(index)}
+              style={{ backgroundColor: '#264653', padding: 10, borderRadius: 10 }}
             >
-              <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Remove Fly</Text>
+              <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>
+                {assignment.fly.name.trim() ? 'Replace Fly' : 'Choose Fly'}
+              </Text>
             </Pressable>
+            {assignment.fly.name.trim() ? (
+              <Pressable
+                onPress={() => onChange(clearRigAssignmentFly(rigSetup, index))}
+                style={{ backgroundColor: 'rgba(91,11,11,0.92)', padding: 10, borderRadius: 10 }}
+              >
+                <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Clear Fly</Text>
+              </Pressable>
+            ) : null}
+            {targetAssignmentIndex === index ? (
+              <Text style={{ color: '#bde6f6' }}>Choose a saved fly or quick-add one for this role.</Text>
+            ) : null}
           </View>
         ))
       )}

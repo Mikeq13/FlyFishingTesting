@@ -24,6 +24,21 @@ export interface AddedTippetSection {
   lengthFeet?: number;
 }
 
+export interface RigPreset {
+  id: number;
+  userId: number;
+  name: string;
+  leaderFormulaId?: number;
+  leaderFormulaName?: string;
+  leaderFormulaSectionsSnapshot: LeaderFormulaSection[];
+  flyCount: 1 | 2 | 3;
+  positions: RigFlyPosition[];
+  addedTippetSections: AddedTippetSection[];
+  lengthToFirstDropperInches?: number;
+  firstToSecondDropperInches?: number;
+  createdAt: string;
+}
+
 export interface RigFlyAssignment {
   position: RigFlyPosition;
   fly: FlySetup;
