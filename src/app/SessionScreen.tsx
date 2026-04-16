@@ -5,7 +5,7 @@ import { KeyboardDismissView } from '@/components/KeyboardDismissView';
 import { OptionChips } from '@/components/OptionChips';
 import { DEPTH_RANGES, SESSION_ALERT_MARKERS, WATER_TYPES } from '@/constants/options';
 import { useAppStore } from './store';
-import { SessionMode, WaterType } from '@/types/session';
+import { CompetitionLengthUnit, SessionMode, WaterType } from '@/types/session';
 import { ScreenBackground } from '@/components/ScreenBackground';
 
 const MODE_COPY: Record<SessionMode, { title: string; subtitle: string; button: string }> = {
@@ -41,6 +41,10 @@ export const SessionScreen = ({ navigation, route }: any) => {
   const [durationMinutes, setDurationMinutes] = useState('0');
   const [alertMarkersMinutes, setAlertMarkersMinutes] = useState<number[]>([15]);
   const [customAlertMinute, setCustomAlertMinute] = useState('');
+  const [competitionBeat, setCompetitionBeat] = useState('');
+  const [competitionSessionNumber, setCompetitionSessionNumber] = useState('1');
+  const [competitionRequiresMeasurement, setCompetitionRequiresMeasurement] = useState(true);
+  const [competitionLengthUnit, setCompetitionLengthUnit] = useState<CompetitionLengthUnit>('mm');
   const [showSavedRiverList, setShowSavedRiverList] = useState(false);
   const [showSavedHypothesisList, setShowSavedHypothesisList] = useState(false);
   const sortedSavedRivers = useMemo(() => [...savedRivers].sort((a, b) => a.name.localeCompare(b.name)), [savedRivers]);
@@ -73,6 +77,12 @@ export const SessionScreen = ({ navigation, route }: any) => {
     return Number.isFinite(total) && total > 0 ? total : undefined;
   }, [durationHours, durationMinutes, mode]);
 
+  const plannedEndLabel = useMemo(() => {
+    if (mode === 'experiment' || !plannedDurationMinutes) return null;
+    const plannedEnd = new Date(Date.now() + plannedDurationMinutes * 60 * 1000);
+    return plannedEnd.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }, [mode, plannedDurationMinutes]);
+
   const alertIntervalMinutes = useMemo(() => {
     if (mode === 'experiment') return undefined;
     return alertMarkersMinutes.length ? alertMarkersMinutes[0] : null;
@@ -99,6 +109,10 @@ export const SessionScreen = ({ navigation, route }: any) => {
       alertMarkersMinutes,
       waterType,
       depthRange,
+      competitionBeat: mode === 'competition' ? competitionBeat.trim() || undefined : undefined,
+      competitionSessionNumber: mode === 'competition' ? Number(competitionSessionNumber || '0') || undefined : undefined,
+      competitionRequiresMeasurement: mode === 'competition' ? competitionRequiresMeasurement : undefined,
+      competitionLengthUnit: mode === 'competition' ? competitionLengthUnit : undefined,
       riverName: normalizedRiverName || undefined,
       hypothesis: hypothesis.trim() || undefined,
       notes
@@ -120,57 +134,104 @@ export const SessionScreen = ({ navigation, route }: any) => {
           <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Angler: {activeUser?.name ?? 'Loading...'}</Text>
         </View>
         <View style={{ gap: 8, backgroundColor: 'rgba(6, 27, 44, 0.70)', padding: 14, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
-          <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>River</Text>
-          {!!sortedSavedRivers.length && (
+          {mode !== 'competition' ? (
             <>
-              <Pressable onPress={() => setShowSavedRiverList((current) => !current)} style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}>
-                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
-                  {showSavedRiverList ? 'Hide Saved Rivers' : 'Choose Saved River'}
-                </Text>
-              </Pressable>
-              {showSavedRiverList && (
-                <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)' }}>
-                  {sortedSavedRivers.map((river) => (
-                    <Pressable
-                      key={river.id}
-                      onPress={() => {
-                        setRiverName(river.name);
-                        setShowSavedRiverList(false);
-                      }}
-                      style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
-                    >
-                      <Text style={{ color: '#0b3d3a', fontWeight: '600' }}>{river.name}</Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
+              <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>River</Text>
+              {!!sortedSavedRivers.length && (
+                <>
+                  <Pressable onPress={() => setShowSavedRiverList((current) => !current)} style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}>
+                    <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
+                      {showSavedRiverList ? 'Hide Saved Rivers' : 'Choose Saved River'}
+                    </Text>
+                  </Pressable>
+                  {showSavedRiverList && (
+                    <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)' }}>
+                      {sortedSavedRivers.map((river) => (
+                        <Pressable
+                          key={river.id}
+                          onPress={() => {
+                            setRiverName(river.name);
+                            setShowSavedRiverList(false);
+                          }}
+                          style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
+                        >
+                          <Text style={{ color: '#0b3d3a', fontWeight: '600' }}>{river.name}</Text>
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                  )}
+                </>
               )}
+              <TextInput value={riverName} onChangeText={setRiverName} placeholder="River name" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
+              <OptionChips label="Water Type" options={WATER_TYPES} value={waterType} onChange={setWaterType} />
+              <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Water Depth</Text>
+              <DepthSelector value={depthRange} onChange={setDepthRange} />
+            </>
+          ) : (
+            <>
+              <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>Competition Context</Text>
+              <Text style={{ color: '#bde6f6', lineHeight: 20 }}>
+                Competition sessions are beat-based. Track the beat you drew, the session number, and whether fish will be measured or counted only.
+              </Text>
+              <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Beat / Section</Text>
+              <TextInput value={competitionBeat} onChangeText={setCompetitionBeat} placeholder="Beat / section name" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
+              <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Session Number</Text>
+              <TextInput value={competitionSessionNumber} onChangeText={setCompetitionSessionNumber} placeholder="Session number" keyboardType="number-pad" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
+              <OptionChips
+                label="Measure Fish This Session?"
+                options={['Yes', 'No'] as const}
+                value={competitionRequiresMeasurement ? 'Yes' : 'No'}
+                onChange={(value) => setCompetitionRequiresMeasurement(value === 'Yes')}
+              />
+              {competitionRequiresMeasurement ? (
+                <>
+                  <OptionChips
+                    label="Competition Length Unit"
+                    options={['mm', 'cm'] as const}
+                    value={competitionLengthUnit}
+                    onChange={(value) => setCompetitionLengthUnit(value as CompetitionLengthUnit)}
+                  />
+                  <Text style={{ color: '#bde6f6', lineHeight: 20 }}>
+                    Length unit stays locked for this session and auto-populates each time you log a fish.
+                    {competitionLengthUnit === 'cm' ? ' Minimum measurable fish size is 20 cm.' : ' If your comp uses the standard minimum, fish under 200 mm should not count.'}
+                  </Text>
+                </>
+              ) : null}
             </>
           )}
-          <TextInput value={riverName} onChangeText={setRiverName} placeholder="River name" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
-          <OptionChips label="Water Type" options={WATER_TYPES} value={waterType} onChange={setWaterType} />
-          <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Water Depth</Text>
-          <DepthSelector value={depthRange} onChange={setDepthRange} />
           {mode !== 'experiment' ? (
             <>
               <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>Session Timer</Text>
+              <Text style={{ color: '#bde6f6', lineHeight: 20 }}>
+                Set the total time you plan to fish in this session. Reminder markers fire based on elapsed time from when you begin.
+              </Text>
               <View style={{ flexDirection: 'row', gap: 8 }}>
-                <TextInput
-                  value={durationHours}
-                  onChangeText={setDurationHours}
-                  placeholder="Hours"
-                  keyboardType="number-pad"
-                  placeholderTextColor="#5a6c78"
-                  style={{ flex: 1, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
-                />
-                <TextInput
-                  value={durationMinutes}
-                  onChangeText={setDurationMinutes}
-                  placeholder="Minutes"
-                  keyboardType="number-pad"
-                  placeholderTextColor="#5a6c78"
-                  style={{ flex: 1, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
-                />
+                <View style={{ flex: 1, gap: 6 }}>
+                  <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Hours</Text>
+                  <TextInput
+                    value={durationHours}
+                    onChangeText={setDurationHours}
+                    placeholder="0"
+                    keyboardType="number-pad"
+                    placeholderTextColor="#5a6c78"
+                    style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+                  />
+                </View>
+                <View style={{ flex: 1, gap: 6 }}>
+                  <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Minutes</Text>
+                  <TextInput
+                    value={durationMinutes}
+                    onChangeText={setDurationMinutes}
+                    placeholder="0"
+                    keyboardType="number-pad"
+                    placeholderTextColor="#5a6c78"
+                    style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+                  />
+                </View>
               </View>
+              {plannedEndLabel ? (
+                <Text style={{ color: '#bde6f6' }}>If you begin now, your planned end time is {plannedEndLabel}.</Text>
+              ) : null}
               <View style={{ gap: 8 }}>
                 <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Reminder Markers</Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>

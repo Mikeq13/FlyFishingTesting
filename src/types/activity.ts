@@ -2,7 +2,7 @@ import { TroutSpecies } from './experiment';
 import { FlySetup } from './fly';
 import { DepthRange, SessionMode, WaterType } from './session';
 
-export type CatchLengthUnit = 'in' | 'mm';
+export type CatchLengthUnit = 'in' | 'mm' | 'cm';
 
 export interface SessionSegment {
   id: number;
