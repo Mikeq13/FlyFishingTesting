@@ -3,7 +3,7 @@ import { Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimens
 import { DepthSelector } from '@/components/DepthSelector';
 import { KeyboardDismissView } from '@/components/KeyboardDismissView';
 import { OptionChips } from '@/components/OptionChips';
-import { DEPTH_RANGES, SESSION_ALERT_INTERVALS, WATER_TYPES } from '@/constants/options';
+import { DEPTH_RANGES, SESSION_ALERT_MARKERS, WATER_TYPES } from '@/constants/options';
 import { useAppStore } from './store';
 import { SessionMode, WaterType } from '@/types/session';
 import { ScreenBackground } from '@/components/ScreenBackground';
@@ -39,7 +39,8 @@ export const SessionScreen = ({ navigation, route }: any) => {
   const [notes, setNotes] = useState('');
   const [durationHours, setDurationHours] = useState(mode === 'competition' ? '3' : '2');
   const [durationMinutes, setDurationMinutes] = useState('0');
-  const [alertIntervalLabel, setAlertIntervalLabel] = useState<typeof SESSION_ALERT_INTERVALS[number]>('15 min');
+  const [alertMarkersMinutes, setAlertMarkersMinutes] = useState<number[]>([15]);
+  const [customAlertMinute, setCustomAlertMinute] = useState('');
   const [showSavedRiverList, setShowSavedRiverList] = useState(false);
   const [showSavedHypothesisList, setShowSavedHypothesisList] = useState(false);
   const sortedSavedRivers = useMemo(() => [...savedRivers].sort((a, b) => a.name.localeCompare(b.name)), [savedRivers]);
@@ -74,9 +75,15 @@ export const SessionScreen = ({ navigation, route }: any) => {
 
   const alertIntervalMinutes = useMemo(() => {
     if (mode === 'experiment') return undefined;
-    if (alertIntervalLabel === 'Off') return null;
-    return Number(alertIntervalLabel.replace(' min', ''));
-  }, [alertIntervalLabel, mode]);
+    return alertMarkersMinutes.length ? alertMarkersMinutes[0] : null;
+  }, [alertMarkersMinutes, mode]);
+
+  const addCustomAlertMarker = () => {
+    const minute = Number(customAlertMinute);
+    if (!Number.isFinite(minute) || minute <= 0) return;
+    setAlertMarkersMinutes((current) => (current.includes(minute) ? current : [...current, minute].sort((left, right) => left - right)));
+    setCustomAlertMinute('');
+  };
 
   const onStart = async () => {
     const normalizedRiverName = riverName.trim();
@@ -89,6 +96,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
       mode,
       plannedDurationMinutes,
       alertIntervalMinutes,
+      alertMarkersMinutes,
       waterType,
       depthRange,
       riverName: normalizedRiverName || undefined,
@@ -163,7 +171,67 @@ export const SessionScreen = ({ navigation, route }: any) => {
                   style={{ flex: 1, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
                 />
               </View>
-              <OptionChips label="In-App Time Alerts" options={SESSION_ALERT_INTERVALS} value={alertIntervalLabel} onChange={setAlertIntervalLabel} />
+              <View style={{ gap: 8 }}>
+                <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Reminder Markers</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {SESSION_ALERT_MARKERS.map((minute) => {
+                    const selected = alertMarkersMinutes.includes(minute);
+                    return (
+                      <Pressable
+                        key={minute}
+                        onPress={() =>
+                          setAlertMarkersMinutes((current) =>
+                            current.includes(minute)
+                              ? current.filter((value) => value !== minute)
+                              : [...current, minute].sort((left, right) => left - right)
+                          )
+                        }
+                        style={{
+                          paddingHorizontal: 12,
+                          paddingVertical: 8,
+                          borderRadius: 999,
+                          borderWidth: 1,
+                          borderColor: selected ? '#84d9f4' : 'rgba(255,255,255,0.22)',
+                          backgroundColor: selected ? 'rgba(132,217,244,0.28)' : 'rgba(6,28,41,0.5)'
+                        }}
+                      >
+                        <Text style={{ color: '#f4fbff', fontWeight: '700' }}>{minute} min</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TextInput
+                    value={customAlertMinute}
+                    onChangeText={setCustomAlertMinute}
+                    placeholder="Custom minute"
+                    keyboardType="number-pad"
+                    placeholderTextColor="#5a6c78"
+                    style={{ flex: 1, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+                  />
+                  <Pressable
+                    onPress={addCustomAlertMarker}
+                    style={{ backgroundColor: '#1d3557', paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, justifyContent: 'center' }}
+                  >
+                    <Text style={{ color: '#f7fdff', fontWeight: '700' }}>Add</Text>
+                  </Pressable>
+                </View>
+                {!!alertMarkersMinutes.length ? (
+                  <Text style={{ color: '#bde6f6' }}>
+                    Active reminders: {alertMarkersMinutes.map((minute) => `${minute} min`).join(', ')}
+                  </Text>
+                ) : (
+                  <Text style={{ color: '#bde6f6' }}>
+                    No reminders selected. You can use presets or add custom minute markers for your beat.
+                  </Text>
+                )}
+                <Pressable
+                  onPress={() => setAlertMarkersMinutes([])}
+                  style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: 10, borderRadius: 12 }}
+                >
+                  <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Turn Off Reminders</Text>
+                </Pressable>
+              </View>
             </>
           ) : null}
           {mode === 'experiment' && !!savedHypotheses.length && (
