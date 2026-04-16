@@ -67,6 +67,7 @@ export const AccessScreen = () => {
   };
 
   const cleanupConfig: Array<{ key: UserDataCleanupCategory; label: string; description: string; destructive?: boolean }> = [
+    { key: 'drafts', label: 'Delete Draft Experiments', description: 'Removes incomplete draft experiments but keeps completed experiment history.' },
     { key: 'experiments', label: 'Clear Experiments', description: 'Removes experiment results but keeps sessions, saved flies, and saved rivers.' },
     { key: 'sessions', label: 'Clear Sessions', description: 'Removes sessions and their linked experiments, but keeps saved flies and saved rivers.' },
     { key: 'flies', label: 'Clear Saved Flies', description: 'Removes saved flies but keeps sessions, experiments, and saved rivers.' },

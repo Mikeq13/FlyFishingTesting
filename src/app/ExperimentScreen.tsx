@@ -13,6 +13,9 @@ import { ScreenBackground } from '@/components/ScreenBackground';
 import { ExperimentControlFocus, ExperimentFlyEntry, TroutSpecies } from '@/types/experiment';
 import { alignExperimentEntries, createEmptyExperimentEntries, getLegacyExperimentFields } from '@/utils/experimentEntries';
 
+const isDraftExperiment = (entries: ExperimentFlyEntry[]) =>
+  entries.some((entry) => entry.casts <= 0 || !entry.fly.name.trim());
+
 export const ExperimentScreen = ({ route, navigation }: any) => {
   const { width } = useWindowDimensions();
   const { addExperiment, addSavedFly, savedFlies, users, activeUserId, experiments, updateExperimentEntry, sessions } = useAppStore();
@@ -52,6 +55,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   }, [existingExperiment]);
 
   const visibleEntries = useMemo(() => flyEntries.slice(0, flyCount), [flyCount, flyEntries]);
+  const isDraft = useMemo(() => isDraftExperiment(visibleEntries), [visibleEntries]);
   const lastLoggedSpecies = useMemo<TroutSpecies | null>(() => {
     const allSpecies = visibleEntries.flatMap((entry) => entry.fishSpecies);
     return (allSpecies.length ? allSpecies[allSpecies.length - 1] : null) as TroutSpecies | null;
@@ -166,11 +170,6 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
       }
     }
 
-    if (visibleEntries.some((entry) => entry.casts <= 0)) {
-      Alert.alert('Missing cast data', 'Log casts for every selected fly before saving.');
-      return;
-    }
-
     if (visibleEntries.some((entry) => entry.catches > entry.casts)) {
       Alert.alert('Invalid catch count', 'Catches cannot be greater than casts.');
       return;
@@ -187,9 +186,10 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         controlFocus,
         flyEntries: visibleEntries,
         ...legacy,
-        winner: status.winner,
-        outcome: status.outcome,
-        confidenceScore: status.confidenceScore
+        winner: isDraft ? 'draft' : status.winner,
+        outcome: isDraft ? 'inconclusive' : status.outcome,
+        status: isDraft ? 'draft' : 'complete',
+        confidenceScore: isDraft ? 0 : status.confidenceScore
       };
 
       if (existingExperiment) {
@@ -219,6 +219,11 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           </Text>
           <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Angler: {activeUser?.name ?? 'Loading...'}</Text>
           {session?.hypothesis ? <Text style={{ color: '#d7f3ff' }}>Hypothesis: {session.hypothesis}</Text> : null}
+          {isDraft ? (
+            <Text style={{ color: '#fcd34d' }}>
+              Draft mode: incomplete experiments can be saved now and finished later. Only invalid counts are blocked.
+            </Text>
+          ) : null}
         </View>
 
         <ExperimentSetupPanel
@@ -256,7 +261,17 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
 
         <Pressable onPress={save} disabled={isSaving} style={{ backgroundColor: isSaving ? '#6c757d' : '#264653', padding: 14, borderRadius: 14 }}>
           <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
-            {isSaving ? (existingExperiment ? 'Updating...' : 'Saving...') : existingExperiment ? 'Update Experiment' : 'Save Experiment'}
+            {isSaving
+              ? existingExperiment
+                ? 'Updating...'
+                : 'Saving...'
+              : existingExperiment
+                ? isDraft
+                  ? 'Update Draft'
+                  : 'Update Experiment'
+                : isDraft
+                  ? 'Save Draft'
+                  : 'Save Experiment'}
           </Text>
         </Pressable>
 

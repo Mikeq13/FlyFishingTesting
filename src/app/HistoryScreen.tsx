@@ -16,7 +16,7 @@ const inputStyle = {
   color: '#102a43'
 };
 
-export const HistoryScreen = () => {
+export const HistoryScreen = ({ navigation }: any) => {
   const { width } = useWindowDimensions();
   const { sessions, experiments, users, activeUserId, archiveExperiment, deleteExperiment, cleanupExperimentsForCurrentUser } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
@@ -252,6 +252,7 @@ export const HistoryScreen = () => {
                     <View key={experiment.id} style={{ backgroundColor: '#e9f5fb', borderRadius: 12, padding: 10 }}>
                       <Text style={{ color: '#102a43' }}>Hypothesis: {experiment.hypothesis}</Text>
                       <Text style={{ color: '#334e68' }}>Control focus: {experiment.controlFocus}</Text>
+                      <Text style={{ color: '#334e68' }}>Status: {experiment.status === 'draft' ? 'Draft' : 'Complete'}</Text>
                       <Text style={{ color: '#334e68' }}>Outcome: {experiment.outcome}</Text>
                       <Text style={{ color: '#334e68' }}>Winner: {experiment.winner}</Text>
                       <Text style={{ color: '#334e68' }}>Flies: {entries.map((entry) => `${entry.fly.name || entry.label} (#${entry.fly.hookSize}, ${entry.fly.beadColor}, ${entry.fly.beadSizeMm})`).join(', ')}</Text>
@@ -274,17 +275,21 @@ export const HistoryScreen = () => {
                         >
                           <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Edit</Text>
                         </Pressable>
-                        <Pressable
-                          onPress={() => runSingleExperimentCleanup(experiment.id, 'archive')}
-                          style={{ backgroundColor: '#6c584c', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, flex: 1 }}
-                        >
-                          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Archive</Text>
-                        </Pressable>
+                        {experiment.status !== 'draft' ? (
+                          <Pressable
+                            onPress={() => runSingleExperimentCleanup(experiment.id, 'archive')}
+                            style={{ backgroundColor: '#6c584c', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, flex: 1 }}
+                          >
+                            <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Archive</Text>
+                          </Pressable>
+                        ) : null}
                         <Pressable
                           onPress={() => runSingleExperimentCleanup(experiment.id, 'delete')}
                           style={{ backgroundColor: '#8d0801', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, flex: 1 }}
                         >
-                          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Delete</Text>
+                          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
+                            {experiment.status === 'draft' ? 'Delete Draft' : 'Delete'}
+                          </Text>
                         </Pressable>
                       </View>
                     </View>

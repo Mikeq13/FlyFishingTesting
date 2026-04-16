@@ -11,6 +11,7 @@ const hydrateExperiment = (experiment: Experiment): Experiment => ({
   controlFly: { ...experiment.controlFly, hookSize: experiment.controlFly.hookSize ?? 16 },
   variantFly: { ...experiment.variantFly, hookSize: experiment.variantFly.hookSize ?? 16 },
   controlFocus: experiment.controlFocus ?? 'pattern',
+  status: experiment.status ?? 'complete',
   flyEntries: experiment.flyEntries?.length
     ? experiment.flyEntries
     : getExperimentEntries({
@@ -27,8 +28,8 @@ export const createExperiment = async (payload: Omit<Experiment, 'id'>): Promise
   const db = await getDb();
   const result = await db.runAsync(
     `INSERT INTO experiments
-      (user_id, session_id, hypothesis, control_focus, fly_entries_json, control_fly_json, variant_fly_json, control_casts, control_catches, variant_casts, variant_catches, winner, outcome, confidence_score, archived_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (user_id, session_id, hypothesis, control_focus, fly_entries_json, control_fly_json, variant_fly_json, control_casts, control_catches, variant_casts, variant_catches, winner, outcome, status, confidence_score, archived_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     payload.userId,
     payload.sessionId,
     payload.hypothesis,
@@ -42,6 +43,7 @@ export const createExperiment = async (payload: Omit<Experiment, 'id'>): Promise
     payload.variantCatches,
     payload.winner,
     payload.outcome,
+    payload.status,
     payload.confidenceScore,
     payload.archivedAt ?? null
   );
@@ -66,7 +68,7 @@ export const updateExperiment = async (experimentId: number, payload: Omit<Exper
   const db = await getDb();
   await db.runAsync(
     `UPDATE experiments
-     SET session_id = ?, hypothesis = ?, control_focus = ?, fly_entries_json = ?, control_fly_json = ?, variant_fly_json = ?, control_casts = ?, control_catches = ?, variant_casts = ?, variant_catches = ?, winner = ?, outcome = ?, confidence_score = ?, archived_at = ?
+     SET session_id = ?, hypothesis = ?, control_focus = ?, fly_entries_json = ?, control_fly_json = ?, variant_fly_json = ?, control_casts = ?, control_catches = ?, variant_casts = ?, variant_catches = ?, winner = ?, outcome = ?, status = ?, confidence_score = ?, archived_at = ?
      WHERE id = ?`,
     payload.sessionId,
     payload.hypothesis,
@@ -80,6 +82,7 @@ export const updateExperiment = async (experimentId: number, payload: Omit<Exper
     payload.variantCatches,
     payload.winner,
     payload.outcome,
+    payload.status,
     payload.confidenceScore,
     payload.archivedAt ?? null,
     experimentId
@@ -118,6 +121,7 @@ export const listExperiments = async (userId: number, options: { includeArchived
     variantCatches: r.variant_catches,
     winner: r.winner,
     outcome: r.outcome ?? 'inconclusive',
+    status: r.status ?? 'complete',
     confidenceScore: r.confidence_score,
     archivedAt: r.archived_at ?? undefined
   })).map(hydrateExperiment);
@@ -161,4 +165,14 @@ export const deleteExperimentsForUser = async (userId: number): Promise<void> =>
 
   const db = await getDb();
   await db.runAsync('DELETE FROM experiments WHERE user_id = ?', userId);
+};
+
+export const deleteDraftExperimentsForUser = async (userId: number): Promise<void> => {
+  if (isWeb) {
+    deleteWebRows<Experiment>(WEB_EXPERIMENTS_KEY, (row) => row.userId === userId && row.status === 'draft');
+    return;
+  }
+
+  const db = await getDb();
+  await db.runAsync(`DELETE FROM experiments WHERE user_id = ? AND status = 'draft'`, userId);
 };

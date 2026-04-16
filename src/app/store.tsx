@@ -4,7 +4,7 @@ import { SavedRiver, Session } from '@/types/session';
 import { UserProfile } from '@/types/user';
 import { FlySetup, SavedFly } from '@/types/fly';
 import { createSession, deleteSessionsForUser, listSessions } from '@/db/sessionRepo';
-import { archiveExperiments, createExperiment, deleteExperiments, deleteExperimentsForUser, listExperiments, updateExperiment } from '@/db/experimentRepo';
+import { archiveExperiments, createExperiment, deleteDraftExperimentsForUser, deleteExperiments, deleteExperimentsForUser, listExperiments, updateExperiment } from '@/db/experimentRepo';
 import { createUser, deleteUser, listUsers, updateUser } from '@/db/userRepo';
 import { createSavedFly, deleteSavedFliesForUser, listSavedFlies } from '@/db/savedFlyRepo';
 import { createSavedRiver, deleteSavedRiversForUser, listSavedRivers } from '@/db/savedRiverRepo';
@@ -18,7 +18,7 @@ import { buildTopFlyInsights, buildTopFlyRecords, TopFlyRecord } from '@/engine/
 import { isWithinDateRange } from '@/utils/dateRange';
 import { AccessLevel, SubscriptionStatus } from '@/types/user';
 
-export type UserDataCleanupCategory = 'experiments' | 'sessions' | 'flies' | 'rivers' | 'all';
+export type UserDataCleanupCategory = 'drafts' | 'experiments' | 'sessions' | 'flies' | 'rivers' | 'all';
 
 interface AppStore {
   sessions: Session[];
@@ -73,6 +73,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const [activeUserId, setActiveUserId] = useState<number | null>(null);
   const sessionMap = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
   const currentUser = useMemo(() => users.find((user) => user.id === activeUserId) ?? null, [activeUserId, users]);
+  const completeExperiments = useMemo(() => experiments.filter((experiment) => experiment.status !== 'draft'), [experiments]);
   const storedOwnerUser = useMemo(() => users.find((user) => user.role === 'owner') ?? null, [users]);
   const ownerUser = useMemo(
     () => storedOwnerUser ?? (TESTING_ADMIN_OVERRIDE ? currentUser : null),
@@ -131,8 +132,14 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     setExperiments(e);
     setSavedFlies(flies);
     setSavedRivers(rivers);
-    setAnglerComparisons(generateAnglerComparisons(allUsers, allSessionLists.flat(), allExperimentLists.flat()));
-    setTopFlyRecords(buildTopFlyRecords(s, e));
+    setAnglerComparisons(
+      generateAnglerComparisons(
+        allUsers,
+        allSessionLists.flat(),
+        allExperimentLists.flat().filter((experiment) => experiment.status !== 'draft')
+      )
+    );
+    setTopFlyRecords(buildTopFlyRecords(s, e.filter((experiment) => experiment.status !== 'draft')));
   };
 
   useEffect(() => {
@@ -143,7 +150,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     refresh().catch(console.error);
   }, [activeUserId]);
 
-  const insights = useMemo(() => generateInsights(buildAggregates(sessions, experiments)), [sessions, experiments]);
+  const insights = useMemo(() => generateInsights(buildAggregates(sessions, completeExperiments)), [sessions, completeExperiments]);
   const topFlyInsights = useMemo(() => buildTopFlyInsights(topFlyRecords), [topFlyRecords]);
 
   const updateUserAccess = async (
@@ -259,6 +266,10 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
             await deleteSessionsForUser(userId);
           } else if (targets.includes('experiments')) {
             await deleteExperimentsForUser(userId);
+          }
+
+          if (targets.includes('drafts')) {
+            await deleteDraftExperimentsForUser(userId);
           }
 
           if (targets.includes('flies')) {

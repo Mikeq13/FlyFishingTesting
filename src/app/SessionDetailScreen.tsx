@@ -70,7 +70,8 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
         <Text style={{ color: '#f7fdff', fontWeight: '700', fontSize: 16 }}>Experiments in this session: {sessionExperiments.length}</Text>
         {sessionExperiments.map((e) => (
           <View key={e.id} style={{ backgroundColor: 'rgba(245,252,255,0.96)', borderRadius: 18, padding: 14, gap: 4, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)' }}>
-            <Text style={{ fontWeight: '800', color: '#102a43' }}>#{e.id} Outcome: {e.outcome}</Text>
+            <Text style={{ fontWeight: '800', color: '#102a43' }}>#{e.id} Status: {e.status === 'draft' ? 'Draft' : 'Complete'}</Text>
+            <Text style={{ color: '#334e68' }}>Outcome: {e.outcome}</Text>
             <Text style={{ color: '#334e68' }}>Winner: {e.winner}</Text>
             <Text style={{ color: '#334e68' }}>Hypothesis: {e.hypothesis}</Text>
             <Text style={{ color: '#334e68' }}>Control focus: {e.controlFocus}</Text>
@@ -93,17 +94,21 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
               >
                 <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Edit</Text>
               </Pressable>
-              <Pressable
-                onPress={() => runSingleExperimentCleanup(e.id, 'archive')}
-                style={{ backgroundColor: '#6c584c', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, flex: 1 }}
-              >
-                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Archive</Text>
-              </Pressable>
+              {e.status !== 'draft' ? (
+                <Pressable
+                  onPress={() => runSingleExperimentCleanup(e.id, 'archive')}
+                  style={{ backgroundColor: '#6c584c', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, flex: 1 }}
+                >
+                  <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Archive</Text>
+                </Pressable>
+              ) : null}
               <Pressable
                 onPress={() => runSingleExperimentCleanup(e.id, 'delete')}
                 style={{ backgroundColor: '#8d0801', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, flex: 1 }}
               >
-                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Delete</Text>
+                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
+                  {e.status === 'draft' ? 'Delete Draft' : 'Delete'}
+                </Text>
               </Pressable>
             </View>
           </View>
