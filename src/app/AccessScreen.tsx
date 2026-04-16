@@ -67,7 +67,6 @@ export const AccessScreen = () => {
   };
 
   const cleanupConfig: Array<{ key: UserDataCleanupCategory; label: string; description: string; destructive?: boolean }> = [
-    { key: 'drafts', label: 'Delete Draft Experiments', description: 'Removes incomplete draft experiments but keeps completed experiment history.' },
     { key: 'experiments', label: 'Clear Experiments', description: 'Removes experiment results but keeps sessions, saved flies, and saved rivers.' },
     { key: 'sessions', label: 'Clear Sessions', description: 'Removes sessions and their linked experiments, but keeps saved flies and saved rivers.' },
     { key: 'flies', label: 'Clear Saved Flies', description: 'Removes saved flies but keeps sessions, experiments, and saved rivers.' },
@@ -80,14 +79,51 @@ export const AccessScreen = () => {
       {cleanupConfig.map((item) => (
         <Pressable
           key={`${userId}-${item.key}`}
-          onPress={() =>
+          onPress={() => {
+            if (item.key === 'experiments') {
+              Alert.alert(
+                'Clear experiments',
+                `Choose whether to delete only incomplete draft experiments or remove all experiments for ${userName}. Drafts are unfinished entries you may not need anymore. All experiments removes both draft and completed experiment history.`,
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Delete Drafts Only',
+                    style: 'destructive',
+                    onPress: () => {
+                      runAdminAction(
+                        () => clearUserDataCategories(userId, ['drafts']),
+                        `Draft experiments deleted for ${userName}.`
+                      ).catch((error) => {
+                        const reason = error instanceof Error ? error.message : 'Please try again.';
+                        Alert.alert('Unable to finish action', reason);
+                      });
+                    }
+                  },
+                  {
+                    text: 'Delete All Experiments',
+                    style: 'destructive',
+                    onPress: () => {
+                      runAdminAction(
+                        () => clearUserDataCategories(userId, ['experiments']),
+                        `All experiments deleted for ${userName}.`
+                      ).catch((error) => {
+                        const reason = error instanceof Error ? error.message : 'Please try again.';
+                        Alert.alert('Unable to finish action', reason);
+                      });
+                    }
+                  }
+                ]
+              );
+              return;
+            }
+
             confirmAdminAction(
               `${item.label}?`,
               `${item.description} This only affects ${userName} on this device.`,
               () => (item.key === 'all' ? clearFishingDataForUser(userId) : clearUserDataCategories(userId, [item.key])),
               `${item.label.replace('Clear ', '')} finished for ${userName}.`
-            )
-          }
+            );
+          }}
           style={{
             backgroundColor:
               tone === 'dark'
