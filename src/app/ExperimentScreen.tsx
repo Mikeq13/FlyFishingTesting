@@ -1,11 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
-import { CastCounter } from '@/components/CastCounter';
-import { CatchCounter } from '@/components/CatchCounter';
 import { ExperimentCatchModal } from '@/components/ExperimentCatchModal';
+import { ExperimentFlyCard } from '@/components/ExperimentFlyCard';
 import { ExperimentSavedActionsModal } from '@/components/ExperimentSavedActionsModal';
 import { ExperimentSetupPanel } from '@/components/ExperimentSetupPanel';
-import { FlySelector } from '@/components/FlySelector';
 import { KeyboardDismissView } from '@/components/KeyboardDismissView';
 import { useAppStore } from './store';
 import { FlySetup } from '@/types/fly';
@@ -237,40 +235,23 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         />
 
         {visibleEntries.map((entry, index) => (
-          <View key={entry.slotId} style={{ gap: 8 }}>
-            <FlySelector
-              title={entry.label}
-              value={entry.fly}
-              savedFlies={savedFlies}
-              onChange={(fly) => updateEntry(index, { ...entry, fly })}
-              onSave={() => saveFlyToLibrary(entry.fly)}
-            />
-            <View style={{ flexDirection: isCompactLayout ? 'column' : 'row', gap: 8 }}>
-              <CastCounter
-                label={`${entry.label} casts`}
-                value={entry.casts}
-                step={castStep}
-                onDecrement={() => removeCasts(index)}
-                onIncrement={() => updateEntry(index, { ...entry, casts: entry.casts + castStep })}
-              />
-              <CatchCounter
-                label={`${entry.label} catches`}
-                value={entry.catches}
-                onDecrement={() => removeCatch(index)}
-                onIncrement={() => {
-                  setPendingFishEntryIndex(index);
-                  setPendingFishSize(null);
-                  setPendingFishSpecies(lastLoggedSpecies);
-                }}
-              />
-            </View>
-            {!!entry.fishSizesInches.length && (
-              <Text style={{ color: '#bde6f6', fontSize: 12 }}>
-                Fish log:{' '}
-                {entry.fishSizesInches.map((size, fishIndex) => `${size}" ${entry.fishSpecies[fishIndex] ?? 'Trout'}`).join(', ')}
-              </Text>
-            )}
-          </View>
+          <ExperimentFlyCard
+            key={entry.slotId}
+            entry={entry}
+            savedFlies={savedFlies}
+            castStep={castStep}
+            isCompactLayout={isCompactLayout}
+            onChangeFly={(nextEntry) => updateEntry(index, nextEntry)}
+            onSaveFly={() => saveFlyToLibrary(entry.fly)}
+            onDecrementCasts={() => removeCasts(index)}
+            onIncrementCasts={() => updateEntry(index, { ...entry, casts: entry.casts + castStep })}
+            onDecrementCatches={() => removeCatch(index)}
+            onIncrementCatches={() => {
+              setPendingFishEntryIndex(index);
+              setPendingFishSize(null);
+              setPendingFishSpecies(lastLoggedSpecies);
+            }}
+          />
         ))}
 
         <Pressable onPress={save} disabled={isSaving} style={{ backgroundColor: isSaving ? '#6c757d' : '#264653', padding: 14, borderRadius: 14 }}>
