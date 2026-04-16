@@ -11,11 +11,13 @@ const formatDuration = (totalSeconds: number) => {
 
 export const useSessionTimer = ({
   startedAt,
+  endedAt,
   plannedDurationMinutes,
   alertIntervalMinutes,
   alertMarkersMinutes
 }: {
   startedAt: string;
+  endedAt?: string;
   plannedDurationMinutes?: number;
   alertIntervalMinutes?: number | null;
   alertMarkersMinutes?: number[];
@@ -25,11 +27,16 @@ export const useSessionTimer = ({
   const [triggeredMinutes, setTriggeredMinutes] = useState<number[]>([]);
 
   useEffect(() => {
+    if (endedAt) return;
     const interval = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [endedAt]);
 
   useEffect(() => {
+    if (endedAt) {
+      setActiveAlertMinute(null);
+      return;
+    }
     const markers = normalizeReminderMarkers(
       alertMarkersMinutes?.length
       ? alertMarkersMinutes
@@ -48,9 +55,10 @@ export const useSessionTimer = ({
       const timeout = setTimeout(() => setActiveAlertMinute(null), 5000);
       return () => clearTimeout(timeout);
     }
-  }, [alertIntervalMinutes, alertMarkersMinutes, now, plannedDurationMinutes, startedAt, triggeredMinutes]);
+  }, [alertIntervalMinutes, alertMarkersMinutes, endedAt, now, plannedDurationMinutes, startedAt, triggeredMinutes]);
 
-  const elapsedSeconds = Math.max(0, Math.floor((now - new Date(startedAt).getTime()) / 1000));
+  const effectiveNow = endedAt ? new Date(endedAt).getTime() : now;
+  const elapsedSeconds = Math.max(0, Math.floor((effectiveNow - new Date(startedAt).getTime()) / 1000));
   const remainingSeconds = typeof plannedDurationMinutes === 'number' ? Math.max(0, plannedDurationMinutes * 60 - elapsedSeconds) : null;
 
   const nextAlertMinute = useMemo(() => {
@@ -63,9 +71,10 @@ export const useSessionTimer = ({
       plannedDurationMinutes
     );
     if (!markers.length) return null;
+    if (endedAt) return null;
     const elapsedMinutes = Math.floor(elapsedSeconds / 60);
     return markers.find((minute) => minute > elapsedMinutes) ?? null;
-  }, [alertIntervalMinutes, alertMarkersMinutes, elapsedSeconds, plannedDurationMinutes]);
+  }, [alertIntervalMinutes, alertMarkersMinutes, elapsedSeconds, endedAt, plannedDurationMinutes]);
 
   return {
     elapsedSeconds,
@@ -73,6 +82,7 @@ export const useSessionTimer = ({
     elapsedLabel: formatDuration(elapsedSeconds),
     remainingLabel: remainingSeconds === null ? null : formatDuration(remainingSeconds),
     activeAlertMinute,
-    nextAlertMinute
+    nextAlertMinute,
+    hasEnded: !!endedAt
   };
 };

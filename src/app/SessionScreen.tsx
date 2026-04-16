@@ -9,7 +9,7 @@ import { DEPTH_RANGES, SESSION_ALERT_MARKERS, WATER_TYPES } from '@/constants/op
 import { useAppStore } from './store';
 import { CompetitionLengthUnit, SessionMode, WaterType } from '@/types/session';
 import { ScreenBackground } from '@/components/ScreenBackground';
-import { applyRigPresetToRig, createDefaultRigSetup } from '@/utils/rigSetup';
+import { applyRigPresetToRig, createDefaultRigSetup, setRigFlyCount } from '@/utils/rigSetup';
 import { getInvalidReminderMarkers, isReminderMarkerAllowed } from '@/utils/sessionReminders';
 
 const MODE_COPY: Record<SessionMode, { title: string; subtitle: string; button: string }> = {
@@ -50,6 +50,8 @@ export const SessionScreen = ({ navigation, route }: any) => {
   const [competitionSessionNumber, setCompetitionSessionNumber] = useState('1');
   const [competitionRequiresMeasurement, setCompetitionRequiresMeasurement] = useState(true);
   const [competitionLengthUnit, setCompetitionLengthUnit] = useState<CompetitionLengthUnit>('mm');
+  const [notificationSoundEnabled, setNotificationSoundEnabled] = useState(true);
+  const [notificationVibrationEnabled, setNotificationVibrationEnabled] = useState(true);
   const [practiceRigSetup, setPracticeRigSetup] = useState(() => createDefaultRigSetup([]));
   const [showSavedRiverList, setShowSavedRiverList] = useState(false);
   const [showSavedHypothesisList, setShowSavedHypothesisList] = useState(false);
@@ -134,6 +136,8 @@ export const SessionScreen = ({ navigation, route }: any) => {
       plannedDurationMinutes,
       alertIntervalMinutes,
       alertMarkersMinutes,
+      notificationSoundEnabled: mode === 'experiment' ? undefined : notificationSoundEnabled,
+      notificationVibrationEnabled: mode === 'experiment' ? undefined : notificationVibrationEnabled,
       waterType,
       depthRange,
       competitionBeat: mode === 'competition' ? competitionBeat.trim() || undefined : undefined,
@@ -229,21 +233,17 @@ export const SessionScreen = ({ navigation, route }: any) => {
           )}
           {mode === 'practice' ? (
             <>
-              <RigFlyManager
-                title="Starting Rig Flies"
-                rigSetup={practiceRigSetup}
-                savedFlies={savedFlies}
-                onChange={setPracticeRigSetup}
-                onCreateFly={async (fly) => {
-                  const normalizedFly = { ...fly, name: fly.name.trim() };
-                  if (!normalizedFly.name) return;
-                  await addSavedFly(normalizedFly);
-                }}
-              />
               <RigSetupPanel
                 title="Starting Rig Setup"
                 rigSetup={practiceRigSetup}
                 flyCount={practiceRigSetup.assignments.length}
+                onFlyCountChange={(nextCount) => {
+                  setPracticeRigSetup((current) =>
+                    setRigFlyCount(current, nextCount, {
+                      clearPointFly: nextCount === 1 && current.assignments.length > 1
+                    })
+                  );
+                }}
                 savedLeaderFormulas={savedLeaderFormulas}
                 savedRigPresets={savedRigPresets}
                 onChange={setPracticeRigSetup}
@@ -271,6 +271,17 @@ export const SessionScreen = ({ navigation, route }: any) => {
                 }}
                 onDeleteLeaderFormula={deleteSavedLeaderFormula}
                 onDeleteRigPreset={deleteSavedRigPreset}
+              />
+              <RigFlyManager
+                title="Fly Assignments"
+                rigSetup={practiceRigSetup}
+                savedFlies={savedFlies}
+                onChange={setPracticeRigSetup}
+                onCreateFly={async (fly) => {
+                  const normalizedFly = { ...fly, name: fly.name.trim() };
+                  if (!normalizedFly.name) return;
+                  await addSavedFly(normalizedFly);
+                }}
               />
             </>
           ) : null}
@@ -378,6 +389,21 @@ export const SessionScreen = ({ navigation, route }: any) => {
                 >
                   <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Turn Off Reminders</Text>
                 </Pressable>
+                <OptionChips
+                  label="Notification Sound"
+                  options={['On', 'Off'] as const}
+                  value={notificationSoundEnabled ? 'On' : 'Off'}
+                  onChange={(value) => setNotificationSoundEnabled(value === 'On')}
+                />
+                <OptionChips
+                  label="Notification Vibration"
+                  options={['On', 'Off'] as const}
+                  value={notificationVibrationEnabled ? 'On' : 'Off'}
+                  onChange={(value) => setNotificationVibrationEnabled(value === 'On')}
+                />
+                <Text style={{ color: '#bde6f6', lineHeight: 20 }}>
+                  Local reminders follow your session settings here, while the phone still applies its own notification permissions and device behavior.
+                </Text>
               </View>
             </>
           ) : null}

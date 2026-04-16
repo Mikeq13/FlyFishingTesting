@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View, Vibration } from 'react-native';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { OptionChips } from '@/components/OptionChips';
 import { DepthSelector } from '@/components/DepthSelector';
@@ -12,7 +12,8 @@ import { useSessionTimer } from '@/hooks/useSessionTimer';
 import { FlySetup } from '@/types/fly';
 import { TroutSpecies } from '@/types/experiment';
 import { RigSetup } from '@/types/rig';
-import { applyRigPresetToRig, createDefaultRigSetup } from '@/utils/rigSetup';
+import { applyRigPresetToRig, createDefaultRigSetup, setRigFlyCount } from '@/utils/rigSetup';
+import { cancelSessionNotifications, scheduleSessionNotifications } from '@/utils/sessionNotifications';
 
 export const PracticeScreen = ({ route }: any) => {
   const sessionId = route?.params?.sessionId as number;
@@ -29,6 +30,7 @@ export const PracticeScreen = ({ route }: any) => {
     deleteSavedLeaderFormula,
     addSavedRigPreset,
     deleteSavedRigPreset,
+    updateSessionEntry,
     addSessionSegment,
     updateSessionSegmentEntry,
     addCatchEvent
@@ -53,6 +55,7 @@ export const PracticeScreen = ({ route }: any) => {
   );
   const timer = useSessionTimer({
     startedAt: session?.date ?? new Date().toISOString(),
+    endedAt: session?.endedAt,
     plannedDurationMinutes: session?.plannedDurationMinutes,
     alertIntervalMinutes: session?.alertIntervalMinutes,
     alertMarkersMinutes: session?.alertMarkersMinutes
@@ -80,6 +83,20 @@ export const PracticeScreen = ({ route }: any) => {
     setNextWaterType(activeSegment.waterType);
     setNextDepthRange(activeSegment.depthRange);
   }, [activeSegment]);
+
+  useEffect(() => {
+    if (!session) return;
+    if (session.endedAt) {
+      cancelSessionNotifications(session.id).catch(console.error);
+      return;
+    }
+    scheduleSessionNotifications(session).catch(console.error);
+  }, [session]);
+
+  useEffect(() => {
+    if (!timer.activeAlertMinute || session?.notificationVibrationEnabled === false) return;
+    Vibration.vibrate(400);
+  }, [session?.notificationVibrationEnabled, timer.activeAlertMinute]);
 
   const currentRigSetup = activeSegment?.rigSetup ?? createDefaultRigSetup(activeSegment?.flySnapshots ?? []);
 
@@ -155,6 +172,57 @@ export const PracticeScreen = ({ route }: any) => {
     setPendingCatchSpecies(null);
   };
 
+  const endSessionEarly = () => {
+    if (!session || session.endedAt) return;
+
+    Alert.alert('End Session Early?', 'This will stop the timer and cancel any remaining reminders for this practice session.', [
+      { text: 'Keep Fishing', style: 'cancel' },
+      {
+        text: 'End Session',
+        style: 'destructive',
+        onPress: async () => {
+          const endedAt = new Date().toISOString();
+          if (activeSegment) {
+            await updateSessionSegmentEntry(activeSegment.id, {
+              sessionId: activeSegment.sessionId,
+              mode: activeSegment.mode,
+              riverName: activeSegment.riverName,
+              waterType: activeSegment.waterType,
+              depthRange: activeSegment.depthRange,
+              startedAt: activeSegment.startedAt,
+              endedAt,
+              rigSetup: activeSegment.rigSetup,
+              flySnapshots: activeSegment.flySnapshots,
+              notes: activeSegment.notes
+            });
+          }
+
+          await updateSessionEntry(session.id, {
+            date: session.date,
+            mode: session.mode,
+            plannedDurationMinutes: session.plannedDurationMinutes,
+            alertIntervalMinutes: session.alertIntervalMinutes,
+            alertMarkersMinutes: session.alertMarkersMinutes,
+            notificationSoundEnabled: session.notificationSoundEnabled,
+            notificationVibrationEnabled: session.notificationVibrationEnabled,
+            endedAt,
+            waterType: session.waterType,
+            depthRange: session.depthRange,
+            competitionBeat: session.competitionBeat,
+            competitionSessionNumber: session.competitionSessionNumber,
+            competitionRequiresMeasurement: session.competitionRequiresMeasurement,
+            competitionLengthUnit: session.competitionLengthUnit,
+            startingRigSetup: session.startingRigSetup,
+            riverName: session.riverName,
+            hypothesis: session.hypothesis,
+            notes: session.notes
+          });
+          await cancelSessionNotifications(session.id);
+        }
+      }
+    ]);
+  };
+
   return (
     <ScreenBackground>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
@@ -177,7 +245,13 @@ export const PracticeScreen = ({ route }: any) => {
           <Text style={{ color: '#f7fdff', fontWeight: '800', fontSize: 18 }}>Session Timer</Text>
           <Text style={{ color: '#d7f3ff' }}>Elapsed: {timer.elapsedLabel}</Text>
           {timer.remainingLabel ? <Text style={{ color: '#d7f3ff' }}>Remaining: {timer.remainingLabel}</Text> : null}
-          {timer.nextAlertMinute ? <Text style={{ color: '#d7f3ff' }}>Next alert: {timer.nextAlertMinute} min</Text> : null}
+          {timer.hasEnded ? <Text style={{ color: '#fca5a5', fontWeight: '700' }}>Session ended early.</Text> : null}
+          {!timer.hasEnded && timer.nextAlertMinute ? <Text style={{ color: '#d7f3ff' }}>Next alert: {timer.nextAlertMinute} min</Text> : null}
+          {!timer.hasEnded ? (
+            <Pressable onPress={endSessionEarly} style={{ backgroundColor: 'rgba(145, 48, 48, 0.95)', padding: 12, borderRadius: 12 }}>
+              <Text style={{ color: '#fff8f8', textAlign: 'center', fontWeight: '700' }}>End Session Early</Text>
+            </Pressable>
+          ) : null}
         </View>
 
         <View style={{ backgroundColor: 'rgba(6, 27, 44, 0.72)', borderRadius: 18, padding: 14, gap: 10, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
@@ -187,29 +261,22 @@ export const PracticeScreen = ({ route }: any) => {
           <OptionChips label="Next Water Type" options={WATER_TYPES} value={nextWaterType} onChange={setNextWaterType} />
           <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Next Water Depth</Text>
           <DepthSelector value={nextDepthRange} onChange={setNextDepthRange} />
-          <Pressable onPress={changeWater} style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}>
+          <Pressable disabled={timer.hasEnded} onPress={changeWater} style={{ backgroundColor: timer.hasEnded ? '#5b7282' : '#1d3557', padding: 12, borderRadius: 12 }}>
             <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Change Water</Text>
           </Pressable>
         </View>
-
-        <RigFlyManager
-          title="Current Rig"
-          rigSetup={currentRigSetup}
-          savedFlies={savedFlies}
-          onChange={(nextRigSetup) => {
-            updateActiveSegment(nextRigSetup).catch(console.error);
-          }}
-          onCreateFly={async (fly) => {
-            const normalizedFly = { ...fly, name: fly.name.trim() };
-            if (!normalizedFly.name) return;
-            await addSavedFly(normalizedFly);
-          }}
-        />
 
         <RigSetupPanel
           title="Rig Setup"
           rigSetup={currentRigSetup}
           flyCount={currentRigSetup.assignments.length}
+          onFlyCountChange={(nextCount) => {
+            updateActiveSegment(
+              setRigFlyCount(currentRigSetup, nextCount, {
+                clearPointFly: nextCount === 1 && currentRigSetup.assignments.length > 1
+              })
+            ).catch(console.error);
+          }}
           savedLeaderFormulas={savedLeaderFormulas}
           savedRigPresets={savedRigPresets}
           onChange={(nextRigSetup) => {
@@ -241,6 +308,20 @@ export const PracticeScreen = ({ route }: any) => {
           onDeleteRigPreset={deleteSavedRigPreset}
         />
 
+        <RigFlyManager
+          title="Fly Assignments"
+          rigSetup={currentRigSetup}
+          savedFlies={savedFlies}
+          onChange={(nextRigSetup) => {
+            updateActiveSegment(nextRigSetup).catch(console.error);
+          }}
+          onCreateFly={async (fly) => {
+            const normalizedFly = { ...fly, name: fly.name.trim() };
+            if (!normalizedFly.name) return;
+            await addSavedFly(normalizedFly);
+          }}
+        />
+
         <View style={{ backgroundColor: 'rgba(6, 27, 44, 0.72)', borderRadius: 18, padding: 14, gap: 10, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
           <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Log Catches</Text>
           {!currentRigSetup.assignments.length ? (
@@ -252,11 +333,12 @@ export const PracticeScreen = ({ route }: any) => {
                   {assignment.position}: {assignment.fly.name} #{assignment.fly.hookSize} {assignment.fly.beadColor} {assignment.fly.beadSizeMm}
                 </Text>
                 <Pressable
+                  disabled={timer.hasEnded}
                   onPress={() => {
                     setPendingCatchFly(assignment.fly);
                     setPendingCatchSpecies(null);
                   }}
-                  style={{ backgroundColor: '#264653', padding: 10, borderRadius: 10 }}
+                  style={{ backgroundColor: timer.hasEnded ? '#5b7282' : '#264653', padding: 10, borderRadius: 10 }}
                 >
                   <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Log Catch</Text>
                 </Pressable>

@@ -32,3 +32,40 @@ export const setActiveUserId = async (userId: number): Promise<void> => {
     String(userId)
   );
 };
+
+export const getAppSetting = async (key: string): Promise<string | null> => {
+  if (isWeb) {
+    return readWebValue(`fishing_lab.settings.${key}`);
+  }
+
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ value: string }>(
+    'SELECT value FROM app_settings WHERE key = ? LIMIT 1',
+    key
+  );
+  return rows[0]?.value ?? null;
+};
+
+export const setAppSetting = async (key: string, value: string): Promise<void> => {
+  if (isWeb) {
+    writeWebValue(`fishing_lab.settings.${key}`, value);
+    return;
+  }
+
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)`,
+    key,
+    value
+  );
+};
+
+export const deleteAppSetting = async (key: string): Promise<void> => {
+  if (isWeb) {
+    writeWebValue(`fishing_lab.settings.${key}`, '');
+    return;
+  }
+
+  const db = await getDb();
+  await db.runAsync('DELETE FROM app_settings WHERE key = ?', key);
+};

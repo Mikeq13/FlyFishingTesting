@@ -47,6 +47,9 @@ export const initDb = async (): Promise<void> => {
       planned_duration_minutes INTEGER,
       alert_interval_minutes INTEGER,
       alert_markers_json TEXT,
+      notification_sound_enabled INTEGER NOT NULL DEFAULT 1,
+      notification_vibration_enabled INTEGER NOT NULL DEFAULT 1,
+      ended_at TEXT,
       water_type TEXT NOT NULL,
       depth_range TEXT NOT NULL,
       competition_beat TEXT,
@@ -197,6 +200,15 @@ export const initDb = async (): Promise<void> => {
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE sessions ADD COLUMN alert_markers_json TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN notification_sound_enabled INTEGER NOT NULL DEFAULT 1;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN notification_vibration_enabled INTEGER NOT NULL DEFAULT 1;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN ended_at TEXT;`);
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE sessions ADD COLUMN competition_beat TEXT;`);

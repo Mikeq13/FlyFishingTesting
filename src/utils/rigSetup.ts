@@ -34,9 +34,9 @@ const inferBaseTippetSize = (sections: LeaderFormula['sections']): TippetSize =>
     .find(Boolean)?.[1] as TippetSize | undefined) ?? '5x';
 
 const defaultTippetLabelsForCount = (count: number): string[] => {
-  if (count <= 1) return ['Point Tippet'];
-  if (count === 2) return ['Dropper Tippet', 'Point Tippet'];
-  return ['Dropper Tippet', 'Middle Tippet', 'Point Tippet'];
+  if (count <= 1) return ['Leader to Point'];
+  if (count === 2) return ['Leader to First Dropper', 'First Dropper to Point'];
+  return ['Leader to First Dropper', 'First Dropper to Middle Dropper', 'Middle Dropper to Point'];
 };
 
 export const createRigAssignments = (flies: FlySetup[] = []): RigFlyAssignment[] =>

@@ -5,7 +5,7 @@ import { UserProfile } from '@/types/user';
 import { FlySetup, SavedFly } from '@/types/fly';
 import { CatchEvent, SessionSegment } from '@/types/activity';
 import { LeaderFormula, RigPreset } from '@/types/rig';
-import { createSession, deleteSessionsForUser, listSessions } from '@/db/sessionRepo';
+import { createSession, deleteSessionsForUser, listSessions, updateSession } from '@/db/sessionRepo';
 import { archiveExperiments, createExperiment, deleteDraftExperimentsForUser, deleteExperiments, deleteExperimentsForUser, listExperiments, updateExperiment } from '@/db/experimentRepo';
 import { createUser, deleteUser, listUsers, updateUser } from '@/db/userRepo';
 import { createSavedFly, deleteSavedFliesForUser, listSavedFlies } from '@/db/savedFlyRepo';
@@ -67,6 +67,7 @@ interface AppStore {
   cleanupExperimentsForCurrentUser: (filters: { from?: string; to?: string; outcome?: Experiment['outcome'] | 'all'; action: 'archive' | 'delete'; }) => Promise<number>;
   refresh: (targetUserId?: number | null) => Promise<void>;
   addSession: (payload: Omit<Session, 'id' | 'userId'>) => Promise<number>;
+  updateSessionEntry: (sessionId: number, payload: Omit<Session, 'id' | 'userId'>) => Promise<void>;
   addSessionSegment: (payload: Omit<SessionSegment, 'id' | 'userId'>) => Promise<number>;
   updateSessionSegmentEntry: (segmentId: number, payload: Omit<SessionSegment, 'id' | 'userId'>) => Promise<void>;
   addCatchEvent: (payload: Omit<CatchEvent, 'id' | 'userId'>) => Promise<number>;
@@ -420,6 +421,10 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
           const id = await createSession({ ...payload, userId: activeUserId });
           await refresh();
           return id;
+        },
+        updateSessionEntry: async (sessionId, payload) => {
+          await updateSession(sessionId, payload);
+          await refresh(activeUserId);
         },
         addSessionSegment: async (payload) => {
           if (!activeUserId) throw new Error('No active user selected.');

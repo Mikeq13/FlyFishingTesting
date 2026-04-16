@@ -1,16 +1,17 @@
 import React, { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View, Vibration } from 'react-native';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { OptionChips } from '@/components/OptionChips';
 import { useAppStore } from './store';
 import { useSessionTimer } from '@/hooks/useSessionTimer';
 import { TroutSpecies } from '@/types/experiment';
+import { cancelSessionNotifications, scheduleSessionNotifications } from '@/utils/sessionNotifications';
 
 const TROUT_SPECIES: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow', 'Tiger', 'Whitefish'];
 
 export const CompetitionScreen = ({ route }: any) => {
   const sessionId = route?.params?.sessionId as number;
-  const { sessions, catchEvents, addCatchEvent } = useAppStore();
+  const { sessions, catchEvents, addCatchEvent, updateSessionEntry } = useAppStore();
   const session = sessions.find((candidate) => candidate.id === sessionId) ?? null;
   const [showCatchModal, setShowCatchModal] = useState(false);
   const [species, setSpecies] = useState<TroutSpecies>('Rainbow');
@@ -24,10 +25,25 @@ export const CompetitionScreen = ({ route }: any) => {
   const competitionRequiresMeasurement = session?.competitionRequiresMeasurement ?? true;
   const timer = useSessionTimer({
     startedAt: session?.date ?? new Date().toISOString(),
+    endedAt: session?.endedAt,
     plannedDurationMinutes: session?.plannedDurationMinutes,
     alertIntervalMinutes: session?.alertIntervalMinutes,
     alertMarkersMinutes: session?.alertMarkersMinutes
   });
+
+  React.useEffect(() => {
+    if (!session) return;
+    if (session.endedAt) {
+      cancelSessionNotifications(session.id).catch(console.error);
+      return;
+    }
+    scheduleSessionNotifications(session).catch(console.error);
+  }, [session]);
+
+  React.useEffect(() => {
+    if (!timer.activeAlertMinute || session?.notificationVibrationEnabled === false) return;
+    Vibration.vibrate(400);
+  }, [session?.notificationVibrationEnabled, timer.activeAlertMinute]);
 
   if (!session) {
     return (
@@ -59,6 +75,42 @@ export const CompetitionScreen = ({ route }: any) => {
     setLengthValue('');
   };
 
+  const endSessionEarly = () => {
+    if (!session || session.endedAt) return;
+
+    Alert.alert('End Session Early?', 'This will stop the timer and cancel any remaining reminders for this competition session.', [
+      { text: 'Keep Fishing', style: 'cancel' },
+      {
+        text: 'End Session',
+        style: 'destructive',
+        onPress: async () => {
+          const endedAt = new Date().toISOString();
+          await updateSessionEntry(session.id, {
+            date: session.date,
+            mode: session.mode,
+            plannedDurationMinutes: session.plannedDurationMinutes,
+            alertIntervalMinutes: session.alertIntervalMinutes,
+            alertMarkersMinutes: session.alertMarkersMinutes,
+            notificationSoundEnabled: session.notificationSoundEnabled,
+            notificationVibrationEnabled: session.notificationVibrationEnabled,
+            endedAt,
+            waterType: session.waterType,
+            depthRange: session.depthRange,
+            competitionBeat: session.competitionBeat,
+            competitionSessionNumber: session.competitionSessionNumber,
+            competitionRequiresMeasurement: session.competitionRequiresMeasurement,
+            competitionLengthUnit: session.competitionLengthUnit,
+            startingRigSetup: session.startingRigSetup,
+            riverName: session.riverName,
+            hypothesis: session.hypothesis,
+            notes: session.notes
+          });
+          await cancelSessionNotifications(session.id);
+        }
+      }
+    ]);
+  };
+
   return (
     <ScreenBackground>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
@@ -83,7 +135,13 @@ export const CompetitionScreen = ({ route }: any) => {
           <Text style={{ color: '#f7fdff', fontWeight: '800', fontSize: 18 }}>Session Timer</Text>
           <Text style={{ color: '#d7f3ff' }}>Elapsed: {timer.elapsedLabel}</Text>
           {timer.remainingLabel ? <Text style={{ color: '#d7f3ff' }}>Remaining: {timer.remainingLabel}</Text> : null}
-          {timer.nextAlertMinute ? <Text style={{ color: '#d7f3ff' }}>Next alert: {timer.nextAlertMinute} min</Text> : null}
+          {timer.hasEnded ? <Text style={{ color: '#fca5a5', fontWeight: '700' }}>Session ended early.</Text> : null}
+          {!timer.hasEnded && timer.nextAlertMinute ? <Text style={{ color: '#d7f3ff' }}>Next alert: {timer.nextAlertMinute} min</Text> : null}
+          {!timer.hasEnded ? (
+            <Pressable onPress={endSessionEarly} style={{ backgroundColor: 'rgba(145, 48, 48, 0.95)', padding: 12, borderRadius: 12 }}>
+              <Text style={{ color: '#fff8f8', textAlign: 'center', fontWeight: '700' }}>End Session Early</Text>
+            </Pressable>
+          ) : null}
         </View>
 
         <View style={{ backgroundColor: 'rgba(245,252,255,0.96)', borderRadius: 18, padding: 14, gap: 8 }}>
@@ -96,7 +154,7 @@ export const CompetitionScreen = ({ route }: any) => {
           ) : (
             <Text style={{ color: '#334e68' }}>This session is counting fish only. No length entry required.</Text>
           )}
-          <Pressable onPress={() => setShowCatchModal(true)} style={{ backgroundColor: '#264653', padding: 12, borderRadius: 12 }}>
+          <Pressable disabled={timer.hasEnded} onPress={() => setShowCatchModal(true)} style={{ backgroundColor: timer.hasEnded ? '#5b7282' : '#264653', padding: 12, borderRadius: 12 }}>
             <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Log Competition Fish</Text>
           </Pressable>
         </View>

@@ -12,6 +12,7 @@ interface RigSetupPanelProps {
   title: string;
   rigSetup: RigSetup;
   flyCount: number;
+  onFlyCountChange?: (nextCount: 1 | 2 | 3) => void;
   savedLeaderFormulas: LeaderFormula[];
   savedRigPresets: RigPreset[];
   onChange: (next: RigSetup) => void;
@@ -26,6 +27,7 @@ export const RigSetupPanel = ({
   title,
   rigSetup,
   flyCount,
+  onFlyCountChange,
   savedLeaderFormulas,
   savedRigPresets,
   onChange,
@@ -45,63 +47,6 @@ export const RigSetupPanel = ({
   return (
     <View style={{ gap: 10, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)', borderRadius: 18, padding: 14, backgroundColor: 'rgba(6, 27, 44, 0.70)' }}>
       <Text style={{ fontWeight: '800', fontSize: 18, color: '#f7fdff' }}>{title}</Text>
-
-      {!!sortedPresets.length ? (
-        <>
-          <Pressable onPress={() => setShowPresetList((current) => !current)} style={{ backgroundColor: '#355070', padding: 12, borderRadius: 12 }}>
-            <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>
-              {showPresetList ? 'Hide Rig Presets' : 'Swap Rig Preset'}
-            </Text>
-          </Pressable>
-          {showPresetList ? (
-            <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)' }}>
-              {sortedPresets.map((preset) => (
-                <View
-                  key={preset.id}
-                  style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb', gap: 8 }}
-                >
-                  <Pressable
-                    onPress={() => {
-                      onApplyRigPreset(preset);
-                      setShowPresetList(false);
-                    }}
-                  >
-                    <Text style={{ color: '#0b3d3a', fontWeight: '700' }}>{preset.name}</Text>
-                    <Text style={{ color: '#4b5563', fontSize: 12 }}>
-                      {preset.flyCount} fly{preset.flyCount === 1 ? '' : 's'} | {preset.positions.join(' | ')}
-                    </Text>
-                  </Pressable>
-                  {onDeleteRigPreset ? (
-                    <Pressable
-                      onPress={() => {
-                        onDeleteRigPreset(preset.id).catch(console.error);
-                      }}
-                      style={{ backgroundColor: 'rgba(91,11,11,0.92)', padding: 10, borderRadius: 10 }}
-                    >
-                      <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Delete Rig Preset</Text>
-                    </Pressable>
-                  ) : null}
-                </View>
-              ))}
-            </ScrollView>
-          ) : null}
-        </>
-      ) : null}
-
-      <Pressable onPress={() => setShowPresetEditor((current) => !current)} style={{ backgroundColor: '#2f3e46', padding: 12, borderRadius: 12 }}>
-        <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>
-          {showPresetEditor ? 'Hide Rig Preset Saver' : 'Save Current as Rig Preset'}
-        </Text>
-      </Pressable>
-
-      {showPresetEditor ? (
-        <RigPresetEditor
-          onSave={async (name) => {
-            await onCreateRigPreset(createRigPresetPayload(rigSetup, name));
-            setShowPresetEditor(false);
-          }}
-        />
-      ) : null}
 
       {!!sortedFormulas.length ? (
         <>
@@ -148,6 +93,63 @@ export const RigSetupPanel = ({
         </>
       ) : null}
 
+      <Pressable onPress={() => setShowPresetEditor((current) => !current)} style={{ backgroundColor: '#2f3e46', padding: 12, borderRadius: 12 }}>
+        <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>
+          {showPresetEditor ? 'Hide Rig Preset Saver' : 'Save Current as Rig Preset'}
+        </Text>
+      </Pressable>
+
+      {showPresetEditor ? (
+        <RigPresetEditor
+          onSave={async (name) => {
+            await onCreateRigPreset(createRigPresetPayload(rigSetup, name));
+            setShowPresetEditor(false);
+          }}
+        />
+      ) : null}
+
+      {!!sortedPresets.length ? (
+        <>
+          <Pressable onPress={() => setShowPresetList((current) => !current)} style={{ backgroundColor: '#355070', padding: 12, borderRadius: 12 }}>
+            <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>
+              {showPresetList ? 'Hide Rig Presets' : 'Apply Saved Rig Preset'}
+            </Text>
+          </Pressable>
+          {showPresetList ? (
+            <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)' }}>
+              {sortedPresets.map((preset) => (
+                <View
+                  key={preset.id}
+                  style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb', gap: 8 }}
+                >
+                  <Pressable
+                    onPress={() => {
+                      onApplyRigPreset(preset);
+                      setShowPresetList(false);
+                    }}
+                  >
+                    <Text style={{ color: '#0b3d3a', fontWeight: '700' }}>{preset.name}</Text>
+                    <Text style={{ color: '#4b5563', fontSize: 12 }}>
+                      {preset.flyCount} fly{preset.flyCount === 1 ? '' : 's'} | {preset.positions.join(' | ')}
+                    </Text>
+                  </Pressable>
+                  {onDeleteRigPreset ? (
+                    <Pressable
+                      onPress={() => {
+                        onDeleteRigPreset(preset.id).catch(console.error);
+                      }}
+                      style={{ backgroundColor: 'rgba(91,11,11,0.92)', padding: 10, borderRadius: 10 }}
+                    >
+                      <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Delete Rig Preset</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              ))}
+            </ScrollView>
+          ) : null}
+        </>
+      ) : null}
+
       <Pressable onPress={() => setShowFormulaEditor((current) => !current)} style={{ backgroundColor: '#264653', padding: 12, borderRadius: 12 }}>
         <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>
           {showFormulaEditor ? 'Hide Leader Formula Builder' : 'Quick Add Leader Formula'}
@@ -164,8 +166,16 @@ export const RigSetupPanel = ({
         />
       ) : null}
 
+      {onFlyCountChange ? (
+        <OptionChips
+          label="Fly Count"
+          options={['1', '2', '3'] as const}
+          value={String(flyCount || 1)}
+          onChange={(value) => onFlyCountChange(Number(value) as 1 | 2 | 3)}
+        />
+      ) : null}
+
       <View style={{ gap: 8 }}>
-        <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Added Tippet Sections</Text>
         {rigSetup.addedTippetSections.map((section, index) => (
           <View key={`${section.label}-${index}`} style={{ gap: 8, borderRadius: 12, padding: 10, backgroundColor: 'rgba(255,255,255,0.08)' }}>
             <Text style={{ color: '#f7fdff', fontWeight: '700' }}>{section.label}</Text>

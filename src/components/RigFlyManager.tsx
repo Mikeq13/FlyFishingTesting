@@ -3,7 +3,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { FlySetup, SavedFly } from '@/types/fly';
 import { FlySelector } from './FlySelector';
 import { RigFlyAssignment, RigSetup } from '@/types/rig';
-import { clearRigAssignmentFly, createEmptyFly, getFlyCount, getRigPositionsForCount, replaceRigAssignmentFly, replaceRigAssignmentPosition, setRigFlyCount, syncRigAssignments } from '@/utils/rigSetup';
+import { clearRigAssignmentFly, createEmptyFly, getRigPositionsForCount, replaceRigAssignmentFly, replaceRigAssignmentPosition, syncRigAssignments } from '@/utils/rigSetup';
 import { OptionChips } from './OptionChips';
 
 const sameFly = (left: FlySetup, right: FlySetup) =>
@@ -63,18 +63,6 @@ export const RigFlyManager = ({ title, rigSetup, savedFlies, onChange, onCreateF
   return (
     <View style={{ gap: 10, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)', borderRadius: 18, padding: 14, backgroundColor: 'rgba(6, 27, 44, 0.70)' }}>
       <Text style={{ fontWeight: '800', fontSize: 18, color: '#f7fdff' }}>{title}</Text>
-      <OptionChips
-        label="Fly Count"
-        options={['1', '2', '3'] as const}
-        value={String(getFlyCount(selectedAssignments.length || 1))}
-        onChange={(value) => {
-          const nextCount = Number(value) as 1 | 2 | 3;
-          const nextRigSetup = setRigFlyCount(rigSetup, nextCount, {
-            clearPointFly: nextCount === 1 && selectedAssignments.length > 1
-          });
-          onChange(nextRigSetup);
-        }}
-      />
       {!!sortedSavedFlies.length ? (
         <>
           <Pressable onPress={() => setShowSavedFlyList((current) => !current)} style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}>

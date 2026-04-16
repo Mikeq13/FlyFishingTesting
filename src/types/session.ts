@@ -26,6 +26,9 @@ export interface Session {
   plannedDurationMinutes?: number;
   alertIntervalMinutes?: number | null;
   alertMarkersMinutes?: number[];
+  notificationSoundEnabled?: boolean;
+  notificationVibrationEnabled?: boolean;
+  endedAt?: string;
   waterType: WaterType;
   depthRange: DepthRange;
   competitionBeat?: string;

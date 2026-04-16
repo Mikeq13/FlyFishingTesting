@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AppStoreProvider } from './app/store';
@@ -12,11 +12,16 @@ import { HistoryScreen } from './app/HistoryScreen';
 import { CoachScreen } from './app/CoachScreen';
 import { SessionDetailScreen } from './app/SessionDetailScreen';
 import { AccessScreen } from './app/AccessScreen';
+import { ensureNotificationHandler } from './utils/sessionNotifications';
 
 const Stack = createNativeStackNavigator();
 
 export default function App() {
-    return (
+  useEffect(() => {
+    ensureNotificationHandler().catch(console.error);
+  }, []);
+
+  return (
     <AppStoreProvider>
       <NavigationContainer>
         <Stack.Navigator initialRouteName="Home" screenOptions={{ headerTintColor: '#0b1f2a', headerBackTitleVisible: false }}>
