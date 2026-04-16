@@ -244,4 +244,14 @@ export const initDb = async (): Promise<void> => {
   try {
     await database.execAsync(`ALTER TABLE session_segments ADD COLUMN rig_setup_json TEXT;`);
   } catch {}
+  try {
+    await database.execAsync(`CREATE TABLE IF NOT EXISTS saved_leader_formulas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      sections_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    )`);
+  } catch {}
 };
