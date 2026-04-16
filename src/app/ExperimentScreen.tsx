@@ -14,7 +14,7 @@ import { ScreenBackground } from '@/components/ScreenBackground';
 import { ExperimentControlFocus, ExperimentFlyEntry, ExperimentStatus, TroutSpecies } from '@/types/experiment';
 import { RigSetup } from '@/types/rig';
 import { alignExperimentEntries, createEmptyExperimentEntries, getExperimentRigSetup, getLegacyExperimentFields } from '@/utils/experimentEntries';
-import { createDefaultRigSetup, syncRigFlyCount } from '@/utils/rigSetup';
+import { createDefaultRigSetup, syncRigSetupFromFlies } from '@/utils/rigSetup';
 
 const isDraftExperiment = (entries: ExperimentFlyEntry[]) =>
   entries.some((entry) => entry.casts <= 0 || !entry.fly.name.trim());
@@ -49,7 +49,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   }, [baselineIndex, flyCount]);
 
   useEffect(() => {
-    setRigSetup((current) => syncRigFlyCount(current, flyEntries.slice(0, flyCount).map((entry) => entry.fly)));
+    setRigSetup((current) => syncRigSetupFromFlies(current, flyEntries.slice(0, flyCount).map((entry) => entry.fly)));
   }, [flyCount, flyEntries]);
 
   useEffect(() => {
@@ -73,7 +73,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   const updateEntry = (index: number, nextEntry: ExperimentFlyEntry) => {
     setFlyEntries((current) => {
       const nextEntries = current.map((entry, entryIndex) => (entryIndex === index ? nextEntry : entry));
-      setRigSetup((existingRigSetup) => syncRigFlyCount(existingRigSetup, nextEntries.slice(0, flyCount).map((entry) => entry.fly)));
+      setRigSetup((existingRigSetup) => syncRigSetupFromFlies(existingRigSetup, nextEntries.slice(0, flyCount).map((entry) => entry.fly)));
       return nextEntries;
     });
   };
@@ -201,7 +201,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         sessionId,
         hypothesis: session?.hypothesis || existingExperiment?.hypothesis || 'No hypothesis provided',
         controlFocus,
-        rigSetup: syncRigFlyCount(rigSetup, visibleEntries.map((entry) => entry.fly)),
+        rigSetup: syncRigSetupFromFlies(rigSetup, visibleEntries.map((entry) => entry.fly)),
         flyEntries: visibleEntries,
         ...legacy,
         winner: isDraft ? 'draft' : status.winner,

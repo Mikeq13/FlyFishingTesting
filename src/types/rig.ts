@@ -1,6 +1,7 @@
 import { FlySetup } from './fly';
 
 export type TippetSize = '5x' | '6x' | '7x' | '8x';
+export type RigFlyPosition = 'dropper' | 'middle dropper' | 'point';
 
 export interface LeaderFormulaSection {
   order: number;
@@ -16,14 +17,25 @@ export interface LeaderFormula {
   createdAt: string;
 }
 
+export interface AddedTippetSection {
+  order: number;
+  label: string;
+  size: TippetSize;
+  lengthFeet?: number;
+}
+
+export interface RigFlyAssignment {
+  position: RigFlyPosition;
+  fly: FlySetup;
+}
+
 export interface RigSetup {
   leaderFormulaId?: number;
   leaderFormulaName?: string;
   leaderFormulaSectionsSnapshot: LeaderFormulaSection[];
-  tippetSize: TippetSize;
-  totalTippetLengthFeet?: number;
+  assignments: RigFlyAssignment[];
+  addedTippetSections: AddedTippetSection[];
   lengthToFirstDropperInches?: number;
   firstToSecondDropperInches?: number;
   rigNotes?: string;
-  flies: FlySetup[];
 }

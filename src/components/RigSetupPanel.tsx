@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { OptionChips } from './OptionChips';
-import { LeaderFormula, RigSetup, TippetSize } from '@/types/rig';
+import { AddedTippetSection, LeaderFormula, RigSetup, TippetSize } from '@/types/rig';
 import { applyLeaderFormulaToRig } from '@/utils/rigSetup';
 import { LeaderFormulaEditor } from './LeaderFormulaEditor';
 
@@ -33,7 +33,6 @@ export const RigSetupPanel = ({
   return (
     <View style={{ gap: 10, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)', borderRadius: 18, padding: 14, backgroundColor: 'rgba(6, 27, 44, 0.70)' }}>
       <Text style={{ fontWeight: '800', fontSize: 18, color: '#f7fdff' }}>{title}</Text>
-      <OptionChips label="Tippet Size" options={TIPPET_SIZES} value={rigSetup.tippetSize} onChange={(value) => onChange({ ...rigSetup, tippetSize: value as TippetSize })} />
 
       {!!sortedFormulas.length ? (
         <>
@@ -96,14 +95,42 @@ export const RigSetupPanel = ({
         />
       ) : null}
 
-      <TextInput
-        value={rigSetup.totalTippetLengthFeet ? String(rigSetup.totalTippetLengthFeet) : ''}
-        onChangeText={(value) => onChange({ ...rigSetup, totalTippetLengthFeet: value ? Number(value) : undefined })}
-        placeholder="Total tippet length (feet)"
-        keyboardType="decimal-pad"
-        placeholderTextColor="#5a6c78"
-        style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
-      />
+      <View style={{ gap: 8 }}>
+        <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Added Tippet Sections</Text>
+        {rigSetup.addedTippetSections.map((section, index) => (
+          <View key={`${section.label}-${index}`} style={{ gap: 8, borderRadius: 12, padding: 10, backgroundColor: 'rgba(255,255,255,0.08)' }}>
+            <Text style={{ color: '#f7fdff', fontWeight: '700' }}>{section.label}</Text>
+            <OptionChips
+              label="Tippet Size"
+              options={TIPPET_SIZES}
+              value={section.size}
+              onChange={(value) =>
+                onChange({
+                  ...rigSetup,
+                  addedTippetSections: rigSetup.addedTippetSections.map((entry, entryIndex) =>
+                    entryIndex === index ? { ...entry, size: value as TippetSize } : entry
+                  )
+                })
+              }
+            />
+            <TextInput
+              value={section.lengthFeet ? String(section.lengthFeet) : ''}
+              onChangeText={(value) =>
+                onChange({
+                  ...rigSetup,
+                  addedTippetSections: rigSetup.addedTippetSections.map((entry, entryIndex): AddedTippetSection =>
+                    entryIndex === index ? { ...entry, lengthFeet: value ? Number(value) : undefined } : entry
+                  )
+                })
+              }
+              placeholder="Added tippet length (feet)"
+              keyboardType="decimal-pad"
+              placeholderTextColor="#5a6c78"
+              style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+            />
+          </View>
+        ))}
+      </View>
 
       {flyCount > 1 ? (
         <TextInput

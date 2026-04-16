@@ -7,10 +7,9 @@ import { RigFlyManager } from '@/components/RigFlyManager';
 import { RigSetupPanel } from '@/components/RigSetupPanel';
 import { DEPTH_RANGES, SESSION_ALERT_MARKERS, WATER_TYPES } from '@/constants/options';
 import { useAppStore } from './store';
-import { FlySetup } from '@/types/fly';
 import { CompetitionLengthUnit, SessionMode, WaterType } from '@/types/session';
 import { ScreenBackground } from '@/components/ScreenBackground';
-import { createDefaultRigSetup, syncRigFlyCount } from '@/utils/rigSetup';
+import { createDefaultRigSetup } from '@/utils/rigSetup';
 
 const MODE_COPY: Record<SessionMode, { title: string; subtitle: string; button: string }> = {
   experiment: {
@@ -49,7 +48,6 @@ export const SessionScreen = ({ navigation, route }: any) => {
   const [competitionSessionNumber, setCompetitionSessionNumber] = useState('1');
   const [competitionRequiresMeasurement, setCompetitionRequiresMeasurement] = useState(true);
   const [competitionLengthUnit, setCompetitionLengthUnit] = useState<CompetitionLengthUnit>('mm');
-  const [practiceSelectedFlies, setPracticeSelectedFlies] = useState<FlySetup[]>([]);
   const [practiceRigSetup, setPracticeRigSetup] = useState(() => createDefaultRigSetup([]));
   const [showSavedRiverList, setShowSavedRiverList] = useState(false);
   const [showSavedHypothesisList, setShowSavedHypothesisList] = useState(false);
@@ -119,7 +117,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
       competitionSessionNumber: mode === 'competition' ? Number(competitionSessionNumber || '0') || undefined : undefined,
       competitionRequiresMeasurement: mode === 'competition' ? competitionRequiresMeasurement : undefined,
       competitionLengthUnit: mode === 'competition' ? competitionLengthUnit : undefined,
-      startingRigSetup: mode === 'practice' ? syncRigFlyCount(practiceRigSetup, practiceSelectedFlies) : undefined,
+      startingRigSetup: mode === 'practice' ? practiceRigSetup : undefined,
       riverName: normalizedRiverName || undefined,
       hypothesis: hypothesis.trim() || undefined,
       notes
@@ -210,25 +208,19 @@ export const SessionScreen = ({ navigation, route }: any) => {
             <>
               <RigFlyManager
                 title="Starting Rig Flies"
-                selectedFlies={practiceSelectedFlies}
+                rigSetup={practiceRigSetup}
                 savedFlies={savedFlies}
-                onChange={(nextFlies) => {
-                  setPracticeSelectedFlies(nextFlies);
-                  setPracticeRigSetup((current) => syncRigFlyCount(current, nextFlies));
-                }}
+                onChange={setPracticeRigSetup}
                 onCreateFly={async (fly) => {
                   const normalizedFly = { ...fly, name: fly.name.trim() };
                   if (!normalizedFly.name) return;
                   await addSavedFly(normalizedFly);
-                  const nextFlies = [...practiceSelectedFlies, normalizedFly];
-                  setPracticeSelectedFlies(nextFlies);
-                  setPracticeRigSetup((current) => syncRigFlyCount(current, nextFlies));
                 }}
               />
               <RigSetupPanel
                 title="Starting Rig Setup"
                 rigSetup={practiceRigSetup}
-                flyCount={practiceSelectedFlies.length}
+                flyCount={practiceRigSetup.assignments.length}
                 savedLeaderFormulas={savedLeaderFormulas}
                 onChange={setPracticeRigSetup}
                 onCreateLeaderFormula={async (payload) => {

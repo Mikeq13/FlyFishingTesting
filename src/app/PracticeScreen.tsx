@@ -11,7 +11,8 @@ import { useAppStore } from './store';
 import { useSessionTimer } from '@/hooks/useSessionTimer';
 import { FlySetup } from '@/types/fly';
 import { TroutSpecies } from '@/types/experiment';
-import { createDefaultRigSetup, syncRigFlyCount } from '@/utils/rigSetup';
+import { RigSetup } from '@/types/rig';
+import { createDefaultRigSetup } from '@/utils/rigSetup';
 
 export const PracticeScreen = ({ route }: any) => {
   const sessionId = route?.params?.sessionId as number;
@@ -66,7 +67,7 @@ export const PracticeScreen = ({ route }: any) => {
       depthRange: session.depthRange,
       startedAt: new Date().toISOString(),
       rigSetup: seededRigSetup,
-      flySnapshots: seededRigSetup.flies,
+      flySnapshots: seededRigSetup.assignments.map((assignment) => assignment.fly),
       notes: session.notes
     }).finally(() => setIsBootstrappingSegment(false));
   }, [activeSegment, addSessionSegment, isBootstrappingSegment, session]);
@@ -76,6 +77,8 @@ export const PracticeScreen = ({ route }: any) => {
     setNextWaterType(activeSegment.waterType);
     setNextDepthRange(activeSegment.depthRange);
   }, [activeSegment]);
+
+  const currentRigSetup = activeSegment?.rigSetup ?? createDefaultRigSetup(activeSegment?.flySnapshots ?? []);
 
   if (!session) {
     return (
@@ -109,15 +112,16 @@ export const PracticeScreen = ({ route }: any) => {
       waterType: nextWaterType,
       depthRange: nextDepthRange,
       startedAt: endedAt,
-      rigSetup: activeSegment.rigSetup,
-      flySnapshots: activeSegment.flySnapshots,
+      rigSetup: currentRigSetup,
+      flySnapshots: currentRigSetup.assignments.map((assignment) => assignment.fly),
       notes: activeSegment.notes
     });
     Alert.alert('Water updated', `Started a new practice segment in ${nextWaterType}.`);
   };
 
-  const updateActiveSegment = async (nextFlies: FlySetup[], nextRigSetup = activeSegment?.rigSetup ?? createDefaultRigSetup(nextFlies)) => {
+  const updateActiveSegment = async (nextRigSetup: RigSetup) => {
     if (!activeSegment) return;
+    const nextFlies = nextRigSetup.assignments.map((assignment) => assignment.fly);
     await updateSessionSegmentEntry(activeSegment.id, {
       sessionId: activeSegment.sessionId,
       mode: activeSegment.mode,
@@ -126,7 +130,7 @@ export const PracticeScreen = ({ route }: any) => {
       depthRange: activeSegment.depthRange,
       startedAt: activeSegment.startedAt,
       endedAt: activeSegment.endedAt,
-      rigSetup: syncRigFlyCount(nextRigSetup, nextFlies),
+      rigSetup: nextRigSetup,
       flySnapshots: nextFlies,
       notes: activeSegment.notes
     });
@@ -187,27 +191,25 @@ export const PracticeScreen = ({ route }: any) => {
 
         <RigFlyManager
           title="Current Rig"
-          selectedFlies={activeSegment?.flySnapshots ?? []}
+          rigSetup={currentRigSetup}
           savedFlies={savedFlies}
-          onChange={(nextFlies) => {
-            updateActiveSegment(nextFlies, activeSegment?.rigSetup ?? createDefaultRigSetup(nextFlies)).catch(console.error);
+          onChange={(nextRigSetup) => {
+            updateActiveSegment(nextRigSetup).catch(console.error);
           }}
           onCreateFly={async (fly) => {
             const normalizedFly = { ...fly, name: fly.name.trim() };
             if (!normalizedFly.name) return;
             await addSavedFly(normalizedFly);
-            const nextFlies = [...(activeSegment?.flySnapshots ?? []), normalizedFly];
-            await updateActiveSegment(nextFlies, activeSegment?.rigSetup ?? createDefaultRigSetup(nextFlies));
           }}
         />
 
         <RigSetupPanel
           title="Rig Setup"
-          rigSetup={activeSegment?.rigSetup ?? createDefaultRigSetup(activeSegment?.flySnapshots ?? [])}
-          flyCount={activeSegment?.flySnapshots.length ?? 0}
+          rigSetup={currentRigSetup}
+          flyCount={currentRigSetup.assignments.length}
           savedLeaderFormulas={savedLeaderFormulas}
           onChange={(nextRigSetup) => {
-            updateActiveSegment(activeSegment?.flySnapshots ?? [], nextRigSetup).catch(console.error);
+            updateActiveSegment(nextRigSetup).catch(console.error);
           }}
           onCreateLeaderFormula={async (payload) => {
             const id = await addSavedLeaderFormula(payload);
@@ -224,17 +226,17 @@ export const PracticeScreen = ({ route }: any) => {
 
         <View style={{ backgroundColor: 'rgba(6, 27, 44, 0.72)', borderRadius: 18, padding: 14, gap: 10, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
           <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Log Catches</Text>
-          {!activeSegment?.flySnapshots.length ? (
+          {!currentRigSetup.assignments.length ? (
             <Text style={{ color: '#bde6f6' }}>Add flies to the rig before logging practice catches.</Text>
           ) : (
-            activeSegment.flySnapshots.map((fly, index) => (
-              <View key={`${fly.name}-${index}`} style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: 12, gap: 8 }}>
+            currentRigSetup.assignments.map((assignment, index) => (
+              <View key={`${assignment.position}-${assignment.fly.name}-${index}`} style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: 12, gap: 8 }}>
                 <Text style={{ color: '#f7fdff', fontWeight: '800' }}>
-                  {fly.name} #{fly.hookSize} {fly.beadColor} {fly.beadSizeMm}
+                  {assignment.position}: {assignment.fly.name} #{assignment.fly.hookSize} {assignment.fly.beadColor} {assignment.fly.beadSizeMm}
                 </Text>
                 <Pressable
                   onPress={() => {
-                    setPendingCatchFly(fly);
+                    setPendingCatchFly(assignment.fly);
                     setPendingCatchSpecies(null);
                   }}
                   style={{ backgroundColor: '#264653', padding: 10, borderRadius: 10 }}
