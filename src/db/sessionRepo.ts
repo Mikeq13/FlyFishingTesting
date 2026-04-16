@@ -12,10 +12,11 @@ export const createSession = async (payload: Omit<Session, 'id'>): Promise<numbe
 
   const db = await getDb();
   const result = await db.runAsync(
-    `INSERT INTO sessions (user_id, date, water_type, depth_range, river_name, hypothesis, insect_type, insect_stage, insect_confidence, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO sessions (user_id, date, session_mode, water_type, depth_range, river_name, hypothesis, insect_type, insect_stage, insect_confidence, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     payload.userId,
     payload.date,
+    payload.mode,
     payload.waterType,
     payload.depthRange,
     payload.riverName ?? null,
@@ -29,7 +30,14 @@ export const createSession = async (payload: Omit<Session, 'id'>): Promise<numbe
 };
 
 export const listSessions = async (userId: number): Promise<Session[]> => {
-  if (isWeb) return listWebRows<Session>(WEB_SESSIONS_KEY).filter((s) => s.userId === userId);
+  if (isWeb) {
+    return listWebRows<Session>(WEB_SESSIONS_KEY)
+      .filter((s) => s.userId === userId)
+      .map((session) => ({
+        ...session,
+        mode: session.mode ?? 'experiment'
+      }));
+  }
 
   const db = await getDb();
   const rows = await db.getAllAsync<any>('SELECT * FROM sessions WHERE user_id = ? ORDER BY date DESC', userId);
@@ -37,6 +45,7 @@ export const listSessions = async (userId: number): Promise<Session[]> => {
     id: r.id,
     userId: r.user_id,
     date: r.date,
+    mode: r.session_mode ?? 'experiment',
     waterType: r.water_type,
     depthRange: r.depth_range,
     riverName: r.river_name ?? undefined,

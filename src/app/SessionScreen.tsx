@@ -5,12 +5,32 @@ import { KeyboardDismissView } from '@/components/KeyboardDismissView';
 import { OptionChips } from '@/components/OptionChips';
 import { DEPTH_RANGES, WATER_TYPES } from '@/constants/options';
 import { useAppStore } from './store';
-import { WaterType } from '@/types/session';
+import { SessionMode, WaterType } from '@/types/session';
 import { ScreenBackground } from '@/components/ScreenBackground';
 
-export const SessionScreen = ({ navigation }: any) => {
+const MODE_COPY: Record<SessionMode, { title: string; subtitle: string; button: string }> = {
+  experiment: {
+    title: 'Journal Entry',
+    subtitle: 'What will you be discovering in your journal entry today?',
+    button: 'Begin Journal Entry'
+  },
+  practice: {
+    title: 'Practice Session',
+    subtitle: 'What kind of water are you getting reps on today?',
+    button: 'Begin Practice Session'
+  },
+  competition: {
+    title: 'Competition Session',
+    subtitle: 'Set the conditions for today’s comp-focused intel.',
+    button: 'Begin Competition Session'
+  }
+};
+
+export const SessionScreen = ({ navigation, route }: any) => {
   const { width } = useWindowDimensions();
   const { addSession, addSavedRiver, savedRivers, users, activeUserId, sessions, experiments } = useAppStore();
+  const mode = (route?.params?.mode ?? 'experiment') as SessionMode;
+  const modeCopy = MODE_COPY[mode] ?? MODE_COPY.experiment;
   const activeUser = users.find((user) => user.id === activeUserId);
   const [waterType, setWaterType] = useState<WaterType>('run');
   const [depthRange, setDepthRange] = useState<typeof DEPTH_RANGES[number]>('1.5-3 ft');
@@ -49,6 +69,7 @@ export const SessionScreen = ({ navigation }: any) => {
 
     const id = await addSession({
       date: new Date().toISOString(),
+      mode,
       waterType,
       depthRange,
       riverName: normalizedRiverName || undefined,
@@ -67,8 +88,8 @@ export const SessionScreen = ({ navigation }: any) => {
         keyboardDismissMode="on-drag"
       >
         <View style={{ gap: 4 }}>
-          <Text style={{ fontSize: 28, fontWeight: '800', color: '#f7fdff' }}>Journal Entry</Text>
-          <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>What will you be discovering in your journal entry today?</Text>
+          <Text style={{ fontSize: 28, fontWeight: '800', color: '#f7fdff' }}>{modeCopy.title}</Text>
+          <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>{modeCopy.subtitle}</Text>
           <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Angler: {activeUser?.name ?? 'Loading...'}</Text>
         </View>
         <View style={{ gap: 8, backgroundColor: 'rgba(6, 27, 44, 0.70)', padding: 14, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
@@ -131,7 +152,7 @@ export const SessionScreen = ({ navigation }: any) => {
           <TextInput value={notes} onChangeText={setNotes} placeholder="Session notes" placeholderTextColor="#5a6c78" multiline style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43', minHeight: 96, textAlignVertical: 'top' }} />
         </View>
         <Pressable onPress={onStart} style={{ backgroundColor: '#2a9d8f', padding: 14, borderRadius: 14, width: '100%' }}>
-          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Begin Journal Entry</Text>
+          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>{modeCopy.button}</Text>
         </Pressable>
       </ScrollView>
       </KeyboardDismissView>

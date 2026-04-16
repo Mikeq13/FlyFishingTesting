@@ -1,5 +1,6 @@
 export type WaterType = 'riffle' | 'run' | 'glide' | 'pool' | 'pocket water' | 'lake';
 export type DepthRange = '<1.5 ft' | '1.5-3 ft' | '3-5 ft' | '>5 ft';
+export type SessionMode = 'experiment' | 'practice' | 'competition';
 export type InsectType =
   | 'mayfly'
   | 'caddis'
@@ -18,6 +19,7 @@ export interface Session {
   id: number;
   userId: number;
   date: string;
+  mode: SessionMode;
   waterType: WaterType;
   depthRange: DepthRange;
   riverName?: string;

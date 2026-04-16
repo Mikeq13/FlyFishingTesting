@@ -1,8 +1,31 @@
 import React from 'react';
-import { Alert, Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { Alert, Modal, Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { KeyboardDismissView } from '@/components/KeyboardDismissView';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { useAppStore } from './store';
+import { SessionMode } from '@/types/session';
+
+const SESSION_MODE_OPTIONS: Array<{
+  mode: SessionMode;
+  title: string;
+  description: string;
+}> = [
+  {
+    mode: 'experiment',
+    title: 'Experiment Journal',
+    description: 'Run baseline and test fly experiments with deeper controls, hypotheses, and research-style logging.'
+  },
+  {
+    mode: 'practice',
+    title: 'Practice Session',
+    description: 'Keep it lightweight for a practice day and get ready for quicker catch logging built around saved flies.'
+  },
+  {
+    mode: 'competition',
+    title: 'Competition',
+    description: 'Use a comp-focused session flow today, with the data model ready for future shared intel and teammate comparison.'
+  }
+];
 
 export const HomeScreen = ({ navigation }: any) => {
   const { users, activeUserId, setActiveUserId, addUser, currentEntitlementLabel, currentHasPremiumAccess, currentUser, canManageAccess } = useAppStore();
@@ -11,6 +34,7 @@ export const HomeScreen = ({ navigation }: any) => {
   const [newUserName, setNewUserName] = React.useState('');
   const [showAnglerList, setShowAnglerList] = React.useState(false);
   const [isCreatingUser, setIsCreatingUser] = React.useState(false);
+  const [showSessionChooser, setShowSessionChooser] = React.useState(false);
   const isCompactLayout = width < 720;
   const shouldCenterContent = Platform.OS !== 'web' && !isCompactLayout;
   const contentContainerStyle = {
@@ -50,6 +74,11 @@ export const HomeScreen = ({ navigation }: any) => {
   const selectUser = async (id: number) => {
     await setActiveUserId(id);
     setShowAnglerList(false);
+  };
+
+  const beginSession = (mode: SessionMode) => {
+    setShowSessionChooser(false);
+    navigation.navigate('Session', { mode });
   };
 
   return (
@@ -133,7 +162,7 @@ export const HomeScreen = ({ navigation }: any) => {
           ) : null}
         </View>
         <View style={{ flexDirection: isCompactLayout ? 'column' : 'row', gap: 10 }}>
-          <Pressable onPress={() => navigation.navigate('Session')} style={{ flex: 1, backgroundColor: 'rgba(18,74,112,0.95)', padding: 16, borderRadius: 16 }}>
+          <Pressable onPress={() => setShowSessionChooser(true)} style={{ flex: 1, backgroundColor: 'rgba(18,74,112,0.95)', padding: 16, borderRadius: 16 }}>
             <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Start Session</Text>
           </Pressable>
           <Pressable onPress={() => navigation.navigate('History')} style={{ flex: 1, backgroundColor: 'rgba(18,74,112,0.95)', padding: 16, borderRadius: 16 }}>
@@ -151,6 +180,52 @@ export const HomeScreen = ({ navigation }: any) => {
         ))}
       </ScrollView>
       </KeyboardDismissView>
+      <Modal visible={showSessionChooser} transparent animationType="fade" onRequestClose={() => setShowSessionChooser(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(4, 18, 29, 0.76)', justifyContent: 'center', padding: 20 }}>
+          <View
+            style={{
+              backgroundColor: 'rgba(8, 28, 41, 0.96)',
+              borderRadius: 22,
+              padding: 18,
+              gap: 12,
+              borderWidth: 1,
+              borderColor: 'rgba(202,240,248,0.18)'
+            }}
+          >
+            <View style={{ gap: 4 }}>
+              <Text style={{ color: '#f7fdff', fontSize: 24, fontWeight: '800' }}>What are you doing today?</Text>
+              <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
+                Choose the session style that best matches today’s water and how you want to log intel.
+              </Text>
+            </View>
+
+            {SESSION_MODE_OPTIONS.map((option) => (
+              <Pressable
+                key={option.mode}
+                onPress={() => beginSession(option.mode)}
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.08)',
+                  borderRadius: 16,
+                  padding: 14,
+                  borderWidth: 1,
+                  borderColor: 'rgba(202,240,248,0.14)',
+                  gap: 4
+                }}
+              >
+                <Text style={{ color: '#f7fdff', fontWeight: '800', fontSize: 17 }}>{option.title}</Text>
+                <Text style={{ color: '#d7f3ff', lineHeight: 19 }}>{option.description}</Text>
+              </Pressable>
+            ))}
+
+            <Pressable
+              onPress={() => setShowSessionChooser(false)}
+              style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 14, padding: 12 }}
+            >
+              <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </ScreenBackground>
   );
 };

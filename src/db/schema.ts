@@ -43,6 +43,7 @@ export const initDb = async (): Promise<void> => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       date TEXT NOT NULL,
+      session_mode TEXT NOT NULL DEFAULT 'experiment',
       water_type TEXT NOT NULL,
       depth_range TEXT NOT NULL,
       river_name TEXT,
@@ -126,6 +127,9 @@ export const initDb = async (): Promise<void> => {
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE sessions ADD COLUMN river_name TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN session_mode TEXT NOT NULL DEFAULT 'experiment';`);
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE sessions ADD COLUMN hypothesis TEXT;`);
