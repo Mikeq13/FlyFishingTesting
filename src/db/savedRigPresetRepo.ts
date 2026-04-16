@@ -26,9 +26,7 @@ export const createSavedRigPreset = async (payload: Omit<RigPreset, 'id' | 'crea
       leaderFormulaSectionsSnapshot: payload.leaderFormulaSectionsSnapshot,
       flyCount: payload.flyCount,
       positions: payload.positions,
-      addedTippetSections: payload.addedTippetSections,
-      lengthToFirstDropperInches: payload.lengthToFirstDropperInches,
-      firstToSecondDropperInches: payload.firstToSecondDropperInches
+      addedTippetSections: payload.addedTippetSections
     }),
     nextPayload.createdAt
   );
@@ -54,8 +52,6 @@ export const listSavedRigPresets = async (userId: number): Promise<RigPreset[]> 
       flyCount: preset.flyCount ?? 1,
       positions: preset.positions ?? ['point'],
       addedTippetSections: preset.addedTippetSections ?? [],
-      lengthToFirstDropperInches: preset.lengthToFirstDropperInches ?? undefined,
-      firstToSecondDropperInches: preset.firstToSecondDropperInches ?? undefined,
       createdAt: row.created_at
     };
   });

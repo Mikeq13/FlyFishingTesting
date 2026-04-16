@@ -201,28 +201,6 @@ export const RigSetupPanel = ({
         ))}
       </View>
 
-      {flyCount > 1 ? (
-        <TextInput
-          value={rigSetup.lengthToFirstDropperInches ? String(rigSetup.lengthToFirstDropperInches) : ''}
-          onChangeText={(value) => onChange({ ...rigSetup, lengthToFirstDropperInches: value ? Number(value) : undefined })}
-          placeholder="Length to first dropper (inches)"
-          keyboardType="decimal-pad"
-          placeholderTextColor="#5a6c78"
-          style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
-        />
-      ) : null}
-
-      {flyCount > 2 ? (
-        <TextInput
-          value={rigSetup.firstToSecondDropperInches ? String(rigSetup.firstToSecondDropperInches) : ''}
-          onChangeText={(value) => onChange({ ...rigSetup, firstToSecondDropperInches: value ? Number(value) : undefined })}
-          placeholder="First to second dropper (inches)"
-          keyboardType="decimal-pad"
-          placeholderTextColor="#5a6c78"
-          style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
-        />
-      ) : null}
-
       {rigSetup.leaderFormulaName ? (
         <View style={{ gap: 4, borderRadius: 12, padding: 10, backgroundColor: 'rgba(255,255,255,0.08)' }}>
           <Text style={{ color: '#f7fdff', fontWeight: '700' }}>Leader Formula: {rigSetup.leaderFormulaName}</Text>

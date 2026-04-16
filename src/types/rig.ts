@@ -34,8 +34,6 @@ export interface RigPreset {
   flyCount: 1 | 2 | 3;
   positions: RigFlyPosition[];
   addedTippetSections: AddedTippetSection[];
-  lengthToFirstDropperInches?: number;
-  firstToSecondDropperInches?: number;
   createdAt: string;
 }
 
@@ -50,7 +48,5 @@ export interface RigSetup {
   leaderFormulaSectionsSnapshot: LeaderFormulaSection[];
   assignments: RigFlyAssignment[];
   addedTippetSections: AddedTippetSection[];
-  lengthToFirstDropperInches?: number;
-  firstToSecondDropperInches?: number;
   rigNotes?: string;
 }

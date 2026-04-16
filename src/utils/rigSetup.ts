@@ -71,9 +71,7 @@ export const createDefaultRigSetup = (flies: FlySetup[] = [], baseSections: Lead
   return {
     leaderFormulaSectionsSnapshot: baseSections,
     assignments,
-    addedTippetSections: normalizeTippetSections([], assignments.length || 1, baseTippetSize),
-    lengthToFirstDropperInches: undefined,
-    firstToSecondDropperInches: undefined
+    addedTippetSections: normalizeTippetSections([], assignments.length || 1, baseTippetSize)
   };
 };
 
@@ -110,9 +108,7 @@ export const syncRigAssignments = (rigSetup: RigSetup, assignments: RigFlyAssign
   return {
     ...rigSetup,
     assignments: nextAssignments,
-    addedTippetSections: normalizeTippetSections(rigSetup.addedTippetSections, nextAssignments.length || 1, fallbackSize),
-    lengthToFirstDropperInches: nextAssignments.length > 1 ? rigSetup.lengthToFirstDropperInches : undefined,
-    firstToSecondDropperInches: nextAssignments.length > 2 ? rigSetup.firstToSecondDropperInches : undefined
+    addedTippetSections: normalizeTippetSections(rigSetup.addedTippetSections, nextAssignments.length || 1, fallbackSize)
   };
 };
 
@@ -183,9 +179,7 @@ export const createRigPresetPayload = (rigSetup: RigSetup, name: string): Omit<R
   leaderFormulaSectionsSnapshot: rigSetup.leaderFormulaSectionsSnapshot.map((section) => ({ ...section })),
   flyCount: getFlyCount(rigSetup.assignments.length || 1),
   positions: rigSetup.assignments.map((assignment) => assignment.position),
-  addedTippetSections: rigSetup.addedTippetSections.map((section) => ({ ...section })),
-  lengthToFirstDropperInches: rigSetup.lengthToFirstDropperInches,
-  firstToSecondDropperInches: rigSetup.firstToSecondDropperInches
+  addedTippetSections: rigSetup.addedTippetSections.map((section) => ({ ...section }))
 });
 
 export const applyRigPresetToRig = (
@@ -210,9 +204,7 @@ export const applyRigPresetToRig = (
       leaderFormulaId: preset.leaderFormulaId,
       leaderFormulaName: preset.leaderFormulaName,
       leaderFormulaSectionsSnapshot: preset.leaderFormulaSectionsSnapshot.map((section) => ({ ...section })),
-      addedTippetSections: preset.addedTippetSections.map((section) => ({ ...section })),
-      lengthToFirstDropperInches: nextCount > 1 ? preset.lengthToFirstDropperInches : undefined,
-      firstToSecondDropperInches: nextCount > 2 ? preset.firstToSecondDropperInches : undefined
+      addedTippetSections: preset.addedTippetSections.map((section) => ({ ...section }))
     },
     nextAssignments
   );

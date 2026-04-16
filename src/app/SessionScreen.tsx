@@ -10,6 +10,7 @@ import { useAppStore } from './store';
 import { CompetitionLengthUnit, SessionMode, WaterType } from '@/types/session';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { applyRigPresetToRig, createDefaultRigSetup } from '@/utils/rigSetup';
+import { getInvalidReminderMarkers, isReminderMarkerAllowed } from '@/utils/sessionReminders';
 
 const MODE_COPY: Record<SessionMode, { title: string; subtitle: string; button: string }> = {
   experiment: {
@@ -44,6 +45,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
   const [durationMinutes, setDurationMinutes] = useState('0');
   const [alertMarkersMinutes, setAlertMarkersMinutes] = useState<number[]>([15]);
   const [customAlertMinute, setCustomAlertMinute] = useState('');
+  const [customAlertError, setCustomAlertError] = useState('');
   const [competitionBeat, setCompetitionBeat] = useState('');
   const [competitionSessionNumber, setCompetitionSessionNumber] = useState('1');
   const [competitionRequiresMeasurement, setCompetitionRequiresMeasurement] = useState(true);
@@ -92,14 +94,35 @@ export const SessionScreen = ({ navigation, route }: any) => {
     return alertMarkersMinutes.length ? alertMarkersMinutes[0] : null;
   }, [alertMarkersMinutes, mode]);
 
+  const invalidReminderMarkers = useMemo(
+    () => (mode === 'experiment' ? [] : getInvalidReminderMarkers(alertMarkersMinutes, plannedDurationMinutes)),
+    [alertMarkersMinutes, mode, plannedDurationMinutes]
+  );
+
+  const reminderValidationMessage = useMemo(() => {
+    if (!invalidReminderMarkers.length || typeof plannedDurationMinutes !== 'number') return null;
+    return `Reminder markers must be within the planned session time of ${plannedDurationMinutes} minutes. Remove or adjust: ${invalidReminderMarkers.map((minute) => `${minute} min`).join(', ')}.`;
+  }, [invalidReminderMarkers, plannedDurationMinutes]);
+
   const addCustomAlertMarker = () => {
     const minute = Number(customAlertMinute);
-    if (!Number.isFinite(minute) || minute <= 0) return;
+    if (!Number.isFinite(minute) || minute <= 0) {
+      setCustomAlertError('Enter a reminder marker greater than 0 minutes.');
+      return;
+    }
+    if (!isReminderMarkerAllowed(minute, plannedDurationMinutes)) {
+      setCustomAlertError(`Reminder markers must be within the planned session time${typeof plannedDurationMinutes === 'number' ? ` of ${plannedDurationMinutes} minutes` : ''}.`);
+      return;
+    }
     setAlertMarkersMinutes((current) => (current.includes(minute) ? current : [...current, minute].sort((left, right) => left - right)));
     setCustomAlertMinute('');
+    setCustomAlertError('');
   };
 
   const onStart = async () => {
+    if (invalidReminderMarkers.length) {
+      return;
+    }
     const normalizedRiverName = riverName.trim();
     if (normalizedRiverName) {
       await saveRiver();
@@ -289,23 +312,28 @@ export const SessionScreen = ({ navigation, route }: any) => {
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   {SESSION_ALERT_MARKERS.map((minute) => {
                     const selected = alertMarkersMinutes.includes(minute);
+                    const disabled = !selected && !isReminderMarkerAllowed(minute, plannedDurationMinutes);
                     return (
                       <Pressable
                         key={minute}
-                        onPress={() =>
+                        onPress={() => {
+                          if (disabled) {
+                            return;
+                          }
                           setAlertMarkersMinutes((current) =>
                             current.includes(minute)
                               ? current.filter((value) => value !== minute)
                               : [...current, minute].sort((left, right) => left - right)
-                          )
-                        }
+                          );
+                        }}
                         style={{
                           paddingHorizontal: 12,
                           paddingVertical: 8,
                           borderRadius: 999,
                           borderWidth: 1,
-                          borderColor: selected ? '#84d9f4' : 'rgba(255,255,255,0.22)',
-                          backgroundColor: selected ? 'rgba(132,217,244,0.28)' : 'rgba(6,28,41,0.5)'
+                          borderColor: selected ? '#84d9f4' : disabled ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.22)',
+                          backgroundColor: selected ? 'rgba(132,217,244,0.28)' : disabled ? 'rgba(6,28,41,0.24)' : 'rgba(6,28,41,0.5)',
+                          opacity: disabled ? 0.45 : 1
                         }}
                       >
                         <Text style={{ color: '#f4fbff', fontWeight: '700' }}>{minute} min</Text>
@@ -329,6 +357,12 @@ export const SessionScreen = ({ navigation, route }: any) => {
                     <Text style={{ color: '#f7fdff', fontWeight: '700' }}>Add</Text>
                   </Pressable>
                 </View>
+                {customAlertError ? (
+                  <Text style={{ color: '#fca5a5' }}>{customAlertError}</Text>
+                ) : null}
+                {reminderValidationMessage ? (
+                  <Text style={{ color: '#fca5a5' }}>{reminderValidationMessage}</Text>
+                ) : null}
                 {!!alertMarkersMinutes.length ? (
                   <Text style={{ color: '#bde6f6' }}>
                     Active reminders: {alertMarkersMinutes.map((minute) => `${minute} min`).join(', ')}
@@ -377,7 +411,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
           ) : null}
           <TextInput value={notes} onChangeText={setNotes} placeholder="Session notes" placeholderTextColor="#5a6c78" multiline style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43', minHeight: 96, textAlignVertical: 'top' }} />
         </View>
-        <Pressable onPress={onStart} style={{ backgroundColor: '#2a9d8f', padding: 14, borderRadius: 14, width: '100%' }}>
+        <Pressable onPress={onStart} disabled={invalidReminderMarkers.length > 0} style={{ backgroundColor: invalidReminderMarkers.length > 0 ? '#6c757d' : '#2a9d8f', padding: 14, borderRadius: 14, width: '100%' }}>
           <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>{modeCopy.button}</Text>
         </Pressable>
       </ScrollView>
