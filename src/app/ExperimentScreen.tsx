@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Modal, Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { CastCounter } from '@/components/CastCounter';
 import { CatchCounter } from '@/components/CatchCounter';
+import { ExperimentCatchModal } from '@/components/ExperimentCatchModal';
+import { ExperimentSavedActionsModal } from '@/components/ExperimentSavedActionsModal';
 import { FlySelector } from '@/components/FlySelector';
 import { KeyboardDismissView } from '@/components/KeyboardDismissView';
 import { useAppStore } from './store';
@@ -14,8 +16,6 @@ import { alignExperimentEntries, createEmptyExperimentEntries, getLegacyExperime
 import { OptionChips } from '@/components/OptionChips';
 
 const FLY_COUNT_OPTIONS = [1, 2, 3] as const;
-const FISH_SIZE_OPTIONS = Array.from({ length: 17 }, (_, index) => index + 8);
-const TROUT_SPECIES_OPTIONS: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow', 'Tiger', 'Whitefish'];
 const CONTROL_FOCUS_OPTIONS: ExperimentControlFocus[] = ['bead color', 'bead size', 'body type', 'collar', 'fly type', 'hook size', 'pattern', 'tail'];
 
 export const ExperimentScreen = ({ route, navigation }: any) => {
@@ -336,123 +336,31 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
 
       </ScrollView>
       </KeyboardDismissView>
-      <Modal
+      <ExperimentCatchModal
         visible={pendingFishEntryIndex !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={cancelCatchModal}
-      >
-        <View style={{ flex: 1, backgroundColor: 'rgba(5, 18, 28, 0.72)', justifyContent: 'center', padding: 20 }}>
-          <View style={{ gap: 12, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 20, padding: 16, backgroundColor: 'rgba(245,252,255,0.98)' }}>
-            <Text style={{ fontWeight: '800', fontSize: 20, color: '#102a43' }}>
-              Log catch for {pendingFishEntryIndex !== null && visibleEntries[pendingFishEntryIndex] ? visibleEntries[pendingFishEntryIndex].label : 'Fly'}
-            </Text>
-            <Text style={{ color: '#334e68' }}>
-              Choose the trout species and approximate length so the app can track both catch rate and fish quality.
-            </Text>
-
-            <View style={{ gap: 8 }}>
-              <Text style={{ color: '#102a43', fontWeight: '700' }}>Species</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                {TROUT_SPECIES_OPTIONS.map((species) => (
-                  <Pressable
-                    key={species}
-                    onPress={() => setPendingFishSpecies(species)}
-                    style={{
-                      backgroundColor: pendingFishSpecies === species ? '#2a9d8f' : 'rgba(29,53,87,0.12)',
-                      paddingVertical: 10,
-                      paddingHorizontal: 12,
-                      borderRadius: 12
-                    }}
-                  >
-                    <Text style={{ color: pendingFishSpecies === species ? 'white' : '#102a43', fontWeight: '700' }}>{species}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-
-            <View style={{ gap: 8 }}>
-              <Text style={{ color: '#102a43', fontWeight: '700' }}>Length</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                {FISH_SIZE_OPTIONS.map((size) => (
-                  <Pressable
-                    key={size}
-                    onPress={() => setPendingFishSize(size)}
-                    style={{
-                      backgroundColor: pendingFishSize === size ? '#1d3557' : 'rgba(29,53,87,0.12)',
-                      paddingVertical: 10,
-                      paddingHorizontal: 12,
-                      borderRadius: 12,
-                      minWidth: 58
-                    }}
-                  >
-                    <Text style={{ color: pendingFishSize === size ? 'white' : '#102a43', textAlign: 'center', fontWeight: '700' }}>{size}"</Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Pressable
-                onPress={cancelCatchModal}
-                style={{ backgroundColor: '#6c757d', padding: 12, borderRadius: 12, flex: 1 }}
-              >
-                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                onPress={confirmCatch}
-                disabled={pendingFishSize === null || pendingFishSpecies === null}
-                style={{ backgroundColor: pendingFishSize !== null && pendingFishSpecies !== null ? '#264653' : '#adb5bd', padding: 12, borderRadius: 12, flex: 1 }}
-              >
-                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Save Catch</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
-      <Modal
+        title={`Log catch for ${pendingFishEntryIndex !== null && visibleEntries[pendingFishEntryIndex] ? visibleEntries[pendingFishEntryIndex].label : 'Fly'}`}
+        selectedSpecies={pendingFishSpecies}
+        selectedSize={pendingFishSize}
+        onSelectSpecies={setPendingFishSpecies}
+        onSelectSize={setPendingFishSize}
+        onCancel={cancelCatchModal}
+        onConfirm={confirmCatch}
+      />
+      <ExperimentSavedActionsModal
         visible={showSavedExperimentActions}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowSavedExperimentActions(false)}
-      >
-        <View style={{ flex: 1, backgroundColor: 'rgba(5, 18, 28, 0.72)', justifyContent: 'center', padding: 20 }}>
-          <View style={{ gap: 12, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 20, padding: 16, backgroundColor: 'rgba(245,252,255,0.98)' }}>
-            <Text style={{ fontWeight: '800', fontSize: 20, color: '#102a43' }}>{existingExperiment ? 'Experiment updated' : 'Experiment saved'}</Text>
-            <Text style={{ color: '#334e68' }}>What do you want to do next?</Text>
-            <Pressable onPress={modifyAndContinue} style={{ backgroundColor: '#2a9d8f', padding: 12, borderRadius: 12 }}>
-              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Modify and continue</Text>
-            </Pressable>
-            <Pressable onPress={resetForNextExperiment} style={{ backgroundColor: '#264653', padding: 12, borderRadius: 12 }}>
-              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Start fresh</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                setShowSavedExperimentActions(false);
-                navigation.navigate('SessionDetail', { sessionId });
-              }}
-              style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}
-            >
-              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>View this session</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                setShowSavedExperimentActions(false);
-                navigation.navigate('Insights');
-              }}
-              style={{ backgroundColor: '#6c757d', padding: 12, borderRadius: 12 }}
-            >
-              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Go to insights</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setShowSavedExperimentActions(false)}
-              style={{ backgroundColor: '#adb5bd', padding: 12, borderRadius: 12 }}
-            >
-              <Text style={{ color: '#102a43', textAlign: 'center', fontWeight: '700' }}>Close</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+        isEditing={!!existingExperiment}
+        onModifyAndContinue={modifyAndContinue}
+        onStartFresh={resetForNextExperiment}
+        onViewSession={() => {
+          setShowSavedExperimentActions(false);
+          navigation.navigate('SessionDetail', { sessionId });
+        }}
+        onGoToInsights={() => {
+          setShowSavedExperimentActions(false);
+          navigation.navigate('Insights');
+        }}
+        onClose={() => setShowSavedExperimentActions(false)}
+      />
     </ScreenBackground>
   );
 };
