@@ -11,6 +11,43 @@ const WEB_SHARE_PREFS_ID_KEY = 'fishing_lab.share_preferences.nextId';
 
 const createJoinCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
 
+let ensuredGroupTables = false;
+
+const ensureGroupTables = async () => {
+  if (isWeb || ensuredGroupTables) return;
+  const db = await getDb();
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    join_code TEXT NOT NULL,
+    created_by_user_id INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(created_by_user_id) REFERENCES users(id)
+  )`);
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS group_memberships (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    membership_role TEXT NOT NULL DEFAULT 'member',
+    joined_at TEXT NOT NULL,
+    FOREIGN KEY(group_id) REFERENCES groups(id),
+    FOREIGN KEY(user_id) REFERENCES users(id)
+  )`);
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS share_preferences (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    group_id INTEGER NOT NULL,
+    share_journal_entries INTEGER NOT NULL DEFAULT 0,
+    share_practice_sessions INTEGER NOT NULL DEFAULT 0,
+    share_competition_sessions INTEGER NOT NULL DEFAULT 0,
+    share_insights INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES users(id),
+    FOREIGN KEY(group_id) REFERENCES groups(id)
+  )`);
+  ensuredGroupTables = true;
+};
+
 export const createGroup = async (payload: Omit<Group, 'id' | 'createdAt' | 'joinCode'>): Promise<Group> => {
   const createdAt = new Date().toISOString();
   const nextPayload = {
@@ -23,6 +60,7 @@ export const createGroup = async (payload: Omit<Group, 'id' | 'createdAt' | 'joi
   if (isWeb) {
     id = insertWebRow<Group>(WEB_GROUPS_KEY, WEB_GROUPS_ID_KEY, nextPayload);
   } else {
+    await ensureGroupTables();
     const db = await getDb();
     const result = await db.runAsync(
       `INSERT INTO groups (name, join_code, created_by_user_id, created_at) VALUES (?, ?, ?, ?)`,
@@ -42,6 +80,7 @@ export const listGroups = async (): Promise<Group[]> => {
     return listWebRows<Group>(WEB_GROUPS_KEY);
   }
 
+  await ensureGroupTables();
   const db = await getDb();
   const rows = await db.getAllAsync<any>('SELECT * FROM groups ORDER BY created_at DESC');
   return rows.map((row) => ({
@@ -61,6 +100,7 @@ export const createGroupMembership = async (payload: Omit<GroupMembership, 'id' 
   if (isWeb) {
     id = insertWebRow<GroupMembership>(WEB_MEMBERSHIPS_KEY, WEB_MEMBERSHIPS_ID_KEY, nextPayload);
   } else {
+    await ensureGroupTables();
     const db = await getDb();
     const result = await db.runAsync(
       `INSERT INTO group_memberships (group_id, user_id, membership_role, joined_at) VALUES (?, ?, ?, ?)`,
@@ -80,6 +120,7 @@ export const listGroupMemberships = async (): Promise<GroupMembership[]> => {
     return listWebRows<GroupMembership>(WEB_MEMBERSHIPS_KEY);
   }
 
+  await ensureGroupTables();
   const db = await getDb();
   const rows = await db.getAllAsync<any>('SELECT * FROM group_memberships ORDER BY joined_at DESC');
   return rows.map((row) => ({
@@ -101,6 +142,7 @@ export const createSharePreference = async (
   if (isWeb) {
     id = insertWebRow<SharePreference>(WEB_SHARE_PREFS_KEY, WEB_SHARE_PREFS_ID_KEY, nextPayload);
   } else {
+    await ensureGroupTables();
     const db = await getDb();
     const result = await db.runAsync(
       `INSERT INTO share_preferences (user_id, group_id, share_journal_entries, share_practice_sessions, share_competition_sessions, share_insights, updated_at)
@@ -124,6 +166,7 @@ export const listSharePreferences = async (): Promise<SharePreference[]> => {
     return listWebRows<SharePreference>(WEB_SHARE_PREFS_KEY);
   }
 
+  await ensureGroupTables();
   const db = await getDb();
   const rows = await db.getAllAsync<any>('SELECT * FROM share_preferences ORDER BY updated_at DESC');
   return rows.map((row) => ({
@@ -164,6 +207,7 @@ export const upsertSharePreference = async (
     return;
   }
 
+  await ensureGroupTables();
   const db = await getDb();
   const rows = await db.getAllAsync<{ id: number }>(
     'SELECT id FROM share_preferences WHERE user_id = ? AND group_id = ? LIMIT 1',
@@ -201,6 +245,7 @@ export const deleteGroupsForUser = async (userId: number): Promise<void> => {
     return;
   }
 
+  await ensureGroupTables();
   const db = await getDb();
   await db.runAsync('DELETE FROM share_preferences WHERE user_id = ?', userId);
   await db.runAsync('DELETE FROM group_memberships WHERE user_id = ?', userId);

@@ -11,6 +11,51 @@ const WEB_ASSIGNMENTS_ID_KEY = 'fishing_lab.competition_assignments.nextId';
 
 const createJoinCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
 
+let ensuredCompetitionTables = false;
+
+const ensureCompetitionTables = async () => {
+  if (isWeb || ensuredCompetitionTables) return;
+  const db = await getDb();
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS competitions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_id INTEGER NOT NULL,
+    organizer_user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    join_code TEXT NOT NULL,
+    start_at TEXT NOT NULL,
+    end_at TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(group_id) REFERENCES groups(id),
+    FOREIGN KEY(organizer_user_id) REFERENCES users(id)
+  )`);
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS competition_participants (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    competition_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    joined_at TEXT NOT NULL,
+    FOREIGN KEY(competition_id) REFERENCES competitions(id),
+    FOREIGN KEY(user_id) REFERENCES users(id)
+  )`);
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS competition_session_assignments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    competition_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    assigned_group TEXT NOT NULL,
+    session_number INTEGER NOT NULL,
+    beat TEXT NOT NULL,
+    assignment_role TEXT NOT NULL DEFAULT 'fishing',
+    start_at TEXT NOT NULL,
+    end_at TEXT NOT NULL,
+    session_id INTEGER,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(competition_id) REFERENCES competitions(id),
+    FOREIGN KEY(user_id) REFERENCES users(id),
+    FOREIGN KEY(session_id) REFERENCES sessions(id)
+  )`);
+  ensuredCompetitionTables = true;
+};
+
 export const createCompetition = async (
   payload: Omit<Competition, 'id' | 'createdAt' | 'joinCode'>
 ): Promise<Competition> => {
@@ -25,6 +70,7 @@ export const createCompetition = async (
   if (isWeb) {
     id = insertWebRow<Competition>(WEB_COMPETITIONS_KEY, WEB_COMPETITIONS_ID_KEY, nextPayload);
   } else {
+    await ensureCompetitionTables();
     const db = await getDb();
     const result = await db.runAsync(
       `INSERT INTO competitions (group_id, organizer_user_id, name, join_code, start_at, end_at, created_at)
@@ -48,6 +94,7 @@ export const listCompetitions = async (): Promise<Competition[]> => {
     return listWebRows<Competition>(WEB_COMPETITIONS_KEY);
   }
 
+  await ensureCompetitionTables();
   const db = await getDb();
   const rows = await db.getAllAsync<any>('SELECT * FROM competitions ORDER BY start_at DESC');
   return rows.map((row) => ({
@@ -72,6 +119,7 @@ export const createCompetitionParticipant = async (
   if (isWeb) {
     id = insertWebRow<CompetitionParticipant>(WEB_PARTICIPANTS_KEY, WEB_PARTICIPANTS_ID_KEY, nextPayload);
   } else {
+    await ensureCompetitionTables();
     const db = await getDb();
     const result = await db.runAsync(
       `INSERT INTO competition_participants (competition_id, user_id, joined_at) VALUES (?, ?, ?)`,
@@ -90,6 +138,7 @@ export const listCompetitionParticipants = async (): Promise<CompetitionParticip
     return listWebRows<CompetitionParticipant>(WEB_PARTICIPANTS_KEY);
   }
 
+  await ensureCompetitionTables();
   const db = await getDb();
   const rows = await db.getAllAsync<any>('SELECT * FROM competition_participants ORDER BY joined_at DESC');
   return rows.map((row) => ({
@@ -139,6 +188,7 @@ export const upsertCompetitionAssignment = async (
     return { id, ...payload, createdAt, updatedAt };
   }
 
+  await ensureCompetitionTables();
   const db = await getDb();
   const existingRows = await db.getAllAsync<{ id: number; created_at: string }>(
     `SELECT id, created_at FROM competition_session_assignments
@@ -202,6 +252,7 @@ export const listCompetitionAssignments = async (): Promise<CompetitionSessionAs
     return listWebRows<CompetitionSessionAssignment>(WEB_ASSIGNMENTS_KEY);
   }
 
+  await ensureCompetitionTables();
   const db = await getDb();
   const rows = await db.getAllAsync<any>(
     'SELECT * FROM competition_session_assignments ORDER BY start_at DESC, session_number ASC'
@@ -233,6 +284,7 @@ export const deleteCompetitionsForUser = async (userId: number): Promise<void> =
     return;
   }
 
+  await ensureCompetitionTables();
   const db = await getDb();
   await db.runAsync('DELETE FROM competition_session_assignments WHERE user_id = ?', userId);
   await db.runAsync('DELETE FROM competition_participants WHERE user_id = ?', userId);
