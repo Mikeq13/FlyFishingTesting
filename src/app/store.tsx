@@ -7,9 +7,7 @@ import { CatchEvent, SessionSegment } from '@/types/activity';
 import { Competition, CompetitionParticipant, CompetitionSessionAssignment, Group, GroupMembership, SharePreference } from '@/types/group';
 import { LeaderFormula, RigPreset } from '@/types/rig';
 import { createSession, deleteSessionsForUser, listSessions, updateSession } from '@/db/sessionRepo';
-import { createCompetition, createCompetitionParticipant, deleteCompetitionsForUser, listCompetitionAssignments, listCompetitionParticipants, listCompetitions, upsertCompetitionAssignment } from '@/db/competitionRepo';
 import { archiveExperiments, createExperiment, deleteDraftExperimentsForUser, deleteExperiments, deleteExperimentsForUser, listExperiments, updateExperiment } from '@/db/experimentRepo';
-import { createGroup, createGroupMembership, createSharePreference, deleteGroupsForUser, listGroupMemberships, listGroups, listSharePreferences, upsertSharePreference } from '@/db/groupRepo';
 import { createUser, deleteUser, listUsers, updateUser } from '@/db/userRepo';
 import { createSavedFly, deleteSavedFliesForUser, listSavedFlies } from '@/db/savedFlyRepo';
 import { createSavedLeaderFormula, deleteSavedLeaderFormula, deleteSavedLeaderFormulasForUser, listSavedLeaderFormulas } from '@/db/savedLeaderFormulaRepo';
@@ -18,7 +16,6 @@ import { createSavedRiver, deleteSavedRiversForUser, listSavedRivers } from '@/d
 import { createSessionSegment, deleteSessionSegmentsForUser, listSessionSegments, updateSessionSegment } from '@/db/sessionSegmentRepo';
 import { createCatchEvent, deleteCatchEventsForUser, listCatchEvents } from '@/db/catchEventRepo';
 import { getActiveUserId as loadActiveUserId, setActiveUserId as saveActiveUserId } from '@/db/settingsRepo';
-import { initDb } from '@/db/schema';
 import { buildAggregates } from '@/engine/aggregationEngine';
 import { generateAnglerComparisons } from '@/engine/anglerComparisonEngine';
 import { createTrialWindow, getEntitlementLabel, hasPremiumAccess } from '@/engine/entitlementEngine';
@@ -26,6 +23,19 @@ import { generateInsights } from '@/engine/insightEngine';
 import { buildTopFlyInsights, buildTopFlyRecords, TopFlyRecord } from '@/engine/topFlyEngine';
 import { isWithinDateRange } from '@/utils/dateRange';
 import { AccessLevel, SubscriptionStatus } from '@/types/user';
+import {
+  bootstrapLocalApp,
+  clearLocalFishingDataForUser,
+  clearLocalUserDataCategories,
+  createLocalCompetitionWithParticipant,
+  createLocalGroupWithDefaults,
+  deleteLocalAnglerData,
+  joinLocalCompetitionByCode,
+  joinLocalGroupByCode,
+  loadLocalAppData,
+  saveLocalCompetitionAssignment,
+  updateLocalSharePreference
+} from '@/services/localAppDataService';
 
 export type UserDataCleanupCategory = 'drafts' | 'experiments' | 'sessions' | 'flies' | 'formulas' | 'rig_presets' | 'rivers' | 'all';
 
@@ -135,102 +145,33 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   };
 
   const bootstrap = async () => {
-    await initDb();
-    let existingUsers = await listUsers();
-    if (!existingUsers.length) {
-      const id = await createUser({ name: 'Primary Angler', role: 'owner', accessLevel: 'power_user', subscriptionStatus: 'power_user' });
-      await saveActiveUserId(id);
-      setActiveUserId(id);
-      existingUsers = await listUsers();
-      setUsers(existingUsers);
-    } else {
-      const owner = existingUsers.find((user) => user.role === 'owner');
-      if (!owner && existingUsers[0]) {
-        const storedActiveUserId = await loadActiveUserId();
-        const ownerId = storedActiveUserId && existingUsers.some((user) => user.id === storedActiveUserId) ? storedActiveUserId : existingUsers[0].id;
-        await updateUser(ownerId, { role: 'owner', accessLevel: 'power_user', subscriptionStatus: 'power_user' });
-        existingUsers = await listUsers();
-      }
-      const storedActiveUserId = await loadActiveUserId();
-      const nextActiveUserId = existingUsers.some((user) => user.id === storedActiveUserId) ? storedActiveUserId : existingUsers[0].id;
-      if (nextActiveUserId) {
-        await saveActiveUserId(nextActiveUserId);
-      }
-      setUsers(existingUsers);
-      setActiveUserId(nextActiveUserId);
-    }
+    const bootstrapped = await bootstrapLocalApp();
+    setUsers(bootstrapped.users);
+    setActiveUserId(bootstrapped.activeUserId);
   };
 
   const refresh = async (targetUserId?: number | null) => {
-    const allUsers = await listUsers();
-    setUsers(allUsers);
-    const uid = targetUserId ?? activeUserId ?? allUsers[0]?.id;
-    if (!uid) {
-      setSessions([]);
-      setAllSessions([]);
-      setSessionSegments([]);
-      setCatchEvents([]);
-      setAllCatchEvents([]);
-      setExperiments([]);
-      setAllExperiments([]);
-      setSavedFlies([]);
-      setSavedLeaderFormulas([]);
-      setSavedRigPresets([]);
-      setSavedRivers([]);
-      setGroups([]);
-      setGroupMemberships([]);
-      setSharePreferences([]);
-      setCompetitions([]);
-      setCompetitionParticipants([]);
-      setCompetitionAssignments([]);
-      setAnglerComparisons([]);
-      setTopFlyRecords([]);
-      return;
-    }
-    const [s, segments, catches, e, flies, leaderFormulas, rigPresets, rivers, allGroups, memberships, preferences, allCompetitions, participants, assignments] = await Promise.all([
-      listSessions(uid),
-      listSessionSegments(uid),
-      listCatchEvents(uid),
-      listExperiments(uid),
-      listSavedFlies(uid),
-      listSavedLeaderFormulas(uid),
-      listSavedRigPresets(uid),
-      listSavedRivers(uid),
-      listGroups(),
-      listGroupMemberships(),
-      listSharePreferences(),
-      listCompetitions(),
-      listCompetitionParticipants(),
-      listCompetitionAssignments()
-    ]);
-    const allSessionLists = await Promise.all(allUsers.map((user) => listSessions(user.id)));
-    const allExperimentLists = await Promise.all(allUsers.map((user) => listExperiments(user.id)));
-    const allCatchLists = await Promise.all(allUsers.map((user) => listCatchEvents(user.id)));
-    setSessions(s);
-    setAllSessions(allSessionLists.flat());
-    setSessionSegments(segments);
-    setCatchEvents(catches);
-    setAllCatchEvents(allCatchLists.flat());
-    setExperiments(e);
-    setAllExperiments(allExperimentLists.flat());
-    setSavedFlies(flies);
-    setSavedLeaderFormulas(leaderFormulas);
-    setSavedRigPresets(rigPresets);
-    setSavedRivers(rivers);
-    setGroups(allGroups);
-    setGroupMemberships(memberships);
-    setSharePreferences(preferences);
-    setCompetitions(allCompetitions);
-    setCompetitionParticipants(participants);
-    setCompetitionAssignments(assignments);
-    setAnglerComparisons(
-      generateAnglerComparisons(
-        allUsers,
-        allSessionLists.flat(),
-        allExperimentLists.flat().filter((experiment) => experiment.status !== 'draft')
-      )
-    );
-    setTopFlyRecords(buildTopFlyRecords(s, e.filter((experiment) => experiment.status !== 'draft')));
+    const loaded = await loadLocalAppData(targetUserId ?? activeUserId);
+    setUsers(loaded.users);
+    setSessions(loaded.sessions);
+    setAllSessions(loaded.allSessions);
+    setSessionSegments(loaded.sessionSegments);
+    setCatchEvents(loaded.catchEvents);
+    setAllCatchEvents(loaded.allCatchEvents);
+    setExperiments(loaded.experiments);
+    setAllExperiments(loaded.allExperiments);
+    setSavedFlies(loaded.savedFlies);
+    setSavedLeaderFormulas(loaded.savedLeaderFormulas);
+    setSavedRigPresets(loaded.savedRigPresets);
+    setSavedRivers(loaded.savedRivers);
+    setGroups(loaded.groups);
+    setGroupMemberships(loaded.groupMemberships);
+    setSharePreferences(loaded.sharePreferences);
+    setCompetitions(loaded.competitions);
+    setCompetitionParticipants(loaded.competitionParticipants);
+    setCompetitionAssignments(loaded.competitionAssignments);
+    setAnglerComparisons(loaded.anglerComparisons);
+    setTopFlyRecords(loaded.topFlyRecords);
   };
 
   useEffect(() => {
@@ -332,68 +273,36 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         },
         createGroup: async (name) => {
           if (!activeUserId) throw new Error('No active user selected.');
-          const group = await createGroup({ name, createdByUserId: activeUserId });
-          await createGroupMembership({ groupId: group.id, userId: activeUserId, role: 'organizer' });
-          await createSharePreference({
-            groupId: group.id,
-            userId: activeUserId,
-            shareJournalEntries: false,
-            sharePracticeSessions: false,
-            shareCompetitionSessions: false,
-            shareInsights: false
-          });
+          const group = await createLocalGroupWithDefaults(activeUserId, name);
           await refresh(activeUserId);
           return group;
         },
         joinGroup: async (joinCode) => {
           if (!activeUserId) throw new Error('No active user selected.');
-          const target = groups.find((group) => group.joinCode.toLowerCase() === joinCode.trim().toLowerCase());
-          if (!target) throw new Error('Group code not found.');
-          const existing = groupMemberships.find((membership) => membership.groupId === target.id && membership.userId === activeUserId);
-          if (existing) return existing;
-          const membership = await createGroupMembership({ groupId: target.id, userId: activeUserId, role: 'member' });
-          await createSharePreference({
-            groupId: target.id,
-            userId: activeUserId,
-            shareJournalEntries: false,
-            sharePracticeSessions: false,
-            shareCompetitionSessions: false,
-            shareInsights: false
-          });
+          const membership = await joinLocalGroupByCode(activeUserId, joinCode, groups, groupMemberships);
           await refresh(activeUserId);
           return membership;
         },
         updateSharePreference: async (groupId, updates) => {
           if (!activeUserId) throw new Error('No active user selected.');
-          await upsertSharePreference({
-            userId: activeUserId,
-            groupId,
-            ...updates
-          });
+          await updateLocalSharePreference(activeUserId, groupId, updates);
           await refresh(activeUserId);
         },
         createCompetition: async (payload) => {
           if (!activeUserId) throw new Error('No active user selected.');
-          const competition = await createCompetition({ ...payload, organizerUserId: activeUserId });
-          await createCompetitionParticipant({ competitionId: competition.id, userId: activeUserId });
+          const competition = await createLocalCompetitionWithParticipant(activeUserId, payload);
           await refresh(activeUserId);
           return competition;
         },
         joinCompetition: async (joinCode) => {
           if (!activeUserId) throw new Error('No active user selected.');
-          const target = competitions.find((competition) => competition.joinCode.toLowerCase() === joinCode.trim().toLowerCase());
-          if (!target) throw new Error('Competition code not found.');
-          const existing = competitionParticipants.find(
-            (participant) => participant.competitionId === target.id && participant.userId === activeUserId
-          );
-          if (existing) return existing;
-          const participant = await createCompetitionParticipant({ competitionId: target.id, userId: activeUserId });
+          const participant = await joinLocalCompetitionByCode(activeUserId, joinCode, competitions, competitionParticipants);
           await refresh(activeUserId);
           return participant;
         },
         upsertCompetitionAssignment: async (payload) => {
           if (!activeUserId) throw new Error('No active user selected.');
-          const assignment = await upsertCompetitionAssignment({ ...payload, userId: activeUserId });
+          const assignment = await saveLocalCompetitionAssignment(activeUserId, payload);
           await refresh(activeUserId);
           return assignment;
         },
@@ -441,52 +350,11 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
           });
         },
         clearFishingDataForUser: async (userId) => {
-          await deleteCatchEventsForUser(userId);
-          await deleteSessionSegmentsForUser(userId);
-          await deleteExperimentsForUser(userId);
-          await deleteSessionsForUser(userId);
-          await deleteCompetitionsForUser(userId);
-          await deleteGroupsForUser(userId);
-          await deleteSavedFliesForUser(userId);
-          await deleteSavedLeaderFormulasForUser(userId);
-          await deleteSavedRigPresetsForUser(userId);
-          await deleteSavedRiversForUser(userId);
+          await clearLocalFishingDataForUser(userId);
           await refresh(activeUserId);
         },
         clearUserDataCategories: async (userId, categories) => {
-          const targets = categories.includes('all')
-            ? ['experiments', 'sessions', 'flies', 'formulas', 'rig_presets', 'rivers']
-            : categories;
-
-          if (targets.includes('sessions')) {
-            await deleteCatchEventsForUser(userId);
-            await deleteSessionSegmentsForUser(userId);
-            await deleteExperimentsForUser(userId);
-            await deleteSessionsForUser(userId);
-          } else if (targets.includes('experiments')) {
-            await deleteExperimentsForUser(userId);
-          }
-
-          if (targets.includes('drafts')) {
-            await deleteDraftExperimentsForUser(userId);
-          }
-
-          if (targets.includes('flies')) {
-            await deleteSavedFliesForUser(userId);
-          }
-
-          if (targets.includes('formulas')) {
-            await deleteSavedLeaderFormulasForUser(userId);
-          }
-
-          if (targets.includes('rig_presets')) {
-            await deleteSavedRigPresetsForUser(userId);
-          }
-
-          if (targets.includes('rivers')) {
-            await deleteSavedRiversForUser(userId);
-          }
-
+          await clearLocalUserDataCategories(userId, categories);
           await refresh(activeUserId);
         },
         deleteAngler: async (userId) => {
@@ -495,17 +363,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
             throw new Error('Owner profile cannot be deleted.');
           }
 
-          await deleteExperimentsForUser(userId);
-          await deleteCatchEventsForUser(userId);
-          await deleteSessionSegmentsForUser(userId);
-          await deleteSessionsForUser(userId);
-          await deleteCompetitionsForUser(userId);
-          await deleteGroupsForUser(userId);
-          await deleteSavedFliesForUser(userId);
-          await deleteSavedLeaderFormulasForUser(userId);
-          await deleteSavedRigPresetsForUser(userId);
-          await deleteSavedRiversForUser(userId);
-          await deleteUser(userId);
+          await deleteLocalAnglerData(userId);
 
           const remainingUsers = (await listUsers()).filter((user) => user.id !== userId);
           const fallbackUserId = remainingUsers.find((user) => user.role === 'owner')?.id ?? remainingUsers[0]?.id ?? null;

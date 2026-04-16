@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View, Vibration } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { OptionChips } from '@/components/OptionChips';
 import { useAppStore } from './store';
 import { useSessionTimer } from '@/hooks/useSessionTimer';
 import { TroutSpecies } from '@/types/experiment';
-import { cancelSessionNotifications, scheduleSessionNotifications } from '@/utils/sessionNotifications';
+import { buildSessionUpdatePayload, getCompetitionMinimumLength, getSessionPlannedDurationMinutes, sumCatchLengths } from '@/utils/sessionState';
+import { useSessionAlerts } from '@/hooks/useSessionAlerts';
 
 const TROUT_SPECIES: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow', 'Tiger', 'Whitefish'];
 
@@ -20,20 +21,17 @@ export const CompetitionScreen = ({ route }: any) => {
     () => catchEvents.filter((event) => event.sessionId === sessionId),
     [catchEvents, sessionId]
   );
-  const totalLengthDisplay = competitionCatches.reduce((sum, event) => sum + (event.lengthValue ?? 0), 0);
+  const totalLengthDisplay = sumCatchLengths(competitionCatches);
   const competitionLengthUnit = session?.competitionLengthUnit ?? 'mm';
   const competitionRequiresMeasurement = session?.competitionRequiresMeasurement ?? true;
   const timer = useSessionTimer({
     startedAt: session?.startAt ?? session?.date ?? new Date().toISOString(),
     endedAt: session?.endedAt,
-    plannedDurationMinutes:
-      session?.plannedDurationMinutes ??
-      (session?.startAt && session?.endAt
-        ? Math.max(0, Math.round((new Date(session.endAt).getTime() - new Date(session.startAt).getTime()) / 60000))
-        : undefined),
+    plannedDurationMinutes: getSessionPlannedDurationMinutes(session),
     alertIntervalMinutes: session?.alertIntervalMinutes,
     alertMarkersMinutes: session?.alertMarkersMinutes
   });
+  useSessionAlerts(session, timer.activeAlertMinute);
   const competitionSummaryRows = useMemo(() => {
     if (!session?.competitionId || !session.competitionAssignedGroup || !session.competitionSessionNumber) return [];
     const relevantAssignments = competitionAssignments.filter(
@@ -65,20 +63,6 @@ export const CompetitionScreen = ({ route }: any) => {
     !!competitionSummaryRows.length &&
     competitionSummaryRows.every((row) => row.status === 'finished' || row.status === 'controlling');
 
-  React.useEffect(() => {
-    if (!session) return;
-    if (session.endedAt) {
-      cancelSessionNotifications(session.id).catch(console.error);
-      return;
-    }
-    scheduleSessionNotifications(session).catch(console.error);
-  }, [session]);
-
-  React.useEffect(() => {
-    if (!timer.activeAlertMinute || session?.notificationVibrationEnabled === false) return;
-    Vibration.vibrate(400);
-  }, [session?.notificationVibrationEnabled, timer.activeAlertMinute]);
-
   if (!session) {
     return (
       <ScreenBackground>
@@ -94,7 +78,7 @@ export const CompetitionScreen = ({ route }: any) => {
       return;
     }
     const parsedLength = Number(lengthValue);
-    const minimumLength = competitionLengthUnit === 'cm' ? 20 : 200;
+    const minimumLength = getCompetitionMinimumLength(competitionLengthUnit);
 
     if (competitionRequiresMeasurement && (!Number.isFinite(parsedLength) || parsedLength < minimumLength)) {
       return;
@@ -122,35 +106,7 @@ export const CompetitionScreen = ({ route }: any) => {
         style: 'destructive',
         onPress: async () => {
           const endedAt = new Date().toISOString();
-          await updateSessionEntry(session.id, {
-            date: session.date,
-            mode: session.mode,
-            plannedDurationMinutes: session.plannedDurationMinutes,
-            alertIntervalMinutes: session.alertIntervalMinutes,
-            alertMarkersMinutes: session.alertMarkersMinutes,
-            notificationSoundEnabled: session.notificationSoundEnabled,
-            notificationVibrationEnabled: session.notificationVibrationEnabled,
-            endedAt,
-            startAt: session.startAt,
-            endAt: session.endAt,
-            waterType: session.waterType,
-            depthRange: session.depthRange,
-            sharedGroupId: session.sharedGroupId,
-            practiceMeasurementEnabled: session.practiceMeasurementEnabled,
-            practiceLengthUnit: session.practiceLengthUnit,
-            competitionId: session.competitionId,
-            competitionAssignmentId: session.competitionAssignmentId,
-            competitionAssignedGroup: session.competitionAssignedGroup,
-            competitionRole: session.competitionRole,
-            competitionBeat: session.competitionBeat,
-            competitionSessionNumber: session.competitionSessionNumber,
-            competitionRequiresMeasurement: session.competitionRequiresMeasurement,
-            competitionLengthUnit: session.competitionLengthUnit,
-            startingRigSetup: session.startingRigSetup,
-            riverName: session.riverName,
-            hypothesis: session.hypothesis,
-            notes: session.notes
-          });
+          await updateSessionEntry(session.id, buildSessionUpdatePayload(session, { endedAt }));
           if (session.competitionId && session.competitionSessionNumber) {
             await upsertCompetitionAssignment({
               competitionId: session.competitionId,
@@ -163,7 +119,6 @@ export const CompetitionScreen = ({ route }: any) => {
               sessionId: session.id
             });
           }
-          await cancelSessionNotifications(session.id);
         }
       }
     ]);

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View, Vibration } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { OptionChips } from '@/components/OptionChips';
 import { DepthSelector } from '@/components/DepthSelector';
@@ -13,7 +13,8 @@ import { FlySetup } from '@/types/fly';
 import { TroutSpecies } from '@/types/experiment';
 import { RigSetup } from '@/types/rig';
 import { applyRigPresetToRig, createDefaultRigSetup, setRigFlyCount } from '@/utils/rigSetup';
-import { cancelSessionNotifications, scheduleSessionNotifications } from '@/utils/sessionNotifications';
+import { buildSessionSegmentUpdatePayload, buildSessionUpdatePayload, getSessionPlannedDurationMinutes } from '@/utils/sessionState';
+import { useSessionAlerts } from '@/hooks/useSessionAlerts';
 
 export const PracticeScreen = ({ route }: any) => {
   const sessionId = route?.params?.sessionId as number;
@@ -57,14 +58,11 @@ export const PracticeScreen = ({ route }: any) => {
   const timer = useSessionTimer({
     startedAt: session?.startAt ?? session?.date ?? new Date().toISOString(),
     endedAt: session?.endedAt,
-    plannedDurationMinutes:
-      session?.plannedDurationMinutes ??
-      (session?.startAt && session?.endAt
-        ? Math.max(0, Math.round((new Date(session.endAt).getTime() - new Date(session.startAt).getTime()) / 60000))
-        : undefined),
+    plannedDurationMinutes: getSessionPlannedDurationMinutes(session),
     alertIntervalMinutes: session?.alertIntervalMinutes,
     alertMarkersMinutes: session?.alertMarkersMinutes
   });
+  useSessionAlerts(session, timer.activeAlertMinute);
 
   useEffect(() => {
     if (!session || session.mode !== 'practice' || activeSegment || isBootstrappingSegment) return;
@@ -89,20 +87,6 @@ export const PracticeScreen = ({ route }: any) => {
     setNextDepthRange(activeSegment.depthRange);
   }, [activeSegment]);
 
-  useEffect(() => {
-    if (!session) return;
-    if (session.endedAt) {
-      cancelSessionNotifications(session.id).catch(console.error);
-      return;
-    }
-    scheduleSessionNotifications(session).catch(console.error);
-  }, [session]);
-
-  useEffect(() => {
-    if (!timer.activeAlertMinute || session?.notificationVibrationEnabled === false) return;
-    Vibration.vibrate(400);
-  }, [session?.notificationVibrationEnabled, timer.activeAlertMinute]);
-
   const currentRigSetup = activeSegment?.rigSetup ?? createDefaultRigSetup(activeSegment?.flySnapshots ?? []);
 
   if (!session) {
@@ -118,18 +102,7 @@ export const PracticeScreen = ({ route }: any) => {
   const changeWater = async () => {
     if (!activeSegment) return;
     const endedAt = new Date().toISOString();
-    await updateSessionSegmentEntry(activeSegment.id, {
-      sessionId: activeSegment.sessionId,
-      mode: activeSegment.mode,
-      riverName: activeSegment.riverName,
-      waterType: activeSegment.waterType,
-      depthRange: activeSegment.depthRange,
-      startedAt: activeSegment.startedAt,
-      endedAt,
-      rigSetup: activeSegment.rigSetup,
-      flySnapshots: activeSegment.flySnapshots,
-      notes: activeSegment.notes
-    });
+    await updateSessionSegmentEntry(activeSegment.id, buildSessionSegmentUpdatePayload(activeSegment, { endedAt }));
     await addSessionSegment({
       sessionId: session.id,
       mode: 'practice',
@@ -147,18 +120,7 @@ export const PracticeScreen = ({ route }: any) => {
   const updateActiveSegment = async (nextRigSetup: RigSetup) => {
     if (!activeSegment) return;
     const nextFlies = nextRigSetup.assignments.map((assignment) => assignment.fly);
-    await updateSessionSegmentEntry(activeSegment.id, {
-      sessionId: activeSegment.sessionId,
-      mode: activeSegment.mode,
-      riverName: activeSegment.riverName,
-      waterType: activeSegment.waterType,
-      depthRange: activeSegment.depthRange,
-      startedAt: activeSegment.startedAt,
-      endedAt: activeSegment.endedAt,
-      rigSetup: nextRigSetup,
-      flySnapshots: nextFlies,
-      notes: activeSegment.notes
-    });
+    await updateSessionSegmentEntry(activeSegment.id, buildSessionSegmentUpdatePayload(activeSegment, { rigSetup: nextRigSetup, flySnapshots: nextFlies }));
   };
 
   const confirmPracticeCatch = async () => {
@@ -192,50 +154,9 @@ export const PracticeScreen = ({ route }: any) => {
         onPress: async () => {
           const endedAt = new Date().toISOString();
           if (activeSegment) {
-            await updateSessionSegmentEntry(activeSegment.id, {
-              sessionId: activeSegment.sessionId,
-              mode: activeSegment.mode,
-              riverName: activeSegment.riverName,
-              waterType: activeSegment.waterType,
-              depthRange: activeSegment.depthRange,
-              startedAt: activeSegment.startedAt,
-              endedAt,
-              rigSetup: activeSegment.rigSetup,
-              flySnapshots: activeSegment.flySnapshots,
-              notes: activeSegment.notes
-            });
+            await updateSessionSegmentEntry(activeSegment.id, buildSessionSegmentUpdatePayload(activeSegment, { endedAt }));
           }
-
-          await updateSessionEntry(session.id, {
-            date: session.date,
-            mode: session.mode,
-            plannedDurationMinutes: session.plannedDurationMinutes,
-            alertIntervalMinutes: session.alertIntervalMinutes,
-            alertMarkersMinutes: session.alertMarkersMinutes,
-            notificationSoundEnabled: session.notificationSoundEnabled,
-            notificationVibrationEnabled: session.notificationVibrationEnabled,
-            endedAt,
-            startAt: session.startAt,
-            endAt: session.endAt,
-            waterType: session.waterType,
-            depthRange: session.depthRange,
-            sharedGroupId: session.sharedGroupId,
-            practiceMeasurementEnabled: session.practiceMeasurementEnabled,
-            practiceLengthUnit: session.practiceLengthUnit,
-            competitionId: session.competitionId,
-            competitionAssignmentId: session.competitionAssignmentId,
-            competitionAssignedGroup: session.competitionAssignedGroup,
-            competitionRole: session.competitionRole,
-            competitionBeat: session.competitionBeat,
-            competitionSessionNumber: session.competitionSessionNumber,
-            competitionRequiresMeasurement: session.competitionRequiresMeasurement,
-            competitionLengthUnit: session.competitionLengthUnit,
-            startingRigSetup: session.startingRigSetup,
-            riverName: session.riverName,
-            hypothesis: session.hypothesis,
-            notes: session.notes
-          });
-          await cancelSessionNotifications(session.id);
+          await updateSessionEntry(session.id, buildSessionUpdatePayload(session, { endedAt }));
         }
       }
     ]);

@@ -1,11 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
-import { DepthSelector } from '@/components/DepthSelector';
 import { KeyboardDismissView } from '@/components/KeyboardDismissView';
 import { OptionChips } from '@/components/OptionChips';
-import { RigFlyManager } from '@/components/RigFlyManager';
-import { RigSetupPanel } from '@/components/RigSetupPanel';
-import { DEPTH_RANGES, SESSION_ALERT_MARKERS, WATER_TYPES } from '@/constants/options';
+import { DEPTH_RANGES } from '@/constants/options';
 import { useAppStore } from './store';
 import { CompetitionLengthUnit, SessionMode, WaterType } from '@/types/session';
 import { ScreenBackground } from '@/components/ScreenBackground';
@@ -13,6 +10,9 @@ import { applyRigPresetToRig, createDefaultRigSetup, setRigFlyCount } from '@/ut
 import { getInvalidReminderMarkers, isReminderMarkerAllowed } from '@/utils/sessionReminders';
 import { CompetitionSessionRole, Group } from '@/types/group';
 import { formatLocalDateTimeInput, parseLocalDateTimeInput } from '@/utils/dateTime';
+import { SessionEnvironmentSection } from '@/components/sessionSetup/SessionEnvironmentSection';
+import { PracticeSetupSection } from '@/components/sessionSetup/PracticeSetupSection';
+import { ReminderSettingsSection } from '@/components/sessionSetup/ReminderSettingsSection';
 
 const MODE_COPY: Record<SessionMode, { title: string; subtitle: string; button: string }> = {
   experiment: {
@@ -279,164 +279,90 @@ export const SessionScreen = ({ navigation, route }: any) => {
           <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>{modeCopy.subtitle}</Text>
           <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Angler: {activeUser?.name ?? 'Loading...'}</Text>
         </View>
+        <SessionEnvironmentSection
+          mode={mode}
+          riverName={riverName}
+          onRiverNameChange={setRiverName}
+          savedRivers={sortedSavedRivers}
+          showSavedRiverList={showSavedRiverList}
+          onToggleSavedRiverList={() => setShowSavedRiverList((current) => !current)}
+          onSelectSavedRiver={(name) => {
+            setRiverName(name);
+            setShowSavedRiverList(false);
+          }}
+          waterType={waterType}
+          onWaterTypeChange={setWaterType}
+          depthRange={depthRange}
+          onDepthRangeChange={setDepthRange}
+          joinedCompetitions={joinedCompetitions}
+          selectedCompetitionId={selectedCompetitionId}
+          onCompetitionSelect={setSelectedCompetitionId}
+          competitionAssignedGroup={competitionAssignedGroup}
+          onCompetitionAssignedGroupChange={setCompetitionAssignedGroup}
+          competitionBeat={competitionBeat}
+          onCompetitionBeatChange={setCompetitionBeat}
+          competitionSessionNumber={competitionSessionNumber}
+          onCompetitionSessionNumberChange={setCompetitionSessionNumber}
+          competitionRole={competitionRole}
+          onCompetitionRoleChange={setCompetitionRole}
+          competitionStartAtInput={competitionStartAtInput}
+          onCompetitionStartAtInputChange={setCompetitionStartAtInput}
+          competitionEndAtInput={competitionEndAtInput}
+          onCompetitionEndAtInputChange={setCompetitionEndAtInput}
+          competitionRequiresMeasurement={competitionRequiresMeasurement}
+          onCompetitionRequiresMeasurementChange={setCompetitionRequiresMeasurement}
+          competitionLengthUnit={competitionLengthUnit}
+          onCompetitionLengthUnitChange={setCompetitionLengthUnit}
+        />
         <View style={{ gap: 8, backgroundColor: 'rgba(6, 27, 44, 0.70)', padding: 14, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
-          {mode !== 'competition' ? (
-            <>
-              <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>River</Text>
-              {!!sortedSavedRivers.length && (
-                <>
-                  <Pressable onPress={() => setShowSavedRiverList((current) => !current)} style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}>
-                    <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
-                      {showSavedRiverList ? 'Hide Saved Rivers' : 'Choose Saved River'}
-                    </Text>
-                  </Pressable>
-                  {showSavedRiverList && (
-                    <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)' }}>
-                      {sortedSavedRivers.map((river) => (
-                        <Pressable
-                          key={river.id}
-                          onPress={() => {
-                            setRiverName(river.name);
-                            setShowSavedRiverList(false);
-                          }}
-                          style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
-                        >
-                          <Text style={{ color: '#0b3d3a', fontWeight: '600' }}>{river.name}</Text>
-                        </Pressable>
-                      ))}
-                    </ScrollView>
-                  )}
-                </>
-              )}
-              <TextInput value={riverName} onChangeText={setRiverName} placeholder="River name" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
-              <OptionChips label="Water Type" options={WATER_TYPES} value={waterType} onChange={setWaterType} />
-              <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Water Depth</Text>
-              <DepthSelector value={depthRange} onChange={setDepthRange} />
-            </>
-          ) : (
-            <>
-              <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>Competition Context</Text>
-              <Text style={{ color: '#bde6f6', lineHeight: 20 }}>
-                Competition sessions are beat-based. Track the beat you drew, the session number, and whether fish will be measured or counted only.
-              </Text>
-              {!!joinedCompetitions.length ? (
-                <OptionChips
-                  label="Competition"
-                  options={joinedCompetitions.map((competition) => competition.name)}
-                  value={joinedCompetitions.find((competition) => competition.id === selectedCompetitionId)?.name ?? joinedCompetitions[0]?.name}
-                  onChange={(value) => {
-                    const selected = joinedCompetitions.find((competition) => competition.name === value);
-                    setSelectedCompetitionId(selected?.id ?? null);
-                  }}
-                />
-              ) : (
-                <Text style={{ color: '#bde6f6' }}>Join or create a competition in Access & Billing before starting a comp session.</Text>
-              )}
-              <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Assigned Group</Text>
-              <TextInput value={competitionAssignedGroup} onChangeText={setCompetitionAssignedGroup} placeholder="Ex: Group A" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
-              <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Beat / Section</Text>
-              <TextInput value={competitionBeat} onChangeText={setCompetitionBeat} placeholder="Beat / section name" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
-              <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Session Number</Text>
-              <TextInput value={competitionSessionNumber} onChangeText={setCompetitionSessionNumber} placeholder="Session number" keyboardType="number-pad" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
-              <OptionChips
-                label="Your Role"
-                options={['fishing', 'controlling'] as const}
-                value={competitionRole}
-                onChange={(value) => setCompetitionRole(value as CompetitionSessionRole)}
-              />
-              <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Competition Start (YYYY-MM-DD HH:MM)</Text>
-              <TextInput value={competitionStartAtInput} onChangeText={setCompetitionStartAtInput} placeholder="2026-04-16 08:00" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
-              <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Competition End (YYYY-MM-DD HH:MM)</Text>
-              <TextInput value={competitionEndAtInput} onChangeText={setCompetitionEndAtInput} placeholder="2026-04-16 11:00" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
-              <OptionChips
-                label="Measure Fish This Session?"
-                options={['Yes', 'No'] as const}
-                value={competitionRequiresMeasurement ? 'Yes' : 'No'}
-                onChange={(value) => setCompetitionRequiresMeasurement(value === 'Yes')}
-              />
-              {competitionRequiresMeasurement ? (
-                <>
-                  <OptionChips
-                    label="Competition Length Unit"
-                    options={['mm', 'cm'] as const}
-                    value={competitionLengthUnit}
-                    onChange={(value) => setCompetitionLengthUnit(value as CompetitionLengthUnit)}
-                  />
-                  <Text style={{ color: '#bde6f6', lineHeight: 20 }}>
-                    Length unit stays locked for this session and auto-populates each time you log a fish.
-                    {competitionLengthUnit === 'cm' ? ' Minimum measurable fish size is 20 cm.' : ' If your comp uses the standard minimum, fish under 200 mm should not count.'}
-                  </Text>
-                </>
-              ) : null}
-            </>
-          )}
           {mode === 'practice' ? (
-            <>
-              <RigSetupPanel
-                title="Starting Rig Setup"
-                rigSetup={practiceRigSetup}
-                flyCount={practiceRigSetup.assignments.length}
-                onFlyCountChange={(nextCount) => {
-                  setPracticeRigSetup((current) =>
-                    setRigFlyCount(current, nextCount, {
-                      clearPointFly: nextCount === 1 && current.assignments.length > 1
-                    })
-                  );
-                }}
-                savedLeaderFormulas={savedLeaderFormulas}
-                savedRigPresets={savedRigPresets}
-                onChange={setPracticeRigSetup}
-                onCreateLeaderFormula={async (payload) => {
-                  const id = await addSavedLeaderFormula(payload);
-                  return {
-                    id,
-                    userId: activeUserId ?? 0,
-                    name: payload.name,
-                    sections: payload.sections,
-                    createdAt: new Date().toISOString()
-                  };
-                }}
-                onCreateRigPreset={async (payload) => {
-                  const id = await addSavedRigPreset(payload);
-                  return {
-                    id,
-                    userId: activeUserId ?? 0,
-                    ...payload,
-                    createdAt: new Date().toISOString()
-                  };
-                }}
-                onApplyRigPreset={(preset) => {
-                  setPracticeRigSetup((current) => applyRigPresetToRig(current, preset, { clearSinglePointFly: preset.flyCount === 1 }));
-                }}
-                onDeleteLeaderFormula={deleteSavedLeaderFormula}
-                onDeleteRigPreset={deleteSavedRigPreset}
-              />
-              <RigFlyManager
-                title="Fly Assignments"
-                rigSetup={practiceRigSetup}
-                savedFlies={savedFlies}
-                onChange={setPracticeRigSetup}
-                onCreateFly={async (fly) => {
-                  const normalizedFly = { ...fly, name: fly.name.trim() };
-                  if (!normalizedFly.name) return;
-                  await addSavedFly(normalizedFly);
-                }}
-              />
-              <OptionChips
-                label="Measure Fish In Practice?"
-                options={['Yes', 'No'] as const}
-                value={practiceMeasurementEnabled ? 'Yes' : 'No'}
-                onChange={(value) => setPracticeMeasurementEnabled(value === 'Yes')}
-              />
-              {practiceMeasurementEnabled ? (
-                <OptionChips
-                  label="Practice Length Unit"
-                  options={['in', 'cm', 'mm'] as const}
-                  value={practiceLengthUnit}
-                  onChange={(value) => setPracticeLengthUnit(value as 'in' | 'cm' | 'mm')}
-                />
-              ) : null}
-            </>
+            <PracticeSetupSection
+              rigSetup={practiceRigSetup}
+              savedFlies={savedFlies}
+              savedLeaderFormulas={savedLeaderFormulas}
+              savedRigPresets={savedRigPresets}
+              practiceMeasurementEnabled={practiceMeasurementEnabled}
+              practiceLengthUnit={practiceLengthUnit}
+              onRigSetupChange={setPracticeRigSetup}
+              onFlyCountChange={(nextCount) =>
+                setPracticeRigSetup((current) =>
+                  setRigFlyCount(current, nextCount, {
+                    clearPointFly: nextCount === 1 && current.assignments.length > 1
+                  })
+                )
+              }
+              onCreateFly={async (fly) => {
+                const normalizedFly = { ...fly, name: fly.name.trim() };
+                if (!normalizedFly.name) return;
+                await addSavedFly(normalizedFly);
+              }}
+              onCreateLeaderFormula={async (payload) => {
+                const id = await addSavedLeaderFormula(payload);
+                return {
+                  id,
+                  userId: activeUserId ?? 0,
+                  name: payload.name,
+                  sections: payload.sections,
+                  createdAt: new Date().toISOString()
+                };
+              }}
+              onCreateRigPreset={async (payload) => {
+                const id = await addSavedRigPreset(payload);
+                return {
+                  id,
+                  userId: activeUserId ?? 0,
+                  ...payload,
+                  createdAt: new Date().toISOString()
+                };
+              }}
+              onApplyRigPreset={(preset) => {
+                setPracticeRigSetup((current) => applyRigPresetToRig(current, preset, { clearSinglePointFly: preset.flyCount === 1 }));
+              }}
+              onDeleteLeaderFormula={deleteSavedLeaderFormula}
+              onDeleteRigPreset={deleteSavedRigPreset}
+              onPracticeMeasurementEnabledChange={setPracticeMeasurementEnabled}
+              onPracticeLengthUnitChange={setPracticeLengthUnit}
+            />
           ) : null}
           {!!joinedGroups.length ? (
             <OptionChips
@@ -450,130 +376,26 @@ export const SessionScreen = ({ navigation, route }: any) => {
             />
           ) : null}
           {mode !== 'experiment' ? (
-            <>
-              <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>Session Timer</Text>
-              <Text style={{ color: '#bde6f6', lineHeight: 20 }}>
-                {mode === 'competition'
-                  ? 'Competition reminders follow the absolute start and end times above.'
-                  : 'Set the total time you plan to fish in this session. Reminder markers fire based on elapsed time from when you begin.'}
-              </Text>
-              {mode === 'practice' ? (
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <View style={{ flex: 1, gap: 6 }}>
-                  <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Hours</Text>
-                  <TextInput
-                    value={durationHours}
-                    onChangeText={setDurationHours}
-                    placeholder="0"
-                    keyboardType="number-pad"
-                    placeholderTextColor="#5a6c78"
-                    style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
-                  />
-                </View>
-                <View style={{ flex: 1, gap: 6 }}>
-                  <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Minutes</Text>
-                  <TextInput
-                    value={durationMinutes}
-                    onChangeText={setDurationMinutes}
-                    placeholder="0"
-                    keyboardType="number-pad"
-                    placeholderTextColor="#5a6c78"
-                    style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
-                  />
-                </View>
-              </View>
-              ) : null}
-              {plannedEndLabel ? (
-                <Text style={{ color: '#bde6f6' }}>If you begin now, your planned end time is {plannedEndLabel}.</Text>
-              ) : null}
-              <View style={{ gap: 8 }}>
-                <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Reminder Markers</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                  {SESSION_ALERT_MARKERS.map((minute) => {
-                    const selected = alertMarkersMinutes.includes(minute);
-                    const disabled = !selected && !isReminderMarkerAllowed(minute, plannedDurationMinutes);
-                    return (
-                      <Pressable
-                        key={minute}
-                        onPress={() => {
-                          if (disabled) {
-                            return;
-                          }
-                          setAlertMarkersMinutes((current) =>
-                            current.includes(minute)
-                              ? current.filter((value) => value !== minute)
-                              : [...current, minute].sort((left, right) => left - right)
-                          );
-                        }}
-                        style={{
-                          paddingHorizontal: 12,
-                          paddingVertical: 8,
-                          borderRadius: 999,
-                          borderWidth: 1,
-                          borderColor: selected ? '#84d9f4' : disabled ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.22)',
-                          backgroundColor: selected ? 'rgba(132,217,244,0.28)' : disabled ? 'rgba(6,28,41,0.24)' : 'rgba(6,28,41,0.5)',
-                          opacity: disabled ? 0.45 : 1
-                        }}
-                      >
-                        <Text style={{ color: '#f4fbff', fontWeight: '700' }}>{minute} min</Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <TextInput
-                    value={customAlertMinute}
-                    onChangeText={setCustomAlertMinute}
-                    placeholder="Custom minute"
-                    keyboardType="number-pad"
-                    placeholderTextColor="#5a6c78"
-                    style={{ flex: 1, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
-                  />
-                  <Pressable
-                    onPress={addCustomAlertMarker}
-                    style={{ backgroundColor: '#1d3557', paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, justifyContent: 'center' }}
-                  >
-                    <Text style={{ color: '#f7fdff', fontWeight: '700' }}>Add</Text>
-                  </Pressable>
-                </View>
-                {customAlertError ? (
-                  <Text style={{ color: '#fca5a5' }}>{customAlertError}</Text>
-                ) : null}
-                {reminderValidationMessage ? (
-                  <Text style={{ color: '#fca5a5' }}>{reminderValidationMessage}</Text>
-                ) : null}
-                {!!alertMarkersMinutes.length ? (
-                  <Text style={{ color: '#bde6f6' }}>
-                    Active reminders: {alertMarkersMinutes.map((minute) => `${minute} min`).join(', ')}
-                  </Text>
-                ) : (
-                  <Text style={{ color: '#bde6f6' }}>
-                    No reminders selected. You can use presets or add custom minute markers for your beat.
-                  </Text>
-                )}
-                <Pressable
-                  onPress={() => setAlertMarkersMinutes([])}
-                  style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: 10, borderRadius: 12 }}
-                >
-                  <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Turn Off Reminders</Text>
-                </Pressable>
-                <OptionChips
-                  label="Notification Sound"
-                  options={['On', 'Off'] as const}
-                  value={notificationSoundEnabled ? 'On' : 'Off'}
-                  onChange={(value) => setNotificationSoundEnabled(value === 'On')}
-                />
-                <OptionChips
-                  label="Notification Vibration"
-                  options={['On', 'Off'] as const}
-                  value={notificationVibrationEnabled ? 'On' : 'Off'}
-                  onChange={(value) => setNotificationVibrationEnabled(value === 'On')}
-                />
-                <Text style={{ color: '#bde6f6', lineHeight: 20 }}>
-                  Local reminders follow your session settings here, while the phone still applies its own notification permissions and device behavior.
-                </Text>
-              </View>
-            </>
+            <ReminderSettingsSection
+              mode={mode}
+              durationHours={durationHours}
+              onDurationHoursChange={setDurationHours}
+              durationMinutes={durationMinutes}
+              onDurationMinutesChange={setDurationMinutes}
+              plannedDurationMinutes={plannedDurationMinutes}
+              plannedEndLabel={plannedEndLabel}
+              alertMarkersMinutes={alertMarkersMinutes}
+              onAlertMarkersChange={setAlertMarkersMinutes}
+              customAlertMinute={customAlertMinute}
+              onCustomAlertMinuteChange={setCustomAlertMinute}
+              customAlertError={customAlertError}
+              reminderValidationMessage={reminderValidationMessage}
+              onAddCustomAlertMarker={addCustomAlertMarker}
+              notificationSoundEnabled={notificationSoundEnabled}
+              onNotificationSoundEnabledChange={setNotificationSoundEnabled}
+              notificationVibrationEnabled={notificationVibrationEnabled}
+              onNotificationVibrationEnabledChange={setNotificationVibrationEnabled}
+            />
           ) : null}
           {mode === 'experiment' && !!savedHypotheses.length && (
             <>
