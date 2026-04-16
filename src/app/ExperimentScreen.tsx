@@ -5,20 +5,23 @@ import { ExperimentFlyCard } from '@/components/ExperimentFlyCard';
 import { ExperimentSavedActionsModal } from '@/components/ExperimentSavedActionsModal';
 import { ExperimentSetupPanel } from '@/components/ExperimentSetupPanel';
 import { KeyboardDismissView } from '@/components/KeyboardDismissView';
+import { RigSetupPanel } from '@/components/RigSetupPanel';
 import { useAppStore } from './store';
 import { FlySetup } from '@/types/fly';
 import { validateExperimentPair } from '@/engine/rules';
 import { deriveExperimentStatus } from '@/engine/experimentStatus';
 import { ScreenBackground } from '@/components/ScreenBackground';
-import { ExperimentControlFocus, ExperimentFlyEntry, TroutSpecies } from '@/types/experiment';
-import { alignExperimentEntries, createEmptyExperimentEntries, getLegacyExperimentFields } from '@/utils/experimentEntries';
+import { ExperimentControlFocus, ExperimentFlyEntry, ExperimentStatus, TroutSpecies } from '@/types/experiment';
+import { RigSetup } from '@/types/rig';
+import { alignExperimentEntries, createEmptyExperimentEntries, getExperimentRigSetup, getLegacyExperimentFields } from '@/utils/experimentEntries';
+import { createDefaultRigSetup, syncRigFlyCount } from '@/utils/rigSetup';
 
 const isDraftExperiment = (entries: ExperimentFlyEntry[]) =>
   entries.some((entry) => entry.casts <= 0 || !entry.fly.name.trim());
 
 export const ExperimentScreen = ({ route, navigation }: any) => {
   const { width } = useWindowDimensions();
-  const { addExperiment, addSavedFly, savedFlies, users, activeUserId, experiments, updateExperimentEntry, sessions } = useAppStore();
+  const { addExperiment, addSavedFly, addSavedLeaderFormula, deleteSavedLeaderFormula, savedFlies, savedLeaderFormulas, users, activeUserId, experiments, updateExperimentEntry, sessions } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
   const sessionId: number = route.params.sessionId;
   const experimentId: number | undefined = route.params?.experimentId;
@@ -31,6 +34,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   const [baselineIndex, setBaselineIndex] = useState(0);
   const [controlFocus, setControlFocus] = useState<ExperimentControlFocus>('pattern');
   const [flyEntries, setFlyEntries] = useState<ExperimentFlyEntry[]>(() => createEmptyExperimentEntries(2, 0));
+  const [rigSetup, setRigSetup] = useState<RigSetup>(() => createDefaultRigSetup(createEmptyExperimentEntries(2, 0).map((entry) => entry.fly)));
   const [castStep, setCastStep] = useState<5 | 10>(5);
   const [isSaving, setIsSaving] = useState(false);
   const [showSavedExperimentActions, setShowSavedExperimentActions] = useState(false);
@@ -45,6 +49,10 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   }, [baselineIndex, flyCount]);
 
   useEffect(() => {
+    setRigSetup((current) => syncRigFlyCount(current, flyEntries.slice(0, flyCount).map((entry) => entry.fly)));
+  }, [flyCount, flyEntries]);
+
+  useEffect(() => {
     if (!existingExperiment) return;
     const existingEntries = alignExperimentEntries(existingExperiment.flyEntries, existingExperiment.flyEntries.length || 2, Math.max(0, existingExperiment.flyEntries.findIndex((entry) => entry.role === 'baseline')));
     const nextBaselineIndex = Math.max(0, existingEntries.findIndex((entry) => entry.role === 'baseline'));
@@ -52,6 +60,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     setBaselineIndex(nextBaselineIndex);
     setControlFocus(existingExperiment.controlFocus ?? 'pattern');
     setFlyEntries(existingEntries);
+    setRigSetup(getExperimentRigSetup(existingExperiment));
   }, [existingExperiment]);
 
   const visibleEntries = useMemo(() => flyEntries.slice(0, flyCount), [flyCount, flyEntries]);
@@ -62,7 +71,11 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   }, [visibleEntries]);
 
   const updateEntry = (index: number, nextEntry: ExperimentFlyEntry) => {
-    setFlyEntries((current) => current.map((entry, entryIndex) => (entryIndex === index ? nextEntry : entry)));
+    setFlyEntries((current) => {
+      const nextEntries = current.map((entry, entryIndex) => (entryIndex === index ? nextEntry : entry));
+      setRigSetup((existingRigSetup) => syncRigFlyCount(existingRigSetup, nextEntries.slice(0, flyCount).map((entry) => entry.fly)));
+      return nextEntries;
+    });
   };
 
   const saveFlyToLibrary = async (fly: FlySetup) => {
@@ -86,6 +99,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     setFlyCount(2);
     setBaselineIndex(0);
     setFlyEntries(createEmptyExperimentEntries(2, 0));
+    setRigSetup(createDefaultRigSetup(createEmptyExperimentEntries(2, 0).map((entry) => entry.fly)));
     setShowSavedExperimentActions(false);
     setPendingFishEntryIndex(null);
     setPendingFishSize(null);
@@ -99,7 +113,8 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         casts: 0,
         catches: 0,
         fishSizesInches: [],
-        fishSpecies: []
+        fishSpecies: [],
+        catchTimestamps: []
       }))
     );
     setShowSavedExperimentActions(false);
@@ -109,7 +124,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   };
 
   const confirmCatch = () => {
-    if (pendingFishEntryIndex === null || pendingFishSize === null || pendingFishSpecies === null) {
+    if (pendingFishEntryIndex === null || pendingFishSpecies === null) {
       return;
     }
 
@@ -120,8 +135,9 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     updateEntry(index, {
       ...entry,
       catches: entry.catches + 1,
-      fishSizesInches: [...entry.fishSizesInches, pendingFishSize],
-      fishSpecies: [...entry.fishSpecies, pendingFishSpecies]
+      fishSizesInches: pendingFishSize === null ? entry.fishSizesInches : [...entry.fishSizesInches, pendingFishSize],
+      fishSpecies: [...entry.fishSpecies, pendingFishSpecies],
+      catchTimestamps: [...entry.catchTimestamps, new Date().toISOString()]
     });
     setPendingFishEntryIndex(null);
     setPendingFishSize(null);
@@ -142,7 +158,8 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
       ...entry,
       catches: Math.max(0, entry.catches - 1),
       fishSizesInches: entry.fishSizesInches.slice(0, Math.max(0, entry.fishSizesInches.length - 1)),
-      fishSpecies: entry.fishSpecies.slice(0, Math.max(0, entry.fishSpecies.length - 1))
+      fishSpecies: entry.fishSpecies.slice(0, Math.max(0, entry.fishSpecies.length - 1)),
+      catchTimestamps: entry.catchTimestamps.slice(0, Math.max(0, entry.catchTimestamps.length - 1))
     });
   };
 
@@ -184,11 +201,12 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         sessionId,
         hypothesis: session?.hypothesis || existingExperiment?.hypothesis || 'No hypothesis provided',
         controlFocus,
+        rigSetup: syncRigFlyCount(rigSetup, visibleEntries.map((entry) => entry.fly)),
         flyEntries: visibleEntries,
         ...legacy,
         winner: isDraft ? 'draft' : status.winner,
         outcome: isDraft ? 'inconclusive' : status.outcome,
-        status: isDraft ? 'draft' : 'complete',
+        status: (isDraft ? 'draft' : 'complete') as ExperimentStatus,
         confidenceScore: isDraft ? 0 : status.confidenceScore
       };
 
@@ -237,6 +255,25 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           castStep={castStep}
           onCastStepChange={setCastStep}
           isCompactLayout={isCompactLayout}
+        />
+
+        <RigSetupPanel
+          title="Rig Setup"
+          rigSetup={rigSetup}
+          flyCount={visibleEntries.length}
+          savedLeaderFormulas={savedLeaderFormulas}
+          onChange={setRigSetup}
+          onCreateLeaderFormula={async (payload) => {
+            const id = await addSavedLeaderFormula(payload);
+            return {
+              id,
+              userId: activeUserId ?? 0,
+              name: payload.name,
+              sections: payload.sections,
+              createdAt: new Date().toISOString()
+            };
+          }}
+          onDeleteLeaderFormula={deleteSavedLeaderFormula}
         />
 
         {visibleEntries.map((entry, index) => (

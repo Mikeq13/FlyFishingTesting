@@ -3,10 +3,14 @@ import { Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimens
 import { DepthSelector } from '@/components/DepthSelector';
 import { KeyboardDismissView } from '@/components/KeyboardDismissView';
 import { OptionChips } from '@/components/OptionChips';
+import { RigFlyManager } from '@/components/RigFlyManager';
+import { RigSetupPanel } from '@/components/RigSetupPanel';
 import { DEPTH_RANGES, SESSION_ALERT_MARKERS, WATER_TYPES } from '@/constants/options';
 import { useAppStore } from './store';
+import { FlySetup } from '@/types/fly';
 import { CompetitionLengthUnit, SessionMode, WaterType } from '@/types/session';
 import { ScreenBackground } from '@/components/ScreenBackground';
+import { createDefaultRigSetup, syncRigFlyCount } from '@/utils/rigSetup';
 
 const MODE_COPY: Record<SessionMode, { title: string; subtitle: string; button: string }> = {
   experiment: {
@@ -28,7 +32,7 @@ const MODE_COPY: Record<SessionMode, { title: string; subtitle: string; button: 
 
 export const SessionScreen = ({ navigation, route }: any) => {
   const { width } = useWindowDimensions();
-  const { addSession, addSavedRiver, savedRivers, users, activeUserId, sessions, experiments } = useAppStore();
+  const { addSession, addSavedFly, addSavedLeaderFormula, deleteSavedLeaderFormula, addSavedRiver, savedFlies, savedLeaderFormulas, savedRivers, users, activeUserId, sessions, experiments } = useAppStore();
   const mode = (route?.params?.mode ?? 'experiment') as SessionMode;
   const modeCopy = MODE_COPY[mode] ?? MODE_COPY.experiment;
   const activeUser = users.find((user) => user.id === activeUserId);
@@ -45,6 +49,8 @@ export const SessionScreen = ({ navigation, route }: any) => {
   const [competitionSessionNumber, setCompetitionSessionNumber] = useState('1');
   const [competitionRequiresMeasurement, setCompetitionRequiresMeasurement] = useState(true);
   const [competitionLengthUnit, setCompetitionLengthUnit] = useState<CompetitionLengthUnit>('mm');
+  const [practiceSelectedFlies, setPracticeSelectedFlies] = useState<FlySetup[]>([]);
+  const [practiceRigSetup, setPracticeRigSetup] = useState(() => createDefaultRigSetup([]));
   const [showSavedRiverList, setShowSavedRiverList] = useState(false);
   const [showSavedHypothesisList, setShowSavedHypothesisList] = useState(false);
   const sortedSavedRivers = useMemo(() => [...savedRivers].sort((a, b) => a.name.localeCompare(b.name)), [savedRivers]);
@@ -113,6 +119,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
       competitionSessionNumber: mode === 'competition' ? Number(competitionSessionNumber || '0') || undefined : undefined,
       competitionRequiresMeasurement: mode === 'competition' ? competitionRequiresMeasurement : undefined,
       competitionLengthUnit: mode === 'competition' ? competitionLengthUnit : undefined,
+      startingRigSetup: mode === 'practice' ? syncRigFlyCount(practiceRigSetup, practiceSelectedFlies) : undefined,
       riverName: normalizedRiverName || undefined,
       hypothesis: hypothesis.trim() || undefined,
       notes
@@ -199,6 +206,45 @@ export const SessionScreen = ({ navigation, route }: any) => {
               ) : null}
             </>
           )}
+          {mode === 'practice' ? (
+            <>
+              <RigFlyManager
+                title="Starting Rig Flies"
+                selectedFlies={practiceSelectedFlies}
+                savedFlies={savedFlies}
+                onChange={(nextFlies) => {
+                  setPracticeSelectedFlies(nextFlies);
+                  setPracticeRigSetup((current) => syncRigFlyCount(current, nextFlies));
+                }}
+                onCreateFly={async (fly) => {
+                  const normalizedFly = { ...fly, name: fly.name.trim() };
+                  if (!normalizedFly.name) return;
+                  await addSavedFly(normalizedFly);
+                  const nextFlies = [...practiceSelectedFlies, normalizedFly];
+                  setPracticeSelectedFlies(nextFlies);
+                  setPracticeRigSetup((current) => syncRigFlyCount(current, nextFlies));
+                }}
+              />
+              <RigSetupPanel
+                title="Starting Rig Setup"
+                rigSetup={practiceRigSetup}
+                flyCount={practiceSelectedFlies.length}
+                savedLeaderFormulas={savedLeaderFormulas}
+                onChange={setPracticeRigSetup}
+                onCreateLeaderFormula={async (payload) => {
+                  const id = await addSavedLeaderFormula(payload);
+                  return {
+                    id,
+                    userId: activeUserId ?? 0,
+                    name: payload.name,
+                    sections: payload.sections,
+                    createdAt: new Date().toISOString()
+                  };
+                }}
+                onDeleteLeaderFormula={deleteSavedLeaderFormula}
+              />
+            </>
+          ) : null}
           {mode !== 'experiment' ? (
             <>
               <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>Session Timer</Text>

@@ -3,29 +3,36 @@ import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { OptionChips } from '@/components/OptionChips';
 import { DepthSelector } from '@/components/DepthSelector';
-import { WATER_TYPES, DEPTH_RANGES } from '@/constants/options';
+import { PracticeCatchModal } from '@/components/PracticeCatchModal';
+import { RigFlyManager } from '@/components/RigFlyManager';
+import { RigSetupPanel } from '@/components/RigSetupPanel';
+import { WATER_TYPES } from '@/constants/options';
 import { useAppStore } from './store';
 import { useSessionTimer } from '@/hooks/useSessionTimer';
-import { FlySetup, SavedFly } from '@/types/fly';
-
-const sameFly = (left: FlySetup, right: FlySetup) =>
-  left.name === right.name &&
-  left.intent === right.intent &&
-  left.hookSize === right.hookSize &&
-  left.beadSizeMm === right.beadSizeMm &&
-  left.beadColor === right.beadColor &&
-  left.bodyType === right.bodyType &&
-  left.bugFamily === right.bugFamily &&
-  left.bugStage === right.bugStage &&
-  left.tail === right.tail &&
-  left.collar === right.collar;
+import { FlySetup } from '@/types/fly';
+import { TroutSpecies } from '@/types/experiment';
+import { createDefaultRigSetup, syncRigFlyCount } from '@/utils/rigSetup';
 
 export const PracticeScreen = ({ route }: any) => {
   const sessionId = route?.params?.sessionId as number;
-  const { sessions, sessionSegments, catchEvents, savedFlies, addSessionSegment, updateSessionSegmentEntry, addCatchEvent } = useAppStore();
+  const {
+    sessions,
+    sessionSegments,
+    catchEvents,
+    savedFlies,
+    savedLeaderFormulas,
+    activeUserId,
+    addSavedFly,
+    addSavedLeaderFormula,
+    deleteSavedLeaderFormula,
+    addSessionSegment,
+    updateSessionSegmentEntry,
+    addCatchEvent
+  } = useAppStore();
   const session = sessions.find((candidate) => candidate.id === sessionId) ?? null;
-  const [showFlyChooser, setShowFlyChooser] = useState(false);
   const [isBootstrappingSegment, setIsBootstrappingSegment] = useState(false);
+  const [pendingCatchFly, setPendingCatchFly] = useState<FlySetup | null>(null);
+  const [pendingCatchSpecies, setPendingCatchSpecies] = useState<TroutSpecies | null>(null);
   const activeSegment = useMemo(
     () =>
       sessionSegments
@@ -43,12 +50,14 @@ export const PracticeScreen = ({ route }: any) => {
   const timer = useSessionTimer({
     startedAt: session?.date ?? new Date().toISOString(),
     plannedDurationMinutes: session?.plannedDurationMinutes,
-    alertIntervalMinutes: session?.alertIntervalMinutes
+    alertIntervalMinutes: session?.alertIntervalMinutes,
+    alertMarkersMinutes: session?.alertMarkersMinutes
   });
 
   useEffect(() => {
     if (!session || session.mode !== 'practice' || activeSegment || isBootstrappingSegment) return;
     setIsBootstrappingSegment(true);
+    const seededRigSetup = session.startingRigSetup ?? createDefaultRigSetup([]);
     addSessionSegment({
       sessionId: session.id,
       mode: 'practice',
@@ -56,7 +65,8 @@ export const PracticeScreen = ({ route }: any) => {
       waterType: session.waterType,
       depthRange: session.depthRange,
       startedAt: new Date().toISOString(),
-      flySnapshots: [],
+      rigSetup: seededRigSetup,
+      flySnapshots: seededRigSetup.flies,
       notes: session.notes
     }).finally(() => setIsBootstrappingSegment(false));
   }, [activeSegment, addSessionSegment, isBootstrappingSegment, session]);
@@ -77,26 +87,6 @@ export const PracticeScreen = ({ route }: any) => {
     );
   }
 
-  const toggleSavedFly = async (savedFly: SavedFly) => {
-    if (!activeSegment) return;
-    const alreadySelected = activeSegment.flySnapshots.some((fly) => sameFly(fly, savedFly));
-    const flySnapshots = alreadySelected
-      ? activeSegment.flySnapshots.filter((fly) => !sameFly(fly, savedFly))
-      : [...activeSegment.flySnapshots, savedFly];
-
-    await updateSessionSegmentEntry(activeSegment.id, {
-      sessionId: activeSegment.sessionId,
-      mode: activeSegment.mode,
-      riverName: activeSegment.riverName,
-      waterType: activeSegment.waterType,
-      depthRange: activeSegment.depthRange,
-      startedAt: activeSegment.startedAt,
-      endedAt: activeSegment.endedAt,
-      flySnapshots,
-      notes: activeSegment.notes
-    });
-  };
-
   const changeWater = async () => {
     if (!activeSegment) return;
     const endedAt = new Date().toISOString();
@@ -108,6 +98,7 @@ export const PracticeScreen = ({ route }: any) => {
       depthRange: activeSegment.depthRange,
       startedAt: activeSegment.startedAt,
       endedAt,
+      rigSetup: activeSegment.rigSetup,
       flySnapshots: activeSegment.flySnapshots,
       notes: activeSegment.notes
     });
@@ -118,23 +109,43 @@ export const PracticeScreen = ({ route }: any) => {
       waterType: nextWaterType,
       depthRange: nextDepthRange,
       startedAt: endedAt,
+      rigSetup: activeSegment.rigSetup,
       flySnapshots: activeSegment.flySnapshots,
       notes: activeSegment.notes
     });
     Alert.alert('Water updated', `Started a new practice segment in ${nextWaterType}.`);
   };
 
-  const logCatch = async (fly: FlySetup) => {
+  const updateActiveSegment = async (nextFlies: FlySetup[], nextRigSetup = activeSegment?.rigSetup ?? createDefaultRigSetup(nextFlies)) => {
     if (!activeSegment) return;
+    await updateSessionSegmentEntry(activeSegment.id, {
+      sessionId: activeSegment.sessionId,
+      mode: activeSegment.mode,
+      riverName: activeSegment.riverName,
+      waterType: activeSegment.waterType,
+      depthRange: activeSegment.depthRange,
+      startedAt: activeSegment.startedAt,
+      endedAt: activeSegment.endedAt,
+      rigSetup: syncRigFlyCount(nextRigSetup, nextFlies),
+      flySnapshots: nextFlies,
+      notes: activeSegment.notes
+    });
+  };
+
+  const confirmPracticeCatch = async () => {
+    if (!activeSegment || !pendingCatchFly || !pendingCatchSpecies) return;
     await addCatchEvent({
       sessionId: session.id,
       segmentId: activeSegment.id,
       mode: 'practice',
-      flyName: fly.name,
-      flySnapshot: fly,
+      flyName: pendingCatchFly.name,
+      flySnapshot: pendingCatchFly,
+      species: pendingCatchSpecies,
       lengthUnit: 'in',
       caughtAt: new Date().toISOString()
     });
+    setPendingCatchFly(null);
+    setPendingCatchSpecies(null);
   };
 
   return (
@@ -174,48 +185,60 @@ export const PracticeScreen = ({ route }: any) => {
           </Pressable>
         </View>
 
+        <RigFlyManager
+          title="Current Rig"
+          selectedFlies={activeSegment?.flySnapshots ?? []}
+          savedFlies={savedFlies}
+          onChange={(nextFlies) => {
+            updateActiveSegment(nextFlies, activeSegment?.rigSetup ?? createDefaultRigSetup(nextFlies)).catch(console.error);
+          }}
+          onCreateFly={async (fly) => {
+            const normalizedFly = { ...fly, name: fly.name.trim() };
+            if (!normalizedFly.name) return;
+            await addSavedFly(normalizedFly);
+            const nextFlies = [...(activeSegment?.flySnapshots ?? []), normalizedFly];
+            await updateActiveSegment(nextFlies, activeSegment?.rigSetup ?? createDefaultRigSetup(nextFlies));
+          }}
+        />
+
+        <RigSetupPanel
+          title="Rig Setup"
+          rigSetup={activeSegment?.rigSetup ?? createDefaultRigSetup(activeSegment?.flySnapshots ?? [])}
+          flyCount={activeSegment?.flySnapshots.length ?? 0}
+          savedLeaderFormulas={savedLeaderFormulas}
+          onChange={(nextRigSetup) => {
+            updateActiveSegment(activeSegment?.flySnapshots ?? [], nextRigSetup).catch(console.error);
+          }}
+          onCreateLeaderFormula={async (payload) => {
+            const id = await addSavedLeaderFormula(payload);
+            return {
+              id,
+              userId: activeUserId ?? 0,
+              name: payload.name,
+              sections: payload.sections,
+              createdAt: new Date().toISOString()
+            };
+          }}
+          onDeleteLeaderFormula={deleteSavedLeaderFormula}
+        />
+
         <View style={{ backgroundColor: 'rgba(6, 27, 44, 0.72)', borderRadius: 18, padding: 14, gap: 10, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
-          <Pressable onPress={() => setShowFlyChooser((current) => !current)} style={{ backgroundColor: '#2a9d8f', padding: 12, borderRadius: 12 }}>
-            <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
-              {showFlyChooser ? 'Hide Saved Flies' : 'Choose Saved Flies For This Water'}
-            </Text>
-          </Pressable>
-
-          {showFlyChooser ? (
-            <View style={{ gap: 8 }}>
-              {savedFlies.map((savedFly) => {
-                const selected = !!activeSegment?.flySnapshots.some((fly) => sameFly(fly, savedFly));
-                return (
-                  <Pressable
-                    key={savedFly.id}
-                    onPress={() => toggleSavedFly(savedFly)}
-                    style={{
-                      backgroundColor: selected ? 'rgba(42,157,143,0.3)' : 'rgba(255,255,255,0.08)',
-                      borderRadius: 12,
-                      padding: 12,
-                      borderWidth: 1,
-                      borderColor: selected ? 'rgba(42,157,143,0.8)' : 'rgba(202,240,248,0.14)'
-                    }}
-                  >
-                    <Text style={{ color: '#f7fdff', fontWeight: '700' }}>
-                      {savedFly.name} #{savedFly.hookSize} {savedFly.beadColor} {savedFly.beadSizeMm}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : null}
-
-          <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Current Setup</Text>
+          <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Log Catches</Text>
           {!activeSegment?.flySnapshots.length ? (
-            <Text style={{ color: '#bde6f6' }}>No saved flies selected for this water yet.</Text>
+            <Text style={{ color: '#bde6f6' }}>Add flies to the rig before logging practice catches.</Text>
           ) : (
             activeSegment.flySnapshots.map((fly, index) => (
               <View key={`${fly.name}-${index}`} style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: 12, gap: 8 }}>
                 <Text style={{ color: '#f7fdff', fontWeight: '800' }}>
                   {fly.name} #{fly.hookSize} {fly.beadColor} {fly.beadSizeMm}
                 </Text>
-                <Pressable onPress={() => logCatch(fly)} style={{ backgroundColor: '#264653', padding: 10, borderRadius: 10 }}>
+                <Pressable
+                  onPress={() => {
+                    setPendingCatchFly(fly);
+                    setPendingCatchSpecies(null);
+                  }}
+                  style={{ backgroundColor: '#264653', padding: 10, borderRadius: 10 }}
+                >
                   <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Log Catch</Text>
                 </Pressable>
               </View>
@@ -236,6 +259,19 @@ export const PracticeScreen = ({ route }: any) => {
           )}
         </View>
       </ScrollView>
+      <PracticeCatchModal
+        visible={pendingCatchFly !== null}
+        title={`Log catch for ${pendingCatchFly?.name ?? 'Fly'}`}
+        selectedSpecies={pendingCatchSpecies}
+        onSelectSpecies={setPendingCatchSpecies}
+        onCancel={() => {
+          setPendingCatchFly(null);
+          setPendingCatchSpecies(null);
+        }}
+        onConfirm={() => {
+          confirmPracticeCatch().catch(console.error);
+        }}
+      />
     </ScreenBackground>
   );
 };

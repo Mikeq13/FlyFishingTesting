@@ -1,18 +1,6 @@
-import { Experiment, ExperimentFlyEntry } from '@/types/experiment';
+import { Experiment, ExperimentFlyEntry, TroutSpecies } from '@/types/experiment';
 import { FlySetup } from '@/types/fly';
-
-const emptyFly: FlySetup = {
-  name: '',
-  intent: 'imitative',
-  hookSize: 16,
-  beadSizeMm: 0,
-  beadColor: 'black',
-  bodyType: 'thread',
-  bugFamily: 'mayfly',
-  bugStage: 'nymph',
-  tail: 'natural',
-  collar: 'none'
-};
+import { createDefaultRigSetup, createEmptyFly } from './rigSetup';
 const normalizeFly = (fly: FlySetup): FlySetup => ({
   ...fly,
   hookSize: fly.hookSize ?? 16,
@@ -39,9 +27,14 @@ const normalizeFishSizes = (fishSizesInches: number[] | undefined, catches: numb
     .filter((size): size is number => typeof size === 'number' && Number.isFinite(size))
     .slice(0, Math.max(catches, 0));
 
-const normalizeFishSpecies = (fishSpecies: string[] | undefined, catches: number): string[] =>
+const normalizeFishSpecies = (fishSpecies: string[] | undefined, catches: number): TroutSpecies[] =>
   (fishSpecies ?? [])
-    .filter((species): species is string => typeof species === 'string' && species.trim().length > 0)
+    .filter((species): species is TroutSpecies => typeof species === 'string' && species.trim().length > 0)
+    .slice(0, Math.max(catches, 0));
+
+const normalizeCatchTimestamps = (catchTimestamps: string[] | undefined, catches: number): string[] =>
+  (catchTimestamps ?? [])
+    .filter((timestamp): timestamp is string => typeof timestamp === 'string' && timestamp.trim().length > 0)
     .slice(0, Math.max(catches, 0));
 
 export const createEmptyExperimentEntries = (count: number, baselineIndex = 0): ExperimentFlyEntry[] =>
@@ -49,11 +42,12 @@ export const createEmptyExperimentEntries = (count: number, baselineIndex = 0): 
     slotId: `slot-${index + 1}`,
     label: createExperimentLabel(index, count, baselineIndex),
     role: index === baselineIndex ? 'baseline' : 'test',
-    fly: index === 1 ? { ...emptyFly, intent: 'attractor' } : { ...emptyFly },
+    fly: index === 1 ? { ...createEmptyFly(), intent: 'attractor' } : { ...createEmptyFly() },
     casts: 0,
     catches: 0,
     fishSizesInches: [],
-    fishSpecies: []
+    fishSpecies: [],
+    catchTimestamps: []
   }));
 
 export const alignExperimentEntries = (entries: ExperimentFlyEntry[], count: number, baselineIndex = 0): ExperimentFlyEntry[] => {
@@ -68,7 +62,8 @@ export const alignExperimentEntries = (entries: ExperimentFlyEntry[], count: num
       label: createExperimentLabel(index, count, baselineIndex),
       role: index === baselineIndex ? 'baseline' : 'test',
       fishSizesInches: normalizeFishSizes(existing.fishSizesInches, existing.catches),
-      fishSpecies: normalizeFishSpecies(existing.fishSpecies, existing.catches)
+      fishSpecies: normalizeFishSpecies(existing.fishSpecies, existing.catches),
+      catchTimestamps: normalizeCatchTimestamps(existing.catchTimestamps, existing.catches)
     };
   });
 };
@@ -79,7 +74,8 @@ export const getExperimentEntries = (experiment: Experiment): ExperimentFlyEntry
       ...entry,
       fly: normalizeFly(entry.fly),
       fishSizesInches: normalizeFishSizes(entry.fishSizesInches, entry.catches),
-      fishSpecies: normalizeFishSpecies(entry.fishSpecies, entry.catches)
+      fishSpecies: normalizeFishSpecies(entry.fishSpecies, entry.catches),
+      catchTimestamps: normalizeCatchTimestamps(entry.catchTimestamps, entry.catches)
     }));
   }
 
@@ -92,7 +88,8 @@ export const getExperimentEntries = (experiment: Experiment): ExperimentFlyEntry
       casts: experiment.controlCasts,
       catches: experiment.controlCatches,
       fishSizesInches: [],
-      fishSpecies: []
+      fishSpecies: [],
+      catchTimestamps: []
     },
     {
       slotId: 'slot-2',
@@ -102,10 +99,14 @@ export const getExperimentEntries = (experiment: Experiment): ExperimentFlyEntry
       casts: experiment.variantCasts,
       catches: experiment.variantCatches,
       fishSizesInches: [],
-      fishSpecies: []
+      fishSpecies: [],
+      catchTimestamps: []
     }
   ];
 };
+
+export const getExperimentRigSetup = (experiment: Experiment) =>
+  experiment.rigSetup ?? createDefaultRigSetup(getExperimentEntries(experiment).map((entry) => entry.fly));
 
 export const getLegacyExperimentFields = (entries: ExperimentFlyEntry[]) => {
   const primary = entries[0] ?? createEmptyExperimentEntries(1)[0];

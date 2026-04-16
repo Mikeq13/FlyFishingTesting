@@ -46,8 +46,14 @@ export const initDb = async (): Promise<void> => {
       session_mode TEXT NOT NULL DEFAULT 'experiment',
       planned_duration_minutes INTEGER,
       alert_interval_minutes INTEGER,
+      alert_markers_json TEXT,
       water_type TEXT NOT NULL,
       depth_range TEXT NOT NULL,
+      competition_beat TEXT,
+      competition_session_number INTEGER,
+      competition_requires_measurement INTEGER NOT NULL DEFAULT 1,
+      competition_length_unit TEXT NOT NULL DEFAULT 'mm',
+      starting_rig_setup_json TEXT,
       river_name TEXT,
       hypothesis TEXT,
       insect_type TEXT NOT NULL,
@@ -62,6 +68,7 @@ export const initDb = async (): Promise<void> => {
       session_id INTEGER NOT NULL,
       hypothesis TEXT NOT NULL,
       control_focus TEXT NOT NULL DEFAULT 'pattern',
+      rig_setup_json TEXT,
       fly_entries_json TEXT,
       control_fly_json TEXT NOT NULL,
       variant_fly_json TEXT NOT NULL,
@@ -87,6 +94,7 @@ export const initDb = async (): Promise<void> => {
       depth_range TEXT NOT NULL,
       started_at TEXT NOT NULL,
       ended_at TEXT,
+      rig_setup_json TEXT,
       fly_snapshots_json TEXT NOT NULL,
       notes TEXT,
       FOREIGN KEY(user_id) REFERENCES users(id),
@@ -131,6 +139,14 @@ export const initDb = async (): Promise<void> => {
       name TEXT NOT NULL,
       created_at TEXT NOT NULL,
       FOREIGN KEY(user_id) REFERENCES users(id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS saved_leader_formulas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      sections_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id)
     )`
   ];
 
@@ -172,6 +188,24 @@ export const initDb = async (): Promise<void> => {
     await database.execAsync(`ALTER TABLE sessions ADD COLUMN alert_interval_minutes INTEGER;`);
   } catch {}
   try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN alert_markers_json TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN competition_beat TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN competition_session_number INTEGER;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN competition_requires_measurement INTEGER NOT NULL DEFAULT 1;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN competition_length_unit TEXT NOT NULL DEFAULT 'mm';`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN starting_rig_setup_json TEXT;`);
+  } catch {}
+  try {
     await database.execAsync(`ALTER TABLE experiments ADD COLUMN outcome TEXT NOT NULL DEFAULT 'inconclusive';`);
   } catch {}
   try {
@@ -179,6 +213,9 @@ export const initDb = async (): Promise<void> => {
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE experiments ADD COLUMN control_focus TEXT NOT NULL DEFAULT 'pattern';`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE experiments ADD COLUMN rig_setup_json TEXT;`);
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE experiments ADD COLUMN archived_at TEXT;`);
@@ -203,5 +240,8 @@ export const initDb = async (): Promise<void> => {
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE saved_flies ADD COLUMN tail TEXT NOT NULL DEFAULT 'natural';`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE session_segments ADD COLUMN rig_setup_json TEXT;`);
   } catch {}
 };

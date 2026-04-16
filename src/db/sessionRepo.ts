@@ -12,15 +12,21 @@ export const createSession = async (payload: Omit<Session, 'id'>): Promise<numbe
 
   const db = await getDb();
   const result = await db.runAsync(
-    `INSERT INTO sessions (user_id, date, session_mode, planned_duration_minutes, alert_interval_minutes, water_type, depth_range, river_name, hypothesis, insect_type, insect_stage, insect_confidence, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO sessions (user_id, date, session_mode, planned_duration_minutes, alert_interval_minutes, alert_markers_json, water_type, depth_range, competition_beat, competition_session_number, competition_requires_measurement, competition_length_unit, starting_rig_setup_json, river_name, hypothesis, insect_type, insect_stage, insect_confidence, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     payload.userId,
     payload.date,
     payload.mode,
     payload.plannedDurationMinutes ?? null,
     payload.alertIntervalMinutes ?? null,
+    JSON.stringify(payload.alertMarkersMinutes ?? []),
     payload.waterType,
     payload.depthRange,
+    payload.competitionBeat ?? null,
+    payload.competitionSessionNumber ?? null,
+    payload.competitionRequiresMeasurement === undefined ? 1 : payload.competitionRequiresMeasurement ? 1 : 0,
+    payload.competitionLengthUnit ?? 'mm',
+    payload.startingRigSetup ? JSON.stringify(payload.startingRigSetup) : null,
     payload.riverName ?? null,
     payload.hypothesis ?? null,
     'mayfly',
@@ -39,7 +45,13 @@ export const listSessions = async (userId: number): Promise<Session[]> => {
         ...session,
         mode: session.mode ?? 'experiment',
         plannedDurationMinutes: session.plannedDurationMinutes ?? undefined,
-        alertIntervalMinutes: session.alertIntervalMinutes === undefined ? 15 : session.alertIntervalMinutes
+        alertIntervalMinutes: session.alertIntervalMinutes === undefined ? 15 : session.alertIntervalMinutes,
+        alertMarkersMinutes: session.alertMarkersMinutes ?? (typeof session.alertIntervalMinutes === 'number' ? [session.alertIntervalMinutes] : []),
+        competitionBeat: session.competitionBeat ?? undefined,
+        competitionSessionNumber: session.competitionSessionNumber ?? undefined,
+        competitionRequiresMeasurement: session.competitionRequiresMeasurement ?? true,
+        competitionLengthUnit: session.competitionLengthUnit ?? 'mm',
+        startingRigSetup: session.startingRigSetup ?? undefined
       }));
   }
 
@@ -52,6 +64,16 @@ export const listSessions = async (userId: number): Promise<Session[]> => {
     mode: r.session_mode ?? 'experiment',
     plannedDurationMinutes: r.planned_duration_minutes ?? undefined,
     alertIntervalMinutes: r.alert_interval_minutes === undefined ? 15 : r.alert_interval_minutes,
+    alertMarkersMinutes: r.alert_markers_json
+      ? JSON.parse(r.alert_markers_json)
+      : typeof r.alert_interval_minutes === 'number'
+        ? [r.alert_interval_minutes]
+        : [],
+    competitionBeat: r.competition_beat ?? undefined,
+    competitionSessionNumber: r.competition_session_number ?? undefined,
+    competitionRequiresMeasurement: r.competition_requires_measurement === undefined ? true : !!r.competition_requires_measurement,
+    competitionLengthUnit: r.competition_length_unit ?? 'mm',
+    startingRigSetup: r.starting_rig_setup_json ? JSON.parse(r.starting_rig_setup_json) : undefined,
     waterType: r.water_type,
     depthRange: r.depth_range,
     riverName: r.river_name ?? undefined,

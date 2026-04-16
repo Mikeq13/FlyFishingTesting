@@ -130,5 +130,5 @@ export const buildTopFlyInsights = (records: TopFlyRecord[]): Insight[] =>
     type: index === 0 ? 'recommendation' : 'pattern',
     message: `${record.name} (${record.bugFamily}, ${record.bugStage}, #${record.hookSize}, ${record.beadColor} bead ${record.beadSizeMm}) is a top performer at ${(record.rate * 100).toFixed(1)}% over ${record.casts} casts${record.averageSizeInches ? `, averaging ${record.averageSizeInches}" fish` : ''}${record.speciesBreakdown.length ? `, led by ${record.speciesBreakdown[0].species} at ${(record.speciesBreakdown[0].percent * 100).toFixed(0)}%` : ''}.`,
     confidence: confidenceFromSamples(record.casts),
-    supportingData: record
+    supportingData: { ...record }
   }));

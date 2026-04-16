@@ -3,37 +3,31 @@ import { Modal, Pressable, Text, View } from 'react-native';
 import { TroutSpecies } from '@/types/experiment';
 
 const TROUT_SPECIES_OPTIONS: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow', 'Tiger', 'Whitefish'];
-const FISH_SIZE_OPTIONS = Array.from({ length: 17 }, (_, index) => index + 8);
 
-interface ExperimentCatchModalProps {
+interface PracticeCatchModalProps {
   visible: boolean;
   title: string;
   selectedSpecies: TroutSpecies | null;
-  selectedSize: number | null;
   onSelectSpecies: (species: TroutSpecies) => void;
-  onSelectSize: (size: number) => void;
   onCancel: () => void;
   onConfirm: () => void;
 }
 
-export const ExperimentCatchModal = ({
+export const PracticeCatchModal = ({
   visible,
   title,
   selectedSpecies,
-  selectedSize,
   onSelectSpecies,
-  onSelectSize,
   onCancel,
   onConfirm
-}: ExperimentCatchModalProps) => (
+}: PracticeCatchModalProps) => (
   <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
     <View style={{ flex: 1, backgroundColor: 'rgba(5, 18, 28, 0.72)', justifyContent: 'center', padding: 20 }}>
       <View style={{ gap: 12, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 20, padding: 16, backgroundColor: 'rgba(245,252,255,0.98)' }}>
         <Text style={{ fontWeight: '800', fontSize: 20, color: '#102a43' }}>{title}</Text>
         <Text style={{ color: '#334e68' }}>
-          Choose the trout species and optionally add an approximate length so the app can track both catch rate and fish quality.
+          Choose the trout species. The app will timestamp the catch automatically for catch-rate insights later.
         </Text>
-
         <View style={{ gap: 8 }}>
           <Text style={{ color: '#102a43', fontWeight: '700' }}>Species</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -53,28 +47,6 @@ export const ExperimentCatchModal = ({
             ))}
           </View>
         </View>
-
-        <View style={{ gap: 8 }}>
-          <Text style={{ color: '#102a43', fontWeight: '700' }}>Length</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {FISH_SIZE_OPTIONS.map((size) => (
-              <Pressable
-                key={size}
-                onPress={() => onSelectSize(size)}
-                style={{
-                  backgroundColor: selectedSize === size ? '#1d3557' : 'rgba(29,53,87,0.12)',
-                  paddingVertical: 10,
-                  paddingHorizontal: 12,
-                  borderRadius: 12,
-                  minWidth: 58
-                }}
-              >
-                <Text style={{ color: selectedSize === size ? 'white' : '#102a43', textAlign: 'center', fontWeight: '700' }}>{size}"</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <Pressable onPress={onCancel} style={{ backgroundColor: '#6c757d', padding: 12, borderRadius: 12, flex: 1 }}>
             <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Cancel</Text>
@@ -82,7 +54,7 @@ export const ExperimentCatchModal = ({
           <Pressable
             onPress={onConfirm}
             disabled={selectedSpecies === null}
-            style={{ backgroundColor: selectedSpecies !== null ? '#264653' : '#adb5bd', padding: 12, borderRadius: 12, flex: 1 }}
+            style={{ backgroundColor: selectedSpecies ? '#264653' : '#adb5bd', padding: 12, borderRadius: 12, flex: 1 }}
           >
             <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Save Catch</Text>
           </Pressable>

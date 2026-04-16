@@ -17,7 +17,8 @@ const hydrateExperiment = (experiment: Experiment): Experiment => ({
     : getExperimentEntries({
         ...experiment,
         flyEntries: []
-      })
+      }),
+  rigSetup: experiment.rigSetup
 });
 
 export const createExperiment = async (payload: Omit<Experiment, 'id'>): Promise<number> => {
@@ -28,12 +29,13 @@ export const createExperiment = async (payload: Omit<Experiment, 'id'>): Promise
   const db = await getDb();
   const result = await db.runAsync(
     `INSERT INTO experiments
-      (user_id, session_id, hypothesis, control_focus, fly_entries_json, control_fly_json, variant_fly_json, control_casts, control_catches, variant_casts, variant_catches, winner, outcome, status, confidence_score, archived_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (user_id, session_id, hypothesis, control_focus, rig_setup_json, fly_entries_json, control_fly_json, variant_fly_json, control_casts, control_catches, variant_casts, variant_catches, winner, outcome, status, confidence_score, archived_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     payload.userId,
     payload.sessionId,
     payload.hypothesis,
     payload.controlFocus,
+    payload.rigSetup ? JSON.stringify(payload.rigSetup) : null,
     JSON.stringify(payload.flyEntries),
     JSON.stringify(payload.controlFly),
     JSON.stringify(payload.variantFly),
@@ -68,11 +70,12 @@ export const updateExperiment = async (experimentId: number, payload: Omit<Exper
   const db = await getDb();
   await db.runAsync(
     `UPDATE experiments
-     SET session_id = ?, hypothesis = ?, control_focus = ?, fly_entries_json = ?, control_fly_json = ?, variant_fly_json = ?, control_casts = ?, control_catches = ?, variant_casts = ?, variant_catches = ?, winner = ?, outcome = ?, status = ?, confidence_score = ?, archived_at = ?
+     SET session_id = ?, hypothesis = ?, control_focus = ?, rig_setup_json = ?, fly_entries_json = ?, control_fly_json = ?, variant_fly_json = ?, control_casts = ?, control_catches = ?, variant_casts = ?, variant_catches = ?, winner = ?, outcome = ?, status = ?, confidence_score = ?, archived_at = ?
      WHERE id = ?`,
     payload.sessionId,
     payload.hypothesis,
     payload.controlFocus,
+    payload.rigSetup ? JSON.stringify(payload.rigSetup) : null,
     JSON.stringify(payload.flyEntries),
     JSON.stringify(payload.controlFly),
     JSON.stringify(payload.variantFly),
@@ -112,6 +115,7 @@ export const listExperiments = async (userId: number, options: { includeArchived
     sessionId: r.session_id,
     hypothesis: r.hypothesis,
     controlFocus: r.control_focus ?? 'pattern',
+    rigSetup: r.rig_setup_json ? JSON.parse(r.rig_setup_json) : undefined,
     flyEntries: r.fly_entries_json ? JSON.parse(r.fly_entries_json) : [],
     controlFly: JSON.parse(r.control_fly_json),
     variantFly: JSON.parse(r.variant_fly_json),

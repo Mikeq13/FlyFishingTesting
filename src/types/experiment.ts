@@ -1,4 +1,5 @@
 import { FlySetup } from './fly';
+import { RigSetup } from './rig';
 
 export type ExperimentWinner = string;
 export type ExperimentOutcome = 'decisive' | 'tie' | 'inconclusive';
@@ -16,6 +17,7 @@ export interface ExperimentFlyEntry {
   catches: number;
   fishSizesInches: number[];
   fishSpecies: TroutSpecies[];
+  catchTimestamps: string[];
 }
 
 export interface Experiment {
@@ -24,6 +26,7 @@ export interface Experiment {
   sessionId: number;
   hypothesis: string;
   controlFocus: ExperimentControlFocus;
+  rigSetup?: RigSetup;
   flyEntries: ExperimentFlyEntry[];
   controlFly: FlySetup;
   variantFly: FlySetup;

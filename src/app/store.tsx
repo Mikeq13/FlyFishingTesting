@@ -4,10 +4,12 @@ import { SavedRiver, Session } from '@/types/session';
 import { UserProfile } from '@/types/user';
 import { FlySetup, SavedFly } from '@/types/fly';
 import { CatchEvent, SessionSegment } from '@/types/activity';
+import { LeaderFormula } from '@/types/rig';
 import { createSession, deleteSessionsForUser, listSessions } from '@/db/sessionRepo';
 import { archiveExperiments, createExperiment, deleteDraftExperimentsForUser, deleteExperiments, deleteExperimentsForUser, listExperiments, updateExperiment } from '@/db/experimentRepo';
 import { createUser, deleteUser, listUsers, updateUser } from '@/db/userRepo';
 import { createSavedFly, deleteSavedFliesForUser, listSavedFlies } from '@/db/savedFlyRepo';
+import { createSavedLeaderFormula, deleteSavedLeaderFormula, deleteSavedLeaderFormulasForUser, listSavedLeaderFormulas } from '@/db/savedLeaderFormulaRepo';
 import { createSavedRiver, deleteSavedRiversForUser, listSavedRivers } from '@/db/savedRiverRepo';
 import { createSessionSegment, deleteSessionSegmentsForUser, listSessionSegments, updateSessionSegment } from '@/db/sessionSegmentRepo';
 import { createCatchEvent, deleteCatchEventsForUser, listCatchEvents } from '@/db/catchEventRepo';
@@ -21,7 +23,7 @@ import { buildTopFlyInsights, buildTopFlyRecords, TopFlyRecord } from '@/engine/
 import { isWithinDateRange } from '@/utils/dateRange';
 import { AccessLevel, SubscriptionStatus } from '@/types/user';
 
-export type UserDataCleanupCategory = 'drafts' | 'experiments' | 'sessions' | 'flies' | 'rivers' | 'all';
+export type UserDataCleanupCategory = 'drafts' | 'experiments' | 'sessions' | 'flies' | 'formulas' | 'rivers' | 'all';
 
 interface AppStore {
   sessions: Session[];
@@ -39,11 +41,14 @@ interface AppStore {
   currentHasPremiumAccess: boolean;
   canManageAccess: boolean;
   savedFlies: SavedFly[];
+  savedLeaderFormulas: LeaderFormula[];
   savedRivers: SavedRiver[];
   activeUserId: number | null;
   setActiveUserId: (id: number) => Promise<void>;
   addUser: (name: string) => Promise<number>;
   addSavedFly: (payload: FlySetup) => Promise<number>;
+  addSavedLeaderFormula: (payload: Omit<LeaderFormula, 'id' | 'userId' | 'createdAt'>) => Promise<number>;
+  deleteSavedLeaderFormula: (formulaId: number) => Promise<void>;
   addSavedRiver: (name: string) => Promise<number>;
   updateUserAccess: (userId: number, next: { accessLevel: AccessLevel; subscriptionStatus: SubscriptionStatus; trialStartedAt?: string | null; trialEndsAt?: string | null; subscriptionExpiresAt?: string | null; grantedByUserId?: number | null; }) => Promise<void>;
   startTrialForUser: (userId: number) => Promise<void>;
@@ -79,6 +84,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const [topFlyRecords, setTopFlyRecords] = useState<TopFlyRecord[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [savedFlies, setSavedFlies] = useState<SavedFly[]>([]);
+  const [savedLeaderFormulas, setSavedLeaderFormulas] = useState<LeaderFormula[]>([]);
   const [savedRivers, setSavedRivers] = useState<SavedRiver[]>([]);
   const [activeUserId, setActiveUserId] = useState<number | null>(null);
   const sessionMap = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
@@ -108,7 +114,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       const owner = existingUsers.find((user) => user.role === 'owner');
       if (!owner && existingUsers[0]) {
         const storedActiveUserId = await loadActiveUserId();
-        const ownerId = existingUsers.some((user) => user.id === storedActiveUserId) ? storedActiveUserId : existingUsers[0].id;
+        const ownerId = storedActiveUserId && existingUsers.some((user) => user.id === storedActiveUserId) ? storedActiveUserId : existingUsers[0].id;
         await updateUser(ownerId, { role: 'owner', accessLevel: 'power_user', subscriptionStatus: 'power_user' });
         existingUsers = await listUsers();
       }
@@ -132,17 +138,19 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       setCatchEvents([]);
       setExperiments([]);
       setSavedFlies([]);
+      setSavedLeaderFormulas([]);
       setSavedRivers([]);
       setAnglerComparisons([]);
       setTopFlyRecords([]);
       return;
     }
-    const [s, segments, catches, e, flies, rivers] = await Promise.all([
+    const [s, segments, catches, e, flies, leaderFormulas, rivers] = await Promise.all([
       listSessions(uid),
       listSessionSegments(uid),
       listCatchEvents(uid),
       listExperiments(uid),
       listSavedFlies(uid),
+      listSavedLeaderFormulas(uid),
       listSavedRivers(uid)
     ]);
     const allSessionLists = await Promise.all(allUsers.map((user) => listSessions(user.id)));
@@ -152,6 +160,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     setCatchEvents(catches);
     setExperiments(e);
     setSavedFlies(flies);
+    setSavedLeaderFormulas(leaderFormulas);
     setSavedRivers(rivers);
     setAnglerComparisons(
       generateAnglerComparisons(
@@ -207,6 +216,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         currentHasPremiumAccess: TESTING_PREMIUM_OVERRIDE ? true : hasPremiumAccess(currentUser) || hasPremiumAccess(ownerUser),
         canManageAccess: TESTING_ADMIN_OVERRIDE ? true : !!ownerUser,
         savedFlies,
+        savedLeaderFormulas,
         savedRivers,
         activeUserId,
         setActiveUserId: selectActiveUser,
@@ -222,6 +232,16 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
           const id = await createSavedFly({ ...payload, userId: activeUserId });
           await refresh(activeUserId);
           return id;
+        },
+        addSavedLeaderFormula: async (payload) => {
+          if (!activeUserId) throw new Error('No active user selected.');
+          const id = await createSavedLeaderFormula({ ...payload, userId: activeUserId });
+          await refresh(activeUserId);
+          return id;
+        },
+        deleteSavedLeaderFormula: async (formulaId) => {
+          await deleteSavedLeaderFormula(formulaId);
+          await refresh(activeUserId);
         },
         addSavedRiver: async (name) => {
           if (!activeUserId) throw new Error('No active user selected.');
@@ -278,12 +298,13 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
           await deleteExperimentsForUser(userId);
           await deleteSessionsForUser(userId);
           await deleteSavedFliesForUser(userId);
+          await deleteSavedLeaderFormulasForUser(userId);
           await deleteSavedRiversForUser(userId);
           await refresh(activeUserId);
         },
         clearUserDataCategories: async (userId, categories) => {
           const targets = categories.includes('all')
-            ? ['experiments', 'sessions', 'flies', 'rivers']
+            ? ['experiments', 'sessions', 'flies', 'formulas', 'rivers']
             : categories;
 
           if (targets.includes('sessions')) {
@@ -303,6 +324,10 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
             await deleteSavedFliesForUser(userId);
           }
 
+          if (targets.includes('formulas')) {
+            await deleteSavedLeaderFormulasForUser(userId);
+          }
+
           if (targets.includes('rivers')) {
             await deleteSavedRiversForUser(userId);
           }
@@ -320,6 +345,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
           await deleteSessionSegmentsForUser(userId);
           await deleteSessionsForUser(userId);
           await deleteSavedFliesForUser(userId);
+          await deleteSavedLeaderFormulasForUser(userId);
           await deleteSavedRiversForUser(userId);
           await deleteUser(userId);
 

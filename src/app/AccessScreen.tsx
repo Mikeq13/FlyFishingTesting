@@ -70,8 +70,9 @@ export const AccessScreen = () => {
     { key: 'experiments', label: 'Clear Experiments', description: 'Removes experiment results but keeps sessions, saved flies, and saved rivers.' },
     { key: 'sessions', label: 'Clear Sessions', description: 'Removes sessions and their linked experiments, but keeps saved flies and saved rivers.' },
     { key: 'flies', label: 'Clear Saved Flies', description: 'Removes saved flies but keeps sessions, experiments, and saved rivers.' },
+    { key: 'formulas', label: 'Clear Leader Formulas', description: 'Removes saved leader formulas but keeps sessions, experiments, flies, and saved rivers.' },
     { key: 'rivers', label: 'Clear Saved Rivers', description: 'Removes saved rivers but keeps sessions, experiments, and saved flies.' },
-    { key: 'all', label: 'Clear Everything', description: 'Removes sessions, experiments, saved flies, and saved rivers for this profile.', destructive: true }
+    { key: 'all', label: 'Clear Everything', description: 'Removes sessions, experiments, saved flies, saved leader formulas, and saved rivers for this profile.', destructive: true }
   ];
 
   const renderCleanupActions = (userId: number, userName: string, tone: 'dark' | 'light') => (
