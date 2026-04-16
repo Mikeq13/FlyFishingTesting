@@ -20,6 +20,8 @@ export interface Session {
   userId: number;
   date: string;
   mode: SessionMode;
+  plannedDurationMinutes?: number;
+  alertIntervalMinutes?: number | null;
   waterType: WaterType;
   depthRange: DepthRange;
   riverName?: string;

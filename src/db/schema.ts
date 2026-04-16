@@ -44,6 +44,8 @@ export const initDb = async (): Promise<void> => {
       user_id INTEGER NOT NULL,
       date TEXT NOT NULL,
       session_mode TEXT NOT NULL DEFAULT 'experiment',
+      planned_duration_minutes INTEGER,
+      alert_interval_minutes INTEGER,
       water_type TEXT NOT NULL,
       depth_range TEXT NOT NULL,
       river_name TEXT,
@@ -162,6 +164,12 @@ export const initDb = async (): Promise<void> => {
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE sessions ADD COLUMN hypothesis TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN planned_duration_minutes INTEGER;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN alert_interval_minutes INTEGER;`);
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE experiments ADD COLUMN outcome TEXT NOT NULL DEFAULT 'inconclusive';`);

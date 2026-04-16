@@ -3,7 +3,7 @@ import { Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimens
 import { DepthSelector } from '@/components/DepthSelector';
 import { KeyboardDismissView } from '@/components/KeyboardDismissView';
 import { OptionChips } from '@/components/OptionChips';
-import { DEPTH_RANGES, WATER_TYPES } from '@/constants/options';
+import { DEPTH_RANGES, SESSION_ALERT_INTERVALS, WATER_TYPES } from '@/constants/options';
 import { useAppStore } from './store';
 import { SessionMode, WaterType } from '@/types/session';
 import { ScreenBackground } from '@/components/ScreenBackground';
@@ -37,6 +37,9 @@ export const SessionScreen = ({ navigation, route }: any) => {
   const [riverName, setRiverName] = useState('');
   const [hypothesis, setHypothesis] = useState('');
   const [notes, setNotes] = useState('');
+  const [durationHours, setDurationHours] = useState(mode === 'competition' ? '3' : '2');
+  const [durationMinutes, setDurationMinutes] = useState('0');
+  const [alertIntervalLabel, setAlertIntervalLabel] = useState<typeof SESSION_ALERT_INTERVALS[number]>('15 min');
   const [showSavedRiverList, setShowSavedRiverList] = useState(false);
   const [showSavedHypothesisList, setShowSavedHypothesisList] = useState(false);
   const sortedSavedRivers = useMemo(() => [...savedRivers].sort((a, b) => a.name.localeCompare(b.name)), [savedRivers]);
@@ -61,6 +64,20 @@ export const SessionScreen = ({ navigation, route }: any) => {
     await addSavedRiver(normalizedRiverName);
   };
 
+  const plannedDurationMinutes = useMemo(() => {
+    if (mode === 'experiment') return undefined;
+    const hours = Math.max(0, Number(durationHours || '0'));
+    const minutes = Math.max(0, Number(durationMinutes || '0'));
+    const total = hours * 60 + minutes;
+    return Number.isFinite(total) && total > 0 ? total : undefined;
+  }, [durationHours, durationMinutes, mode]);
+
+  const alertIntervalMinutes = useMemo(() => {
+    if (mode === 'experiment') return undefined;
+    if (alertIntervalLabel === 'Off') return null;
+    return Number(alertIntervalLabel.replace(' min', ''));
+  }, [alertIntervalLabel, mode]);
+
   const onStart = async () => {
     const normalizedRiverName = riverName.trim();
     if (normalizedRiverName) {
@@ -70,13 +87,15 @@ export const SessionScreen = ({ navigation, route }: any) => {
     const id = await addSession({
       date: new Date().toISOString(),
       mode,
+      plannedDurationMinutes,
+      alertIntervalMinutes,
       waterType,
       depthRange,
       riverName: normalizedRiverName || undefined,
       hypothesis: hypothesis.trim() || undefined,
       notes
     });
-    navigation.navigate('Experiment', { sessionId: id });
+    navigation.navigate(mode === 'experiment' ? 'Experiment' : mode === 'practice' ? 'Practice' : 'Competition', { sessionId: id });
   };
 
   return (
@@ -123,7 +142,31 @@ export const SessionScreen = ({ navigation, route }: any) => {
           <OptionChips label="Water Type" options={WATER_TYPES} value={waterType} onChange={setWaterType} />
           <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Water Depth</Text>
           <DepthSelector value={depthRange} onChange={setDepthRange} />
-          {!!savedHypotheses.length && (
+          {mode !== 'experiment' ? (
+            <>
+              <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>Session Timer</Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TextInput
+                  value={durationHours}
+                  onChangeText={setDurationHours}
+                  placeholder="Hours"
+                  keyboardType="number-pad"
+                  placeholderTextColor="#5a6c78"
+                  style={{ flex: 1, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+                />
+                <TextInput
+                  value={durationMinutes}
+                  onChangeText={setDurationMinutes}
+                  placeholder="Minutes"
+                  keyboardType="number-pad"
+                  placeholderTextColor="#5a6c78"
+                  style={{ flex: 1, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+                />
+              </View>
+              <OptionChips label="In-App Time Alerts" options={SESSION_ALERT_INTERVALS} value={alertIntervalLabel} onChange={setAlertIntervalLabel} />
+            </>
+          ) : null}
+          {mode === 'experiment' && !!savedHypotheses.length && (
             <>
               <Pressable onPress={() => setShowSavedHypothesisList((current) => !current)} style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}>
                 <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
@@ -148,7 +191,9 @@ export const SessionScreen = ({ navigation, route }: any) => {
               )}
             </>
           )}
-          <TextInput value={hypothesis} onChangeText={setHypothesis} placeholder="Hypothesis" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
+          {mode === 'experiment' ? (
+            <TextInput value={hypothesis} onChangeText={setHypothesis} placeholder="Hypothesis" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
+          ) : null}
           <TextInput value={notes} onChangeText={setNotes} placeholder="Session notes" placeholderTextColor="#5a6c78" multiline style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43', minHeight: 96, textAlignVertical: 'top' }} />
         </View>
         <Pressable onPress={onStart} style={{ backgroundColor: '#2a9d8f', padding: 14, borderRadius: 14, width: '100%' }}>

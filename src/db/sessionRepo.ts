@@ -12,11 +12,13 @@ export const createSession = async (payload: Omit<Session, 'id'>): Promise<numbe
 
   const db = await getDb();
   const result = await db.runAsync(
-    `INSERT INTO sessions (user_id, date, session_mode, water_type, depth_range, river_name, hypothesis, insect_type, insect_stage, insect_confidence, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO sessions (user_id, date, session_mode, planned_duration_minutes, alert_interval_minutes, water_type, depth_range, river_name, hypothesis, insect_type, insect_stage, insect_confidence, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     payload.userId,
     payload.date,
     payload.mode,
+    payload.plannedDurationMinutes ?? null,
+    payload.alertIntervalMinutes ?? null,
     payload.waterType,
     payload.depthRange,
     payload.riverName ?? null,
@@ -35,7 +37,9 @@ export const listSessions = async (userId: number): Promise<Session[]> => {
       .filter((s) => s.userId === userId)
       .map((session) => ({
         ...session,
-        mode: session.mode ?? 'experiment'
+        mode: session.mode ?? 'experiment',
+        plannedDurationMinutes: session.plannedDurationMinutes ?? undefined,
+        alertIntervalMinutes: session.alertIntervalMinutes === undefined ? 15 : session.alertIntervalMinutes
       }));
   }
 
@@ -46,6 +50,8 @@ export const listSessions = async (userId: number): Promise<Session[]> => {
     userId: r.user_id,
     date: r.date,
     mode: r.session_mode ?? 'experiment',
+    plannedDurationMinutes: r.planned_duration_minutes ?? undefined,
+    alertIntervalMinutes: r.alert_interval_minutes === undefined ? 15 : r.alert_interval_minutes,
     waterType: r.water_type,
     depthRange: r.depth_range,
     riverName: r.river_name ?? undefined,

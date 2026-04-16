@@ -5,6 +5,8 @@ import { AppStoreProvider } from './app/store';
 import { HomeScreen } from './app/HomeScreen';
 import { SessionScreen } from './app/SessionScreen';
 import { ExperimentScreen } from './app/ExperimentScreen';
+import { PracticeScreen } from './app/PracticeScreen';
+import { CompetitionScreen } from './app/CompetitionScreen';
 import { InsightsScreen } from './app/InsightsScreen';
 import { HistoryScreen } from './app/HistoryScreen';
 import { CoachScreen } from './app/CoachScreen';
@@ -21,6 +23,8 @@ export default function App() {
           <Stack.Screen name="Home" component={HomeScreen} />
           <Stack.Screen name="Session" component={SessionScreen} />
           <Stack.Screen name="Experiment" component={ExperimentScreen} />
+          <Stack.Screen name="Practice" component={PracticeScreen} />
+          <Stack.Screen name="Competition" component={CompetitionScreen} />
           <Stack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: 'Session' }} />
           <Stack.Screen name="Insights" component={InsightsScreen} />
           <Stack.Screen name="History" component={HistoryScreen} />
