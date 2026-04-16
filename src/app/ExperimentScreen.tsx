@@ -4,6 +4,7 @@ import { CastCounter } from '@/components/CastCounter';
 import { CatchCounter } from '@/components/CatchCounter';
 import { ExperimentCatchModal } from '@/components/ExperimentCatchModal';
 import { ExperimentSavedActionsModal } from '@/components/ExperimentSavedActionsModal';
+import { ExperimentSetupPanel } from '@/components/ExperimentSetupPanel';
 import { FlySelector } from '@/components/FlySelector';
 import { KeyboardDismissView } from '@/components/KeyboardDismissView';
 import { useAppStore } from './store';
@@ -13,10 +14,6 @@ import { deriveExperimentStatus } from '@/engine/experimentStatus';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { ExperimentControlFocus, ExperimentFlyEntry, TroutSpecies } from '@/types/experiment';
 import { alignExperimentEntries, createEmptyExperimentEntries, getLegacyExperimentFields } from '@/utils/experimentEntries';
-import { OptionChips } from '@/components/OptionChips';
-
-const FLY_COUNT_OPTIONS = [1, 2, 3] as const;
-const CONTROL_FOCUS_OPTIONS: ExperimentControlFocus[] = ['bead color', 'bead size', 'body type', 'collar', 'fly type', 'hook size', 'pattern', 'tail'];
 
 export const ExperimentScreen = ({ route, navigation }: any) => {
   const { width } = useWindowDimensions();
@@ -226,70 +223,18 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           {session?.hypothesis ? <Text style={{ color: '#d7f3ff' }}>Hypothesis: {session.hypothesis}</Text> : null}
         </View>
 
-        <View style={{ gap: 8, backgroundColor: 'rgba(6, 27, 44, 0.70)', padding: 14, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
-          <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>Flies in this experiment</Text>
-          <View style={{ flexDirection: isCompactLayout ? 'column' : 'row', gap: 8 }}>
-            {FLY_COUNT_OPTIONS.map((option) => (
-              <Pressable
-                key={option}
-                onPress={() => setFlyCount(option)}
-                style={{
-                  flex: 1,
-                  backgroundColor: flyCount === option ? '#2a9d8f' : 'rgba(255,255,255,0.14)',
-                  padding: 12,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: flyCount === option ? 'rgba(255,255,255,0.24)' : 'rgba(202,240,248,0.12)'
-                }}
-              >
-                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>{option}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        <OptionChips label="Control Focus" options={CONTROL_FOCUS_OPTIONS} value={controlFocus} onChange={setControlFocus} />
-
-        {flyCount > 1 && (
-          <View style={{ gap: 8, backgroundColor: 'rgba(6, 27, 44, 0.70)', padding: 14, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
-            <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>Choose Baseline</Text>
-            <View style={{ flexDirection: isCompactLayout ? 'column' : 'row', gap: 8 }}>
-              {visibleEntries.map((entry, index) => (
-                <Pressable
-                  key={`baseline-${entry.slotId}`}
-                  onPress={() => setBaselineIndex(index)}
-                  style={{
-                    flex: 1,
-                    backgroundColor: baselineIndex === index ? '#2a9d8f' : 'rgba(255,255,255,0.14)',
-                    padding: 12,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: baselineIndex === index ? 'rgba(255,255,255,0.24)' : 'rgba(202,240,248,0.12)'
-                  }}
-                >
-                  <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
-                    {entry.fly.name.trim() || `Fly ${index + 1}`}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        )}
-
-        <View style={{ flexDirection: isCompactLayout ? 'column' : 'row', gap: 8 }}>
-          <Pressable
-            onPress={() => setCastStep(5)}
-            style={{ backgroundColor: castStep === 5 ? '#1d3557' : 'rgba(255,255,255,0.14)', padding: 12, borderRadius: 12, flex: 1, borderWidth: 1, borderColor: 'rgba(202,240,248,0.12)' }}
-          >
-            <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Cast interval: 5</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setCastStep(10)}
-            style={{ backgroundColor: castStep === 10 ? '#1d3557' : 'rgba(255,255,255,0.14)', padding: 12, borderRadius: 12, flex: 1, borderWidth: 1, borderColor: 'rgba(202,240,248,0.12)' }}
-          >
-            <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Cast interval: 10</Text>
-          </Pressable>
-        </View>
+        <ExperimentSetupPanel
+          flyCount={flyCount}
+          onFlyCountChange={setFlyCount}
+          controlFocus={controlFocus}
+          onControlFocusChange={setControlFocus}
+          visibleEntries={visibleEntries}
+          baselineIndex={baselineIndex}
+          onBaselineIndexChange={setBaselineIndex}
+          castStep={castStep}
+          onCastStepChange={setCastStep}
+          isCompactLayout={isCompactLayout}
+        />
 
         {visibleEntries.map((entry, index) => (
           <View key={entry.slotId} style={{ gap: 8 }}>
