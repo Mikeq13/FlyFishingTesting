@@ -172,11 +172,11 @@ export const CompetitionScreen = ({ route }: any) => {
         </SectionCard>
 
         <SectionCard title="Scorecard" subtitle="Keep fish count and official length totals easy to check at a glance." tone="light">
-          <InlineSummaryRow label="Total Fish" value={`${competitionCatches.length}`} />
+          <InlineSummaryRow label="Total Fish" value={`${competitionCatches.length}`} tone="light" />
           {competitionRequiresMeasurement ? (
-            <InlineSummaryRow label="Total Length" value={`${Math.round(totalLengthDisplay)} ${competitionLengthUnit}`} />
+            <InlineSummaryRow label="Total Length" value={`${Math.round(totalLengthDisplay)} ${competitionLengthUnit}`} tone="light" />
           ) : (
-            <Text style={{ color: '#334e68' }}>This session is counting fish only. No length entry required.</Text>
+            <Text style={{ color: appTheme.colors.textDarkSoft }}>This session is counting fish only. No length entry required.</Text>
           )}
           <AppButton
             label={session.competitionRole === 'controlling' ? 'Controlling This Session' : 'Log Competition Fish'}
@@ -189,13 +189,23 @@ export const CompetitionScreen = ({ route }: any) => {
         {isCompetitionSummaryReady ? (
           <SectionCard title="Group Session Summary" subtitle="Once everyone in the group is done or controlling, the summary becomes official." tone="light">
             {competitionSummaryRows.map((row) => (
-              <View key={row.assignment.id} style={{ backgroundColor: '#e9f5fb', borderRadius: appTheme.radius.md, padding: 12, gap: 4 }}>
+              <View
+                key={row.assignment.id}
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.72)',
+                  borderRadius: appTheme.radius.md,
+                  padding: 12,
+                  gap: 4,
+                  borderWidth: 1,
+                  borderColor: 'rgba(16,42,67,0.08)'
+                }}
+              >
                 <Text style={{ color: appTheme.colors.textDark, fontWeight: '800' }}>{row.name}</Text>
-                <InlineSummaryRow label="Result" value={row.status === 'controlling' ? 'Controlling' : `${row.fishCount} fish`} />
+                <InlineSummaryRow label="Result" value={row.status === 'controlling' ? 'Controlling' : `${row.fishCount} fish`} tone="light" />
                 {session.competitionRequiresMeasurement && row.status !== 'controlling' ? (
-                  <InlineSummaryRow label="Measured Length" value={`${Math.round(row.totalLength)} ${competitionLengthUnit}`} />
+                  <InlineSummaryRow label="Measured Length" value={`${Math.round(row.totalLength)} ${competitionLengthUnit}`} tone="light" />
                 ) : null}
-                <InlineSummaryRow label="Status" value={row.status} />
+                <InlineSummaryRow label="Status" value={row.status} tone="light" />
               </View>
             ))}
           </SectionCard>
@@ -205,10 +215,10 @@ export const CompetitionScreen = ({ route }: any) => {
 
         <SectionCard title="Catch Times" subtitle="Each logged fish stays easy to verify by time and measurement." tone="light">
           {!competitionCatches.length ? (
-            <Text style={{ color: '#486581' }}>No competition fish logged yet.</Text>
+            <Text style={{ color: appTheme.colors.textDarkSoft }}>No competition fish logged yet.</Text>
           ) : (
             competitionCatches.map((event) => (
-              <Text key={event.id} style={{ color: '#334e68' }}>
+              <Text key={event.id} style={{ color: appTheme.colors.textDarkSoft }}>
                 {new Date(event.caughtAt).toLocaleTimeString()} - {event.species || 'Fish'}
                 {event.lengthValue ? ` - ${event.lengthValue} ${event.lengthUnit}` : ''}
               </Text>

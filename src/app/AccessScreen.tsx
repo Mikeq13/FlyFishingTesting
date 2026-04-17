@@ -14,6 +14,7 @@ import { GroupsSharingSection } from '@/components/access/GroupsSharingSection';
 import { InvitesSponsorshipSection } from '@/components/access/InvitesSponsorshipSection';
 import { CompetitionsSection } from '@/components/access/CompetitionsSection';
 import { OwnerControlsSection } from '@/components/access/OwnerControlsSection';
+import { BetaReadinessSection } from '@/components/access/BetaReadinessSection';
 
 export const AccessScreen = () => {
   const { width } = useWindowDimensions();
@@ -414,6 +415,14 @@ export const AccessScreen = () => {
           showPremiumActions={currentUser.role !== 'owner'}
           onStartTrial={() => runAdminAction(() => startTrialForUser(currentUser.id), '7-day trial started for this account.')}
           onContinueWithApple={handlePurchase}
+        />
+
+        <BetaReadinessSection
+          authStatus={authStatus}
+          remoteSession={remoteSession}
+          sharedDataStatus={sharedDataStatus}
+          syncStatus={syncStatus}
+          notificationPermissionStatus={notificationPermissionStatus}
         />
 
         <LocalDataSection

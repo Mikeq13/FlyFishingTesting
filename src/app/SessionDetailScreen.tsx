@@ -61,11 +61,11 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
         />
         {session ? (
           <SectionCard title="Session Summary" subtitle={new Date(session.date).toLocaleString()} tone="light">
-            {session.riverName ? <InlineSummaryRow label="River" value={session.riverName} /> : null}
-            <InlineSummaryRow label="Water" value={session.waterType} />
-            <InlineSummaryRow label="Depth" value={session.depthRange} />
-            {session.hypothesis ? <InlineSummaryRow label="Hypothesis" value={session.hypothesis} /> : null}
-            <InlineSummaryRow label="Catch Rate" value={`${(catchRate(totalCatches, totalCasts) * 100).toFixed(1)}%`} />
+            {session.riverName ? <InlineSummaryRow label="River" value={session.riverName} tone="light" /> : null}
+            <InlineSummaryRow label="Water" value={session.waterType} tone="light" />
+            <InlineSummaryRow label="Depth" value={session.depthRange} tone="light" />
+            {session.hypothesis ? <InlineSummaryRow label="Hypothesis" value={session.hypothesis} tone="light" /> : null}
+            <InlineSummaryRow label="Catch Rate" value={`${(catchRate(totalCatches, totalCasts) * 100).toFixed(1)}%`} tone="light" />
           </SectionCard>
         ) : (
           <StatusBanner tone="error" text="Session not found." />
@@ -73,19 +73,29 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
 
         <SectionCard title={`Experiments In This Session: ${sessionExperiments.length}`} subtitle="Review each experiment cleanly before editing, archiving, or deleting." tone="light">
         {sessionExperiments.map((e) => (
-          <View key={e.id} style={{ backgroundColor: '#e9f5fb', borderRadius: 12, padding: 14, gap: 4 }}>
+          <View
+            key={e.id}
+            style={{
+              backgroundColor: 'rgba(255,255,255,0.72)',
+              borderRadius: 12,
+              padding: 14,
+              gap: 4,
+              borderWidth: 1,
+              borderColor: 'rgba(16,42,67,0.08)'
+            }}
+          >
             <Text style={{ fontWeight: '800', color: '#102a43' }}>#{e.id} Status: {e.status === 'draft' ? 'Draft' : 'Complete'}</Text>
-            <InlineSummaryRow label="Outcome" value={e.outcome} />
-            <InlineSummaryRow label="Winner" value={e.winner} />
-            <InlineSummaryRow label="Hypothesis" value={e.hypothesis} />
-            <InlineSummaryRow label="Control Focus" value={e.controlFocus} />
+            <InlineSummaryRow label="Outcome" value={e.outcome} tone="light" />
+            <InlineSummaryRow label="Winner" value={e.winner} tone="light" />
+            <InlineSummaryRow label="Hypothesis" value={e.hypothesis} tone="light" />
+            <InlineSummaryRow label="Control Focus" value={e.controlFocus} tone="light" />
             {getExperimentEntries(e).map((entry) => (
               <View key={`${e.id}-${entry.slotId}`} style={{ gap: 2 }}>
-                <Text style={{ color: '#334e68' }}>
+                <Text style={{ color: '#486581' }}>
                   {entry.label} {entry.fly.name || 'Unnamed'} (#{entry.fly.hookSize}, {entry.fly.beadColor}, {entry.fly.beadSizeMm}): {entry.catches}/{entry.casts}
                 </Text>
                 {!!entry.fishSizesInches.length && (
-                  <Text style={{ color: '#334e68' }}>
+                  <Text style={{ color: '#486581' }}>
                     Fish log: {entry.fishSizesInches.map((size, fishIndex) => `${size}" ${entry.fishSpecies[fishIndex] ?? 'Trout'}`).join(', ')}
                   </Text>
                 )}

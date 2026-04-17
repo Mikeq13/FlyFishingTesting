@@ -1,5 +1,6 @@
 import { RemoteAccessSnapshot } from '@/types/remote';
 import { supabase } from './supabaseClient';
+import { REMOTE_ACCESS_SELECTS } from './remoteSelects';
 import {
   createRemoteEntityMaps,
   mapRemoteCompetition,
@@ -31,17 +32,17 @@ export const fetchRemoteAccessSnapshot = async (
     competitionParticipantsResponse,
     competitionAssignmentsResponse
   ] = await Promise.all([
-    supabase.from('profiles').select('*'),
-    supabase.from('groups').select('*'),
-    supabase.from('group_memberships').select('*'),
-    supabase.from('share_preferences').select('*'),
-    supabase.from('invites').select('*'),
-    supabase.from('sponsored_access').select('*'),
-    supabase.from('competitions').select('*'),
-    supabase.from('competition_groups').select('*'),
-    supabase.from('competition_sessions').select('*'),
-    supabase.from('competition_participants').select('*'),
-    supabase.from('competition_session_assignments').select('*')
+    supabase.from('profiles').select(REMOTE_ACCESS_SELECTS.profiles),
+    supabase.from('groups').select(REMOTE_ACCESS_SELECTS.groups),
+    supabase.from('group_memberships').select(REMOTE_ACCESS_SELECTS.groupMemberships),
+    supabase.from('share_preferences').select(REMOTE_ACCESS_SELECTS.sharePreferences),
+    supabase.from('invites').select(REMOTE_ACCESS_SELECTS.invites),
+    supabase.from('sponsored_access').select(REMOTE_ACCESS_SELECTS.sponsoredAccess),
+    supabase.from('competitions').select(REMOTE_ACCESS_SELECTS.competitions),
+    supabase.from('competition_groups').select(REMOTE_ACCESS_SELECTS.competitionGroups),
+    supabase.from('competition_sessions').select(REMOTE_ACCESS_SELECTS.competitionSessions),
+    supabase.from('competition_participants').select(REMOTE_ACCESS_SELECTS.competitionParticipants),
+    supabase.from('competition_session_assignments').select(REMOTE_ACCESS_SELECTS.competitionAssignments)
   ]);
 
   const responses = [

@@ -1,5 +1,6 @@
 import { RemoteAccessSnapshot, RemoteSharedDataSnapshot } from '@/types/remote';
 import { supabase } from './supabaseClient';
+import { REMOTE_SHARED_SELECTS } from './remoteSelects';
 import {
   createSegmentMaps,
   createSessionMaps,
@@ -27,14 +28,14 @@ export const fetchRemoteSharedDataSnapshot = async (
     savedRigPresetsResponse,
     savedRiversResponse
   ] = await Promise.all([
-    supabase.from('sessions').select('*'),
-    supabase.from('session_segments').select('*'),
-    supabase.from('catch_events').select('*'),
-    supabase.from('experiments').select('*'),
-    supabase.from('saved_flies').select('*'),
-    supabase.from('saved_leader_formulas').select('*'),
-    supabase.from('saved_rig_presets').select('*'),
-    supabase.from('saved_rivers').select('*')
+    supabase.from('sessions').select(REMOTE_SHARED_SELECTS.sessions),
+    supabase.from('session_segments').select(REMOTE_SHARED_SELECTS.sessionSegments),
+    supabase.from('catch_events').select(REMOTE_SHARED_SELECTS.catchEvents),
+    supabase.from('experiments').select(REMOTE_SHARED_SELECTS.experiments),
+    supabase.from('saved_flies').select(REMOTE_SHARED_SELECTS.savedFlies),
+    supabase.from('saved_leader_formulas').select(REMOTE_SHARED_SELECTS.savedLeaderFormulas),
+    supabase.from('saved_rig_presets').select(REMOTE_SHARED_SELECTS.savedRigPresets),
+    supabase.from('saved_rivers').select(REMOTE_SHARED_SELECTS.savedRivers)
   ]);
 
   const responses = [

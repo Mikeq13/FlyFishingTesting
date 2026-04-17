@@ -34,11 +34,11 @@ export const OwnerControlsSection = ({
     {users.map((user) => (
       <SectionCard key={user.id} tone="light">
         <Text style={{ color: '#102a43', fontWeight: '800', fontSize: 18 }}>{user.name}</Text>
-        <InlineSummaryRow label="Role" value={user.role} />
-        <InlineSummaryRow label="Access" value={getEntitlementLabel(user)} />
-        <InlineSummaryRow label="Premium" value={hasPremiumAccess(user) ? 'Enabled' : 'Locked'} />
+        <InlineSummaryRow label="Role" value={user.role} tone="light" />
+        <InlineSummaryRow label="Access" value={getEntitlementLabel(user)} tone="light" />
+        <InlineSummaryRow label="Premium" value={hasPremiumAccess(user) ? 'Enabled' : 'Locked'} tone="light" />
         {user.role === 'owner' ? (
-          <View style={{ backgroundColor: '#e9f5fb', borderRadius: 12, padding: 10 }}>
+          <View style={{ backgroundColor: 'rgba(255,255,255,0.72)', borderRadius: 12, padding: 10, borderWidth: 1, borderColor: 'rgba(16,42,67,0.08)' }}>
             <Text style={{ color: '#102a43', fontWeight: '700' }}>Owner access stays enabled.</Text>
           </View>
         ) : (

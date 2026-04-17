@@ -197,7 +197,7 @@ export const HistoryScreen = ({ navigation }: any) => {
               </Pressable>
             ))}
           </View>
-          <Text style={{ color: '#334e68' }}>Matching experiments: {cleanupCount}</Text>
+          <Text style={{ color: appTheme.colors.textDarkSoft }}>Matching experiments: {cleanupCount}</Text>
           <AppButton label={cleanupAction === 'archive' ? 'Archive Filtered Experiments' : 'Delete Filtered Experiments'} onPress={runCleanup} disabled={!cleanupCount} variant="danger" />
         </SectionCard>
 
@@ -217,15 +217,15 @@ export const HistoryScreen = ({ navigation }: any) => {
 
         return (
           <SectionCard key={session.id} title={new Date(session.date).toLocaleString()} subtitle={`${session.waterType} water • ${session.depthRange}`} tone="light">
-            <InlineSummaryRow label="Month" value={new Date(session.date).toLocaleString('en-US', { month: 'long' })} />
-            {session.riverName ? <InlineSummaryRow label="River" value={session.riverName} /> : null}
-            {session.hypothesis ? <InlineSummaryRow label="Session Hypothesis" value={session.hypothesis} /> : null}
-            <InlineSummaryRow label="Session Catch Rate" value={`${(rate * 100).toFixed(1)}%`} />
-            <InlineSummaryRow label="Experiments Logged" value={`${sessionExperiments.length}`} />
+            <InlineSummaryRow label="Month" value={new Date(session.date).toLocaleString('en-US', { month: 'long' })} tone="light" />
+            {session.riverName ? <InlineSummaryRow label="River" value={session.riverName} tone="light" /> : null}
+            {session.hypothesis ? <InlineSummaryRow label="Session Hypothesis" value={session.hypothesis} tone="light" /> : null}
+            <InlineSummaryRow label="Session Catch Rate" value={`${(rate * 100).toFixed(1)}%`} tone="light" />
+            <InlineSummaryRow label="Experiments Logged" value={`${sessionExperiments.length}`} tone="light" />
 
             {!!sessionExperiments.length && (
               <View style={{ marginTop: 4, gap: 4 }}>
-                <Text style={{ fontWeight: '700', color: '#102a43' }}>Experiment history</Text>
+                <Text style={{ fontWeight: '700', color: appTheme.colors.textDark }}>Experiment history</Text>
                 {sessionExperiments.map((experiment) => {
                   const entries = getExperimentEntries(experiment);
                   const experimentCasts = entries.reduce((sum, entry) => sum + entry.casts, 0);
@@ -233,16 +233,26 @@ export const HistoryScreen = ({ navigation }: any) => {
                   const experimentRate = experimentCasts ? (experimentCatches / experimentCasts) * 100 : 0;
 
                   return (
-                    <View key={experiment.id} style={{ backgroundColor: '#e9f5fb', borderRadius: appTheme.radius.md, padding: 10, gap: 4 }}>
-                      <InlineSummaryRow label="Hypothesis" value={experiment.hypothesis} />
-                      <InlineSummaryRow label="Control Focus" value={experiment.controlFocus} />
-                      <InlineSummaryRow label="Status" value={experiment.status === 'draft' ? 'Incomplete Entry' : 'Complete'} />
-                      <InlineSummaryRow label="Outcome" value={experiment.outcome} />
-                      <InlineSummaryRow label="Winner" value={experiment.winner} />
-                      <Text style={{ color: '#334e68' }}>Flies: {entries.map((entry) => `${entry.fly.name || entry.label} (#${entry.fly.hookSize}, ${entry.fly.beadColor}, ${entry.fly.beadSizeMm})`).join(', ')}</Text>
-                      <Text style={{ color: '#334e68' }}>Catch rate: {experimentRate.toFixed(1)}%</Text>
+                    <View
+                      key={experiment.id}
+                      style={{
+                        backgroundColor: 'rgba(255,255,255,0.72)',
+                        borderRadius: appTheme.radius.md,
+                        padding: 10,
+                        gap: 4,
+                        borderWidth: 1,
+                        borderColor: 'rgba(16,42,67,0.08)'
+                      }}
+                    >
+                      <InlineSummaryRow label="Hypothesis" value={experiment.hypothesis} tone="light" />
+                      <InlineSummaryRow label="Control Focus" value={experiment.controlFocus} tone="light" />
+                      <InlineSummaryRow label="Status" value={experiment.status === 'draft' ? 'Incomplete Entry' : 'Complete'} tone="light" />
+                      <InlineSummaryRow label="Outcome" value={experiment.outcome} tone="light" />
+                      <InlineSummaryRow label="Winner" value={experiment.winner} tone="light" />
+                      <Text style={{ color: appTheme.colors.textDarkSoft }}>Flies: {entries.map((entry) => `${entry.fly.name || entry.label} (#${entry.fly.hookSize}, ${entry.fly.beadColor}, ${entry.fly.beadSizeMm})`).join(', ')}</Text>
+                      <Text style={{ color: appTheme.colors.textDarkSoft }}>Catch rate: {experimentRate.toFixed(1)}%</Text>
                       {entries.some((entry) => entry.fishSizesInches.length) ? (
-                        <Text style={{ color: '#334e68' }}>
+                        <Text style={{ color: appTheme.colors.textDarkSoft }}>
                           Fish log: {entries
                             .flatMap((entry) =>
                               entry.fishSizesInches.map(
@@ -266,7 +276,7 @@ export const HistoryScreen = ({ navigation }: any) => {
                         </View>
                       </View>
                       {experiment.status === 'draft' ? (
-                        <Text style={{ color: '#6b7280', marginTop: 6 }}>
+                        <Text style={{ color: appTheme.colors.textDarkSoft, marginTop: 6 }}>
                           Incomplete entries can be edited if you remember the missing details, or removed if they are no longer useful.
                         </Text>
                       ) : null}
