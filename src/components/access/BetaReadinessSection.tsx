@@ -3,6 +3,7 @@ import { Text } from 'react-native';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { StatusBanner } from '@/components/ui/StatusBanner';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
+import { useTheme } from '@/design/theme';
 import { AuthStatus, RemoteSessionSnapshot, SyncStatusSnapshot } from '@/types/remote';
 import { NotificationPermissionStatus, SharedDataStatus } from '@/types/appState';
 
@@ -18,7 +19,10 @@ export const BetaReadinessSection = ({
   sharedDataStatus: SharedDataStatus;
   syncStatus: SyncStatusSnapshot;
   notificationPermissionStatus: NotificationPermissionStatus;
-}) => (
+}) => {
+  const { theme } = useTheme();
+
+  return (
   <SectionCard
     title="Beta Readiness"
     subtitle="Use this as the quick trust check before assuming shared data, reminders, or competition assignments are fully live."
@@ -73,8 +77,9 @@ export const BetaReadinessSection = ({
         }
       />
     ) : null}
-    <Text style={{ color: '#486581' }}>
+    <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
       If something looks missing, check sign-in first, then Sync Now, then confirm the other angler actually accepted the invite or joined the competition from their own device.
     </Text>
   </SectionCard>
-);
+  );
+};

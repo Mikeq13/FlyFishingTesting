@@ -15,21 +15,27 @@ export const FormField = ({
   label,
   helper,
   error,
+  tone = 'dark',
   children
 }: {
   label: string;
   helper?: string | null;
   error?: string | null;
+  tone?: 'dark' | 'light';
   children: React.ReactNode;
 }) => {
   const { theme } = useTheme();
 
   return (
     <View style={{ gap: theme.spacing.xs }}>
-      <Text style={{ color: theme.colors.text, fontWeight: '800' }}>{label}</Text>
+      <Text style={{ color: tone === 'light' ? theme.colors.textDark : theme.colors.text, fontWeight: '800' }}>{label}</Text>
       {children}
       {error ? <Text style={{ color: theme.colors.errorText }}>{error}</Text> : null}
-      {!error && helper ? <Text style={{ color: theme.colors.textSoft, lineHeight: 19 }}>{helper}</Text> : null}
+      {!error && helper ? (
+        <Text style={{ color: tone === 'light' ? theme.colors.textDarkSoft : theme.colors.textSoft, lineHeight: 19 }}>
+          {helper}
+        </Text>
+      ) : null}
     </View>
   );
 };

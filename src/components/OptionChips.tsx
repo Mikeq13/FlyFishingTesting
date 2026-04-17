@@ -7,14 +7,15 @@ interface OptionChipsProps<T extends string> {
   options: readonly T[];
   value?: T | null;
   onChange: (value: T) => void;
+  tone?: 'dark' | 'light';
 }
 
-export const OptionChips = <T extends string>({ label, options, value, onChange }: OptionChipsProps<T>) => {
+export const OptionChips = <T extends string>({ label, options, value, onChange, tone = 'dark' }: OptionChipsProps<T>) => {
   const { theme } = useTheme();
 
   return (
     <View style={{ gap: 8 }}>
-      <Text style={{ color: theme.colors.text, fontWeight: '800' }}>{label}</Text>
+      <Text style={{ color: tone === 'light' ? theme.colors.textDark : theme.colors.text, fontWeight: '800' }}>{label}</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         {options.map((option) => (
           <Pressable

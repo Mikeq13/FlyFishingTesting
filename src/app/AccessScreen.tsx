@@ -16,13 +16,14 @@ import { CompetitionsSection } from '@/components/access/CompetitionsSection';
 import { OwnerControlsSection } from '@/components/access/OwnerControlsSection';
 import { BetaReadinessSection } from '@/components/access/BetaReadinessSection';
 import { SectionCard } from '@/components/ui/SectionCard';
+import { StatusBanner } from '@/components/ui/StatusBanner';
 import { OptionChips } from '@/components/OptionChips';
 import { useResponsiveLayout } from '@/design/layout';
 import { useTheme } from '@/design/theme';
 
 export const AccessScreen = () => {
   const layout = useResponsiveLayout();
-  const { themeId, setThemeId, themeOptions } = useTheme();
+  const { theme, themeId, setThemeId, themeOptions } = useTheme();
   const {
     users,
     ownerUser,
@@ -411,6 +412,7 @@ export const AccessScreen = () => {
           showPremiumActions={currentUser.role !== 'owner'}
           onStartTrial={() => runAdminAction(() => startTrialForUser(currentUser.id), '7-day trial started for this account.')}
           onContinueWithApple={handlePurchase}
+          currentUserRole={currentUser.role}
         />
 
         <BetaReadinessSection
@@ -426,6 +428,7 @@ export const AccessScreen = () => {
             label="App Theme"
             options={themeOptions.map((theme) => theme.label)}
             value={themeOptions.find((theme) => theme.id === themeId)?.label ?? themeOptions[0]?.label}
+            tone="light"
             onChange={(value) => {
               const selectedTheme = themeOptions.find((theme) => theme.label === value);
               if (selectedTheme) {
@@ -433,9 +436,10 @@ export const AccessScreen = () => {
               }
             }}
           />
-          <Text style={{ color: '#587285' }}>
+          <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
             `Default Professional` is the recruiter-facing default, `High Contrast` is best outside, and `Daylight Light` is easiest to review on web or desktop.
           </Text>
+          <StatusBanner tone="info" text="For the cleanest recruiter demo, use Default Professional or Daylight Light. High Contrast is the fastest truth test when a screen still feels too subtle." />
         </SectionCard>
 
         <LocalDataSection
