@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, Text } from 'react-native';
-import { appTheme, buttonBackground, ButtonVariant } from '@/design/theme';
+import { buttonBackground, buttonTextColor, ButtonVariant, useTheme } from '@/design/theme';
 
 export const AppButton = ({
   label,
@@ -12,18 +12,24 @@ export const AppButton = ({
   onPress: () => void;
   variant?: ButtonVariant;
   disabled?: boolean;
-}) => (
-  <Pressable
-    onPress={onPress}
-    disabled={disabled}
-    style={{
-      backgroundColor: buttonBackground(variant, disabled),
-      paddingVertical: appTheme.spacing.md,
-      paddingHorizontal: appTheme.spacing.md,
-      borderRadius: appTheme.radius.md,
-      opacity: disabled ? 0.78 : 1
-    }}
-  >
-    <Text style={{ color: appTheme.colors.text, textAlign: 'center', fontWeight: '700' }}>{label}</Text>
-  </Pressable>
-);
+}) => {
+  const { theme } = useTheme();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={{
+        backgroundColor: buttonBackground(variant, disabled),
+        paddingVertical: theme.spacing.md,
+        paddingHorizontal: theme.spacing.md,
+        borderRadius: theme.radius.md,
+        opacity: disabled ? 0.78 : 1,
+        borderWidth: variant === 'ghost' ? 1 : 0,
+        borderColor: variant === 'ghost' ? theme.colors.borderStrong : 'transparent'
+      }}
+    >
+      <Text style={{ color: buttonTextColor(variant), textAlign: 'center', fontWeight: '700' }}>{label}</Text>
+    </Pressable>
+  );
+};

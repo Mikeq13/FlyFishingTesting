@@ -5,7 +5,7 @@ import { Invite, SponsoredAccess } from '@/types/remote';
 import { UserProfile } from '@/types/user';
 import { AppButton } from '@/components/ui/AppButton';
 import { SectionCard } from '@/components/ui/SectionCard';
-import { FormField, formInputStyle } from '@/components/ui/FormField';
+import { FormField, getFormInputStyle } from '@/components/ui/FormField';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { appTheme } from '@/design/theme';
 
@@ -43,7 +43,10 @@ export const InvitesSponsorshipSection = ({
   onCreateInvite: () => Promise<void>;
   onAcceptInvite: () => Promise<void>;
   onRevokeSponsoredAccess: (id: number) => Promise<void>;
-}) => (
+}) => {
+  const formInputStyle = getFormInputStyle();
+
+  return (
   <SectionCard title="Friend Invites & Sponsorship" subtitle="Invite trusted testers into shared learning and manage sponsored power-user access.">
     <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
       Invite friends into a shared group and automatically sponsor their power-user access for beta testing.
@@ -111,4 +114,5 @@ export const InvitesSponsorshipSection = ({
       </View>
     )}
   </SectionCard>
-);
+  );
+};

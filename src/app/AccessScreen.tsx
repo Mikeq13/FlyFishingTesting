@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Platform, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { Alert, ScrollView, Text, View } from 'react-native';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { UserDataCleanupCategory, useAppStore } from './store';
 import { beginAppleSubscriptionPurchase, PREMIUM_MONTHLY_PRICE_LABEL, PREMIUM_TRIAL_LABEL } from '@/billing/storekit';
@@ -15,9 +15,14 @@ import { InvitesSponsorshipSection } from '@/components/access/InvitesSponsorshi
 import { CompetitionsSection } from '@/components/access/CompetitionsSection';
 import { OwnerControlsSection } from '@/components/access/OwnerControlsSection';
 import { BetaReadinessSection } from '@/components/access/BetaReadinessSection';
+import { SectionCard } from '@/components/ui/SectionCard';
+import { OptionChips } from '@/components/OptionChips';
+import { useResponsiveLayout } from '@/design/layout';
+import { useTheme } from '@/design/theme';
 
 export const AccessScreen = () => {
-  const { width } = useWindowDimensions();
+  const layout = useResponsiveLayout();
+  const { themeId, setThemeId, themeOptions } = useTheme();
   const {
     users,
     ownerUser,
@@ -61,7 +66,6 @@ export const AccessScreen = () => {
     revokeSponsoredAccess,
     flushSyncQueue
   } = useAppStore();
-  const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 980) : undefined;
   const [newGroupName, setNewGroupName] = React.useState('');
   const [joinGroupCode, setJoinGroupCode] = React.useState('');
   const [newCompetitionName, setNewCompetitionName] = React.useState('');
@@ -381,15 +385,7 @@ export const AccessScreen = () => {
   return (
     <ScreenBackground>
       <ScrollView
-        contentContainerStyle={{
-          flexGrow: 1,
-          padding: 16,
-          paddingBottom: 40,
-          gap: 12,
-          width: '100%',
-          alignSelf: 'center',
-          maxWidth: contentMaxWidth
-        }}
+        contentContainerStyle={layout.buildScrollContentStyle({ gap: 12, bottomPadding: 40 })}
         keyboardShouldPersistTaps="handled"
       >
         <ScreenHeader
@@ -424,6 +420,23 @@ export const AccessScreen = () => {
           syncStatus={syncStatus}
           notificationPermissionStatus={notificationPermissionStatus}
         />
+
+        <SectionCard title="Appearance" subtitle="Choose the look that best matches recruiter demos, outdoor readability, or long web review sessions." tone="light">
+          <OptionChips
+            label="App Theme"
+            options={themeOptions.map((theme) => theme.label)}
+            value={themeOptions.find((theme) => theme.id === themeId)?.label ?? themeOptions[0]?.label}
+            onChange={(value) => {
+              const selectedTheme = themeOptions.find((theme) => theme.label === value);
+              if (selectedTheme) {
+                setThemeId(selectedTheme.id);
+              }
+            }}
+          />
+          <Text style={{ color: '#587285' }}>
+            `Default Professional` is the recruiter-facing default, `High Contrast` is best outside, and `Daylight Light` is easiest to review on web or desktop.
+          </Text>
+        </SectionCard>
 
         <LocalDataSection
           isOwner={currentUser.role === 'owner'}

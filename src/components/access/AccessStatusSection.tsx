@@ -5,7 +5,7 @@ import { AppButton } from '@/components/ui/AppButton';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { StatusBanner } from '@/components/ui/StatusBanner';
 import { ActionGroup } from '@/components/ui/ActionGroup';
-import { FormField, formInputStyle } from '@/components/ui/FormField';
+import { FormField, getFormInputStyle } from '@/components/ui/FormField';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { SyncStatusSnapshot, RemoteSessionSnapshot, AuthStatus } from '@/types/remote';
 import { NotificationPermissionStatus, SharedDataStatus } from '@/types/appState';
@@ -46,7 +46,10 @@ export const AccessStatusSection = ({
   showPremiumActions: boolean;
   onStartTrial: () => Promise<void>;
   onContinueWithApple: () => Promise<void>;
-}) => (
+}) => {
+  const formInputStyle = getFormInputStyle();
+
+  return (
   <SectionCard title="Current Access" subtitle="Your sync state, remote sign-in, and subscription tools live here.">
     <Text style={{ color: '#f7fdff', fontWeight: '800', fontSize: 22 }}>{currentUserName}</Text>
     <View style={{ gap: 8, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 12 }}>
@@ -83,4 +86,5 @@ export const AccessStatusSection = ({
       </>
     ) : null}
   </SectionCard>
-);
+  );
+};

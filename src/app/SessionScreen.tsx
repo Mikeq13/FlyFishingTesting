@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { ScrollView, TextInput } from 'react-native';
 import { KeyboardDismissView } from '@/components/KeyboardDismissView';
 import { OptionChips } from '@/components/OptionChips';
 import { DEPTH_RANGES } from '@/constants/options';
@@ -11,8 +11,8 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { StatusBanner } from '@/components/ui/StatusBanner';
 import { SelectableListPanel } from '@/components/ui/SelectableListPanel';
-import { FormField, formInputStyle } from '@/components/ui/FormField';
-import { appTheme } from '@/design/theme';
+import { FormField, getFormInputStyle } from '@/components/ui/FormField';
+import { appTheme, useTheme } from '@/design/theme';
 import { applyRigPresetToRig, createDefaultRigSetup, setRigFlyCount } from '@/utils/rigSetup';
 import { getInvalidReminderMarkers, isReminderMarkerAllowed } from '@/utils/sessionReminders';
 import { Group } from '@/types/group';
@@ -20,6 +20,7 @@ import { combineDateAndTime } from '@/utils/dateTime';
 import { SessionEnvironmentSection } from '@/components/sessionSetup/SessionEnvironmentSection';
 import { PracticeSetupSection } from '@/components/sessionSetup/PracticeSetupSection';
 import { ReminderSettingsSection } from '@/components/sessionSetup/ReminderSettingsSection';
+import { useResponsiveLayout } from '@/design/layout';
 
 const MODE_COPY: Record<SessionMode, { title: string; subtitle: string; button: string }> = {
   experiment: {
@@ -40,7 +41,8 @@ const MODE_COPY: Record<SessionMode, { title: string; subtitle: string; button: 
 };
 
 export const SessionScreen = ({ navigation, route }: any) => {
-  const { width } = useWindowDimensions();
+  useTheme();
+  const layout = useResponsiveLayout();
   const { addSession, updateSessionEntry, addSavedFly, addSavedLeaderFormula, deleteSavedLeaderFormula, addSavedRigPreset, deleteSavedRigPreset, addSavedRiver, savedFlies, savedLeaderFormulas, savedRigPresets, savedRivers, users, activeUserId, sessions, experiments, groups, groupMemberships, competitions, competitionGroups, competitionSessions, competitionParticipants, competitionAssignments, upsertCompetitionAssignment, sharedDataStatus, syncStatus, notificationPermissionStatus, authStatus, remoteSession } = useAppStore();
   const mode = (route?.params?.mode ?? 'experiment') as SessionMode;
   const modeCopy = MODE_COPY[mode] ?? MODE_COPY.experiment;
@@ -80,7 +82,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
       ].sort((left, right) => left.localeCompare(right)),
     [experiments, sessions]
   );
-  const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 920) : undefined;
+  const formInputStyle = getFormInputStyle();
   const joinedGroupMemberships = useMemo(
     () => groupMemberships.filter((membership) => membership.userId === activeUserId),
     [activeUserId, groupMemberships]
@@ -325,7 +327,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
     <ScreenBackground>
       <KeyboardDismissView>
       <ScrollView
-        contentContainerStyle={{ padding: 16, gap: 12, width: '100%', alignSelf: 'center', maxWidth: contentMaxWidth }}
+        contentContainerStyle={layout.buildScrollContentStyle({ gap: 12, bottomPadding: 40 })}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
@@ -504,11 +506,11 @@ export const SessionScreen = ({ navigation, route }: any) => {
           )}
           {mode === 'experiment' ? (
             <FormField label="Hypothesis">
-              <TextInput value={hypothesis} onChangeText={setHypothesis} placeholder="Hypothesis" placeholderTextColor="#5a6c78" style={formInputStyle} />
+              <TextInput value={hypothesis} onChangeText={setHypothesis} placeholder="Hypothesis" placeholderTextColor={appTheme.colors.inputPlaceholder} style={formInputStyle} />
             </FormField>
           ) : null}
           <FormField label="Session Notes">
-            <TextInput value={notes} onChangeText={setNotes} placeholder="Session notes" placeholderTextColor="#5a6c78" multiline style={{ ...formInputStyle, minHeight: 96, textAlignVertical: 'top' }} />
+            <TextInput value={notes} onChangeText={setNotes} placeholder="Session notes" placeholderTextColor={appTheme.colors.inputPlaceholder} multiline style={{ ...formInputStyle, minHeight: 96, textAlignVertical: 'top' }} />
           </FormField>
         </SectionCard>
         <AppButton label={modeCopy.button} onPress={onStart} disabled={invalidReminderMarkers.length > 0} />

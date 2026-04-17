@@ -3,7 +3,7 @@ import { Alert, Text, TextInput, View } from 'react-native';
 import { Group, GroupMembership, SharePreference } from '@/types/group';
 import { AppButton } from '@/components/ui/AppButton';
 import { SectionCard } from '@/components/ui/SectionCard';
-import { FormField, formInputStyle } from '@/components/ui/FormField';
+import { FormField, getFormInputStyle } from '@/components/ui/FormField';
 import { OptionChips } from '@/components/OptionChips';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { appTheme } from '@/design/theme';
@@ -32,7 +32,10 @@ export const GroupsSharingSection = ({
   onCreateGroup: () => Promise<void>;
   onJoinGroup: () => Promise<void>;
   onUpdateSharePreference: (groupId: number, updates: Omit<SharePreference, 'id' | 'userId' | 'groupId' | 'updatedAt'>) => Promise<void>;
-}) => (
+}) => {
+  const formInputStyle = getFormInputStyle();
+
+  return (
   <SectionCard title="Groups & Sharing" subtitle="Keep friend sharing useful and easy to understand.">
     <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
       Create or join a group, then choose what this angler shares with that crew for joint learning.
@@ -86,4 +89,5 @@ export const GroupsSharingSection = ({
       );
     })}
   </SectionCard>
-);
+  );
+};

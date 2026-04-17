@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import { appTheme } from '@/design/theme';
+import { useTheme } from '@/design/theme';
 
 export const StatusBanner = ({
   tone = 'warning',
@@ -9,37 +9,38 @@ export const StatusBanner = ({
   tone?: 'warning' | 'success' | 'error' | 'info';
   text: string;
 }) => {
+  const { theme } = useTheme();
   const palette =
     tone === 'success'
       ? {
-          backgroundColor: appTheme.colors.successBg,
-          borderColor: appTheme.colors.successBorder,
-          color: appTheme.colors.successText
+          backgroundColor: theme.colors.successBg,
+          borderColor: theme.colors.successBorder,
+          color: theme.colors.successText
         }
       : tone === 'error'
         ? {
-            backgroundColor: appTheme.colors.errorBg,
-            borderColor: appTheme.colors.errorBorder,
-            color: appTheme.colors.errorText
+            backgroundColor: theme.colors.errorBg,
+            borderColor: theme.colors.errorBorder,
+            color: theme.colors.errorText
           }
         : tone === 'info'
           ? {
-              backgroundColor: 'rgba(132,217,244,0.18)',
-              borderColor: 'rgba(132,217,244,0.34)',
-              color: appTheme.colors.text
+              backgroundColor: theme.colors.infoBg,
+              borderColor: theme.colors.infoBorder,
+              color: theme.colors.infoText
             }
           : {
-              backgroundColor: appTheme.colors.warningBg,
-              borderColor: appTheme.colors.warningBorder,
-              color: appTheme.colors.warningText
+              backgroundColor: theme.colors.warningBg,
+              borderColor: theme.colors.warningBorder,
+              color: theme.colors.warningText
             };
 
   return (
     <View
       style={{
         backgroundColor: palette.backgroundColor,
-        borderRadius: appTheme.radius.md,
-        padding: appTheme.spacing.md,
+        borderRadius: theme.radius.md,
+        padding: theme.spacing.md,
         borderWidth: 1,
         borderColor: palette.borderColor
       }}

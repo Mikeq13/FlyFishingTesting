@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Platform, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { InsightCard } from '@/components/InsightCard';
 import { InsightsFilterPanel } from '@/components/InsightsFilterPanel';
 import { OptionChips } from '@/components/OptionChips';
@@ -17,6 +17,8 @@ import { getExperimentEntries } from '@/utils/experimentEntries';
 import { useAppStore } from './store';
 import { InsightsContextMode } from '@/types/group';
 import { formatExactFlyOption, sizeBandLabel, toExactFlyKey } from './insightsHelpers';
+import { useResponsiveLayout } from '@/design/layout';
+import { useTheme } from '@/design/theme';
 import {
   filterExperimentsForInsightsContext,
   filterSessionsForInsightsContext,
@@ -37,7 +39,8 @@ const renderChartRow = (label: string, value: number, max: number, color: string
 );
 
 export const InsightsScreen = ({ navigation }: any) => {
-  const { width } = useWindowDimensions();
+  useTheme();
+  const layout = useResponsiveLayout();
   const { sessions, allSessions, experiments, allExperiments, allCatchEvents, groups, groupMemberships, sharePreferences, users, currentUser, currentHasPremiumAccess, savedFlies } = useAppStore();
   const [insightsContext, setInsightsContext] = useState<InsightsContextMode>('mine');
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
@@ -54,7 +57,6 @@ export const InsightsScreen = ({ navigation }: any) => {
   const [showRiverChoices, setShowRiverChoices] = useState(false);
   const [showFlyChoices, setShowFlyChoices] = useState(false);
   const [showHypothesisChoices, setShowHypothesisChoices] = useState(false);
-  const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 980) : undefined;
   const joinedGroups = useMemo(
     () => getJoinedGroupsForUser(currentUser?.id, groups, groupMemberships),
     [currentUser?.id, groupMemberships, groups]
@@ -284,7 +286,7 @@ export const InsightsScreen = ({ navigation }: any) => {
 
   return (
     <ScreenBackground>
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 10, width: '100%', alignSelf: 'center', maxWidth: contentMaxWidth }}>
+      <ScrollView contentContainerStyle={layout.buildScrollContentStyle({ gap: 10, bottomPadding: 40 })}>
         {!currentHasPremiumAccess ? (
           <PremiumFeatureGate
             title="Premium Insights"

@@ -12,14 +12,17 @@ import { SectionCard } from '@/components/ui/SectionCard';
 import { StatusBanner } from '@/components/ui/StatusBanner';
 import { AppButton } from '@/components/ui/AppButton';
 import { ModalSurface } from '@/components/ui/ModalSurface';
-import { FormField, formInputStyle } from '@/components/ui/FormField';
+import { FormField, getFormInputStyle } from '@/components/ui/FormField';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { ActionGroup } from '@/components/ui/ActionGroup';
-import { appTheme } from '@/design/theme';
+import { appTheme, useTheme } from '@/design/theme';
+import { useResponsiveLayout } from '@/design/layout';
 
 const TROUT_SPECIES: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow', 'Tiger', 'Whitefish'];
 
 export const CompetitionScreen = ({ route }: any) => {
+  useTheme();
+  const layout = useResponsiveLayout();
   const sessionId = route?.params?.sessionId as number;
   const { sessions, allSessions, catchEvents, allCatchEvents, users, competitionAssignments, competitionGroups, competitionSessions, addCatchEvent, updateSessionEntry, upsertCompetitionAssignment, notificationPermissionStatus } = useAppStore();
   const session = sessions.find((candidate) => candidate.id === sessionId) ?? null;
@@ -79,6 +82,7 @@ export const CompetitionScreen = ({ route }: any) => {
   const isCompetitionSummaryReady =
     !!competitionSummaryRows.length &&
     competitionSummaryRows.every((row) => row.status === 'finished' || row.status === 'controlling');
+  const formInputStyle = getFormInputStyle();
 
   if (!session) {
     return (
@@ -141,7 +145,7 @@ export const CompetitionScreen = ({ route }: any) => {
 
   return (
     <ScreenBackground>
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
+      <ScrollView contentContainerStyle={layout.buildScrollContentStyle({ gap: 12, bottomPadding: 40 })}>
         <ScreenHeader
           title="Competition Session"
           subtitle="Track every fish quickly with score-ready totals and a cleaner group summary view."
@@ -245,7 +249,7 @@ export const CompetitionScreen = ({ route }: any) => {
                   onChangeText={setLengthValue}
                   keyboardType="number-pad"
                   placeholder={`Length in ${competitionLengthUnit}`}
-                  placeholderTextColor="#5a6c78"
+                  placeholderTextColor={appTheme.colors.inputPlaceholder}
                   style={formInputStyle}
                 />
               </FormField>

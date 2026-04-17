@@ -16,8 +16,38 @@ import { SessionDetailScreen } from './app/SessionDetailScreen';
 import { AccessScreen } from './app/AccessScreen';
 import { ensureNotificationHandler } from './utils/sessionNotifications';
 import { consumeAuthRedirect } from './services/authService';
+import { ThemeProvider, useTheme } from './design/theme';
 
 const Stack = createNativeStackNavigator();
+
+const AppNavigator = () => {
+  const { theme } = useTheme();
+
+  return (
+    <NavigationContainer>
+      <Stack.Navigator
+        initialRouteName="Home"
+        screenOptions={{
+          headerTintColor: theme.colors.headerTint,
+          headerBackTitleVisible: false,
+          headerStyle: { backgroundColor: theme.colors.surfaceLightAlt },
+          headerTitleStyle: { color: theme.colors.textDark }
+        }}
+      >
+        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="Session" component={SessionScreen} />
+        <Stack.Screen name="Experiment" component={ExperimentScreen} />
+        <Stack.Screen name="Practice" component={PracticeScreen} />
+        <Stack.Screen name="Competition" component={CompetitionScreen} />
+        <Stack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: 'Session' }} />
+        <Stack.Screen name="Insights" component={InsightsScreen} />
+        <Stack.Screen name="History" component={HistoryScreen} />
+        <Stack.Screen name="Coach" component={CoachScreen} />
+        <Stack.Screen name="Access" component={AccessScreen} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+};
 
 export default function App() {
   useEffect(() => {
@@ -53,21 +83,10 @@ export default function App() {
   }, []);
 
   return (
-    <AppStoreProvider>
-      <NavigationContainer>
-        <Stack.Navigator initialRouteName="Home" screenOptions={{ headerTintColor: '#0b1f2a', headerBackTitleVisible: false }}>
-          <Stack.Screen name="Home" component={HomeScreen} />
-          <Stack.Screen name="Session" component={SessionScreen} />
-          <Stack.Screen name="Experiment" component={ExperimentScreen} />
-          <Stack.Screen name="Practice" component={PracticeScreen} />
-          <Stack.Screen name="Competition" component={CompetitionScreen} />
-          <Stack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: 'Session' }} />
-          <Stack.Screen name="Insights" component={InsightsScreen} />
-          <Stack.Screen name="History" component={HistoryScreen} />
-          <Stack.Screen name="Coach" component={CoachScreen} />
-          <Stack.Screen name="Access" component={AccessScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </AppStoreProvider>
+    <ThemeProvider>
+      <AppStoreProvider>
+        <AppNavigator />
+      </AppStoreProvider>
+    </ThemeProvider>
   );
 }

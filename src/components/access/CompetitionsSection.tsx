@@ -4,7 +4,7 @@ import { Competition, CompetitionGroup, CompetitionParticipant, CompetitionSessi
 import { UserProfile } from '@/types/user';
 import { AppButton } from '@/components/ui/AppButton';
 import { SectionCard } from '@/components/ui/SectionCard';
-import { FormField, formInputStyle } from '@/components/ui/FormField';
+import { FormField, getFormInputStyle } from '@/components/ui/FormField';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { OptionChips } from '@/components/OptionChips';
 import { appTheme } from '@/design/theme';
@@ -55,7 +55,10 @@ export const CompetitionsSection = ({
   onCreateCompetition: () => Promise<void>;
   onJoinCompetition: () => Promise<void>;
   onSaveAssignment: (competitionId: number, userId: number, competitionSessionId: number, draft: { competitionGroupId: number | null; beat: string; role: CompetitionSessionRole }) => Promise<void>;
-}) => (
+}) => {
+  const formInputStyle = getFormInputStyle();
+
+  return (
   <SectionCard title="Competitions" subtitle="Set the event clock once, then let anglers join and assignments stay reviewable.">
     <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
       Competitions now own their own groups and session schedule. Organizers create the event once, anglers join by code, and assignments can be reviewed and corrected before the event starts.
@@ -169,4 +172,5 @@ export const CompetitionsSection = ({
       );
     })}
   </SectionCard>
-);
+  );
+};

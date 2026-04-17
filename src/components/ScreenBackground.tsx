@@ -1,35 +1,12 @@
 import React, { useMemo } from 'react';
 import { ImageBackground, Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { appTheme } from '@/design/theme';
-
-const themes = [
-  {
-    name: 'Freestone Blue',
-    image: require('../../assets/backgrounds/fast-water-stream.jpg'),
-    overlay: 'rgba(5, 18, 28, 0.60)',
-    topGlow: 'rgba(94, 196, 230, 0.22)',
-    bottomGlow: 'rgba(38, 84, 124, 0.28)'
-  },
-  {
-    name: 'Alpine Glass',
-    image: require('../../assets/backgrounds/rock-water-stream.jpg'),
-    overlay: 'rgba(7, 20, 30, 0.62)',
-    topGlow: 'rgba(126, 214, 223, 0.18)',
-    bottomGlow: 'rgba(31, 96, 127, 0.24)'
-  },
-  {
-    name: 'Evening Run',
-    image: require('../../assets/backgrounds/rivers-water-streams.jpg'),
-    overlay: 'rgba(8, 17, 27, 0.66)',
-    topGlow: 'rgba(72, 149, 239, 0.18)',
-    bottomGlow: 'rgba(29, 53, 87, 0.30)'
-  }
-] as const;
+import { useTheme } from '@/design/theme';
 
 export const ScreenBackground = ({ children }: { children: React.ReactNode }) => {
   const { width, height } = useWindowDimensions();
-  const theme = useMemo(() => themes[0], []);
+  const { theme } = useTheme();
+  const background = useMemo(() => theme.background, [theme]);
   const isLandscape = width > height;
   const isWideWeb = Platform.OS === 'web' && width >= 900;
   const minHeight = Platform.OS === 'web' ? height : undefined;
@@ -37,15 +14,15 @@ export const ScreenBackground = ({ children }: { children: React.ReactNode }) =>
   return (
     <View style={[styles.root, minHeight ? { minHeight } : null]}>
       <ImageBackground
-        source={theme.image}
+        source={background.image}
         resizeMode="cover"
         style={styles.bg}
-        imageStyle={styles.image}
+        imageStyle={[styles.image, { opacity: background.imageOpacity }]}
       >
         <View
           style={[
             styles.topGlow,
-            { backgroundColor: theme.topGlow },
+            { backgroundColor: background.topGlow },
             isLandscape && styles.topGlowLandscape,
             isWideWeb && styles.topGlowDesktop
           ]}
@@ -53,13 +30,13 @@ export const ScreenBackground = ({ children }: { children: React.ReactNode }) =>
         <View
           style={[
             styles.bottomGlow,
-            { backgroundColor: theme.bottomGlow },
+            { backgroundColor: background.bottomGlow },
             isLandscape && styles.bottomGlowLandscape,
             isWideWeb && styles.bottomGlowDesktop
           ]}
         />
-        <View style={[styles.overlay, { backgroundColor: theme.overlay }]} />
-        <View style={styles.texture} />
+        <View style={[styles.overlay, { backgroundColor: background.overlay }]} />
+        <View style={[styles.texture, { backgroundColor: background.texture }]} />
       </ImageBackground>
       <SafeAreaView edges={['top', 'bottom']} style={[styles.container, minHeight ? { minHeight } : null]}>
         {children}
@@ -71,15 +48,13 @@ export const ScreenBackground = ({ children }: { children: React.ReactNode }) =>
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: appTheme.colors.bg
+    backgroundColor: 'transparent'
   },
   bg: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: appTheme.colors.bg
+    backgroundColor: 'transparent'
   },
-  image: {
-    opacity: 0.95
-  },
+  image: {},
   topGlow: {
     position: 'absolute',
     top: -120,
@@ -125,7 +100,6 @@ const styles = StyleSheet.create({
   },
   texture: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.02)',
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.03)',
     borderBottomWidth: 1,

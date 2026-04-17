@@ -11,19 +11,13 @@ import { SectionCard } from '@/components/ui/SectionCard';
 import { AppButton } from '@/components/ui/AppButton';
 import { StatusBanner } from '@/components/ui/StatusBanner';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
-import { appTheme } from '@/design/theme';
-
-const inputStyle = {
-  borderWidth: 1,
-  borderColor: appTheme.colors.borderStrong,
-  padding: 12,
-  borderRadius: appTheme.radius.md,
-  backgroundColor: appTheme.colors.inputBg,
-  color: appTheme.colors.textDark
-};
+import { appTheme, useTheme } from '@/design/theme';
+import { useResponsiveLayout } from '@/design/layout';
+import { getFormInputStyle } from '@/components/ui/FormField';
 
 export const HistoryScreen = ({ navigation }: any) => {
-  const { width } = useWindowDimensions();
+  useTheme();
+  const layout = useResponsiveLayout();
   const { sessions, experiments, users, activeUserId, archiveExperiment, deleteExperiment, cleanupExperimentsForCurrentUser } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
   const [riverFilter, setRiverFilter] = useState('');
@@ -35,7 +29,7 @@ export const HistoryScreen = ({ navigation }: any) => {
   const [cleanupTo, setCleanupTo] = useState('');
   const [cleanupOutcome, setCleanupOutcome] = useState<'all' | 'decisive' | 'tie' | 'inconclusive'>('inconclusive');
   const [cleanupAction, setCleanupAction] = useState<'archive' | 'delete'>('archive');
-  const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 980) : undefined;
+  const inputStyle = getFormInputStyle();
 
   const normalizedFilters = {
     river: riverFilter.trim().toLowerCase(),
@@ -131,7 +125,7 @@ export const HistoryScreen = ({ navigation }: any) => {
   return (
     <ScreenBackground>
       <ScrollView
-        contentContainerStyle={{ padding: 16, gap: 8, width: '100%', alignSelf: 'center', maxWidth: contentMaxWidth }}
+        contentContainerStyle={layout.buildScrollContentStyle({ gap: 8, bottomPadding: 40 })}
         keyboardShouldPersistTaps="handled"
       >
         <ScreenHeader

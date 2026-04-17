@@ -2,7 +2,7 @@ import React from 'react';
 import { Text, TextInput, View } from 'react-native';
 import { OptionChips } from '@/components/OptionChips';
 import { AppButton } from '@/components/ui/AppButton';
-import { FormField, formInputStyle } from '@/components/ui/FormField';
+import { FormField, getFormInputStyle } from '@/components/ui/FormField';
 import { appTheme } from '@/design/theme';
 import { SESSION_ALERT_MARKERS } from '@/constants/options';
 import { SessionMode } from '@/types/session';
@@ -51,7 +51,10 @@ export const ReminderSettingsSection = ({
   notificationVibrationEnabled,
   onNotificationVibrationEnabledChange,
   notificationPermissionStatus
-}: ReminderSettingsSectionProps) => (
+}: ReminderSettingsSectionProps) => {
+  const formInputStyle = getFormInputStyle();
+
+  return (
   <>
     <Text style={{ color: appTheme.colors.text, fontWeight: '700', fontSize: 16 }}>Session Timer</Text>
     <Text style={{ color: appTheme.colors.textSoft, lineHeight: 20 }}>
@@ -123,4 +126,5 @@ export const ReminderSettingsSection = ({
       ) : null}
     </View>
   </>
-);
+  );
+};

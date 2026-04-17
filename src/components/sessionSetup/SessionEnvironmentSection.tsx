@@ -3,7 +3,7 @@ import { Text, TextInput, View } from 'react-native';
 import { DepthSelector } from '@/components/DepthSelector';
 import { OptionChips } from '@/components/OptionChips';
 import { AppButton } from '@/components/ui/AppButton';
-import { FormField, formInputStyle } from '@/components/ui/FormField';
+import { FormField, getFormInputStyle } from '@/components/ui/FormField';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { SelectableListPanel } from '@/components/ui/SelectableListPanel';
 import { appTheme } from '@/design/theme';
@@ -65,7 +65,10 @@ export const SessionEnvironmentSection = ({
   onCompetitionRequiresMeasurementChange,
   competitionLengthUnit,
   onCompetitionLengthUnitChange
-}: SessionEnvironmentSectionProps) => (
+}: SessionEnvironmentSectionProps) => {
+  const formInputStyle = getFormInputStyle();
+
+  return (
   <View style={{ gap: 12, backgroundColor: appTheme.colors.surfaceAlt, padding: 14, borderRadius: 18, borderWidth: 1, borderColor: appTheme.colors.border }}>
     {mode !== 'competition' ? (
       <>
@@ -143,4 +146,5 @@ export const SessionEnvironmentSection = ({
       </>
     )}
   </View>
-);
+  );
+};

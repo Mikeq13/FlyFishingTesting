@@ -6,9 +6,10 @@ import { AppButton } from '@/components/ui/AppButton';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { StatusBanner } from '@/components/ui/StatusBanner';
-import { appTheme } from '@/design/theme';
+import { appTheme, useTheme } from '@/design/theme';
 import { useAppStore } from './store';
 import { SessionMode } from '@/types/session';
+import { useResponsiveLayout } from '@/design/layout';
 
 const SESSION_MODE_OPTIONS: Array<{
   mode: SessionMode;
@@ -34,24 +35,19 @@ const SESSION_MODE_OPTIONS: Array<{
 
 export const HomeScreen = ({ navigation }: any) => {
   const { users, activeUserId, setActiveUserId, addUser, currentEntitlementLabel, currentHasPremiumAccess, currentUser, canManageAccess, syncStatus, sharedDataStatus, notificationPermissionStatus, authStatus, remoteSession } = useAppStore();
-  const { width } = useWindowDimensions();
+  const { theme } = useTheme();
+  const layout = useResponsiveLayout();
   const activeUser = users.find((u) => u.id === activeUserId);
   const [newUserName, setNewUserName] = React.useState('');
   const [showAnglerList, setShowAnglerList] = React.useState(false);
   const [isCreatingUser, setIsCreatingUser] = React.useState(false);
   const [showSessionChooser, setShowSessionChooser] = React.useState(false);
-  const isCompactLayout = width < 720;
-  const shouldCenterContent = Platform.OS !== 'web' && !isCompactLayout;
-  const contentContainerStyle = {
-    flexGrow: 1,
-    justifyContent: shouldCenterContent ? 'center' as const : 'flex-start' as const,
-    padding: 20,
-    paddingBottom: 40,
+  const shouldCenterContent = Platform.OS !== 'web' && !layout.isCompactLayout;
+  const contentContainerStyle = layout.buildScrollContentStyle({
+    centered: shouldCenterContent,
     gap: 14,
-    width: '100%' as const,
-    alignSelf: 'center' as const,
-    maxWidth: Platform.OS === 'web' ? 980 : undefined
-  };
+    bottomPadding: 40
+  });
 
   const createAnotherUser = async () => {
     const name = newUserName.trim();
@@ -112,7 +108,7 @@ export const HomeScreen = ({ navigation }: any) => {
           {notificationPermissionStatus === 'denied' ? <StatusBanner tone="warning" text="Device notifications are turned off, so session reminders will stay in-app only until permissions are restored." /> : null}
         </SectionCard>
         <SectionCard title="Profiles" subtitle="Keep profile switching and session setup quick and clear.">
-          <View style={{ flexDirection: isCompactLayout ? 'column' : 'row', gap: 8 }}>
+          <View style={{ flexDirection: layout.stackDirection, gap: 8 }}>
             <View style={{ flex: 1 }}>
               <AppButton label={showAnglerList ? 'Hide Anglers' : 'Choose Angler'} onPress={() => setShowAnglerList((current) => !current)} variant="secondary" />
             </View>
@@ -125,8 +121,8 @@ export const HomeScreen = ({ navigation }: any) => {
             value={newUserName}
             onChangeText={setNewUserName}
             placeholder="Enter angler name"
-            placeholderTextColor="#5a6c78"
-            style={{ borderRadius: 12, padding: 12, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
+            placeholderTextColor={theme.colors.inputPlaceholder}
+            style={{ borderRadius: 12, padding: 12, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.inputText, borderWidth: 1, borderColor: appTheme.colors.borderStrong }}
           />
 
           {showAnglerList ? (
@@ -152,7 +148,7 @@ export const HomeScreen = ({ navigation }: any) => {
             </View>
           ) : null}
         </SectionCard>
-        <View style={{ flexDirection: isCompactLayout ? 'column' : 'row', gap: 10 }}>
+        <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
           <View style={{ flex: 1 }}>
             <AppButton label="Start Session" onPress={() => setShowSessionChooser(true)} variant="secondary" />
           </View>
@@ -173,12 +169,15 @@ export const HomeScreen = ({ navigation }: any) => {
         <View style={{ flex: 1, backgroundColor: 'rgba(4, 18, 29, 0.76)', justifyContent: 'center', padding: 20 }}>
           <View
             style={{
-              backgroundColor: 'rgba(8, 28, 41, 0.96)',
+              backgroundColor: theme.colors.surface,
               borderRadius: 22,
               padding: 18,
               gap: 12,
               borderWidth: 1,
-              borderColor: 'rgba(202,240,248,0.18)'
+              borderColor: theme.colors.borderStrong,
+              width: '100%',
+              maxWidth: layout.modalMaxWidth,
+              alignSelf: 'center'
             }}
           >
             <View style={{ gap: 4 }}>
@@ -193,13 +192,13 @@ export const HomeScreen = ({ navigation }: any) => {
                 key={option.mode}
                 onPress={() => beginSession(option.mode)}
                 style={{
-                  backgroundColor: 'rgba(255,255,255,0.08)',
-                  borderRadius: 16,
-                  padding: 14,
-                  borderWidth: 1,
-                  borderColor: 'rgba(202,240,248,0.14)',
-                  gap: 4
-                }}
+                backgroundColor: theme.colors.surfaceMuted,
+                borderRadius: 16,
+                padding: 14,
+                borderWidth: 1,
+                borderColor: theme.colors.border,
+                gap: 4
+              }}
               >
                 <Text style={{ color: appTheme.colors.text, fontWeight: '800', fontSize: 17 }}>{option.title}</Text>
                 <Text style={{ color: appTheme.colors.textMuted, lineHeight: 19 }}>{option.description}</Text>
