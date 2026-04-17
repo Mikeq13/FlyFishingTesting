@@ -53,6 +53,8 @@ import {
 import { bootstrapAuthSession, signInWithMagicLink as requestMagicLink, signOutRemote as endRemoteSession, subscribeToAuthChanges } from '@/services/authService';
 import { hasSupabaseConfig } from '@/services/supabaseClient';
 import { syncQueueToSupabase } from '@/services/syncService';
+import { fetchRemoteAccessSnapshot } from '@/services/remoteAccessService';
+import { fetchRemoteSharedDataSnapshot } from '@/services/remoteSharedDataService';
 
 export type UserDataCleanupCategory = 'drafts' | 'experiments' | 'sessions' | 'flies' | 'formulas' | 'rig_presets' | 'rivers' | 'all';
 
@@ -173,6 +175,8 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const [syncQueue, setSyncQueue] = useState<SyncQueueEntry[]>([]);
   const [authStatus, setAuthStatus] = useState<AuthStatus>(hasSupabaseConfig ? 'authenticating' : 'anonymous');
   const [remoteSession, setRemoteSession] = useState<RemoteSessionSnapshot | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncError, setLastSyncError] = useState<string | null>(null);
   const [activeUserId, setActiveUserId] = useState<number | null>(null);
   const importSeededRef = useRef<string | null>(null);
   const sessionMap = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
@@ -196,33 +200,99 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     setActiveUserId(bootstrapped.activeUserId);
   };
 
+  const mergeById = <T extends { id: number }>(primary: T[], incoming: T[]) => {
+    const map = new Map<number, T>();
+    [...primary, ...incoming].forEach((item) => {
+      map.set(item.id, item);
+    });
+    return [...map.values()];
+  };
+
   const refresh = async (targetUserId?: number | null) => {
     const loaded = await loadLocalAppData(targetUserId ?? activeUserId);
-    setUsers(loaded.users);
-    setSessions(loaded.sessions);
-    setAllSessions(loaded.allSessions);
-    setSessionSegments(loaded.sessionSegments);
-    setCatchEvents(loaded.catchEvents);
-    setAllCatchEvents(loaded.allCatchEvents);
-    setExperiments(loaded.experiments);
-    setAllExperiments(loaded.allExperiments);
-    setSavedFlies(loaded.savedFlies);
-    setSavedLeaderFormulas(loaded.savedLeaderFormulas);
-    setSavedRigPresets(loaded.savedRigPresets);
-    setSavedRivers(loaded.savedRivers);
-    setGroups(loaded.groups);
-    setGroupMemberships(loaded.groupMemberships);
-    setSharePreferences(loaded.sharePreferences);
-    setCompetitions(loaded.competitions);
-    setCompetitionGroups(loaded.competitionGroups);
-    setCompetitionSessions(loaded.competitionSessions);
-    setCompetitionParticipants(loaded.competitionParticipants);
-    setCompetitionAssignments(loaded.competitionAssignments);
-    setInvites(loaded.invites);
-    setSponsoredAccess(loaded.sponsoredAccess);
+    let nextUsers = loaded.users;
+    let nextSessions = loaded.sessions;
+    let nextAllSessions = loaded.allSessions;
+    let nextSessionSegments = loaded.sessionSegments;
+    let nextCatchEvents = loaded.catchEvents;
+    let nextAllCatchEvents = loaded.allCatchEvents;
+    let nextExperiments = loaded.experiments;
+    let nextAllExperiments = loaded.allExperiments;
+    let nextSavedFlies = loaded.savedFlies;
+    let nextSavedLeaderFormulas = loaded.savedLeaderFormulas;
+    let nextSavedRigPresets = loaded.savedRigPresets;
+    let nextSavedRivers = loaded.savedRivers;
+    let nextGroups = loaded.groups;
+    let nextGroupMemberships = loaded.groupMemberships;
+    let nextSharePreferences = loaded.sharePreferences;
+    let nextCompetitions = loaded.competitions;
+    let nextCompetitionGroups = loaded.competitionGroups;
+    let nextCompetitionSessions = loaded.competitionSessions;
+    let nextCompetitionParticipants = loaded.competitionParticipants;
+    let nextCompetitionAssignments = loaded.competitionAssignments;
+    let nextInvites = loaded.invites;
+    let nextSponsoredAccess = loaded.sponsoredAccess;
+
+    if (hasSupabaseConfig && remoteSession) {
+      try {
+        const remoteAccess = await fetchRemoteAccessSnapshot(remoteSession.authUserId);
+        const remoteShared = await fetchRemoteSharedDataSnapshot(remoteSession.authUserId, remoteAccess);
+        setLastSyncError(null);
+
+        nextUsers = mergeById(loaded.users, remoteAccess.users);
+        nextGroups = mergeById(loaded.groups, remoteAccess.groups);
+        nextGroupMemberships = mergeById(loaded.groupMemberships, remoteAccess.groupMemberships);
+        nextSharePreferences = mergeById(loaded.sharePreferences, remoteAccess.sharePreferences);
+        nextInvites = mergeById(loaded.invites, remoteAccess.invites);
+        nextSponsoredAccess = mergeById(loaded.sponsoredAccess, remoteAccess.sponsoredAccess);
+        nextCompetitions = mergeById(loaded.competitions, remoteAccess.competitions);
+        nextCompetitionGroups = mergeById(loaded.competitionGroups, remoteAccess.competitionGroups);
+        nextCompetitionSessions = mergeById(loaded.competitionSessions, remoteAccess.competitionSessions);
+        nextCompetitionParticipants = mergeById(loaded.competitionParticipants, remoteAccess.competitionParticipants);
+        nextCompetitionAssignments = mergeById(loaded.competitionAssignments, remoteAccess.competitionAssignments);
+
+        nextSessions = mergeById(loaded.sessions, remoteShared.ownedSessions);
+        nextAllSessions = mergeById(loaded.allSessions, remoteShared.accessibleSessions);
+        nextSessionSegments = mergeById(loaded.sessionSegments, remoteShared.ownedSessionSegments);
+        nextCatchEvents = mergeById(loaded.catchEvents, remoteShared.ownedCatchEvents);
+        nextAllCatchEvents = mergeById(loaded.allCatchEvents, remoteShared.accessibleCatchEvents);
+        nextExperiments = mergeById(loaded.experiments, remoteShared.ownedExperiments);
+        nextAllExperiments = mergeById(loaded.allExperiments, remoteShared.accessibleExperiments);
+        nextSavedFlies = mergeById(loaded.savedFlies, remoteShared.savedFlies);
+        nextSavedLeaderFormulas = mergeById(loaded.savedLeaderFormulas, remoteShared.savedLeaderFormulas);
+        nextSavedRigPresets = mergeById(loaded.savedRigPresets, remoteShared.savedRigPresets);
+        nextSavedRivers = mergeById(loaded.savedRivers, remoteShared.savedRivers);
+      } catch (error) {
+        console.error(error);
+        setLastSyncError(error instanceof Error ? error.message : 'Unable to load shared data from Supabase.');
+      }
+    }
+
+    setUsers(nextUsers);
+    setSessions(nextSessions);
+    setAllSessions(nextAllSessions);
+    setSessionSegments(nextSessionSegments);
+    setCatchEvents(nextCatchEvents);
+    setAllCatchEvents(nextAllCatchEvents);
+    setExperiments(nextExperiments);
+    setAllExperiments(nextAllExperiments);
+    setSavedFlies(nextSavedFlies);
+    setSavedLeaderFormulas(nextSavedLeaderFormulas);
+    setSavedRigPresets(nextSavedRigPresets);
+    setSavedRivers(nextSavedRivers);
+    setGroups(nextGroups);
+    setGroupMemberships(nextGroupMemberships);
+    setSharePreferences(nextSharePreferences);
+    setCompetitions(nextCompetitions);
+    setCompetitionGroups(nextCompetitionGroups);
+    setCompetitionSessions(nextCompetitionSessions);
+    setCompetitionParticipants(nextCompetitionParticipants);
+    setCompetitionAssignments(nextCompetitionAssignments);
+    setInvites(nextInvites);
+    setSponsoredAccess(nextSponsoredAccess);
     setSyncQueue(loaded.syncQueue);
-    setAnglerComparisons(loaded.anglerComparisons);
-    setTopFlyRecords(loaded.topFlyRecords);
+    setAnglerComparisons(generateAnglerComparisons(nextUsers, nextAllSessions, nextAllExperiments.filter((experiment) => experiment.status !== 'draft')));
+    setTopFlyRecords(buildTopFlyRecords(nextSessions, nextExperiments.filter((experiment) => experiment.status !== 'draft')));
   };
 
   const bindCurrentUserToRemoteSession = async (snapshot: RemoteSessionSnapshot) => {
@@ -394,6 +464,18 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     });
   }, [currentUser, remoteSession]);
 
+  useEffect(() => {
+    if (!remoteSession || !currentUser || isSyncing) return;
+    const hasPendingEntries = syncQueue.some((entry) => entry.status === 'pending');
+    if (!hasPendingEntries) return;
+
+    const timeoutId = setTimeout(() => {
+      flushSyncQueue().catch(console.error);
+    }, 600);
+
+    return () => clearTimeout(timeoutId);
+  }, [currentUser, isSyncing, remoteSession, syncQueue]);
+
   const insights = useMemo(() => generateInsights(buildAggregates(sessions, completeExperiments)), [sessions, completeExperiments]);
   const topFlyInsights = useMemo(() => buildTopFlyInsights(topFlyRecords), [topFlyRecords]);
   const syncStatus = useMemo<SyncStatusSnapshot>(() => {
@@ -406,12 +488,14 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       .sort()
       .at(-1) ?? null;
     return {
+      state: lastSyncError ? 'error' : isSyncing ? 'syncing' : 'idle',
       pendingCount,
       failedCount,
       syncedCount: syncedEntries.length,
-      lastSyncedAt
+      lastSyncedAt,
+      lastError: lastSyncError
     };
-  }, [syncQueue]);
+  }, [isSyncing, lastSyncError, syncQueue]);
 
   const trackSyncChange = async (
     entityType: SyncQueueEntry['entityType'],
@@ -440,20 +524,30 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       throw new Error('Sign in with your magic link before syncing shared data.');
     }
 
-    const loaded = await loadLocalAppData(currentUser.id);
-    await syncQueueToSupabase(
-      {
-        currentUser: {
-          ...currentUser,
-          email: remoteSession.email ?? currentUser.email ?? null,
-          remoteAuthId: remoteSession.authUserId
+    setIsSyncing(true);
+    setLastSyncError(null);
+    try {
+      const loaded = await loadLocalAppData(currentUser.id);
+      await syncQueueToSupabase(
+        {
+          currentUser: {
+            ...currentUser,
+            email: remoteSession.email ?? currentUser.email ?? null,
+            remoteAuthId: remoteSession.authUserId
+          },
+          remoteAuthUserId: remoteSession.authUserId,
+          loaded
         },
-        remoteAuthUserId: remoteSession.authUserId,
-        loaded
-      },
-      loaded.syncQueue
-    );
-    await refresh(currentUser.id);
+        loaded.syncQueue
+      );
+      await refresh(currentUser.id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to sync right now.';
+      setLastSyncError(message);
+      throw error;
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const updateUserAccess = async (

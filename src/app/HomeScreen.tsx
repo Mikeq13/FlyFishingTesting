@@ -109,6 +109,8 @@ export const HomeScreen = ({ navigation }: any) => {
           <Text style={{ color: '#d7f3ff' }}>Access: {currentEntitlementLabel}</Text>
           <Text style={{ color: '#bde6f6' }}>Premium features: {currentHasPremiumAccess ? 'Enabled' : 'Locked'}</Text>
           <Text style={{ color: '#bde6f6' }}>Beta sync queue: {syncStatus.pendingCount} pending</Text>
+          <Text style={{ color: '#bde6f6' }}>Sync state: {syncStatus.state}</Text>
+          {syncStatus.lastError ? <Text style={{ color: '#f7b4b4' }}>Last sync issue: {syncStatus.lastError}</Text> : null}
         </View>
         <View style={{ gap: 10, backgroundColor: 'rgba(7, 36, 58, 0.62)', padding: 14, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
           <View style={{ flexDirection: isCompactLayout ? 'column' : 'row', gap: 8 }}>

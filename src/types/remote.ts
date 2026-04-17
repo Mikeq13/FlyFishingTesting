@@ -74,8 +74,49 @@ export interface RemoteSessionSnapshot {
 }
 
 export interface SyncStatusSnapshot {
+  state: 'idle' | 'syncing' | 'error';
   pendingCount: number;
   failedCount: number;
   syncedCount: number;
   lastSyncedAt?: string | null;
+  lastError?: string | null;
+}
+
+export interface RemoteEntityMaps {
+  userIdByAuthId: Map<string, number>;
+  groupIdByRemoteId: Map<string, number>;
+  competitionIdByRemoteId: Map<string, number>;
+  competitionGroupIdByRemoteId: Map<string, number>;
+  competitionSessionIdByRemoteId: Map<string, number>;
+  competitionAssignmentIdByRemoteId: Map<string, number>;
+}
+
+export interface RemoteAccessSnapshot {
+  users: import('@/types/user').UserProfile[];
+  groups: import('@/types/group').Group[];
+  groupMemberships: import('@/types/group').GroupMembership[];
+  sharePreferences: import('@/types/group').SharePreference[];
+  invites: Invite[];
+  sponsoredAccess: SponsoredAccess[];
+  competitions: import('@/types/group').Competition[];
+  competitionGroups: import('@/types/group').CompetitionGroup[];
+  competitionSessions: import('@/types/group').CompetitionSession[];
+  competitionParticipants: import('@/types/group').CompetitionParticipant[];
+  competitionAssignments: import('@/types/group').CompetitionSessionAssignment[];
+  entityMaps: RemoteEntityMaps;
+}
+
+export interface RemoteSharedDataSnapshot {
+  ownedSessions: import('@/types/session').Session[];
+  accessibleSessions: import('@/types/session').Session[];
+  ownedSessionSegments: import('@/types/activity').SessionSegment[];
+  accessibleSessionSegments: import('@/types/activity').SessionSegment[];
+  ownedCatchEvents: import('@/types/activity').CatchEvent[];
+  accessibleCatchEvents: import('@/types/activity').CatchEvent[];
+  ownedExperiments: import('@/types/experiment').Experiment[];
+  accessibleExperiments: import('@/types/experiment').Experiment[];
+  savedFlies: import('@/types/fly').SavedFly[];
+  savedLeaderFormulas: import('@/types/rig').LeaderFormula[];
+  savedRigPresets: import('@/types/rig').RigPreset[];
+  savedRivers: import('@/types/session').SavedRiver[];
 }

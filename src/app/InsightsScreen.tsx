@@ -12,6 +12,12 @@ import { buildTopFlyInsights, buildTopFlyRecords } from '@/engine/topFlyEngine';
 import { getExperimentEntries } from '@/utils/experimentEntries';
 import { useAppStore } from './store';
 import { InsightsContextMode } from '@/types/group';
+import {
+  filterExperimentsForInsightsContext,
+  filterSessionsForInsightsContext,
+  getJoinedGroupsForUser,
+  getVisibleFriendOptions
+} from '@/services/remoteInsightsService';
 
 const sizeBandLabel = (size: number): string => {
   if (size < 12) return '8-11"';
@@ -58,11 +64,7 @@ export const InsightsScreen = ({ navigation }: any) => {
   const [showHypothesisChoices, setShowHypothesisChoices] = useState(false);
   const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 980) : undefined;
   const joinedGroups = useMemo(
-    () =>
-      groupMemberships
-        .filter((membership) => membership.userId === currentUser?.id)
-        .map((membership) => groups.find((group) => group.id === membership.groupId))
-        .filter((group): group is (typeof groups)[number] => !!group),
+    () => getJoinedGroupsForUser(currentUser?.id, groups, groupMemberships),
     [currentUser?.id, groupMemberships, groups]
   );
 
@@ -71,13 +73,10 @@ export const InsightsScreen = ({ navigation }: any) => {
     setSelectedGroupId((current) => (current && joinedGroups.some((group) => group.id === current) ? current : joinedGroups[0].id));
   }, [joinedGroups]);
 
-  const visibleFriendOptions = useMemo(() => {
-    if (!selectedGroupId) return [];
-    return groupMemberships
-      .filter((membership) => membership.groupId === selectedGroupId && membership.userId !== currentUser?.id)
-      .map((membership) => users.find((user) => user.id === membership.userId))
-      .filter((user): user is (typeof users)[number] => !!user);
-  }, [currentUser?.id, groupMemberships, selectedGroupId, users]);
+  const visibleFriendOptions = useMemo(
+    () => getVisibleFriendOptions(currentUser?.id, selectedGroupId, groupMemberships, users),
+    [currentUser?.id, groupMemberships, selectedGroupId, users]
+  );
 
   React.useEffect(() => {
     if (!visibleFriendOptions.length) {
@@ -88,14 +87,6 @@ export const InsightsScreen = ({ navigation }: any) => {
       current && visibleFriendOptions.some((user) => user.id === current) ? current : visibleFriendOptions[0].id
     );
   }, [visibleFriendOptions]);
-
-  const canShareCategory = (userId: number, groupId: number, mode: 'experiment' | 'practice' | 'competition') => {
-    const preference = sharePreferences.find((item) => item.userId === userId && item.groupId === groupId);
-    if (!preference) return false;
-    if (mode === 'practice') return preference.sharePracticeSessions;
-    if (mode === 'competition') return preference.shareCompetitionSessions;
-    return preference.shareJournalEntries;
-  };
 
   const normalizedFilters = {
     river: riverFilter.trim().toLowerCase(),
@@ -113,16 +104,15 @@ export const InsightsScreen = ({ navigation }: any) => {
 
   const contextSessions = useMemo(
     () =>
-      sourceSessions.filter((session) => {
-        if (insightsContext === 'mine') return session.userId === currentUser?.id;
-        if (!selectedGroupId || session.sharedGroupId !== selectedGroupId) return false;
-        if (!canShareCategory(session.userId, selectedGroupId, session.mode)) return false;
-        if (insightsContext === 'friend') {
-          return session.userId === selectedFriendUserId;
-        }
-        return true;
+      filterSessionsForInsightsContext({
+        currentUserId: currentUser?.id,
+        mode: insightsContext,
+        selectedGroupId,
+        selectedFriendUserId,
+        sessions: sourceSessions,
+        sharePreferences
       }),
-    [allSessions, canShareCategory, currentUser?.id, insightsContext, selectedFriendUserId, selectedGroupId, sessions, sourceSessions]
+    [currentUser?.id, insightsContext, selectedFriendUserId, selectedGroupId, sharePreferences, sourceSessions]
   );
 
   const filteredSessions = useMemo(
@@ -197,9 +187,14 @@ export const InsightsScreen = ({ navigation }: any) => {
     [sourceExperiments]
   );
 
+  const contextualExperiments = useMemo(
+    () => filterExperimentsForInsightsContext(sourceExperiments, filteredSessionIds),
+    [filteredSessionIds, sourceExperiments]
+  );
+
   const filteredExperiments = useMemo(
     () =>
-      sourceExperiments.filter((experiment) => {
+      contextualExperiments.filter((experiment) => {
         if (!filteredSessionIds.has(experiment.sessionId)) return false;
 
         const entries = getExperimentEntries(experiment);
@@ -222,7 +217,7 @@ export const InsightsScreen = ({ navigation }: any) => {
 
         return matchesFly && matchesSpecies && matchesSize && matchesHypothesis;
       }),
-    [filteredSessionIds, flyFilterMode, normalizedFilters.fly, normalizedFilters.hypothesis, normalizedFilters.minimumSize, normalizedFilters.species, sourceExperiments]
+    [contextualExperiments, filteredSessionIds, flyFilterMode, normalizedFilters.fly, normalizedFilters.hypothesis, normalizedFilters.minimumSize, normalizedFilters.species]
   );
 
   const filteredCatchEvents = useMemo(
@@ -403,6 +398,23 @@ export const InsightsScreen = ({ navigation }: any) => {
 
             <View style={{ gap: 10, backgroundColor: 'rgba(6, 27, 44, 0.70)', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
               <Text style={{ color: '#f7fdff', fontWeight: '800', fontSize: 18 }}>Catch Analytics</Text>
+              <Text style={{ color: '#d7f3ff' }}>
+                Sessions in view: {filteredSessions.length} | Catch records in view: {filteredCatchEvents.length}
+              </Text>
+              {!!filteredSessions.length && (
+                <View style={{ gap: 6 }}>
+                  <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Shared Sessions</Text>
+                  {filteredSessions.slice(0, 5).map((session) => {
+                    const owner = users.find((user) => user.id === session.userId);
+                    const sessionCatchCount = filteredCatchEvents.filter((event) => event.sessionId === session.id).length;
+                    return (
+                      <Text key={session.id} style={{ color: '#bde6f6' }}>
+                        {(owner?.name ?? 'Angler')} | {session.mode} | {session.riverName ?? 'Unknown river'} | {sessionCatchCount} catches
+                      </Text>
+                    );
+                  })}
+                </View>
+              )}
               {!!analytics.topSpecies.length ? (
                 <View style={{ gap: 8 }}>
                   <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>All species breakdown</Text>

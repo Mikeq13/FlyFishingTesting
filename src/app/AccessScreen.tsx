@@ -79,6 +79,14 @@ export const AccessScreen = () => {
         .filter((group): group is (typeof groups)[number] => !!group),
     [groups, joinedMemberships]
   );
+  const organizerGroups = React.useMemo(
+    () =>
+      joinedMemberships
+        .filter((membership) => membership.role === 'organizer')
+        .map((membership) => groups.find((group) => group.id === membership.groupId))
+        .filter((group): group is (typeof groups)[number] => !!group),
+    [groups, joinedMemberships]
+  );
   const joinedCompetitionList = React.useMemo(
     () =>
       competitionParticipants
@@ -118,10 +126,10 @@ export const AccessScreen = () => {
   ) => assignmentDrafts[getAssignmentDraftKey(competitionId, userId, competitionSessionId)] ?? fallback;
 
   React.useEffect(() => {
-    if (!inviteTargetGroupId && joinedGroups[0]) {
-      setInviteTargetGroupId(joinedGroups[0].id);
+    if (!inviteTargetGroupId && organizerGroups[0]) {
+      setInviteTargetGroupId(organizerGroups[0].id);
     }
-  }, [inviteTargetGroupId, joinedGroups]);
+  }, [inviteTargetGroupId, organizerGroups]);
 
   React.useEffect(() => {
     const count = Math.max(1, Math.min(8, Number(competitionSessionCount) || 1));
@@ -390,11 +398,13 @@ export const AccessScreen = () => {
           <Text style={{ color: '#bde6f6' }}>Status: {currentEntitlementLabel}</Text>
           <Text style={{ color: '#bde6f6' }}>Premium features: {currentHasPremiumAccess ? 'Enabled' : 'Locked'}</Text>
           <Text style={{ color: '#bde6f6' }}>Sync queue: {syncStatus.pendingCount} pending, {syncStatus.syncedCount} synced</Text>
+          <Text style={{ color: '#bde6f6' }}>Sync state: {syncStatus.state}</Text>
           <Text style={{ color: '#bde6f6' }}>Remote auth: {remoteSession?.email ?? 'Not signed in'}</Text>
           <Text style={{ color: '#bde6f6' }}>Shared sync: {isSyncEnabled ? 'Enabled' : 'Waiting for sign-in or env setup'}</Text>
           <Text style={{ color: '#bde6f6' }}>
             Last sync: {syncStatus.lastSyncedAt ? new Date(syncStatus.lastSyncedAt).toLocaleString() : 'Not synced yet'}
           </Text>
+          {syncStatus.lastError ? <Text style={{ color: '#f7b4b4' }}>Last sync issue: {syncStatus.lastError}</Text> : null}
           <Text style={{ color: '#d7f3ff' }}>
             Plan: {PREMIUM_MONTHLY_PRICE_LABEL} with a {PREMIUM_TRIAL_LABEL.toLowerCase()}
           </Text>
@@ -581,7 +591,7 @@ export const AccessScreen = () => {
             <>
               <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Invite into Group</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                {joinedGroups.map((group) => (
+                {organizerGroups.map((group) => (
                   <Pressable
                     key={group.id}
                     onPress={() => setInviteTargetGroupId(group.id)}

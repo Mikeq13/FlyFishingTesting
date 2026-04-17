@@ -17,6 +17,7 @@
       "backgroundColor": "#08161f"
     },
     "plugins": [
+      "expo-dev-client",
       "expo-sqlite"
     ]
   }

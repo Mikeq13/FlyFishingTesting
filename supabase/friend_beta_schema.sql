@@ -302,6 +302,25 @@ alter table public.saved_rivers enable row level security;
 create policy "users manage own profile" on public.profiles
 for all using (auth.uid() = id) with check (auth.uid() = id);
 
+create policy "members read related profiles" on public.profiles
+for select using (
+  auth.uid() = id
+  or exists (
+    select 1
+    from public.group_memberships gm_self
+    join public.group_memberships gm_target on gm_target.group_id = gm_self.group_id
+    where gm_self.member_auth_user_id = auth.uid()
+      and gm_target.member_auth_user_id = profiles.id
+  )
+  or exists (
+    select 1
+    from public.competition_participants cp_self
+    join public.competition_participants cp_target on cp_target.competition_id = cp_self.competition_id
+    where cp_self.participant_auth_user_id = auth.uid()
+      and cp_target.participant_auth_user_id = profiles.id
+  )
+);
+
 create policy "users manage owned rows" on public.groups
 for all using (owner_auth_user_id = auth.uid()) with check (owner_auth_user_id = auth.uid());
 
@@ -316,6 +335,17 @@ for select using (
 
 create policy "users manage owned group memberships" on public.group_memberships
 for all using (owner_auth_user_id = auth.uid()) with check (owner_auth_user_id = auth.uid());
+
+create policy "members read shared group memberships" on public.group_memberships
+for select using (
+  owner_auth_user_id = auth.uid()
+  or member_auth_user_id = auth.uid()
+  or exists (
+    select 1 from public.group_memberships gm_self
+    where gm_self.group_id = group_memberships.group_id
+      and gm_self.member_auth_user_id = auth.uid()
+  )
+);
 
 create policy "members read competition and shared records" on public.competitions
 for select using (
@@ -332,26 +362,146 @@ for all using (owner_auth_user_id = auth.uid()) with check (owner_auth_user_id =
 
 create policy "owners manage tables by owner_auth_user_id" on public.share_preferences
 for all using (owner_auth_user_id = auth.uid()) with check (owner_auth_user_id = auth.uid());
+create policy "members read group share preferences" on public.share_preferences
+for select using (
+  owner_auth_user_id = auth.uid()
+  or exists (
+    select 1 from public.group_memberships gm_self
+    where gm_self.group_id = share_preferences.group_id
+      and gm_self.member_auth_user_id = auth.uid()
+  )
+);
 create policy "owners manage invites" on public.invites
 for all using (owner_auth_user_id = auth.uid()) with check (owner_auth_user_id = auth.uid());
+create policy "members read relevant invites" on public.invites
+for select using (
+  owner_auth_user_id = auth.uid()
+  or inviter_auth_user_id = auth.uid()
+  or accepted_by_auth_user_id = auth.uid()
+  or exists (
+    select 1 from public.group_memberships gm_self
+    where gm_self.group_id = invites.target_group_id
+      and gm_self.member_auth_user_id = auth.uid()
+  )
+);
 create policy "owners manage sponsored access" on public.sponsored_access
 for all using (owner_auth_user_id = auth.uid()) with check (owner_auth_user_id = auth.uid());
+create policy "participants read relevant sponsored access" on public.sponsored_access
+for select using (
+  owner_auth_user_id = auth.uid()
+  or sponsor_auth_user_id = auth.uid()
+  or sponsored_auth_user_id = auth.uid()
+);
 create policy "owners manage competition groups" on public.competition_groups
 for all using (owner_auth_user_id = auth.uid()) with check (owner_auth_user_id = auth.uid());
+create policy "participants read competition groups" on public.competition_groups
+for select using (
+  owner_auth_user_id = auth.uid()
+  or exists (
+    select 1 from public.competition_participants cp
+    where cp.competition_id = competition_groups.competition_id
+      and cp.participant_auth_user_id = auth.uid()
+  )
+);
 create policy "owners manage competition sessions" on public.competition_sessions
 for all using (owner_auth_user_id = auth.uid()) with check (owner_auth_user_id = auth.uid());
+create policy "participants read competition sessions" on public.competition_sessions
+for select using (
+  owner_auth_user_id = auth.uid()
+  or exists (
+    select 1 from public.competition_participants cp
+    where cp.competition_id = competition_sessions.competition_id
+      and cp.participant_auth_user_id = auth.uid()
+  )
+);
 create policy "owners manage competition participants" on public.competition_participants
 for all using (owner_auth_user_id = auth.uid()) with check (owner_auth_user_id = auth.uid());
+create policy "participants read competition participants" on public.competition_participants
+for select using (
+  owner_auth_user_id = auth.uid()
+  or participant_auth_user_id = auth.uid()
+  or exists (
+    select 1 from public.competition_participants cp_self
+    where cp_self.competition_id = competition_participants.competition_id
+      and cp_self.participant_auth_user_id = auth.uid()
+  )
+);
 create policy "owners manage competition assignments" on public.competition_session_assignments
 for all using (owner_auth_user_id = auth.uid()) with check (owner_auth_user_id = auth.uid());
+create policy "participants read competition assignments" on public.competition_session_assignments
+for select using (
+  owner_auth_user_id = auth.uid()
+  or participant_auth_user_id = auth.uid()
+  or exists (
+    select 1 from public.competition_participants cp_self
+    where cp_self.competition_id = competition_session_assignments.competition_id
+      and cp_self.participant_auth_user_id = auth.uid()
+  )
+);
 create policy "owners manage sessions" on public.sessions
 for all using (owner_auth_user_id = auth.uid()) with check (owner_auth_user_id = auth.uid());
+create policy "shared sessions readable by group members" on public.sessions
+for select using (
+  owner_auth_user_id = auth.uid()
+  or (
+    shared_group_id is not null
+    and exists (
+      select 1
+      from public.group_memberships gm
+      where gm.group_id = sessions.shared_group_id
+        and gm.member_auth_user_id = auth.uid()
+    )
+    and exists (
+      select 1
+      from public.share_preferences sp
+      where sp.group_id = sessions.shared_group_id
+        and sp.user_auth_user_id = sessions.owner_auth_user_id
+        and (
+          (sessions.session_mode = 'practice' and sp.share_practice_sessions = true)
+          or (sessions.session_mode = 'competition' and sp.share_competition_sessions = true)
+          or (sessions.session_mode = 'experiment' and sp.share_journal_entries = true)
+        )
+    )
+  )
+  or (
+    sessions.competition_id is not null
+    and exists (
+      select 1 from public.competition_participants cp
+      where cp.competition_id = sessions.competition_id
+        and cp.participant_auth_user_id = auth.uid()
+    )
+  )
+);
 create policy "owners manage session segments" on public.session_segments
 for all using (owner_auth_user_id = auth.uid()) with check (owner_auth_user_id = auth.uid());
+create policy "shared session segments readable" on public.session_segments
+for select using (
+  owner_auth_user_id = auth.uid()
+  or exists (
+    select 1 from public.sessions s
+    where s.id = session_segments.session_id
+  )
+);
 create policy "owners manage catch events" on public.catch_events
 for all using (owner_auth_user_id = auth.uid()) with check (owner_auth_user_id = auth.uid());
+create policy "shared catch events readable" on public.catch_events
+for select using (
+  owner_auth_user_id = auth.uid()
+  or exists (
+    select 1 from public.sessions s
+    where s.id = catch_events.session_id
+  )
+);
 create policy "owners manage experiments" on public.experiments
 for all using (owner_auth_user_id = auth.uid()) with check (owner_auth_user_id = auth.uid());
+create policy "shared experiments readable" on public.experiments
+for select using (
+  owner_auth_user_id = auth.uid()
+  or exists (
+    select 1 from public.sessions s
+    where s.id = experiments.session_id
+  )
+);
 create policy "owners manage saved flies" on public.saved_flies
 for all using (owner_auth_user_id = auth.uid()) with check (owner_auth_user_id = auth.uid());
 create policy "owners manage saved formulas" on public.saved_leader_formulas
