@@ -9,6 +9,10 @@ import { buildAIContext } from '@/ai/aiContextBuilder';
 import { runCoach } from '@/ai/coachEngine';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { getExperimentEntries } from '@/utils/experimentEntries';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { SectionCard } from '@/components/ui/SectionCard';
+import { AppButton } from '@/components/ui/AppButton';
+import { appTheme } from '@/design/theme';
 
 type CoachCard = {
   title: string;
@@ -16,18 +20,10 @@ type CoachCard = {
   accent: string;
 };
 
-const surfaceCardStyle = {
-  borderWidth: 1,
-  borderColor: 'rgba(255,255,255,0.16)',
-  borderRadius: 18,
-  padding: 16,
-  backgroundColor: 'rgba(8, 28, 41, 0.68)'
-} as const;
-
 const subheadingStyle = {
   fontSize: 18,
   fontWeight: '700' as const,
-  color: '#f5fbff'
+  color: appTheme.colors.text
 };
 
 const findLeader = (bucket: Record<string, number>) => {
@@ -160,18 +156,16 @@ export const CoachScreen = () => {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         >
-          <View style={{ gap: 6 }}>
-            <Text style={{ fontSize: 26, fontWeight: '800', color: '#f5fbff' }}>AI Coach</Text>
-            <Text style={{ color: 'rgba(236, 248, 255, 0.92)', lineHeight: 20 }}>
-              Use your journal to spot what is working, where your data is thin, and what to try next on the water.
-            </Text>
-          </View>
+          <ScreenHeader
+            title="AI Coach"
+            subtitle="Use your journal to spot what is working, where your data is thin, and what to try next on the water."
+            eyebrow="Premium Guidance"
+          />
 
-          <View style={[surfaceCardStyle, { gap: 12 }]}>
+          <SectionCard title="Coach Intel" subtitle="Recommendation-first guidance pulled from your sessions, experiments, and top-fly history.">
             <View style={{ gap: 4 }}>
-              <Text style={subheadingStyle}>Coach Intel</Text>
               <Text style={{ color: 'rgba(226, 240, 248, 0.86)', lineHeight: 19 }}>
-                Recommendation-first guidance pulled from your saved sessions, experiments, and top-fly history.
+                Keep the strongest signals close at hand before you ask a deeper question.
               </Text>
             </View>
 
@@ -195,41 +189,16 @@ export const CoachScreen = () => {
               </View>
             ))}
 
-            <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
-              <Pressable
-                onPress={() => navigation.navigate('Insights')}
-                style={{
-                  backgroundColor: 'rgba(122, 211, 252, 0.18)',
-                  borderColor: 'rgba(125, 211, 252, 0.42)',
-                  borderWidth: 1,
-                  paddingHorizontal: 14,
-                  paddingVertical: 12,
-                  borderRadius: 14
-                }}
-              >
-                <Text style={{ color: '#e6f7ff', fontWeight: '700' }}>Open Insights</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => navigation.navigate('History')}
-                style={{
-                  backgroundColor: 'rgba(255,255,255,0.08)',
-                  borderColor: 'rgba(255,255,255,0.16)',
-                  borderWidth: 1,
-                  paddingHorizontal: 14,
-                  paddingVertical: 12,
-                  borderRadius: 14
-                }}
-              >
-                <Text style={{ color: '#f5fbff', fontWeight: '700' }}>Review History</Text>
-              </Pressable>
+            <View style={{ gap: 10 }}>
+              <AppButton label="Open Insights" onPress={() => navigation.navigate('Insights')} />
+              <AppButton label="Review History" onPress={() => navigation.navigate('History')} variant="ghost" />
             </View>
-          </View>
+          </SectionCard>
 
-          <View style={[surfaceCardStyle, { gap: 12 }]}>
+          <SectionCard title="Ask About My Data" subtitle="Ask a specific question when you want the coach to explain what it sees in your journal.">
             <View style={{ gap: 4 }}>
-              <Text style={subheadingStyle}>Ask About My Data</Text>
               <Text style={{ color: 'rgba(226, 240, 248, 0.86)', lineHeight: 19 }}>
-                Ask a more specific question when you want the coach to explain what it sees in your journal.
+                Keep prompts focused so the answer feels useful in the field, not generic.
               </Text>
             </View>
 
@@ -240,10 +209,10 @@ export const CoachScreen = () => {
               style={{
                 minHeight: 96,
                 borderWidth: 1,
-                borderColor: 'rgba(255,255,255,0.14)',
+                borderColor: appTheme.colors.borderStrong,
                 padding: 12,
-                borderRadius: 14,
-                backgroundColor: 'rgba(247, 252, 255, 0.96)',
+                borderRadius: appTheme.radius.md,
+                backgroundColor: appTheme.colors.inputBg,
                 color: '#10212d',
                 textAlignVertical: 'top'
               }}
@@ -251,16 +220,7 @@ export const CoachScreen = () => {
               placeholderTextColor="rgba(16, 33, 45, 0.46)"
             />
 
-            <Pressable
-              onPress={() => setResponse(runCoach(question, context))}
-              style={{
-                backgroundColor: '#0f4c5c',
-                padding: 14,
-                borderRadius: 14
-              }}
-            >
-              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Ask AI Coach</Text>
-            </Pressable>
+            <AppButton label="Ask AI Coach" onPress={() => setResponse(runCoach(question, context))} variant="tertiary" />
 
             {response && (
               <View
@@ -295,7 +255,7 @@ export const CoachScreen = () => {
                 </View>
               </View>
             )}
-          </View>
+          </SectionCard>
         </ScrollView>
       </KeyboardDismissView>
     </ScreenBackground>

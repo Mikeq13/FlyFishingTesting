@@ -1,9 +1,13 @@
 import React from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, Text, View } from 'react-native';
 import { useAppStore } from './store';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { catchRate } from '@/utils/calculations';
 import { getExperimentEntries } from '@/utils/experimentEntries';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { SectionCard } from '@/components/ui/SectionCard';
+import { AppButton } from '@/components/ui/AppButton';
+import { StatusBanner } from '@/components/ui/StatusBanner';
 
 export const SessionDetailScreen = ({ route, navigation }: any) => {
   const { sessions, experiments, users, activeUserId, archiveExperiment, deleteExperiment } = useAppStore();
@@ -49,27 +53,26 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
   return (
     <ScreenBackground>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
-        <View style={{ gap: 4 }}>
-          <Text style={{ fontSize: 28, color: '#f7fdff', fontWeight: '800' }}>Session Detail</Text>
-          <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>Review the full session, then decide whether to keep testing or move into insights.</Text>
-          <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Angler: {activeUser?.name ?? 'Loading...'}</Text>
-        </View>
+        <ScreenHeader
+          title="Session Detail"
+          subtitle="Review the full session, then decide whether to keep testing or move into insights."
+          eyebrow={`Angler: ${activeUser?.name ?? 'Loading...'}`}
+        />
         {session ? (
-          <View style={{ backgroundColor: 'rgba(245,252,255,0.96)', borderRadius: 18, padding: 14, gap: 6, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)' }}>
-            <Text style={{ color: '#102a43', fontWeight: '800', fontSize: 16 }}>Date: {new Date(session.date).toLocaleString()}</Text>
+          <SectionCard title="Session Summary" subtitle={new Date(session.date).toLocaleString()} tone="light">
             {session.riverName ? <Text style={{ color: '#334e68' }}>River: {session.riverName}</Text> : null}
             <Text style={{ color: '#334e68' }}>Water: {session.waterType}</Text>
             <Text style={{ color: '#334e68' }}>Depth: {session.depthRange}</Text>
             {session.hypothesis ? <Text style={{ color: '#334e68' }}>Session hypothesis: {session.hypothesis}</Text> : null}
             <Text style={{ color: '#334e68' }}>Catch rate: {(catchRate(totalCatches, totalCasts) * 100).toFixed(1)}%</Text>
-          </View>
+          </SectionCard>
         ) : (
-          <Text style={{ color: '#f7fdff' }}>Session not found.</Text>
+          <StatusBanner tone="error" text="Session not found." />
         )}
 
-        <Text style={{ color: '#f7fdff', fontWeight: '700', fontSize: 16 }}>Experiments in this session: {sessionExperiments.length}</Text>
+        <SectionCard title={`Experiments In This Session: ${sessionExperiments.length}`} subtitle="Review each experiment cleanly before editing, archiving, or deleting." tone="light">
         {sessionExperiments.map((e) => (
-          <View key={e.id} style={{ backgroundColor: 'rgba(245,252,255,0.96)', borderRadius: 18, padding: 14, gap: 4, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)' }}>
+          <View key={e.id} style={{ backgroundColor: '#e9f5fb', borderRadius: 12, padding: 14, gap: 4 }}>
             <Text style={{ fontWeight: '800', color: '#102a43' }}>#{e.id} Status: {e.status === 'draft' ? 'Draft' : 'Complete'}</Text>
             <Text style={{ color: '#334e68' }}>Outcome: {e.outcome}</Text>
             <Text style={{ color: '#334e68' }}>Winner: {e.winner}</Text>
@@ -88,41 +91,25 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
               </View>
             ))}
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
-              <Pressable
-                onPress={() => navigation.navigate('Experiment', { sessionId, experimentId: e.id })}
-                style={{ backgroundColor: '#1d3557', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, flex: 1 }}
-              >
-                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Edit</Text>
-              </Pressable>
+              <View style={{ flex: 1 }}>
+                <AppButton label="Edit" onPress={() => navigation.navigate('Experiment', { sessionId, experimentId: e.id })} variant="secondary" />
+              </View>
               {e.status !== 'draft' ? (
-                <Pressable
-                  onPress={() => runSingleExperimentCleanup(e.id, 'archive')}
-                  style={{ backgroundColor: '#6c584c', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, flex: 1 }}
-                >
-                  <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Archive</Text>
-                </Pressable>
+                <View style={{ flex: 1 }}>
+                  <AppButton label="Archive" onPress={() => runSingleExperimentCleanup(e.id, 'archive')} variant="neutral" />
+                </View>
               ) : null}
-              <Pressable
-                onPress={() => runSingleExperimentCleanup(e.id, 'delete')}
-                style={{ backgroundColor: '#8d0801', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, flex: 1 }}
-              >
-                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
-                  {e.status === 'draft' ? 'Delete Draft' : 'Delete'}
-                </Text>
-              </Pressable>
+              <View style={{ flex: 1 }}>
+                <AppButton label={e.status === 'draft' ? 'Delete Draft' : 'Delete'} onPress={() => runSingleExperimentCleanup(e.id, 'delete')} variant="danger" />
+              </View>
             </View>
           </View>
         ))}
+        </SectionCard>
 
-        <Pressable onPress={() => navigation.navigate('Experiment', { sessionId })} style={{ backgroundColor: '#2a9d8f', borderRadius: 14, padding: 14 }}>
-          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Add Another Experiment</Text>
-        </Pressable>
-        <Pressable onPress={() => navigation.navigate('Insights')} style={{ backgroundColor: '#1d3557', borderRadius: 14, padding: 14 }}>
-          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>View Insights</Text>
-        </Pressable>
-        <Pressable onPress={() => navigation.navigate('Home')} style={{ backgroundColor: '#264653', borderRadius: 14, padding: 14 }}>
-          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Back Home</Text>
-        </Pressable>
+        <AppButton label="Add Another Experiment" onPress={() => navigation.navigate('Experiment', { sessionId })} />
+        <AppButton label="View Insights" onPress={() => navigation.navigate('Insights')} variant="secondary" />
+        <AppButton label="Back Home" onPress={() => navigation.navigate('Home')} variant="tertiary" />
       </ScrollView>
     </ScreenBackground>
   );

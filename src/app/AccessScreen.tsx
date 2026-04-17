@@ -647,9 +647,7 @@ export const AccessScreen = () => {
                     <Text style={{ color: '#d7f3ff' }}>Group: {group?.name ?? 'Unknown group'}</Text>
                     <Text style={{ color: '#d7f3ff' }}>Status: {entry.active ? 'Active' : 'Revoked'}</Text>
                     {entry.active && entry.sponsorUserId === currentUser.id ? (
-                      <Pressable onPress={() => revokeSponsoredAccess(entry.id).then(() => Alert.alert('Sponsored access revoked', 'The owner-sponsored power-user grant was removed.')).catch((error) => Alert.alert('Unable to revoke access', error instanceof Error ? error.message : 'Please try again.'))} style={{ backgroundColor: '#8d0801', padding: 10, borderRadius: 12 }}>
-                        <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Revoke Sponsored Access</Text>
-                      </Pressable>
+                      <AppButton label="Revoke Sponsored Access" onPress={() => { revokeSponsoredAccess(entry.id).then(() => Alert.alert('Sponsored access revoked', 'The owner-sponsored power-user grant was removed.')).catch((error) => Alert.alert('Unable to revoke access', error instanceof Error ? error.message : 'Please try again.')); }} variant="danger" />
                     ) : null}
                   </View>
                 );
@@ -800,12 +798,7 @@ export const AccessScreen = () => {
                             </Pressable>
                           ))}
                         </View>
-                        <Pressable
-                          onPress={() => saveAssignment(competition.id, currentUser.id, session.id, draft).catch((error) => Alert.alert('Unable to save assignment', error instanceof Error ? error.message : 'Please try again.'))}
-                          style={{ backgroundColor: '#264653', padding: 10, borderRadius: 12 }}
-                        >
-                          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Save Session {session.sessionNumber}</Text>
-                        </Pressable>
+                        <AppButton label={`Save Session ${session.sessionNumber}`} onPress={() => { saveAssignment(competition.id, currentUser.id, session.id, draft).catch((error) => Alert.alert('Unable to save assignment', error instanceof Error ? error.message : 'Please try again.')); }} variant="tertiary" />
                       </View>
                     );
                   })}
@@ -860,12 +853,7 @@ export const AccessScreen = () => {
                                     </Pressable>
                                   ))}
                                 </View>
-                                <Pressable
-                                  onPress={() => saveAssignment(competition.id, participant.userId, session.id, draft).catch((error) => Alert.alert('Unable to save assignment', error instanceof Error ? error.message : 'Please try again.'))}
-                                  style={{ backgroundColor: '#264653', padding: 10, borderRadius: 12 }}
-                                >
-                                  <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Save Review Edit</Text>
-                                </Pressable>
+                                <AppButton label="Save Review Edit" onPress={() => { saveAssignment(competition.id, participant.userId, session.id, draft).catch((error) => Alert.alert('Unable to save assignment', error instanceof Error ? error.message : 'Please try again.')); }} variant="tertiary" />
                               </View>
                             );
                           })}
@@ -880,8 +868,7 @@ export const AccessScreen = () => {
         </SectionCard>
 
         {canManageAccess && (
-          <View style={{ gap: 10 }}>
-            <Text style={{ color: '#f7fdff', fontWeight: '800', fontSize: 20 }}>Owner Controls</Text>
+          <SectionCard title="Owner Controls" subtitle="Keep tester access changes powerful, but easier to scan and safer to use.">
             {ownerUser && (
               <Text style={{ color: '#d7f3ff' }}>
                 Admin access is controlled by {ownerUser.name}. You can manage access while testing with any active angler.
@@ -910,20 +897,13 @@ export const AccessScreen = () => {
                   </View>
                 ) : (
                   <>
-                    <Pressable onPress={() => runAdminAction(() => grantPowerUserAccess(user.id), `${user.name} now has power-user access.`)} style={{ backgroundColor: '#2a9d8f', padding: 12, borderRadius: 12 }}>
-                      <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Grant Power User</Text>
-                    </Pressable>
-                    <Pressable onPress={() => runAdminAction(() => startTrialForUser(user.id), `${user.name} now has a 7-day trial.`)} style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}>
-                      <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Start 7-Day Trial</Text>
-                    </Pressable>
-                    <Pressable onPress={() => runAdminAction(() => markSubscriberAccess(user.id), `${user.name} is marked as subscribed.`)} style={{ backgroundColor: '#264653', padding: 12, borderRadius: 12 }}>
-                      <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Mark Subscriber</Text>
-                    </Pressable>
-                    <Pressable onPress={() => runAdminAction(() => clearUserAccess(user.id), `${user.name} was reset to free access.`)} style={{ backgroundColor: '#8d0801', padding: 12, borderRadius: 12 }}>
-                      <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Reset Access</Text>
-                    </Pressable>
+                    <AppButton label="Grant Power User" onPress={() => { runAdminAction(() => grantPowerUserAccess(user.id), `${user.name} now has power-user access.`).catch(console.error); }} />
+                    <AppButton label="Start 7-Day Trial" onPress={() => { runAdminAction(() => startTrialForUser(user.id), `${user.name} now has a 7-day trial.`).catch(console.error); }} variant="secondary" />
+                    <AppButton label="Mark Subscriber" onPress={() => { runAdminAction(() => markSubscriberAccess(user.id), `${user.name} is marked as subscribed.`).catch(console.error); }} variant="tertiary" />
+                    <AppButton label="Reset Access" onPress={() => { runAdminAction(() => clearUserAccess(user.id), `${user.name} was reset to free access.`).catch(console.error); }} variant="danger" />
                     {renderCleanupActions(user.id, user.name, 'light')}
-                    <Pressable
+                    <AppButton
+                      label="Delete Angler"
                       onPress={() =>
                         confirmAdminAction(
                           'Delete angler?',
@@ -932,15 +912,13 @@ export const AccessScreen = () => {
                           `${user.name} was deleted from this device.`
                         )
                       }
-                      style={{ backgroundColor: '#5b0b0b', padding: 12, borderRadius: 12 }}
-                    >
-                      <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Delete Angler</Text>
-                    </Pressable>
+                      variant="danger"
+                    />
                   </>
                 )}
               </View>
             ))}
-          </View>
+          </SectionCard>
         )}
       </ScrollView>
     </ScreenBackground>

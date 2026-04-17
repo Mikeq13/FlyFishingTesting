@@ -15,6 +15,9 @@ import { ExperimentControlFocus, ExperimentFlyEntry, ExperimentStatus, TroutSpec
 import { RigSetup } from '@/types/rig';
 import { alignExperimentEntries, createEmptyExperimentEntries, getExperimentRigSetup, getLegacyExperimentFields } from '@/utils/experimentEntries';
 import { applyRigPresetToRig, createDefaultRigSetup, getFlyCount, syncRigSetupFromFlies } from '@/utils/rigSetup';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { AppButton } from '@/components/ui/AppButton';
+import { StatusBanner } from '@/components/ui/StatusBanner';
 
 const isDraftExperiment = (entries: ExperimentFlyEntry[]) =>
   entries.some((entry) => entry.casts <= 0 || !entry.fly.name.trim());
@@ -230,19 +233,15 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        <View style={{ gap: 4 }}>
-          <Text style={{ fontSize: 28, fontWeight: '800', color: '#f7fdff' }}>Experiment</Text>
-          <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
-            Set your baseline, choose the flies in play, and record cast and catch data cleanly.
-          </Text>
-          <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Angler: {activeUser?.name ?? 'Loading...'}</Text>
-          {session?.hypothesis ? <Text style={{ color: '#d7f3ff' }}>Hypothesis: {session.hypothesis}</Text> : null}
-          {isDraft ? (
-            <Text style={{ color: '#fcd34d' }}>
-              Draft mode: incomplete experiments can be saved now and finished later. Only invalid counts are blocked.
-            </Text>
-          ) : null}
-        </View>
+        <ScreenHeader
+          title="Experiment"
+          subtitle="Set your baseline, choose the flies in play, and record cast and catch data cleanly."
+          eyebrow={`Angler: ${activeUser?.name ?? 'Loading...'}`}
+        />
+        {session?.hypothesis ? <StatusBanner tone="info" text={`Hypothesis: ${session.hypothesis}`} /> : null}
+        {isDraft ? (
+          <StatusBanner tone="warning" text="Draft mode: incomplete experiments can be saved now and finished later. Only invalid counts are blocked." />
+        ) : null}
 
         <ExperimentSetupPanel
           flyCount={flyCount}
@@ -311,9 +310,9 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           />
         ))}
 
-        <Pressable onPress={save} disabled={isSaving} style={{ backgroundColor: isSaving ? '#6c757d' : '#264653', padding: 14, borderRadius: 14 }}>
-          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
-            {isSaving
+        <AppButton
+          label={
+            isSaving
               ? existingExperiment
                 ? 'Updating...'
                 : 'Saving...'
@@ -323,9 +322,14 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                   : 'Update Experiment'
                 : isDraft
                   ? 'Save Draft'
-                  : 'Save Experiment'}
-          </Text>
-        </Pressable>
+                  : 'Save Experiment'
+          }
+          onPress={() => {
+            save().catch(console.error);
+          }}
+          disabled={isSaving}
+          variant="tertiary"
+        />
 
       </ScrollView>
       </KeyboardDismissView>

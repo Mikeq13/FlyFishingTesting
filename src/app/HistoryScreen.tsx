@@ -6,14 +6,19 @@ import { useAppStore } from './store';
 import { isWithinDateRange } from '@/utils/dateRange';
 import { getExperimentEntries } from '@/utils/experimentEntries';
 import { ScreenBackground } from '@/components/ScreenBackground';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { SectionCard } from '@/components/ui/SectionCard';
+import { AppButton } from '@/components/ui/AppButton';
+import { StatusBanner } from '@/components/ui/StatusBanner';
+import { appTheme } from '@/design/theme';
 
 const inputStyle = {
   borderWidth: 1,
-  borderColor: 'rgba(202,240,248,0.18)',
+  borderColor: appTheme.colors.borderStrong,
   padding: 12,
-  borderRadius: 12,
-  backgroundColor: 'rgba(245,252,255,0.96)',
-  color: '#102a43'
+  borderRadius: appTheme.radius.md,
+  backgroundColor: appTheme.colors.inputBg,
+  color: appTheme.colors.textDark
 };
 
 export const HistoryScreen = ({ navigation }: any) => {
@@ -128,23 +133,19 @@ export const HistoryScreen = ({ navigation }: any) => {
         contentContainerStyle={{ padding: 16, gap: 8, width: '100%', alignSelf: 'center', maxWidth: contentMaxWidth }}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={{ gap: 4 }}>
-          <Text style={{ fontSize: 28, fontWeight: '800', color: '#f7fdff' }}>History</Text>
-          <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>Filter past sessions, review experiments, and clean up inconclusive results when needed.</Text>
-          <Text style={{ fontWeight: '700', color: '#dbf5ff' }}>Angler: {activeUser?.name ?? 'Loading...'}</Text>
-        </View>
-        <View style={{ gap: 8, backgroundColor: 'rgba(6, 27, 44, 0.70)', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
+        <ScreenHeader
+          title="History"
+          subtitle="Filter past sessions, review experiment history, and clean up old noise when needed."
+          eyebrow={`Angler: ${activeUser?.name ?? 'Loading...'}`}
+        />
+        <SectionCard title="Filters" subtitle="Tighten the session list without burying the important controls.">
           {!!riverOptions.length && (
             <>
-              <Pressable onPress={() => setShowRiverChoices((current) => !current)} style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}>
-                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
-                  {showRiverChoices ? 'Hide Rivers' : 'Choose River'}
-                </Text>
-              </Pressable>
+              <AppButton label={showRiverChoices ? 'Hide Rivers' : 'Choose River'} onPress={() => setShowRiverChoices((current) => !current)} variant="secondary" />
               {showRiverChoices && (
-                <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)' }}>
+                <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: appTheme.colors.borderStrong, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.surfaceLight }}>
                   <Pressable onPress={() => { setRiverFilter(''); setShowRiverChoices(false); }} style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}>
-                    <Text style={{ color: '#0b3d3a', fontWeight: '700' }}>All rivers</Text>
+                    <Text style={{ color: appTheme.colors.textDark, fontWeight: '700' }}>All rivers</Text>
                   </Pressable>
                   {riverOptions.map((river) => (
                     <Pressable
@@ -155,7 +156,7 @@ export const HistoryScreen = ({ navigation }: any) => {
                       }}
                       style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
                     >
-                      <Text style={{ color: '#0b3d3a', fontWeight: '600' }}>{river}</Text>
+                      <Text style={{ color: appTheme.colors.textDark, fontWeight: '600' }}>{river}</Text>
                     </Pressable>
                   ))}
                 </ScrollView>
@@ -163,21 +164,14 @@ export const HistoryScreen = ({ navigation }: any) => {
             </>
           )}
           <OptionChips label="Month" options={MONTHS} value={monthFilter || null} onChange={setMonthFilter} />
-          <Pressable onPress={() => setMonthFilter('')} style={{ backgroundColor: 'rgba(255,255,255,0.12)', padding: 10, borderRadius: 12 }}>
-            <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Clear Month Filter</Text>
-          </Pressable>
+          <AppButton label="Clear Month Filter" onPress={() => setMonthFilter('')} variant="ghost" />
           <OptionChips label="Water Type" options={WATER_TYPES} value={waterFilter || null} onChange={setWaterFilter} />
-          <Pressable onPress={() => setWaterFilter('')} style={{ backgroundColor: 'rgba(255,255,255,0.12)', padding: 10, borderRadius: 12 }}>
-            <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Clear Water Filter</Text>
-          </Pressable>
+          <AppButton label="Clear Water Filter" onPress={() => setWaterFilter('')} variant="ghost" />
           <OptionChips label="Depth Range" options={DEPTH_RANGES} value={depthFilter || null} onChange={setDepthFilter} />
-          <Pressable onPress={() => setDepthFilter('')} style={{ backgroundColor: 'rgba(255,255,255,0.12)', padding: 10, borderRadius: 12 }}>
-            <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Clear Depth Filter</Text>
-          </Pressable>
-        </View>
+          <AppButton label="Clear Depth Filter" onPress={() => setDepthFilter('')} variant="ghost" />
+        </SectionCard>
 
-        <View style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 18, padding: 14, gap: 8, backgroundColor: 'rgba(245,252,255,0.96)' }}>
-          <Text style={{ fontWeight: '800', fontSize: 16, color: '#102a43' }}>Cleanup Experiments</Text>
+        <SectionCard title="Cleanup Experiments" subtitle="Archive or delete old results without making the rest of history harder to scan." tone="light">
           <TextInput value={cleanupFrom} onChangeText={setCleanupFrom} placeholder="From date (YYYY-MM-DD)" placeholderTextColor="#5a6c78" style={inputStyle} />
           <TextInput value={cleanupTo} onChangeText={setCleanupTo} placeholder="To date (YYYY-MM-DD)" placeholderTextColor="#5a6c78" style={inputStyle} />
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -203,18 +197,10 @@ export const HistoryScreen = ({ navigation }: any) => {
             ))}
           </View>
           <Text style={{ color: '#334e68' }}>Matching experiments: {cleanupCount}</Text>
-          <Pressable
-            onPress={runCleanup}
-            disabled={!cleanupCount}
-            style={{ backgroundColor: cleanupCount ? '#8d0801' : '#adb5bd', borderRadius: 12, padding: 12 }}
-          >
-            <Text style={{ color: 'white', fontWeight: '700', textAlign: 'center' }}>
-              {cleanupAction === 'archive' ? 'Archive Filtered Experiments' : 'Delete Filtered Experiments'}
-            </Text>
-          </Pressable>
-        </View>
+          <AppButton label={cleanupAction === 'archive' ? 'Archive Filtered Experiments' : 'Delete Filtered Experiments'} onPress={runCleanup} disabled={!cleanupCount} variant="danger" />
+        </SectionCard>
 
-      {!filteredSessions.length ? <Text style={{ color: '#f7fdff' }}>No sessions found for current filters.</Text> : null}
+      {!filteredSessions.length ? <StatusBanner tone="info" text="No sessions found for the current filters." /> : null}
 
       {filteredSessions.map((session) => {
         const sessionExperiments = experiments.filter((experiment) => experiment.sessionId === session.id);
@@ -229,12 +215,9 @@ export const HistoryScreen = ({ navigation }: any) => {
         const rate = totalCasts ? totalCatches / totalCasts : 0;
 
         return (
-          <View key={session.id} style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 18, padding: 14, gap: 6, backgroundColor: 'rgba(245,252,255,0.96)' }}>
-            <Text style={{ fontWeight: '800', fontSize: 16, color: '#102a43' }}>{new Date(session.date).toLocaleString()}</Text>
+          <SectionCard key={session.id} title={new Date(session.date).toLocaleString()} subtitle={`${session.waterType} water • ${session.depthRange}`} tone="light">
             <Text style={{ color: '#334e68' }}>Month: {new Date(session.date).toLocaleString('en-US', { month: 'long' })}</Text>
             {session.riverName ? <Text style={{ color: '#334e68' }}>River: {session.riverName}</Text> : null}
-            <Text style={{ color: '#334e68' }}>Water: {session.waterType}</Text>
-            <Text style={{ color: '#334e68' }}>Depth: {session.depthRange}</Text>
             {session.hypothesis ? <Text style={{ color: '#334e68' }}>Session hypothesis: {session.hypothesis}</Text> : null}
             <Text style={{ color: '#334e68' }}>Session catch rate: {(rate * 100).toFixed(1)}%</Text>
             <Text style={{ color: '#334e68' }}>Experiments logged: {sessionExperiments.length}</Text>
@@ -249,7 +232,7 @@ export const HistoryScreen = ({ navigation }: any) => {
                   const experimentRate = experimentCasts ? (experimentCatches / experimentCasts) * 100 : 0;
 
                   return (
-                    <View key={experiment.id} style={{ backgroundColor: '#e9f5fb', borderRadius: 12, padding: 10 }}>
+                    <View key={experiment.id} style={{ backgroundColor: '#e9f5fb', borderRadius: appTheme.radius.md, padding: 10, gap: 4 }}>
                       <Text style={{ color: '#102a43' }}>Hypothesis: {experiment.hypothesis}</Text>
                       <Text style={{ color: '#334e68' }}>Control focus: {experiment.controlFocus}</Text>
                       <Text style={{ color: '#334e68' }}>
@@ -271,28 +254,17 @@ export const HistoryScreen = ({ navigation }: any) => {
                         </Text>
                       ) : null}
                       <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
-                        <Pressable
-                          onPress={() => navigation.navigate('Experiment', { sessionId: session.id, experimentId: experiment.id })}
-                          style={{ backgroundColor: '#1d3557', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, flex: 1 }}
-                        >
-                          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Edit</Text>
-                        </Pressable>
+                        <View style={{ flex: 1 }}>
+                          <AppButton label="Edit" onPress={() => navigation.navigate('Experiment', { sessionId: session.id, experimentId: experiment.id })} variant="secondary" />
+                        </View>
                         {experiment.status !== 'draft' ? (
-                          <Pressable
-                            onPress={() => runSingleExperimentCleanup(experiment.id, 'archive')}
-                            style={{ backgroundColor: '#6c584c', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, flex: 1 }}
-                          >
-                            <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Archive</Text>
-                          </Pressable>
+                          <View style={{ flex: 1 }}>
+                            <AppButton label="Archive" onPress={() => runSingleExperimentCleanup(experiment.id, 'archive')} variant="neutral" />
+                          </View>
                         ) : null}
-                        <Pressable
-                          onPress={() => runSingleExperimentCleanup(experiment.id, 'delete')}
-                          style={{ backgroundColor: '#8d0801', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, flex: 1 }}
-                        >
-                          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
-                            {experiment.status === 'draft' ? 'Delete Incomplete' : 'Delete'}
-                          </Text>
-                        </Pressable>
+                        <View style={{ flex: 1 }}>
+                          <AppButton label={experiment.status === 'draft' ? 'Delete Incomplete' : 'Delete'} onPress={() => runSingleExperimentCleanup(experiment.id, 'delete')} variant="danger" />
+                        </View>
                       </View>
                       {experiment.status === 'draft' ? (
                         <Text style={{ color: '#6b7280', marginTop: 6 }}>
@@ -304,7 +276,7 @@ export const HistoryScreen = ({ navigation }: any) => {
                 })}
               </View>
             )}
-          </View>
+          </SectionCard>
         );
       })}
       </ScrollView>

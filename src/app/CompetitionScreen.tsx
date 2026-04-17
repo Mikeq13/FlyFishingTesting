@@ -7,6 +7,11 @@ import { useSessionTimer } from '@/hooks/useSessionTimer';
 import { TroutSpecies } from '@/types/experiment';
 import { buildSessionUpdatePayload, getCompetitionMinimumLength, getSessionPlannedDurationMinutes, sumCatchLengths } from '@/utils/sessionState';
 import { useSessionAlerts } from '@/hooks/useSessionAlerts';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { SectionCard } from '@/components/ui/SectionCard';
+import { StatusBanner } from '@/components/ui/StatusBanner';
+import { AppButton } from '@/components/ui/AppButton';
+import { appTheme } from '@/design/theme';
 
 const TROUT_SPECIES: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow', 'Tiger', 'Whitefish'];
 
@@ -133,40 +138,33 @@ export const CompetitionScreen = ({ route }: any) => {
   return (
     <ScreenBackground>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
-        <View style={{ gap: 4 }}>
-          <Text style={{ fontSize: 28, fontWeight: '800', color: '#f7fdff' }}>Competition Session</Text>
-          <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
-            Track every fish quickly with exact times, species, and score-ready totals for post-session review and tie-break scenarios.
-          </Text>
-          {currentCompetitionGroup ? <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Assigned group: {currentCompetitionGroup.label}</Text> : null}
-          {session.competitionBeat ? <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Beat: {session.competitionBeat}</Text> : null}
-          {currentCompetitionSession ? <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Session #{currentCompetitionSession.sessionNumber}</Text> : null}
-          <Text style={{ color: '#d7f3ff' }}>Role: {session.competitionRole ?? 'fishing'}</Text>
-        </View>
+        <ScreenHeader
+          title="Competition Session"
+          subtitle="Track every fish quickly with score-ready totals and a cleaner group summary view."
+          eyebrow={`${currentCompetitionGroup ? `Group ${currentCompetitionGroup.label}` : 'Competition'}${session.competitionBeat ? ` • Beat ${session.competitionBeat}` : ''}${currentCompetitionSession ? ` • Session ${currentCompetitionSession.sessionNumber}` : ''}`}
+        />
+        <SectionCard title="Assignment" subtitle="Keep the critical comp details visible without crowding the screen.">
+          {currentCompetitionGroup ? <Text style={{ color: appTheme.colors.textMuted, fontWeight: '700' }}>Assigned group: {currentCompetitionGroup.label}</Text> : null}
+          {session.competitionBeat ? <Text style={{ color: appTheme.colors.textMuted, fontWeight: '700' }}>Beat: {session.competitionBeat}</Text> : null}
+          {currentCompetitionSession ? <Text style={{ color: appTheme.colors.textMuted, fontWeight: '700' }}>Session #{currentCompetitionSession.sessionNumber}</Text> : null}
+          <Text style={{ color: appTheme.colors.textSoft }}>Role: {session.competitionRole ?? 'fishing'}</Text>
+        </SectionCard>
 
         {timer.activeAlertMinute ? (
-          <View style={{ backgroundColor: 'rgba(252,211,77,0.22)', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: 'rgba(252,211,77,0.4)' }}>
-            <Text style={{ color: '#fff7d6', fontWeight: '800' }}>
-              Time marker: {timer.activeAlertMinute} minutes into your competition session.
-            </Text>
-          </View>
+          <StatusBanner tone="warning" text={`Time marker: ${timer.activeAlertMinute} minutes into your competition session.`} />
         ) : null}
 
-        <View style={{ backgroundColor: 'rgba(6, 27, 44, 0.72)', borderRadius: 18, padding: 14, gap: 8, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
-          <Text style={{ color: '#f7fdff', fontWeight: '800', fontSize: 18 }}>Session Timer</Text>
+        <SectionCard title="Session Timer" subtitle="Timing stays readable so you can fish or control without second-guessing the clock.">
           <Text style={{ color: '#d7f3ff' }}>Elapsed: {timer.elapsedLabel}</Text>
           {timer.remainingLabel ? <Text style={{ color: '#d7f3ff' }}>Remaining: {timer.remainingLabel}</Text> : null}
-          {timer.hasEnded ? <Text style={{ color: '#fca5a5', fontWeight: '700' }}>Session ended early.</Text> : null}
+          {timer.hasEnded ? <StatusBanner tone="error" text="Session ended early." /> : null}
           {!timer.hasEnded && timer.nextAlertMinute ? <Text style={{ color: '#d7f3ff' }}>Next alert: {timer.nextAlertMinute} min</Text> : null}
           {!timer.hasEnded ? (
-            <Pressable onPress={endSessionEarly} style={{ backgroundColor: 'rgba(145, 48, 48, 0.95)', padding: 12, borderRadius: 12 }}>
-              <Text style={{ color: '#fff8f8', textAlign: 'center', fontWeight: '700' }}>End Session Early</Text>
-            </Pressable>
+            <AppButton label="End Session Early" onPress={endSessionEarly} variant="danger" />
           ) : null}
-        </View>
+        </SectionCard>
 
-        <View style={{ backgroundColor: 'rgba(245,252,255,0.96)', borderRadius: 18, padding: 14, gap: 8 }}>
-          <Text style={{ color: '#102a43', fontWeight: '800', fontSize: 18 }}>Scorecard</Text>
+        <SectionCard title="Scorecard" subtitle="Keep fish count and official length totals easy to check at a glance." tone="light">
           <Text style={{ color: '#334e68' }}>Total fish: {competitionCatches.length}</Text>
           {competitionRequiresMeasurement ? (
             <Text style={{ color: '#334e68' }}>
@@ -175,26 +173,32 @@ export const CompetitionScreen = ({ route }: any) => {
           ) : (
             <Text style={{ color: '#334e68' }}>This session is counting fish only. No length entry required.</Text>
           )}
-          <Pressable disabled={timer.hasEnded || session.competitionRole === 'controlling'} onPress={() => setShowCatchModal(true)} style={{ backgroundColor: timer.hasEnded || session.competitionRole === 'controlling' ? '#5b7282' : '#264653', padding: 12, borderRadius: 12 }}>
-            <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>{session.competitionRole === 'controlling' ? 'Controlling This Session' : 'Log Competition Fish'}</Text>
-          </Pressable>
-        </View>
+          <AppButton
+            label={session.competitionRole === 'controlling' ? 'Controlling This Session' : 'Log Competition Fish'}
+            onPress={() => setShowCatchModal(true)}
+            disabled={timer.hasEnded || session.competitionRole === 'controlling'}
+            variant="tertiary"
+          />
+        </SectionCard>
 
         {isCompetitionSummaryReady ? (
-          <View style={{ backgroundColor: 'rgba(245,252,255,0.96)', borderRadius: 18, padding: 14, gap: 8 }}>
-            <Text style={{ color: '#102a43', fontWeight: '800', fontSize: 18 }}>Group Session Summary</Text>
+          <SectionCard title="Group Session Summary" subtitle="Once everyone in the group is done or controlling, the summary becomes official." tone="light">
             {competitionSummaryRows.map((row) => (
-              <Text key={row.assignment.id} style={{ color: '#334e68' }}>
-                {row.name}: {row.status === 'controlling' ? 'controlling' : `${row.fishCount} fish`}
-                {session.competitionRequiresMeasurement && row.status !== 'controlling' ? ` | ${Math.round(row.totalLength)} ${competitionLengthUnit}` : ''}
-                {row.status === 'still active' ? ' | still active' : ''}
-              </Text>
+              <View key={row.assignment.id} style={{ backgroundColor: '#e9f5fb', borderRadius: appTheme.radius.md, padding: 12, gap: 4 }}>
+                <Text style={{ color: appTheme.colors.textDark, fontWeight: '800' }}>{row.name}</Text>
+                <Text style={{ color: '#334e68' }}>
+                  {row.status === 'controlling' ? 'Controlling' : `${row.fishCount} fish`}
+                  {session.competitionRequiresMeasurement && row.status !== 'controlling' ? ` | ${Math.round(row.totalLength)} ${competitionLengthUnit}` : ''}
+                </Text>
+                <Text style={{ color: '#486581', textTransform: 'capitalize' }}>{row.status}</Text>
+              </View>
             ))}
-          </View>
-        ) : null}
+          </SectionCard>
+        ) : (
+          <StatusBanner tone="info" text="Group summary will unlock once every angler in this comp group has finished or is controlling." />
+        )}
 
-        <View style={{ backgroundColor: 'rgba(245,252,255,0.96)', borderRadius: 18, padding: 14, gap: 8 }}>
-          <Text style={{ color: '#102a43', fontWeight: '800', fontSize: 18 }}>Catch Times</Text>
+        <SectionCard title="Catch Times" subtitle="Each logged fish stays easy to verify by time and measurement." tone="light">
           {!competitionCatches.length ? (
             <Text style={{ color: '#486581' }}>No competition fish logged yet.</Text>
           ) : (
@@ -205,12 +209,12 @@ export const CompetitionScreen = ({ route }: any) => {
               </Text>
             ))
           )}
-        </View>
+        </SectionCard>
       </ScrollView>
 
       <Modal visible={showCatchModal} transparent animationType="fade" onRequestClose={() => setShowCatchModal(false)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(4,18,29,0.76)', justifyContent: 'center', padding: 20 }}>
-          <View style={{ backgroundColor: 'rgba(8,28,41,0.96)', borderRadius: 22, padding: 18, gap: 12 }}>
+          <View style={{ backgroundColor: 'rgba(8,28,41,0.96)', borderRadius: 22, padding: 18, gap: 12, borderWidth: 1, borderColor: appTheme.colors.border }}>
             <Text style={{ color: '#f7fdff', fontSize: 22, fontWeight: '800' }}>Log Competition Fish</Text>
             <OptionChips label="Species" options={TROUT_SPECIES} value={species} onChange={setSpecies} />
             {competitionRequiresMeasurement ? (
@@ -225,7 +229,7 @@ export const CompetitionScreen = ({ route }: any) => {
                   keyboardType="number-pad"
                   placeholder={`Length in ${competitionLengthUnit}`}
                   placeholderTextColor="#5a6c78"
-                  style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+                  style={{ borderWidth: 1, borderColor: appTheme.colors.borderStrong, padding: 12, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
                 />
               </>
             ) : (
@@ -233,22 +237,14 @@ export const CompetitionScreen = ({ route }: any) => {
                 This session is fish-count only. Save each catch with species and timestamp.
               </Text>
             )}
-            <Pressable
-              onPress={logCompetitionCatch}
-              style={{
-                backgroundColor:
-                  !competitionRequiresMeasurement || (Number.isFinite(Number(lengthValue)) && Number(lengthValue) >= (competitionLengthUnit === 'cm' ? 20 : 200))
-                    ? '#2a9d8f'
-                    : '#5b7282',
-                padding: 12,
-                borderRadius: 12
+            <AppButton
+              label="Save Fish"
+              onPress={() => {
+                logCompetitionCatch().catch(console.error);
               }}
-            >
-              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Save Fish</Text>
-            </Pressable>
-            <Pressable onPress={() => setShowCatchModal(false)} style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: 12, borderRadius: 12 }}>
-              <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Cancel</Text>
-            </Pressable>
+              disabled={competitionRequiresMeasurement && !(Number.isFinite(Number(lengthValue)) && Number(lengthValue) >= (competitionLengthUnit === 'cm' ? 20 : 200))}
+            />
+            <AppButton label="Cancel" onPress={() => setShowCatchModal(false)} variant="ghost" />
           </View>
         </View>
       </Modal>
