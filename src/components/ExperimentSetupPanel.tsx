@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { View } from 'react-native';
 import { OptionChips } from '@/components/OptionChips';
 import { ExperimentControlFocus, ExperimentFlyEntry } from '@/types/experiment';
 import { SectionCard } from '@/components/ui/SectionCard';
@@ -35,26 +35,21 @@ export const ExperimentSetupPanel = ({
   isCompactLayout
 }: ExperimentSetupPanelProps) => {
   const { theme } = useTheme();
+  const buttonSurfaceTone: 'dark' | 'light' = theme.id === 'daylight_light' ? 'light' : 'dark';
 
   return (
   <>
     <SectionCard title="Flies In This Experiment" subtitle="Keep the fly count choice obvious before you start logging casts and fish.">
       <View style={{ flexDirection: isCompactLayout ? 'column' : 'row', gap: 8 }}>
         {FLY_COUNT_OPTIONS.map((option) => (
-          <Pressable
-            key={option}
-            onPress={() => onFlyCountChange(option)}
-            style={{
-              flex: 1,
-              backgroundColor: flyCount === option ? theme.colors.primary : theme.colors.surfaceMuted,
-              padding: 12,
-              borderRadius: theme.radius.md,
-              borderWidth: 1,
-              borderColor: flyCount === option ? theme.colors.borderStrong : theme.colors.border
-            }}
-          >
-            <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>{option}</Text>
-          </Pressable>
+          <View key={option} style={{ flex: 1 }}>
+            <AppButton
+              label={String(option)}
+              onPress={() => onFlyCountChange(option)}
+              variant={flyCount === option ? 'secondary' : 'ghost'}
+              surfaceTone={buttonSurfaceTone}
+            />
+          </View>
         ))}
       </View>
     </SectionCard>
@@ -65,22 +60,14 @@ export const ExperimentSetupPanel = ({
       <SectionCard title="Choose Baseline" subtitle="Set the anchor fly clearly before you compare the rest.">
         <View style={{ flexDirection: isCompactLayout ? 'column' : 'row', gap: 8 }}>
           {visibleEntries.map((entry, index) => (
-            <Pressable
-              key={`baseline-${entry.slotId}`}
-              onPress={() => onBaselineIndexChange(index)}
-              style={{
-                flex: 1,
-                backgroundColor: baselineIndex === index ? theme.colors.primary : theme.colors.surfaceMuted,
-                padding: 12,
-                borderRadius: theme.radius.md,
-                borderWidth: 1,
-                borderColor: baselineIndex === index ? theme.colors.borderStrong : theme.colors.border
-              }}
-            >
-              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
-                {entry.fly.name.trim() || `Fly ${index + 1}`}
-              </Text>
-            </Pressable>
+            <View key={`baseline-${entry.slotId}`} style={{ flex: 1 }}>
+              <AppButton
+                label={entry.fly.name.trim() || `Fly ${index + 1}`}
+                onPress={() => onBaselineIndexChange(index)}
+                variant={baselineIndex === index ? 'secondary' : 'ghost'}
+                surfaceTone={buttonSurfaceTone}
+              />
+            </View>
           ))}
         </View>
       </SectionCard>
@@ -88,10 +75,10 @@ export const ExperimentSetupPanel = ({
 
     <View style={{ flexDirection: isCompactLayout ? 'column' : 'row', gap: 8 }}>
       <View style={{ flex: 1 }}>
-        <AppButton label="Cast interval: 5" onPress={() => onCastStepChange(5)} variant={castStep === 5 ? 'secondary' : 'ghost'} />
+        <AppButton label="Cast interval: 5" onPress={() => onCastStepChange(5)} variant={castStep === 5 ? 'secondary' : 'ghost'} surfaceTone={buttonSurfaceTone} />
       </View>
       <View style={{ flex: 1 }}>
-        <AppButton label="Cast interval: 10" onPress={() => onCastStepChange(10)} variant={castStep === 10 ? 'secondary' : 'ghost'} />
+        <AppButton label="Cast interval: 10" onPress={() => onCastStepChange(10)} variant={castStep === 10 ? 'secondary' : 'ghost'} surfaceTone={buttonSurfaceTone} />
       </View>
     </View>
   </>

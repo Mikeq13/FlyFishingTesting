@@ -96,14 +96,14 @@ export const AccessStatusSection = ({
       <FormField label="Shared Beta Email" tone="light">
         <TextInput value={authEmail} onChangeText={onAuthEmailChange} placeholder="angler@email.com" placeholderTextColor={theme.colors.inputPlaceholder} autoCapitalize="none" keyboardType="email-address" style={formInputStyle} />
       </FormField>
-      <AppButton label={authStatus === 'authenticating' ? 'Sending Magic Link...' : 'Send Magic Link'} onPress={() => { onSendMagicLink().then(() => Alert.alert('Magic link sent', 'Check your email on this device and open the link to finish signing in.')).catch((error) => Alert.alert('Unable to start sign-in', error instanceof Error ? error.message : 'Please try again.')); }} disabled={authStatus === 'authenticating'} />
-      {remoteSession ? <AppButton label="Sign Out of Shared Beta" onPress={() => { onSignOut().then(() => Alert.alert('Signed out', 'Shared beta sync is now disconnected on this device.')).catch((error) => Alert.alert('Unable to sign out', error instanceof Error ? error.message : 'Please try again.')); }} variant="danger" /> : null}
-      <AppButton label="Sync Now" onPress={() => { onSyncNow().then(() => Alert.alert('Sync complete', 'Pending shared records were pushed to Supabase.')).catch((error) => Alert.alert('Unable to sync now', error instanceof Error ? error.message : 'Please try again.')); }} variant="tertiary" />
+      <AppButton label={authStatus === 'authenticating' ? 'Sending Magic Link...' : 'Send Magic Link'} onPress={() => { onSendMagicLink().then(() => Alert.alert('Magic link sent', 'Check your email on this device and open the link to finish sign-in.')).catch((error) => Alert.alert('Unable to start sign-in', error instanceof Error ? error.message : 'Please try again.')); }} disabled={authStatus === 'authenticating'} surfaceTone="light" />
+      {remoteSession ? <AppButton label="Sign Out of Shared Beta" onPress={() => { onSignOut().then(() => Alert.alert('Signed out', 'Shared beta sync is now disconnected on this device.')).catch((error) => Alert.alert('Unable to sign out', error instanceof Error ? error.message : 'Please try again.')); }} variant="danger" surfaceTone="light" /> : null}
+      <AppButton label="Sync Now" onPress={() => { onSyncNow().then(() => Alert.alert('Sync complete', 'Pending shared records were pushed to Supabase.')).catch((error) => Alert.alert('Unable to sync now', error instanceof Error ? error.message : 'Please try again.')); }} variant="tertiary" surfaceTone="light" />
     </ActionGroup>
     {showPremiumActions ? (
       <>
-        <AppButton label="Start 7-Day Trial" onPress={() => { onStartTrial().catch(console.error); }} />
-        <AppButton label="Continue With Apple Subscription" onPress={() => { onContinueWithApple().catch(console.error); }} variant="secondary" />
+        <AppButton label="Start 7-Day Trial" onPress={() => { onStartTrial().catch(console.error); }} surfaceTone="light" />
+        <AppButton label="Continue With Apple Subscription" onPress={() => { onContinueWithApple().catch(console.error); }} variant="secondary" surfaceTone="light" />
       </>
     ) : null}
   </SectionCard>

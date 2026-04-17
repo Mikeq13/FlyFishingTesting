@@ -7,7 +7,7 @@ import { LeaderFormulaEditor } from './LeaderFormulaEditor';
 import { RigPresetEditor } from './RigPresetEditor';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { AppButton } from '@/components/ui/AppButton';
-import { appTheme } from '@/design/theme';
+import { useTheme } from '@/design/theme';
 
 const TIPPET_SIZES: TippetSize[] = ['5x', '6x', '7x', '8x'];
 
@@ -40,6 +40,7 @@ export const RigSetupPanel = ({
   onDeleteLeaderFormula,
   onDeleteRigPreset
 }: RigSetupPanelProps) => {
+  const { theme } = useTheme();
   const [showFormulaList, setShowFormulaList] = useState(false);
   const [showFormulaEditor, setShowFormulaEditor] = useState(false);
   const [showPresetList, setShowPresetList] = useState(false);
@@ -48,17 +49,17 @@ export const RigSetupPanel = ({
   const sortedPresets = useMemo(() => [...savedRigPresets].sort((left, right) => left.name.localeCompare(right.name)), [savedRigPresets]);
 
   return (
-    <SectionCard title={title} subtitle="Keep leader formulas, rig presets, fly count, and tippet sections in one place.">
+    <SectionCard title={title} subtitle="Keep leaders from fly line to tippet ring and rigs from tippet ring to point fly in one place.">
 
       {!!sortedFormulas.length ? (
         <>
-          <AppButton label={showFormulaList ? 'Hide Saved Leader Formulas' : 'Choose Saved Leader Formula'} onPress={() => setShowFormulaList((current) => !current)} variant="secondary" />
+          <AppButton label={showFormulaList ? 'Hide Leaders' : 'Use Leader'} onPress={() => setShowFormulaList((current) => !current)} variant="secondary" />
           {showFormulaList ? (
-            <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: appTheme.colors.borderStrong, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.surfaceLight }}>
+            <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: theme.colors.borderStrong, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceLight }}>
               {sortedFormulas.map((formula) => (
                 <View
                   key={formula.id}
-                  style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb', gap: 8 }}
+                  style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.borderLight, gap: 8 }}
                 >
                   <Pressable
                     onPress={() => {
@@ -66,8 +67,8 @@ export const RigSetupPanel = ({
                       setShowFormulaList(false);
                     }}
                   >
-                    <Text style={{ color: appTheme.colors.textDark, fontWeight: '700' }}>{formula.name}</Text>
-                    <Text style={{ color: appTheme.colors.textDarkSoft, fontSize: 12 }}>
+                    <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>{formula.name}</Text>
+                    <Text style={{ color: theme.colors.textDarkSoft, fontSize: 12 }}>
                       {formula.sections.map((section) => `${section.lengthFeet} ft ${section.materialLabel}`).join(' | ')}
                     </Text>
                   </Pressable>
@@ -90,7 +91,7 @@ export const RigSetupPanel = ({
         </>
       ) : null}
 
-      <AppButton label={showPresetEditor ? 'Hide Rig Preset Saver' : 'Save Current as Rig Preset'} onPress={() => setShowPresetEditor((current) => !current)} variant="ghost" />
+      <AppButton label={showPresetEditor ? 'Hide Save Rig' : 'Save Rig'} onPress={() => setShowPresetEditor((current) => !current)} variant="ghost" />
 
       {showPresetEditor ? (
         <RigPresetEditor
@@ -103,13 +104,13 @@ export const RigSetupPanel = ({
 
       {!!sortedPresets.length ? (
         <>
-          <AppButton label={showPresetList ? 'Hide Rig Presets' : 'Apply Saved Rig Preset'} onPress={() => setShowPresetList((current) => !current)} variant="secondary" />
+          <AppButton label={showPresetList ? 'Hide Rigs' : 'Use Rig'} onPress={() => setShowPresetList((current) => !current)} variant="secondary" />
           {showPresetList ? (
-            <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: appTheme.colors.borderStrong, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.surfaceLight }}>
+            <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: theme.colors.borderStrong, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceLight }}>
               {sortedPresets.map((preset) => (
                 <View
                   key={preset.id}
-                  style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb', gap: 8 }}
+                  style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.borderLight, gap: 8 }}
                 >
                   <Pressable
                     onPress={() => {
@@ -117,8 +118,8 @@ export const RigSetupPanel = ({
                       setShowPresetList(false);
                     }}
                   >
-                    <Text style={{ color: appTheme.colors.textDark, fontWeight: '700' }}>{preset.name}</Text>
-                    <Text style={{ color: appTheme.colors.textDarkSoft, fontSize: 12 }}>
+                    <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>{preset.name}</Text>
+                    <Text style={{ color: theme.colors.textDarkSoft, fontSize: 12 }}>
                       {preset.flyCount} fly{preset.flyCount === 1 ? '' : 's'} | {preset.positions.join(' | ')}
                     </Text>
                   </Pressable>
@@ -138,7 +139,7 @@ export const RigSetupPanel = ({
         </>
       ) : null}
 
-      <AppButton label={showFormulaEditor ? 'Hide Leader Formula Builder' : 'Quick Add Leader Formula'} onPress={() => setShowFormulaEditor((current) => !current)} variant="tertiary" />
+      <AppButton label={showFormulaEditor ? 'Hide Save Leader' : 'Save Leader'} onPress={() => setShowFormulaEditor((current) => !current)} variant="tertiary" />
 
       {showFormulaEditor ? (
         <LeaderFormulaEditor
@@ -161,8 +162,8 @@ export const RigSetupPanel = ({
 
       <View style={{ gap: 8 }}>
         {rigSetup.addedTippetSections.map((section, index) => (
-          <View key={`${section.label}-${index}`} style={{ gap: 8, borderRadius: appTheme.radius.md, padding: 10, backgroundColor: appTheme.colors.surfaceMuted }}>
-            <Text style={{ color: '#f7fdff', fontWeight: '700' }}>{section.label}</Text>
+          <View key={`${section.label}-${index}`} style={{ gap: 8, borderRadius: theme.radius.md, padding: 10, backgroundColor: theme.colors.surfaceMuted }}>
+            <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{section.label}</Text>
             <OptionChips
               label="Tippet Size"
               options={TIPPET_SIZES}
@@ -188,17 +189,17 @@ export const RigSetupPanel = ({
               }
               placeholder="Added tippet length (feet)"
               keyboardType="decimal-pad"
-              placeholderTextColor="#5a6c78"
-              style={{ borderWidth: 1, borderColor: appTheme.colors.borderStrong, padding: 12, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
+              placeholderTextColor={theme.colors.inputPlaceholder}
+              style={{ borderWidth: 1, borderColor: theme.colors.borderStrong, padding: 12, borderRadius: theme.radius.md, backgroundColor: theme.colors.inputBg, color: theme.colors.textDark }}
             />
           </View>
         ))}
       </View>
 
       {rigSetup.leaderFormulaName ? (
-        <View style={{ gap: 4, borderRadius: appTheme.radius.md, padding: 10, backgroundColor: appTheme.colors.surfaceMuted }}>
-          <Text style={{ color: '#f7fdff', fontWeight: '700' }}>Leader Formula: {rigSetup.leaderFormulaName}</Text>
-          <Text style={{ color: '#d7f3ff' }}>
+        <View style={{ gap: 4, borderRadius: theme.radius.md, padding: 10, backgroundColor: theme.colors.surfaceMuted }}>
+          <Text style={{ color: theme.colors.text, fontWeight: '700' }}>Leader: {rigSetup.leaderFormulaName}</Text>
+          <Text style={{ color: theme.colors.textMuted }}>
             {rigSetup.leaderFormulaSectionsSnapshot.map((section) => `${section.lengthFeet} ft ${section.materialLabel}`).join(' | ')}
           </Text>
         </View>

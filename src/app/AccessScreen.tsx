@@ -226,6 +226,7 @@ export const AccessScreen = () => {
           label={item.label}
           onPress={() => handleCleanupCategory(userId, userName, item.key)}
           variant={item.destructive ? 'danger' : 'ghost'}
+          surfaceTone="light"
         />
       ))}
     </ActionGroup>

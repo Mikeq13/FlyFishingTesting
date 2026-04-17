@@ -44,7 +44,7 @@ export const GroupsSharingSection = ({
     <FormField label="New Group Name" tone="light">
       <TextInput value={newGroupName} onChangeText={onNewGroupNameChange} placeholder="New group name" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
     </FormField>
-    <AppButton label="Create Group" onPress={() => { onCreateGroup().catch((error) => Alert.alert('Unable to create group', error instanceof Error ? error.message : 'Please try again.')); }} />
+    <AppButton label="Create Group" onPress={() => { onCreateGroup().catch((error) => Alert.alert('Unable to create group', error instanceof Error ? error.message : 'Please try again.')); }} surfaceTone="light" />
     <View style={{ flexDirection: 'row', gap: 8 }}>
       <View style={{ flex: 1 }}>
         <FormField label="Join Group Code" tone="light">
@@ -52,7 +52,7 @@ export const GroupsSharingSection = ({
         </FormField>
       </View>
       <View style={{ justifyContent: 'center' }}>
-        <AppButton label="Join" onPress={() => { onJoinGroup().catch((error) => Alert.alert('Unable to join group', error instanceof Error ? error.message : 'Please try again.')); }} variant="secondary" />
+        <AppButton label="Join" onPress={() => { onJoinGroup().catch((error) => Alert.alert('Unable to join group', error instanceof Error ? error.message : 'Please try again.')); }} variant="secondary" surfaceTone="light" />
       </View>
     </View>
 

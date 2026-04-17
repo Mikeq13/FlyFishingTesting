@@ -57,13 +57,13 @@ export const InvitesSponsorshipSection = ({
         <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>Invite into Group</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
           {organizerGroups.map((group) => (
-            <AppButton key={group.id} label={group.name} onPress={() => onInviteTargetGroupChange(group.id)} variant={inviteTargetGroupId === group.id ? 'primary' : 'ghost'} />
+            <AppButton key={group.id} label={group.name} onPress={() => onInviteTargetGroupChange(group.id)} variant={inviteTargetGroupId === group.id ? 'primary' : 'ghost'} surfaceTone="light" />
           ))}
         </ScrollView>
         <FormField label="Friend Name (Optional)" tone="light">
           <TextInput value={inviteTargetName} onChangeText={onInviteTargetNameChange} placeholder="Friend name (optional)" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
         </FormField>
-        <AppButton label="Create Invite" onPress={() => { onCreateInvite().catch((error) => Alert.alert('Unable to create invite', error instanceof Error ? error.message : 'Please try again.')); }} />
+        <AppButton label="Create Invite" onPress={() => { onCreateInvite().catch((error) => Alert.alert('Unable to create invite', error instanceof Error ? error.message : 'Please try again.')); }} surfaceTone="light" />
       </>
     ) : (
       <Text style={{ color: theme.colors.textDarkSoft }}>Create or join a friend group first before sending invites.</Text>
@@ -75,7 +75,7 @@ export const InvitesSponsorshipSection = ({
         </FormField>
       </View>
       <View style={{ justifyContent: 'center' }}>
-        <AppButton label="Accept" onPress={() => { onAcceptInvite().catch((error) => Alert.alert('Unable to accept invite', error instanceof Error ? error.message : 'Please try again.')); }} variant="secondary" />
+        <AppButton label="Accept" onPress={() => { onAcceptInvite().catch((error) => Alert.alert('Unable to accept invite', error instanceof Error ? error.message : 'Please try again.')); }} variant="secondary" surfaceTone="light" />
       </View>
     </View>
     {!!invites.length && (
@@ -128,7 +128,7 @@ export const InvitesSponsorshipSection = ({
               <InlineSummaryRow label="Sponsor" value={sponsor?.name ?? `Angler ${entry.sponsorUserId}`} tone="light" />
               <InlineSummaryRow label="Group" value={group?.name ?? 'Unknown group'} tone="light" />
               <InlineSummaryRow label="Status" value={entry.active ? 'Active' : 'Revoked'} valueMuted={!entry.active} tone="light" />
-              {entry.active && entry.sponsorUserId === currentUserId ? <AppButton label="Revoke Sponsored Access" onPress={() => { onRevokeSponsoredAccess(entry.id).catch((error) => Alert.alert('Unable to revoke access', error instanceof Error ? error.message : 'Please try again.')); }} variant="danger" /> : null}
+              {entry.active && entry.sponsorUserId === currentUserId ? <AppButton label="Revoke Sponsored Access" onPress={() => { onRevokeSponsoredAccess(entry.id).catch((error) => Alert.alert('Unable to revoke access', error instanceof Error ? error.message : 'Please try again.')); }} variant="danger" surfaceTone="light" /> : null}
             </View>
           );
         })}

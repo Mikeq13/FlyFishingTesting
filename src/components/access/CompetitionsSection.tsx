@@ -106,7 +106,7 @@ export const CompetitionsSection = ({
         </View>
       ))}
     </View>
-    <AppButton label="Create Competition" onPress={() => { onCreateCompetition().catch((error) => Alert.alert('Unable to create competition', error instanceof Error ? error.message : 'Please try again.')); }} />
+    <AppButton label="Create Competition" onPress={() => { onCreateCompetition().catch((error) => Alert.alert('Unable to create competition', error instanceof Error ? error.message : 'Please try again.')); }} surfaceTone="light" />
     <View style={{ flexDirection: 'row', gap: 8 }}>
       <View style={{ flex: 1 }}>
         <FormField label="Competition Join Code" tone="light">
@@ -114,7 +114,7 @@ export const CompetitionsSection = ({
         </FormField>
       </View>
       <View style={{ justifyContent: 'center' }}>
-        <AppButton label="Join" onPress={() => { onJoinCompetition().catch((error) => Alert.alert('Unable to join competition', error instanceof Error ? error.message : 'Please try again.')); }} variant="secondary" />
+        <AppButton label="Join" onPress={() => { onJoinCompetition().catch((error) => Alert.alert('Unable to join competition', error instanceof Error ? error.message : 'Please try again.')); }} variant="secondary" surfaceTone="light" />
       </View>
     </View>
 
@@ -165,7 +165,7 @@ export const CompetitionsSection = ({
                     <TextInput value={draft.beat} onChangeText={(value) => onUpdateAssignmentDraft(competition.id, currentUser.id, session.id, { beat: value })} placeholder="Beat / section" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
                   </FormField>
                   <OptionChips label="Role" options={['fishing', 'controlling'] as const} value={draft.role} onChange={(role) => onUpdateAssignmentDraft(competition.id, currentUser.id, session.id, { role })} tone="light" />
-                  <AppButton label={`Save Session ${session.sessionNumber}`} onPress={() => { onSaveAssignment(competition.id, currentUser.id, session.id, draft).catch((error) => Alert.alert('Unable to save assignment', error instanceof Error ? error.message : 'Please try again.')); }} variant="tertiary" />
+                  <AppButton label={`Save Session ${session.sessionNumber}`} onPress={() => { onSaveAssignment(competition.id, currentUser.id, session.id, draft).catch((error) => Alert.alert('Unable to save assignment', error instanceof Error ? error.message : 'Please try again.')); }} variant="tertiary" surfaceTone="light" />
                 </View>
               );
             })}
@@ -199,7 +199,7 @@ export const CompetitionsSection = ({
                             <TextInput value={draft.beat} onChangeText={(value) => onUpdateAssignmentDraft(competition.id, participant.userId, session.id, { beat: value })} placeholder="Beat / section" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
                           </FormField>
                           <OptionChips label="Role" options={['fishing', 'controlling'] as const} value={draft.role} onChange={(role) => onUpdateAssignmentDraft(competition.id, participant.userId, session.id, { role })} tone="light" />
-                          <AppButton label="Save Review Edit" onPress={() => { onSaveAssignment(competition.id, participant.userId, session.id, draft).catch((error) => Alert.alert('Unable to save assignment', error instanceof Error ? error.message : 'Please try again.')); }} variant="tertiary" />
+                          <AppButton label="Save Review Edit" onPress={() => { onSaveAssignment(competition.id, participant.userId, session.id, draft).catch((error) => Alert.alert('Unable to save assignment', error instanceof Error ? error.message : 'Please try again.')); }} variant="tertiary" surfaceTone="light" />
                         </View>
                       );
                     })}

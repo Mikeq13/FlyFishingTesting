@@ -3,13 +3,14 @@ import { Text, TextInput, View } from 'react-native';
 import { LeaderFormulaSection } from '@/types/rig';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { AppButton } from '@/components/ui/AppButton';
-import { appTheme } from '@/design/theme';
+import { useTheme } from '@/design/theme';
 
 interface LeaderFormulaEditorProps {
   onSave: (payload: { name: string; sections: LeaderFormulaSection[] }) => Promise<void>;
 }
 
 export const LeaderFormulaEditor = ({ onSave }: LeaderFormulaEditorProps) => {
+  const { theme } = useTheme();
   const [name, setName] = useState('');
   const [sections, setSections] = useState<LeaderFormulaSection[]>([
     { order: 0, materialLabel: '5x mono', lengthFeet: 15 }
@@ -23,26 +24,26 @@ export const LeaderFormulaEditor = ({ onSave }: LeaderFormulaEditorProps) => {
   );
 
   return (
-    <SectionCard title="Quick Add Leader Formula" subtitle="Save a reusable base leader without leaving the current flow.">
+    <SectionCard title="Save Leader" subtitle="Save the mono formula from fly line to tippet ring without leaving the current flow.">
       <TextInput
         value={name}
         onChangeText={setName}
-        placeholder="Formula name"
-        placeholderTextColor="#5a6c78"
-        style={{ borderWidth: 1, borderColor: appTheme.colors.borderStrong, padding: 12, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
+        placeholder="Leader name"
+        placeholderTextColor={theme.colors.inputPlaceholder}
+        style={{ borderWidth: 1, borderColor: theme.colors.borderStrong, padding: 12, borderRadius: theme.radius.md, backgroundColor: theme.colors.inputBg, color: theme.colors.textDark }}
       />
 
       {sections.map((section, index) => (
-        <View key={`${section.order}-${index}`} style={{ gap: 8, borderRadius: appTheme.radius.md, padding: 10, backgroundColor: appTheme.colors.surfaceMuted }}>
-          <Text style={{ color: appTheme.colors.textMuted, fontWeight: '700' }}>Section {index + 1}</Text>
+        <View key={`${section.order}-${index}`} style={{ gap: 8, borderRadius: theme.radius.md, padding: 10, backgroundColor: theme.colors.surfaceMuted }}>
+          <Text style={{ color: theme.colors.textMuted, fontWeight: '700' }}>Section {index + 1}</Text>
           <TextInput
             value={section.materialLabel}
             onChangeText={(materialLabel) =>
               setSections((current) => current.map((entry, entryIndex) => (entryIndex === index ? { ...entry, materialLabel } : entry)))
             }
             placeholder="Material label"
-            placeholderTextColor="#5a6c78"
-            style={{ borderWidth: 1, borderColor: appTheme.colors.borderStrong, padding: 12, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
+            placeholderTextColor={theme.colors.inputPlaceholder}
+            style={{ borderWidth: 1, borderColor: theme.colors.borderStrong, padding: 12, borderRadius: theme.radius.md, backgroundColor: theme.colors.inputBg, color: theme.colors.textDark }}
           />
           <TextInput
             value={String(section.lengthFeet)}
@@ -53,8 +54,8 @@ export const LeaderFormulaEditor = ({ onSave }: LeaderFormulaEditorProps) => {
             }
             placeholder="Length in feet"
             keyboardType="decimal-pad"
-            placeholderTextColor="#5a6c78"
-            style={{ borderWidth: 1, borderColor: appTheme.colors.borderStrong, padding: 12, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
+            placeholderTextColor={theme.colors.inputPlaceholder}
+            style={{ borderWidth: 1, borderColor: theme.colors.borderStrong, padding: 12, borderRadius: theme.radius.md, backgroundColor: theme.colors.inputBg, color: theme.colors.textDark }}
           />
           {sections.length > 1 ? (
             <AppButton
@@ -75,7 +76,7 @@ export const LeaderFormulaEditor = ({ onSave }: LeaderFormulaEditorProps) => {
       />
 
       <AppButton
-        label="Save Leader Formula"
+        label="Save Leader"
         onPress={() => onSave({ name: name.trim(), sections: sections.map((section, index) => ({ ...section, order: index })) })}
         disabled={!canSave}
       />

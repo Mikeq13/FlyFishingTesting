@@ -27,6 +27,7 @@ export const LocalDataSection = ({
         label="Delete My Angler Profile"
         onPress={() => onDeleteProfile().catch((error) => Alert.alert('Unable to delete profile', error instanceof Error ? error.message : 'Please try again.'))}
         variant="danger"
+        surfaceTone="light"
       />
     ) : (
       <View style={{ backgroundColor: theme.colors.nestedSurface, borderRadius: 12, padding: 10, borderWidth: 1, borderColor: theme.colors.nestedSurfaceBorder }}>

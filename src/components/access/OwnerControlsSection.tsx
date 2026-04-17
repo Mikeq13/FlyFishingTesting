@@ -57,14 +57,14 @@ export const OwnerControlsSection = ({
           </View>
         ) : (
           <ActionGroup>
-            <AppButton label="Grant Power User" onPress={() => { onGrantPowerUser(user.id, user.name).catch(console.error); }} />
-            <AppButton label="Start 7-Day Trial" onPress={() => { onStartTrial(user.id, user.name).catch(console.error); }} variant="secondary" />
-            <AppButton label="Mark Subscriber" onPress={() => { onMarkSubscriber(user.id, user.name).catch(console.error); }} variant="tertiary" />
-            <AppButton label="Reset Access" onPress={() => { onResetAccess(user.id, user.name).catch(console.error); }} variant="danger" />
+            <AppButton label="Grant Power User" onPress={() => { onGrantPowerUser(user.id, user.name).catch(console.error); }} surfaceTone="light" />
+            <AppButton label="Start 7-Day Trial" onPress={() => { onStartTrial(user.id, user.name).catch(console.error); }} variant="secondary" surfaceTone="light" />
+            <AppButton label="Mark Subscriber" onPress={() => { onMarkSubscriber(user.id, user.name).catch(console.error); }} variant="tertiary" surfaceTone="light" />
+            <AppButton label="Reset Access" onPress={() => { onResetAccess(user.id, user.name).catch(console.error); }} variant="danger" surfaceTone="light" />
             <ActionGroup>
-              {cleanupConfig.map((item) => <AppButton key={`${user.id}-${item.key}`} label={item.label} onPress={() => onCleanupCategory(user.id, user.name, item.key)} variant={item.destructive ? 'danger' : 'ghost'} />)}
+              {cleanupConfig.map((item) => <AppButton key={`${user.id}-${item.key}`} label={item.label} onPress={() => onCleanupCategory(user.id, user.name, item.key)} variant={item.destructive ? 'danger' : 'ghost'} surfaceTone="light" />)}
             </ActionGroup>
-            <AppButton label="Delete Angler" onPress={() => onDeleteAngler(user.id, user.name)} variant="danger" />
+            <AppButton label="Delete Angler" onPress={() => onDeleteAngler(user.id, user.name)} variant="danger" surfaceTone="light" />
           </ActionGroup>
         )}
       </View>
