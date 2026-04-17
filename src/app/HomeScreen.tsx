@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Modal, Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { KeyboardDismissView } from '@/components/KeyboardDismissView';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { AppButton } from '@/components/ui/AppButton';
@@ -34,13 +34,9 @@ const SESSION_MODE_OPTIONS: Array<{
 ];
 
 export const HomeScreen = ({ navigation }: any) => {
-  const { users, activeUserId, setActiveUserId, addUser, currentEntitlementLabel, currentHasPremiumAccess, currentUser, canManageAccess, syncStatus, sharedDataStatus, notificationPermissionStatus, authStatus, remoteSession } = useAppStore();
+  const { currentEntitlementLabel, currentHasPremiumAccess, currentUser, canManageAccess, syncStatus, sharedDataStatus, notificationPermissionStatus, authStatus, remoteSession, isAuthenticatedOwner } = useAppStore();
   const { theme } = useTheme();
   const layout = useResponsiveLayout();
-  const activeUser = users.find((u) => u.id === activeUserId);
-  const [newUserName, setNewUserName] = React.useState('');
-  const [showAnglerList, setShowAnglerList] = React.useState(false);
-  const [isCreatingUser, setIsCreatingUser] = React.useState(false);
   const [showSessionChooser, setShowSessionChooser] = React.useState(false);
   const shouldCenterContent = Platform.OS !== 'web' && !layout.isCompactLayout;
   const contentContainerStyle = layout.buildScrollContentStyle({
@@ -48,34 +44,6 @@ export const HomeScreen = ({ navigation }: any) => {
     gap: 14,
     bottomPadding: 40
   });
-
-  const createAnotherUser = async () => {
-    const name = newUserName.trim();
-    if (!name) {
-      Alert.alert('Angler name needed', 'Enter a name before creating a new angler.');
-      return;
-    }
-
-    if (users.some((user) => user.name.trim().toLowerCase() === name.toLowerCase())) {
-      Alert.alert('Angler already exists', 'Choose a different name so profiles stay easy to recognize.');
-      return;
-    }
-
-    setIsCreatingUser(true);
-    try {
-      await addUser(name);
-      setNewUserName('');
-      setShowAnglerList(false);
-      Alert.alert('New profile created', `${name} is now active.`);
-    } finally {
-      setIsCreatingUser(false);
-    }
-  };
-
-  const selectUser = async (id: number) => {
-    await setActiveUserId(id);
-    setShowAnglerList(false);
-  };
 
   const beginSession = (mode: SessionMode) => {
     setShowSessionChooser(false);
@@ -93,60 +61,31 @@ export const HomeScreen = ({ navigation }: any) => {
         />
         <SectionCard>
           <Text style={{ color: theme.colors.textMuted, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 }}>
-            Active Angler
+            Active Account
           </Text>
-          <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 24 }}>{activeUser?.name ?? 'Loading...'}</Text>
-          <Text style={{ color: theme.colors.textSoft }}>Choose a saved angler or create a new profile before you head into a session.</Text>
+          <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 24 }}>{currentUser?.name ?? 'Loading...'}</Text>
+          <Text style={{ color: theme.colors.textSoft }}>
+            Your fishing history, saved setups, invites, and competitions now stay tied to this signed-in angler account.
+          </Text>
           <Text style={{ color: theme.colors.textMuted }}>Access: {currentEntitlementLabel}</Text>
           <Text style={{ color: theme.colors.textSoft }}>Premium features: {currentHasPremiumAccess ? 'Enabled' : 'Locked'}</Text>
+          <Text style={{ color: theme.colors.textSoft }}>Signed in as: {remoteSession?.email ?? 'No account linked'}</Text>
           <Text style={{ color: theme.colors.textSoft }}>Beta sync queue: {syncStatus.pendingCount} pending</Text>
           <Text style={{ color: theme.colors.textSoft }}>Sync state: {syncStatus.state}</Text>
           <Text style={{ color: theme.colors.textSoft }}>Shared data: {sharedDataStatus}</Text>
           <Text style={{ color: theme.colors.textSoft }}>Notifications: {notificationPermissionStatus}</Text>
-          {authStatus === 'authenticating' && !remoteSession ? <StatusBanner tone="info" text="Finish the magic-link sign-in on this device to turn shared beta sync on." /> : null}
+          {authStatus === 'authenticating' && !remoteSession ? <StatusBanner tone="info" text="Finish the account sign-in on this device before using the rest of the app." /> : null}
+          {authStatus === 'pending_verification' ? <StatusBanner tone="info" text="Check your inbox to finish verification, recovery, or magic-link sign-in for this account." /> : null}
           {syncStatus.lastError ? <StatusBanner tone="error" text={`Last sync issue: ${syncStatus.lastError}`} /> : null}
           {notificationPermissionStatus === 'denied' ? <StatusBanner tone="warning" text="Device notifications are turned off, so session reminders will stay in-app only until permissions are restored." /> : null}
         </SectionCard>
-        <SectionCard title="Profiles" subtitle="Keep profile switching and session setup quick and clear.">
-          <View style={{ flexDirection: layout.stackDirection, gap: 8 }}>
-            <View style={{ flex: 1 }}>
-              <AppButton label={showAnglerList ? 'Hide Anglers' : 'Choose Angler'} onPress={() => setShowAnglerList((current) => !current)} variant="secondary" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <AppButton label={isCreatingUser ? 'Creating...' : 'Create Angler'} onPress={createAnotherUser} disabled={isCreatingUser} />
-            </View>
-          </View>
-
-          <TextInput
-            value={newUserName}
-            onChangeText={setNewUserName}
-            placeholder="Enter angler name"
-            placeholderTextColor={theme.colors.inputPlaceholder}
-            style={{ borderRadius: 12, padding: 12, backgroundColor: theme.colors.inputBg, color: theme.colors.inputText, borderWidth: 1, borderColor: theme.colors.borderStrong }}
-          />
-
-          {showAnglerList ? (
-            <View style={{ gap: 8 }}>
-              {users.map((user) => (
-                <Pressable
-                  key={user.id}
-                  onPress={() => selectUser(user.id)}
-                  style={{
-                    padding: 12,
-                    borderRadius: 14,
-                    backgroundColor: user.id === activeUserId ? theme.colors.primary : theme.colors.surfaceMuted,
-                    borderWidth: 1,
-                    borderColor: user.id === activeUserId ? theme.colors.borderStrong : theme.colors.border
-                  }}
-                >
-                  <Text style={{ color: theme.colors.text, fontWeight: '700', fontSize: 16 }}>{user.name}</Text>
-                  <Text style={{ color: theme.colors.textMuted, fontSize: 12 }}>
-                    Added {new Date(user.createdAt).toLocaleDateString()}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
+        <SectionCard title="Account Identity" subtitle="Owner and tester access come from the signed-in account, not from a generic local profile.">
+          <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
+            Use Access to update your account details, link the owner identity, recover your password, or manage MFA.
+          </Text>
+          <Text style={{ color: theme.colors.textMuted }}>
+            Owner tools: {isAuthenticatedOwner ? 'Unlocked for this session' : 'Locked until the linked owner account is signed in'}
+          </Text>
         </SectionCard>
         <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
           <View style={{ flex: 1 }}>

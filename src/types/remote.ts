@@ -1,7 +1,14 @@
 export type InviteStatus = 'pending' | 'accepted' | 'revoked' | 'expired';
 export type InviteGrantType = 'power_user_group';
 export type SyncQueueStatus = 'pending' | 'synced' | 'failed';
-export type AuthStatus = 'anonymous' | 'authenticating' | 'authenticated';
+export type AuthStatus =
+  | 'unauthenticated'
+  | 'authenticating'
+  | 'pending_verification'
+  | 'password_reset_required'
+  | 'mfa_required'
+  | 'mfa_enrolled'
+  | 'authenticated';
 export type SyncEntityType =
   | 'profile'
   | 'group'
@@ -71,6 +78,22 @@ export interface RemoteSessionSnapshot {
   authUserId: string;
   email?: string | null;
   accessToken: string;
+  emailVerifiedAt?: string | null;
+}
+
+export interface MfaFactorSummary {
+  id: string;
+  friendlyName?: string | null;
+  factorType: string;
+  status: string;
+}
+
+export interface PendingTotpEnrollment {
+  id: string;
+  friendlyName?: string | null;
+  qrCode?: string | null;
+  secret?: string | null;
+  uri?: string | null;
 }
 
 export interface SyncStatusSnapshot {

@@ -15,7 +15,7 @@ import {
   SharePreference
 } from '@/types/group';
 import { LeaderFormula, RigPreset } from '@/types/rig';
-import { updateUser } from '@/db/userRepo';
+import { createUser, updateUser } from '@/db/userRepo';
 import { getAppSetting, setActiveUserId as saveActiveUserId, setAppSetting } from '@/db/settingsRepo';
 import { buildAggregates } from '@/engine/aggregationEngine';
 import { generateAnglerComparisons } from '@/engine/anglerComparisonEngine';
@@ -23,13 +23,13 @@ import { createTrialWindow, getEntitlementLabel, hasPremiumAccess } from '@/engi
 import { generateInsights } from '@/engine/insightEngine';
 import { buildTopFlyInsights, buildTopFlyRecords, TopFlyRecord } from '@/engine/topFlyEngine';
 import { AccessLevel, SubscriptionStatus } from '@/types/user';
-import { AuthStatus, Invite, RemoteSessionSnapshot, SponsoredAccess, SyncQueueEntry, SyncStatusSnapshot } from '@/types/remote';
+import { AuthStatus, Invite, MfaFactorSummary, PendingTotpEnrollment, RemoteSessionSnapshot, SponsoredAccess, SyncQueueEntry, SyncStatusSnapshot } from '@/types/remote';
 import {
   bootstrapLocalApp,
   enqueueLocalSyncChange,
   loadLocalAppData,
 } from '@/services/localAppDataService';
-import { bootstrapAuthSession, subscribeToAuthChanges } from '@/services/authService';
+import { bootstrapAuthSession, getMfaAssuranceLevel, listMfaFactors, subscribeToAuthChanges } from '@/services/authService';
 import { hasSupabaseConfig } from '@/services/supabaseClient';
 import { syncQueueToSupabase } from '@/services/syncService';
 import { fetchRemoteAccessSnapshot } from '@/services/remoteAccessService';
@@ -69,13 +69,17 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const [invites, setInvites] = useState<Invite[]>([]);
   const [sponsoredAccess, setSponsoredAccess] = useState<SponsoredAccess[]>([]);
   const [syncQueue, setSyncQueue] = useState<SyncQueueEntry[]>([]);
-  const [authStatus, setAuthStatus] = useState<AuthStatus>(hasSupabaseConfig ? 'authenticating' : 'anonymous');
+  const [authStatus, setAuthStatus] = useState<AuthStatus>(hasSupabaseConfig ? 'authenticating' : 'unauthenticated');
   const [remoteSession, setRemoteSession] = useState<RemoteSessionSnapshot | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
   const [sharedDataStatus, setSharedDataStatus] = useState<SharedDataStatus>('idle');
   const [notificationPermissionStatus, setNotificationPermissionStatus] = useState<NotificationPermissionStatus>('unknown');
   const [activeUserId, setActiveUserId] = useState<number | null>(null);
+  const [mfaFactors, setMfaFactors] = useState<MfaFactorSummary[]>([]);
+  const [pendingTotpEnrollment, setPendingTotpEnrollment] = useState<PendingTotpEnrollment | null>(null);
+  const [mfaAssuranceLevel, setMfaAssuranceLevel] = useState<'aal1' | 'aal2' | 'unknown'>('unknown');
   const importSeededRef = useRef<string | null>(null);
   const sessionMap = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
   const currentUser = useMemo(() => users.find((user) => user.id === activeUserId) ?? null, [activeUserId, users]);
@@ -83,6 +87,13 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const storedOwnerUser = useMemo(() => users.find((user) => user.role === 'owner') ?? null, [users]);
   const ownerUser = useMemo(() => storedOwnerUser, [storedOwnerUser]);
   const isSyncEnabled = hasSupabaseConfig && !!remoteSession;
+  const ownerIdentityLinked = Boolean(ownerUser?.ownerLinkedAuthId || ownerUser?.ownerLinkedEmail);
+  const isAuthenticatedOwner = Boolean(
+    currentUser?.role === 'owner' &&
+      remoteSession &&
+      ((currentUser.ownerLinkedAuthId && currentUser.ownerLinkedAuthId === remoteSession.authUserId) ||
+        (currentUser.ownerLinkedEmail && currentUser.ownerLinkedEmail === remoteSession.email))
+  );
 
   const selectActiveUser = async (id: number) => {
     setActiveUserId(id);
@@ -195,22 +206,51 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     setTopFlyRecords(buildTopFlyRecords(nextSessions, nextExperiments.filter((experiment) => experiment.status !== 'draft')));
   };
 
-  const bindCurrentUserToRemoteSession = async (snapshot: RemoteSessionSnapshot) => {
-    if (!currentUser) return;
-    const nextEmail = snapshot.email ?? currentUser.email ?? null;
-    if (currentUser.remoteAuthId === snapshot.authUserId && currentUser.email === nextEmail) {
-      return;
+  const ensureUserForRemoteSession = async (snapshot: RemoteSessionSnapshot) => {
+    const matchedByAuthId = users.find((user) => user.remoteAuthId === snapshot.authUserId);
+    const matchedByEmail = snapshot.email ? users.find((user) => user.email?.toLowerCase() === snapshot.email?.toLowerCase()) : null;
+    const loneOwnerCandidate =
+      !matchedByAuthId &&
+      !matchedByEmail &&
+      users.length === 1 &&
+      users[0]?.role === 'owner' &&
+      !users[0]?.remoteAuthId
+        ? users[0]
+        : null;
+    const targetUser = matchedByAuthId ?? matchedByEmail ?? loneOwnerCandidate;
+    const derivedName =
+      snapshot.email?.split('@')[0]?.replace(/[._-]+/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase()) || 'Angler';
+
+    if (targetUser) {
+      await updateUser(targetUser.id, {
+        remoteAuthId: snapshot.authUserId,
+        email: snapshot.email ?? targetUser.email ?? null,
+        emailVerifiedAt: snapshot.emailVerifiedAt ?? targetUser.emailVerifiedAt ?? null
+      });
+      await trackSyncChange('profile', 'update', targetUser.id, {
+        remoteAuthId: snapshot.authUserId,
+        email: snapshot.email ?? targetUser.email ?? null,
+        emailVerifiedAt: snapshot.emailVerifiedAt ?? targetUser.emailVerifiedAt ?? null
+      });
+      await selectActiveUser(targetUser.id);
+      return targetUser.id;
     }
 
-    await updateUser(currentUser.id, {
+    const createdId = await createUser({
+      name: derivedName,
+      email: snapshot.email ?? null,
       remoteAuthId: snapshot.authUserId,
-      email: nextEmail
+      emailVerifiedAt: snapshot.emailVerifiedAt ?? null,
+      role: 'angler'
     });
-    await trackSyncChange('profile', 'update', currentUser.id, {
+    await trackSyncChange('profile', 'create', createdId, {
+      name: derivedName,
+      email: snapshot.email ?? null,
       remoteAuthId: snapshot.authUserId,
-      email: nextEmail
+      emailVerifiedAt: snapshot.emailVerifiedAt ?? null
     });
-    await refresh(currentUser.id);
+    await selectActiveUser(createdId);
+    return createdId;
   };
 
   const enqueueImportSeed = async (targetUser: UserProfile) => {
@@ -310,9 +350,10 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
 
   useEffect(() => {
     if (!hasSupabaseConfig) {
-      setAuthStatus('anonymous');
+      setAuthStatus('unauthenticated');
       setRemoteSession(null);
       setSharedDataStatus('idle');
+      setAuthReady(true);
       return;
     }
 
@@ -322,19 +363,26 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       .then((snapshot) => {
         if (!mounted) return;
         setRemoteSession(snapshot);
-        setAuthStatus(snapshot ? 'authenticated' : 'anonymous');
+        setAuthStatus(snapshot ? 'authenticated' : 'unauthenticated');
+        setAuthReady(true);
       })
       .catch((error) => {
         console.error(error);
         if (!mounted) return;
         setRemoteSession(null);
-        setAuthStatus('anonymous');
+        setAuthStatus('unauthenticated');
+        setAuthReady(true);
       });
 
-    const unsubscribe = subscribeToAuthChanges((snapshot) => {
+    const unsubscribe = subscribeToAuthChanges((snapshot, event) => {
       if (!mounted) return;
       setRemoteSession(snapshot);
-      setAuthStatus(snapshot ? 'authenticated' : 'anonymous');
+      if (event === 'PASSWORD_RECOVERY') {
+        setAuthStatus('password_reset_required');
+      } else {
+        setAuthStatus(snapshot ? 'authenticated' : 'unauthenticated');
+      }
+      setAuthReady(true);
     });
 
     return () => {
@@ -353,26 +401,76 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   }, []);
 
   useEffect(() => {
-    if (!remoteSession || !currentUser) return;
+    if (!remoteSession) {
+      setMfaFactors([]);
+      setPendingTotpEnrollment(null);
+      setMfaAssuranceLevel('unknown');
+      return;
+    }
 
-    bindCurrentUserToRemoteSession(remoteSession).catch(console.error);
+    let cancelled = false;
 
-    const importKey = `supabase_import_seeded_${remoteSession.authUserId}_${currentUser.id}`;
-    if (importSeededRef.current === importKey) return;
-
-    importSeededRef.current = importKey;
     (async () => {
+      const resolvedUserId = await ensureUserForRemoteSession(remoteSession);
+      if (cancelled) return;
+
+      const [factors, assurance] = await Promise.all([
+        listMfaFactors().catch((error) => {
+          console.error(error);
+          return { totp: [] as any[] };
+        }),
+        getMfaAssuranceLevel().catch((error) => {
+          console.error(error);
+          return { currentLevel: 'aal1', nextLevel: 'aal1' } as const;
+        })
+      ]);
+
+      if (cancelled) return;
+
+      setMfaFactors(
+        factors.totp.map((factor) => ({
+          id: factor.id,
+          friendlyName: factor.friendly_name ?? null,
+          factorType: 'totp',
+          status: factor.status
+        }))
+      );
+      setMfaAssuranceLevel((assurance.currentLevel as 'aal1' | 'aal2') ?? 'unknown');
+
+      if (assurance.nextLevel === 'aal2' && assurance.currentLevel !== assurance.nextLevel) {
+        setAuthStatus('mfa_required');
+      } else if (factors.totp.length) {
+        setAuthStatus('mfa_enrolled');
+      } else {
+        setAuthStatus('authenticated');
+      }
+
+      const importKey = `supabase_import_seeded_${remoteSession.authUserId}_${resolvedUserId}`;
+      if (importSeededRef.current === importKey) return;
+
+      importSeededRef.current = importKey;
       const existing = await getAppSetting(importKey);
-      if (existing) return;
+      if (existing) {
+        await refresh(resolvedUserId);
+        return;
+      }
+
       await setAppSetting(importKey, new Date().toISOString());
-      await enqueueImportSeed(currentUser);
-      await refresh(currentUser.id);
+      const loaded = await loadLocalAppData(resolvedUserId);
+      const targetUser = loaded.users.find((user) => user.id === resolvedUserId);
+      if (!targetUser) return;
+      await enqueueImportSeed(targetUser);
+      await refresh(resolvedUserId);
       await flushSyncQueue();
     })().catch((error) => {
       console.error(error);
       importSeededRef.current = null;
     });
-  }, [currentUser, remoteSession]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [remoteSession]);
 
   useEffect(() => {
     if (!remoteSession || !currentUser || isSyncing) return;
@@ -431,7 +529,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     }
 
     if (!remoteSession) {
-      throw new Error('Sign in with your magic link before syncing shared data.');
+      throw new Error('Sign in before syncing shared data.');
     }
 
     setIsSyncing(true);
@@ -443,7 +541,8 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
           currentUser: {
             ...currentUser,
             email: remoteSession.email ?? currentUser.email ?? null,
-            remoteAuthId: remoteSession.authUserId
+            remoteAuthId: remoteSession.authUserId,
+            emailVerifiedAt: remoteSession.emailVerifiedAt ?? currentUser.emailVerifiedAt ?? null
           },
           remoteAuthUserId: remoteSession.authUserId,
           loaded
@@ -489,9 +588,15 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     experiments,
     sessionMap,
     remoteSession,
+    ownerIdentityLinked,
+    isAuthenticatedOwner,
+    pendingTotpEnrollment,
     setActiveUserId,
     setRemoteSession,
     setAuthStatus,
+    setPendingTotpEnrollment,
+    setMfaFactors,
+    setMfaAssuranceLevel,
     selectActiveUser,
     refresh,
     trackSyncChange,
@@ -518,7 +623,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         currentUser,
         currentEntitlementLabel: getEntitlementLabel(currentUser),
         currentHasPremiumAccess: hasPremiumAccess(currentUser),
-        canManageAccess: currentUser?.role === 'owner',
+        canManageAccess: isAuthenticatedOwner,
         savedFlies,
         savedLeaderFormulas,
         savedRigPresets,
@@ -539,7 +644,13 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         notificationPermissionStatus,
         authStatus,
         remoteSession,
+        authReady,
         isSyncEnabled,
+        ownerIdentityLinked,
+        isAuthenticatedOwner,
+        mfaFactors,
+        pendingTotpEnrollment,
+        mfaAssuranceLevel,
         activeUserId,
         ...actions
       }}

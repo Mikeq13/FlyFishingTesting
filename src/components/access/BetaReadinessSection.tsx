@@ -30,7 +30,15 @@ export const BetaReadinessSection = ({
   >
     <InlineSummaryRow
       label="Account State"
-      value={remoteSession ? 'Signed in to shared beta' : authStatus === 'authenticating' ? 'Finishing sign-in' : 'Local-only mode'}
+      value={
+        remoteSession
+          ? 'Signed in'
+          : authStatus === 'authenticating'
+            ? 'Finishing sign-in'
+            : authStatus === 'pending_verification'
+              ? 'Waiting on email step'
+              : 'Sign-in required'
+      }
       tone="light"
     />
     <InlineSummaryRow
@@ -64,9 +72,6 @@ export const BetaReadinessSection = ({
       }
       tone="light"
     />
-    {!remoteSession ? (
-      <StatusBanner tone="info" text="Expo Go is still fine for solo iteration, but shared auth return, deep links, and final reminder behavior still need a native dev build or TestFlight." />
-    ) : null}
     {sharedDataStatus === 'error' ? (
       <StatusBanner
         tone="error"
@@ -78,7 +83,7 @@ export const BetaReadinessSection = ({
       />
     ) : null}
     <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-      If something looks missing, check sign-in first, then Sync Now, then confirm the other angler actually accepted the invite or joined the competition from their own device.
+      If something looks missing, check sign-in first, then confirm the other angler accepted the invite or joined the competition from their own device before assuming data is out of sync.
     </Text>
   </SectionCard>
   );

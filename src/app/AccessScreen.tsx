@@ -2,13 +2,13 @@ import React from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { UserDataCleanupCategory, useAppStore } from './store';
-import { beginAppleSubscriptionPurchase, PREMIUM_MONTHLY_PRICE_LABEL, PREMIUM_TRIAL_LABEL } from '@/billing/storekit';
 import { parseLocalTimeInput } from '@/utils/dateTime';
 import { CompetitionSessionRole } from '@/types/group';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { ActionGroup } from '@/components/ui/ActionGroup';
 import { AppButton } from '@/components/ui/AppButton';
 import { AccessStatusSection } from '@/components/access/AccessStatusSection';
+import { AccountSecuritySection } from '@/components/access/AccountSecuritySection';
 import { LocalDataSection } from '@/components/access/LocalDataSection';
 import { GroupsSharingSection } from '@/components/access/GroupsSharingSection';
 import { InvitesSponsorshipSection } from '@/components/access/InvitesSponsorshipSection';
@@ -16,7 +16,6 @@ import { CompetitionsSection } from '@/components/access/CompetitionsSection';
 import { OwnerControlsSection } from '@/components/access/OwnerControlsSection';
 import { BetaReadinessSection } from '@/components/access/BetaReadinessSection';
 import { SectionCard } from '@/components/ui/SectionCard';
-import { StatusBanner } from '@/components/ui/StatusBanner';
 import { OptionChips } from '@/components/OptionChips';
 import { useResponsiveLayout } from '@/design/layout';
 import { useTheme } from '@/design/theme';
@@ -36,10 +35,23 @@ export const AccessScreen = () => {
     notificationPermissionStatus,
     authStatus,
     remoteSession,
+    ownerIdentityLinked,
+    isAuthenticatedOwner,
+    mfaFactors,
+    pendingTotpEnrollment,
+    mfaAssuranceLevel,
     isSyncEnabled,
     invites,
     sponsoredAccess,
     signInWithMagicLink,
+    sendPasswordResetEmail,
+    updateAccountEmail,
+    updateCurrentUserName,
+    linkOwnerIdentity,
+    enrollTotpMfa,
+    verifyTotpMfa,
+    removeMfaFactor,
+    refreshMfaState,
     signOutRemote,
     startTrialForUser,
     grantPowerUserAccess,
@@ -64,8 +76,7 @@ export const AccessScreen = () => {
     upsertCompetitionAssignmentForUser,
     createInvite,
     acceptInvite,
-    revokeSponsoredAccess,
-    flushSyncQueue
+    revokeSponsoredAccess
   } = useAppStore();
   const [newGroupName, setNewGroupName] = React.useState('');
   const [joinGroupCode, setJoinGroupCode] = React.useState('');
@@ -76,7 +87,11 @@ export const AccessScreen = () => {
   const [inviteTargetGroupId, setInviteTargetGroupId] = React.useState<number | null>(null);
   const [inviteTargetName, setInviteTargetName] = React.useState('');
   const [inviteAcceptCode, setInviteAcceptCode] = React.useState('');
-  const [authEmail, setAuthEmail] = React.useState(currentUser?.email ?? '');
+  const [accountName, setAccountName] = React.useState(currentUser?.name ?? '');
+  const [accountEmail, setAccountEmail] = React.useState(currentUser?.email ?? remoteSession?.email ?? '');
+  const [passwordResetEmail, setPasswordResetEmail] = React.useState(currentUser?.email ?? remoteSession?.email ?? '');
+  const [mfaFriendlyName, setMfaFriendlyName] = React.useState('Fishing Lab Authenticator');
+  const [mfaCode, setMfaCode] = React.useState('');
   const [competitionSchedule, setCompetitionSchedule] = React.useState([
     { sessionNumber: 1, startTime: '08:00', endTime: '11:00' },
     { sessionNumber: 2, startTime: '13:00', endTime: '16:00' },
@@ -163,8 +178,14 @@ export const AccessScreen = () => {
   }, [competitionSessionCount]);
 
   React.useEffect(() => {
-    setAuthEmail(currentUser?.email ?? '');
-  }, [currentUser?.email]);
+    setAccountName(currentUser?.name ?? '');
+  }, [currentUser?.name]);
+
+  React.useEffect(() => {
+    const resolvedEmail = currentUser?.email ?? remoteSession?.email ?? '';
+    setAccountEmail(resolvedEmail);
+    setPasswordResetEmail(resolvedEmail);
+  }, [currentUser?.email, remoteSession?.email]);
 
   if (!currentUser) {
     return (
@@ -175,17 +196,6 @@ export const AccessScreen = () => {
       </ScreenBackground>
     );
   }
-
-  const handlePurchase = async () => {
-    const result = await beginAppleSubscriptionPurchase();
-    if (!result.ok) {
-      Alert.alert('Apple subscription not ready yet', result.reason);
-      return;
-    }
-
-    await markSubscriberAccess(currentUser.id);
-    Alert.alert('Premium unlocked', result.message);
-  };
 
   const runAdminAction = async (action: () => Promise<void>, label: string) => {
     await action();
@@ -405,15 +415,40 @@ export const AccessScreen = () => {
           remoteSession={remoteSession}
           isSyncEnabled={isSyncEnabled}
           authStatus={authStatus}
-          authEmail={authEmail}
-          onAuthEmailChange={setAuthEmail}
-          onSendMagicLink={() => signInWithMagicLink(authEmail)}
-          onSignOut={signOutRemote}
-          onSyncNow={flushSyncQueue}
-          showPremiumActions={currentUser.role !== 'owner'}
-          onStartTrial={() => runAdminAction(() => startTrialForUser(currentUser.id), '7-day trial started for this account.')}
-          onContinueWithApple={handlePurchase}
           currentUserRole={currentUser.role}
+          ownerIdentityLinked={ownerIdentityLinked}
+          isAuthenticatedOwner={isAuthenticatedOwner}
+        />
+
+        <AccountSecuritySection
+          currentUserName={currentUser.name}
+          ownerLinked={ownerIdentityLinked}
+          isAuthenticatedOwner={isAuthenticatedOwner}
+          remoteSession={remoteSession}
+          authStatus={authStatus}
+          pendingTotpEnrollment={pendingTotpEnrollment}
+          mfaFactors={mfaFactors}
+          mfaAssuranceLevel={mfaAssuranceLevel}
+          accountName={accountName}
+          onAccountNameChange={setAccountName}
+          accountEmail={accountEmail}
+          onAccountEmailChange={setAccountEmail}
+          passwordResetEmail={passwordResetEmail}
+          onPasswordResetEmailChange={setPasswordResetEmail}
+          mfaFriendlyName={mfaFriendlyName}
+          onMfaFriendlyNameChange={setMfaFriendlyName}
+          mfaCode={mfaCode}
+          onMfaCodeChange={setMfaCode}
+          onSaveName={() => updateCurrentUserName(accountName)}
+          onUpdateEmail={() => updateAccountEmail(accountEmail)}
+          onSendPasswordReset={() => sendPasswordResetEmail(passwordResetEmail)}
+          onSendMagicLink={() => signInWithMagicLink(accountEmail)}
+          onLinkOwnerIdentity={linkOwnerIdentity}
+          onEnrollTotp={() => enrollTotpMfa(mfaFriendlyName)}
+          onVerifyTotp={() => verifyTotpMfa(mfaCode)}
+          onRemoveMfaFactor={removeMfaFactor}
+          onRefreshMfaState={refreshMfaState}
+          onSignOut={signOutRemote}
         />
 
         <BetaReadinessSection
@@ -424,7 +459,7 @@ export const AccessScreen = () => {
           notificationPermissionStatus={notificationPermissionStatus}
         />
 
-        <SectionCard title="Appearance" subtitle="Choose the look that best matches recruiter demos, outdoor readability, or long web review sessions." tone="light">
+        <SectionCard title="Appearance" subtitle="Choose the look that is easiest for you to read on the water or on the web." tone="light">
           <OptionChips
             label="App Theme"
             options={themeOptions.map((theme) => theme.label)}
@@ -438,9 +473,8 @@ export const AccessScreen = () => {
             }}
           />
           <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-            `Default Professional` is the recruiter-facing default, `High Contrast` is best outside, and `Daylight Light` is easiest to review on web or desktop.
+            `Default Professional` stays balanced, `High Contrast` is best outside, and `Daylight Light` is easiest to review on web or desktop.
           </Text>
-          <StatusBanner tone="info" text="For the cleanest recruiter demo, use Default Professional or Daylight Light. High Contrast is the fastest truth test when a screen still feels too subtle." />
         </SectionCard>
 
         <LocalDataSection

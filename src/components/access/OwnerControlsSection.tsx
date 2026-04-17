@@ -34,7 +34,7 @@ export const OwnerControlsSection = ({
 
   return (
   <SectionCard title="Owner Controls" subtitle="Keep tester access changes powerful, but easier to scan and safer to use." tone="light">
-    {ownerUser ? <Text style={{ color: theme.colors.textDarkSoft }}>Admin access is controlled by {ownerUser.name}. You can manage access while testing with any active angler.</Text> : null}
+    {ownerUser ? <Text style={{ color: theme.colors.textDarkSoft }}>Admin access is controlled by {ownerUser.name} and only unlocks when the linked owner account is the one signed in.</Text> : null}
     {users.map((user) => (
       <View
         key={user.id}

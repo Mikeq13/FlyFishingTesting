@@ -8,6 +8,9 @@ export interface UserProfile {
   createdAt: string;
   email?: string | null;
   remoteAuthId?: string | null;
+  emailVerifiedAt?: string | null;
+  ownerLinkedEmail?: string | null;
+  ownerLinkedAuthId?: string | null;
   role: UserRole;
   accessLevel: AccessLevel;
   subscriptionStatus: SubscriptionStatus;

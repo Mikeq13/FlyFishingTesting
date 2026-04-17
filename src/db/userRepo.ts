@@ -9,6 +9,9 @@ type CreateUserInput = {
   name: string;
   email?: string | null;
   remoteAuthId?: string | null;
+  emailVerifiedAt?: string | null;
+  ownerLinkedEmail?: string | null;
+  ownerLinkedAuthId?: string | null;
   role?: UserRole;
   accessLevel?: AccessLevel;
   subscriptionStatus?: SubscriptionStatus;
@@ -31,6 +34,9 @@ const mapUserRow = (row: any, index: number): UserProfile => {
     createdAt: row.created_at ?? row.createdAt,
     email: row.email ?? null,
     remoteAuthId: row.remote_auth_id ?? row.remoteAuthId ?? null,
+    emailVerifiedAt: row.email_verified_at ?? row.emailVerifiedAt ?? null,
+    ownerLinkedEmail: row.owner_linked_email ?? row.ownerLinkedEmail ?? null,
+    ownerLinkedAuthId: row.owner_linked_auth_id ?? row.ownerLinkedAuthId ?? null,
     role,
     accessLevel,
     subscriptionStatus,
@@ -56,6 +62,9 @@ export const createUser = async (input: string | CreateUserInput): Promise<numbe
         createdAt: new Date().toISOString(),
         email: payload.email ?? null,
         remoteAuthId: payload.remoteAuthId ?? null,
+        emailVerifiedAt: payload.emailVerifiedAt ?? null,
+        ownerLinkedEmail: payload.ownerLinkedEmail ?? null,
+        ownerLinkedAuthId: payload.ownerLinkedAuthId ?? null,
         role,
         accessLevel,
         subscriptionStatus,
@@ -70,12 +79,15 @@ export const createUser = async (input: string | CreateUserInput): Promise<numbe
 
   const db = await getDb();
   const result = await db.runAsync(
-    `INSERT INTO users (name, created_at, email, remote_auth_id, role, access_level, subscription_status, trial_started_at, trial_ends_at, subscription_expires_at, granted_by_user_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO users (name, created_at, email, remote_auth_id, email_verified_at, owner_linked_email, owner_linked_auth_id, role, access_level, subscription_status, trial_started_at, trial_ends_at, subscription_expires_at, granted_by_user_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     payload.name,
     new Date().toISOString(),
     payload.email ?? null,
     payload.remoteAuthId ?? null,
+    payload.emailVerifiedAt ?? null,
+    payload.ownerLinkedEmail ?? null,
+    payload.ownerLinkedAuthId ?? null,
     role,
     accessLevel,
     subscriptionStatus,
@@ -124,6 +136,18 @@ export const updateUser = async (id: number, updates: UpdateUserInput): Promise<
   if (updates.remoteAuthId !== undefined) {
     assignments.push('remote_auth_id = ?');
     args.push(updates.remoteAuthId);
+  }
+  if (updates.emailVerifiedAt !== undefined) {
+    assignments.push('email_verified_at = ?');
+    args.push(updates.emailVerifiedAt);
+  }
+  if (updates.ownerLinkedEmail !== undefined) {
+    assignments.push('owner_linked_email = ?');
+    args.push(updates.ownerLinkedEmail);
+  }
+  if (updates.ownerLinkedAuthId !== undefined) {
+    assignments.push('owner_linked_auth_id = ?');
+    args.push(updates.ownerLinkedAuthId);
   }
   if (updates.role !== undefined) {
     assignments.push('role = ?');

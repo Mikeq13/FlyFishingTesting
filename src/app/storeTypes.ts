@@ -14,7 +14,16 @@ import {
   SharePreference
 } from '@/types/group';
 import { LeaderFormula, RigPreset } from '@/types/rig';
-import { AuthStatus, Invite, RemoteSessionSnapshot, SponsoredAccess, SyncQueueEntry, SyncStatusSnapshot } from '@/types/remote';
+import {
+  AuthStatus,
+  Invite,
+  MfaFactorSummary,
+  PendingTotpEnrollment,
+  RemoteSessionSnapshot,
+  SponsoredAccess,
+  SyncQueueEntry,
+  SyncStatusSnapshot
+} from '@/types/remote';
 import { TopFlyRecord } from '@/engine/topFlyEngine';
 import { NotificationPermissionStatus, SharedDataStatus } from '@/types/appState';
 
@@ -58,10 +67,27 @@ export interface AppStore {
   notificationPermissionStatus: NotificationPermissionStatus;
   authStatus: AuthStatus;
   remoteSession: RemoteSessionSnapshot | null;
+  authReady: boolean;
   isSyncEnabled: boolean;
+  ownerIdentityLinked: boolean;
+  isAuthenticatedOwner: boolean;
+  mfaFactors: MfaFactorSummary[];
+  pendingTotpEnrollment: PendingTotpEnrollment | null;
+  mfaAssuranceLevel: 'aal1' | 'aal2' | 'unknown';
   activeUserId: number | null;
   setActiveUserId: (id: number) => Promise<void>;
   signInWithMagicLink: (email: string) => Promise<void>;
+  signUpWithPassword: (payload: { email: string; password: string; name: string }) => Promise<void>;
+  signInWithPassword: (payload: { email: string; password: string }) => Promise<void>;
+  sendPasswordResetEmail: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
+  updateAccountEmail: (email: string) => Promise<void>;
+  updateCurrentUserName: (name: string) => Promise<void>;
+  linkOwnerIdentity: () => Promise<void>;
+  enrollTotpMfa: (friendlyName: string) => Promise<void>;
+  verifyTotpMfa: (code: string) => Promise<void>;
+  removeMfaFactor: (factorId: string) => Promise<void>;
+  refreshMfaState: () => Promise<void>;
   signOutRemote: () => Promise<void>;
   addUser: (name: string) => Promise<number>;
   addSavedFly: (payload: FlySetup) => Promise<number>;

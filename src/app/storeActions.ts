@@ -1,7 +1,7 @@
 import { createTrialWindow } from '@/engine/entitlementEngine';
 import { isWithinDateRange } from '@/utils/dateRange';
 import { archiveExperiments, createExperiment, deleteExperiments, updateExperiment } from '@/db/experimentRepo';
-import { createUser, deleteUser, listUsers } from '@/db/userRepo';
+import { createUser, listUsers, updateUser as updateLocalUser } from '@/db/userRepo';
 import { createSavedFly } from '@/db/savedFlyRepo';
 import { createSavedLeaderFormula, deleteSavedLeaderFormula } from '@/db/savedLeaderFormulaRepo';
 import { createSavedRigPreset, deleteSavedRigPreset } from '@/db/savedRigPresetRepo';
@@ -26,7 +26,21 @@ import {
   updateLocalSharePreference
 } from '@/services/localAppDataService';
 import { hasSupabaseConfig } from '@/services/supabaseClient';
-import { signInWithMagicLink as requestMagicLink, signOutRemote as endRemoteSession } from '@/services/authService';
+import {
+  enrollTotpFactor,
+  getMfaAssuranceLevel,
+  listMfaFactors,
+  sendPasswordResetEmail as requestPasswordResetEmail,
+  signInWithMagicLink as requestMagicLink,
+  signInWithPassword as signInWithPasswordRemote,
+  signOutRemote as endRemoteSession,
+  signUpWithPassword as signUpWithPasswordRemote,
+  unenrollMfaFactor,
+  updateAccountEmail as updateAccountEmailRemote,
+  updateAccountMetadata,
+  updatePassword as updateRemotePassword,
+  verifyTotpFactor
+} from '@/services/authService';
 import { AppStore } from '@/app/storeTypes';
 
 type SyncEntityType = AppStore['syncQueue'][number]['entityType'];
@@ -45,9 +59,15 @@ export const createStoreActions = ({
   experiments,
   sessionMap,
   remoteSession,
+  ownerIdentityLinked,
+  isAuthenticatedOwner,
+  pendingTotpEnrollment,
   setActiveUserId,
   setRemoteSession,
   setAuthStatus,
+  setPendingTotpEnrollment,
+  setMfaFactors,
+  setMfaAssuranceLevel,
   selectActiveUser,
   refresh,
   trackSyncChange,
@@ -66,9 +86,15 @@ export const createStoreActions = ({
   experiments: AppStore['experiments'];
   sessionMap: Map<number, AppStore['sessions'][number]>;
   remoteSession: AppStore['remoteSession'];
+  ownerIdentityLinked: boolean;
+  isAuthenticatedOwner: boolean;
+  pendingTotpEnrollment: AppStore['pendingTotpEnrollment'];
   setActiveUserId: (value: number | null) => void;
   setRemoteSession: (value: AppStore['remoteSession']) => void;
   setAuthStatus: (value: AppStore['authStatus']) => void;
+  setPendingTotpEnrollment: (value: AppStore['pendingTotpEnrollment']) => void;
+  setMfaFactors: (value: AppStore['mfaFactors']) => void;
+  setMfaAssuranceLevel: (value: AppStore['mfaAssuranceLevel']) => void;
   selectActiveUser: (id: number) => Promise<void>;
   refresh: AppStore['refresh'];
   trackSyncChange: (entityType: SyncEntityType, operation: SyncOperation, recordId: number | null, payload: unknown) => Promise<void>;
@@ -78,6 +104,17 @@ export const createStoreActions = ({
   AppStore,
   | 'setActiveUserId'
   | 'signInWithMagicLink'
+  | 'signUpWithPassword'
+  | 'signInWithPassword'
+  | 'sendPasswordResetEmail'
+  | 'updatePassword'
+  | 'updateAccountEmail'
+  | 'updateCurrentUserName'
+  | 'linkOwnerIdentity'
+  | 'enrollTotpMfa'
+  | 'verifyTotpMfa'
+  | 'removeMfaFactor'
+  | 'refreshMfaState'
   | 'signOutRemote'
   | 'addUser'
   | 'addSavedFly'
@@ -118,10 +155,36 @@ export const createStoreActions = ({
   | 'updateExperimentEntry'
   | 'archiveInconclusiveExperiments'
 > => {
+  const assertAuthenticated = () => {
+    if (!remoteSession || !currentUser) {
+      throw new Error('Sign in before using the app.');
+    }
+  };
+
   const assertOwnerAccess = () => {
-    if (!currentUser || currentUser.role !== 'owner') {
+    if (!currentUser || currentUser.role !== 'owner' || !isAuthenticatedOwner) {
       throw new Error('Only the owner can manage tester access.');
     }
+  };
+
+  const refreshMfaStateInternal = async () => {
+    if (!remoteSession) {
+      setMfaFactors([]);
+      setPendingTotpEnrollment(null);
+      setMfaAssuranceLevel('unknown');
+      return;
+    }
+
+    const [factors, assurance] = await Promise.all([listMfaFactors(), getMfaAssuranceLevel()]);
+    setMfaFactors(
+      factors.totp.map((factor) => ({
+        id: factor.id,
+        friendlyName: factor.friendly_name ?? null,
+        factorType: 'totp',
+        status: factor.status
+      }))
+    );
+    setMfaAssuranceLevel(assurance.currentLevel ?? 'unknown');
   };
 
   return ({
@@ -133,18 +196,136 @@ export const createStoreActions = ({
     setAuthStatus('authenticating');
     try {
       await requestMagicLink(email);
+      setAuthStatus('pending_verification');
     } catch (error) {
-      setAuthStatus(remoteSession ? 'authenticated' : 'anonymous');
+      setAuthStatus(remoteSession ? 'authenticated' : 'unauthenticated');
       throw error;
     }
+  },
+  signUpWithPassword: async ({ email, password, name }) => {
+    if (!hasSupabaseConfig) {
+      throw new Error('Supabase is not configured yet. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY first.');
+    }
+    setAuthStatus('authenticating');
+    try {
+      const result = await signUpWithPasswordRemote({ email, password, name });
+      if (result.session) {
+        setRemoteSession(result.session);
+        setAuthStatus('authenticated');
+        await refreshMfaStateInternal();
+      } else {
+        setAuthStatus('pending_verification');
+      }
+    } catch (error) {
+      setAuthStatus(remoteSession ? 'authenticated' : 'unauthenticated');
+      throw error;
+    }
+  },
+  signInWithPassword: async ({ email, password }) => {
+    if (!hasSupabaseConfig) {
+      throw new Error('Supabase is not configured yet. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY first.');
+    }
+    setAuthStatus('authenticating');
+    try {
+      const snapshot = await signInWithPasswordRemote({ email, password });
+      setRemoteSession(snapshot);
+      setAuthStatus('authenticated');
+      await refreshMfaStateInternal();
+    } catch (error) {
+      setAuthStatus(remoteSession ? 'authenticated' : 'unauthenticated');
+      throw error;
+    }
+  },
+  sendPasswordResetEmail: async (email) => {
+    await requestPasswordResetEmail(email);
+    setAuthStatus('pending_verification');
+  },
+  updatePassword: async (password) => {
+    assertAuthenticated();
+    await updateRemotePassword(password);
+    setAuthStatus('authenticated');
+  },
+  updateAccountEmail: async (email) => {
+    assertAuthenticated();
+    await updateAccountEmailRemote(email);
+    if (currentUser) {
+      await updateLocalUser(currentUser.id, { email: email.trim().toLowerCase() });
+      await trackSyncChange('profile', 'update', currentUser.id, { email: email.trim().toLowerCase() });
+      await refresh(currentUser.id);
+    }
+    setAuthStatus('pending_verification');
+  },
+  updateCurrentUserName: async (name) => {
+    assertAuthenticated();
+    if (!currentUser) throw new Error('No active user selected.');
+    await updateAccountMetadata(name);
+    await updateLocalUser(currentUser.id, { name: name.trim() });
+    await trackSyncChange('profile', 'update', currentUser.id, { name: name.trim() });
+    await refresh(currentUser.id);
+  },
+  linkOwnerIdentity: async () => {
+    assertAuthenticated();
+    if (!currentUser || currentUser.role !== 'owner') {
+      throw new Error('Only the owner profile can link owner identity.');
+    }
+    await updateLocalUser(currentUser.id, {
+      ownerLinkedEmail: remoteSession?.email ?? null,
+      ownerLinkedAuthId: remoteSession?.authUserId ?? null
+    });
+    await trackSyncChange('profile', 'update', currentUser.id, {
+      ownerLinkedEmail: remoteSession?.email ?? null,
+      ownerLinkedAuthId: remoteSession?.authUserId ?? null
+    });
+    await refresh(currentUser.id);
+  },
+  enrollTotpMfa: async (friendlyName) => {
+    assertAuthenticated();
+    const factor = await enrollTotpFactor(friendlyName);
+    setPendingTotpEnrollment({
+      id: factor.id,
+      friendlyName: factor.friendly_name ?? null,
+      qrCode: factor.totp?.qr_code ?? null,
+      secret: factor.totp?.secret ?? null,
+      uri: factor.totp?.uri ?? null
+    });
+  },
+  verifyTotpMfa: async (code) => {
+    assertAuthenticated();
+    if (!pendingTotpEnrollment) {
+      throw new Error('No MFA enrollment is waiting for verification.');
+    }
+    await verifyTotpFactor({
+      factorId: pendingTotpEnrollment.id,
+      code
+    });
+    setPendingTotpEnrollment(null);
+    setAuthStatus('mfa_enrolled');
+    await refreshMfaStateInternal();
+  },
+  removeMfaFactor: async (factorId) => {
+    assertAuthenticated();
+    await unenrollMfaFactor(factorId);
+    await refreshMfaStateInternal();
+  },
+  refreshMfaState: async () => {
+    await refreshMfaStateInternal();
   },
   signOutRemote: async () => {
     await endRemoteSession();
     setRemoteSession(null);
-    setAuthStatus('anonymous');
+    setPendingTotpEnrollment(null);
+    setMfaFactors([]);
+    setMfaAssuranceLevel('unknown');
+    setAuthStatus('unauthenticated');
   },
   addUser: async (name) => {
-    const id = await createUser(name);
+    assertAuthenticated();
+    const id = await createUser({
+      name,
+      role: 'angler',
+      email: null,
+      remoteAuthId: null
+    });
     await trackSyncChange('profile', 'create', id, { name });
     await saveActiveUserId(id);
     setActiveUserId(id);
@@ -152,6 +333,7 @@ export const createStoreActions = ({
     return id;
   },
   addSavedFly: async (payload) => {
+    assertAuthenticated();
     if (!activeUserId) throw new Error('No active user selected.');
     const id = await createSavedFly({ ...payload, userId: activeUserId });
     await trackSyncChange('saved_setup', 'create', id, payload);
@@ -159,6 +341,7 @@ export const createStoreActions = ({
     return id;
   },
   addSavedLeaderFormula: async (payload) => {
+    assertAuthenticated();
     if (!activeUserId) throw new Error('No active user selected.');
     const id = await createSavedLeaderFormula({ ...payload, userId: activeUserId });
     await trackSyncChange('saved_setup', 'create', id, payload);
@@ -171,6 +354,7 @@ export const createStoreActions = ({
     await refresh(activeUserId);
   },
   addSavedRigPreset: async (payload) => {
+    assertAuthenticated();
     if (!activeUserId) throw new Error('No active user selected.');
     const id = await createSavedRigPreset({ ...payload, userId: activeUserId });
     await trackSyncChange('saved_setup', 'create', id, payload);
@@ -183,6 +367,7 @@ export const createStoreActions = ({
     await refresh(activeUserId);
   },
   addSavedRiver: async (name) => {
+    assertAuthenticated();
     if (!activeUserId) throw new Error('No active user selected.');
     const id = await createSavedRiver({ userId: activeUserId, name });
     await trackSyncChange('saved_setup', 'create', id, { name });
@@ -190,6 +375,7 @@ export const createStoreActions = ({
     return id;
   },
   createGroup: async (name) => {
+    assertAuthenticated();
     if (!activeUserId) throw new Error('No active user selected.');
     const group = await createLocalGroupWithDefaults(activeUserId, name);
     await trackSyncChange('group', 'create', group.id, group);
@@ -202,6 +388,7 @@ export const createStoreActions = ({
     return group;
   },
   joinGroup: async (joinCode) => {
+    assertAuthenticated();
     if (!activeUserId) throw new Error('No active user selected.');
     const membership = await joinLocalGroupByCode(activeUserId, joinCode, groups, groupMemberships);
     await trackSyncChange('group_membership', 'join', membership.id, { joinCode, membership });
@@ -209,6 +396,7 @@ export const createStoreActions = ({
     return membership;
   },
   updateSharePreference: async (groupId, updates) => {
+    assertAuthenticated();
     if (!activeUserId) throw new Error('No active user selected.');
     await updateLocalSharePreference(activeUserId, groupId, updates);
     const refreshed = await loadLocalAppData(activeUserId);
@@ -219,6 +407,7 @@ export const createStoreActions = ({
     await refresh(activeUserId);
   },
   createCompetition: async (payload) => {
+    assertAuthenticated();
     if (!activeUserId) throw new Error('No active user selected.');
     const competition = await createLocalCompetitionWithParticipant(activeUserId, payload);
     await trackSyncChange('competition', 'create', competition.id, competition);
@@ -236,6 +425,7 @@ export const createStoreActions = ({
     return competition;
   },
   joinCompetition: async (joinCode) => {
+    assertAuthenticated();
     if (!activeUserId) throw new Error('No active user selected.');
     const participant = await joinLocalCompetitionByCode(activeUserId, joinCode, competitions, competitionParticipants);
     await trackSyncChange('competition_participant', 'join', participant.id, { joinCode, participant });
@@ -243,6 +433,7 @@ export const createStoreActions = ({
     return participant;
   },
   createInvite: async (payload) => {
+    assertAuthenticated();
     if (!activeUserId) throw new Error('No active user selected.');
     const invite = await createLocalInvite(activeUserId, payload);
     await trackSyncChange('invite', 'create', invite.id, invite);
@@ -250,6 +441,7 @@ export const createStoreActions = ({
     return invite;
   },
   acceptInvite: async (inviteCode) => {
+    assertAuthenticated();
     if (!activeUserId) throw new Error('No active user selected.');
     const invite = await acceptLocalInvite(activeUserId, inviteCode, invites, groupMemberships);
     await trackSyncChange('invite', 'accept', invite.id, { inviteCode, inviteId: invite.id });
@@ -276,6 +468,7 @@ export const createStoreActions = ({
     await refresh(activeUserId);
   },
   upsertCompetitionAssignment: async (payload) => {
+    assertAuthenticated();
     if (!activeUserId) throw new Error('No active user selected.');
     const assignment = await saveLocalCompetitionAssignment(activeUserId, payload);
     await trackSyncChange('competition_assignment', 'update', assignment.id, assignment);
@@ -289,6 +482,7 @@ export const createStoreActions = ({
     return assignment;
   },
   flushSyncQueue: async () => {
+    assertAuthenticated();
     await flushSyncQueueInternal();
   },
   updateUserAccess: async (userId, next) => {
@@ -399,6 +593,7 @@ export const createStoreActions = ({
   },
   refresh,
   addSession: async (payload) => {
+    assertAuthenticated();
     if (!activeUserId) throw new Error('No active user selected.');
     const id = await createSession({ ...payload, userId: activeUserId });
     await trackSyncChange('session', 'create', id, payload);
@@ -406,11 +601,13 @@ export const createStoreActions = ({
     return id;
   },
   updateSessionEntry: async (sessionId, payload) => {
+    assertAuthenticated();
     await updateSession(sessionId, payload);
     await trackSyncChange('session', 'update', sessionId, payload);
     await refresh(activeUserId);
   },
   addSessionSegment: async (payload) => {
+    assertAuthenticated();
     if (!activeUserId) throw new Error('No active user selected.');
     const id = await createSessionSegment({ ...payload, userId: activeUserId });
     await trackSyncChange('session_segment', 'create', id, payload);
@@ -418,11 +615,13 @@ export const createStoreActions = ({
     return id;
   },
   updateSessionSegmentEntry: async (segmentId, payload) => {
+    assertAuthenticated();
     await updateSessionSegment(segmentId, payload);
     await trackSyncChange('session_segment', 'update', segmentId, payload);
     await refresh(activeUserId);
   },
   addCatchEvent: async (payload) => {
+    assertAuthenticated();
     if (!activeUserId) throw new Error('No active user selected.');
     const id = await createCatchEvent({ ...payload, userId: activeUserId });
     await trackSyncChange('catch_event', 'create', id, payload);
@@ -430,6 +629,7 @@ export const createStoreActions = ({
     return id;
   },
   addExperiment: async (payload) => {
+    assertAuthenticated();
     if (!activeUserId) throw new Error('No active user selected.');
     const id = await createExperiment({ ...payload, userId: activeUserId });
     await trackSyncChange('experiment', 'create', id, payload);
@@ -437,11 +637,13 @@ export const createStoreActions = ({
     return id;
   },
   updateExperimentEntry: async (experimentId, payload) => {
+    assertAuthenticated();
     await updateExperiment(experimentId, payload);
     await trackSyncChange('experiment', 'update', experimentId, payload);
     await refresh(activeUserId);
   },
   archiveInconclusiveExperiments: async ({ from, to }) => {
+    assertAuthenticated();
     const experimentIds = experiments
       .filter((experiment) => {
         if (experiment.outcome !== 'inconclusive') return false;

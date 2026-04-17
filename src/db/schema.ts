@@ -29,6 +29,9 @@ export const initDb = async (): Promise<void> => {
       created_at TEXT NOT NULL,
       email TEXT,
       remote_auth_id TEXT,
+      email_verified_at TEXT,
+      owner_linked_email TEXT,
+      owner_linked_auth_id TEXT,
       role TEXT NOT NULL DEFAULT 'angler',
       access_level TEXT NOT NULL DEFAULT 'free',
       subscription_status TEXT NOT NULL DEFAULT 'not_started',
@@ -310,6 +313,15 @@ export const initDb = async (): Promise<void> => {
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE users ADD COLUMN remote_auth_id TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE users ADD COLUMN email_verified_at TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE users ADD COLUMN owner_linked_email TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE users ADD COLUMN owner_linked_auth_id TEXT;`);
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'angler';`);
