@@ -2,14 +2,17 @@ import React from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { OptionChips } from '@/components/OptionChips';
 import { DEPTH_RANGES, MONTHS, WATER_TYPES } from '@/constants/options';
+import { SectionCard } from '@/components/ui/SectionCard';
+import { AppButton } from '@/components/ui/AppButton';
+import { appTheme } from '@/design/theme';
 
 const inputStyle = {
   borderWidth: 1,
-  borderColor: 'rgba(202,240,248,0.18)',
+  borderColor: appTheme.colors.borderStrong,
   padding: 12,
-  borderRadius: 12,
-  backgroundColor: 'rgba(245,252,255,0.96)',
-  color: '#102a43'
+  borderRadius: appTheme.radius.md,
+  backgroundColor: appTheme.colors.inputBg,
+  color: appTheme.colors.textDark
 } as const;
 
 interface InsightsFilterPanelProps {
@@ -87,18 +90,14 @@ export const InsightsFilterPanel = ({
   filteredExperimentCount,
   filteredSessionCount
 }: InsightsFilterPanelProps) => (
-  <View style={{ gap: 8, backgroundColor: 'rgba(6, 27, 44, 0.70)', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
+  <SectionCard title="Filters" subtitle="Narrow the data without burying the most useful selectors.">
     {!!riverOptions.length && (
       <>
-        <Pressable onPress={onToggleRiverChoices} style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}>
-          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
-            {showRiverChoices ? 'Hide Rivers' : 'Choose River'}
-          </Text>
-        </Pressable>
+        <AppButton label={showRiverChoices ? 'Hide Rivers' : 'Choose River'} onPress={onToggleRiverChoices} variant="secondary" />
         {showRiverChoices && (
-          <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)' }}>
+          <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: appTheme.colors.borderStrong, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.surfaceLight }}>
             <Pressable onPress={onClearRiver} style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}>
-              <Text style={{ color: '#0b3d3a', fontWeight: '700' }}>All rivers</Text>
+              <Text style={{ color: appTheme.colors.textDark, fontWeight: '700' }}>All rivers</Text>
             </Pressable>
             {riverOptions.map((river) => (
               <Pressable
@@ -106,7 +105,7 @@ export const InsightsFilterPanel = ({
                 onPress={() => onSelectRiver(river)}
                 style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
               >
-                <Text style={{ color: '#0b3d3a', fontWeight: '600' }}>{river}</Text>
+                <Text style={{ color: appTheme.colors.textDark, fontWeight: '600' }}>{river}</Text>
               </Pressable>
             ))}
           </ScrollView>
@@ -116,18 +115,14 @@ export const InsightsFilterPanel = ({
 
     {hypothesisOptions.length > 1 && (
       <View style={{ gap: 6 }}>
-        <Pressable onPress={onToggleHypothesisChoices} style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}>
-          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
-            {showHypothesisChoices ? 'Hide Experiment Questions' : 'Choose Experiment Question'}
-          </Text>
-        </Pressable>
+        <AppButton label={showHypothesisChoices ? 'Hide Experiment Questions' : 'Choose Experiment Question'} onPress={onToggleHypothesisChoices} variant="secondary" />
         {showHypothesisChoices && (
-          <ScrollView style={{ maxHeight: 220, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)' }}>
+          <ScrollView style={{ maxHeight: 220, borderWidth: 1, borderColor: appTheme.colors.borderStrong, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.surfaceLight }}>
             <Pressable
               onPress={onClearHypothesis}
               style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
             >
-              <Text style={{ color: '#0b3d3a', fontWeight: '700' }}>All experiment questions</Text>
+              <Text style={{ color: appTheme.colors.textDark, fontWeight: '700' }}>All experiment questions</Text>
             </Pressable>
             {hypothesisOptions
               .filter((option) => option !== 'All')
@@ -137,7 +132,7 @@ export const InsightsFilterPanel = ({
                   onPress={() => onSelectHypothesis(option)}
                   style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
                 >
-                  <Text style={{ color: '#0b3d3a', fontWeight: '600' }}>{option}</Text>
+                  <Text style={{ color: appTheme.colors.textDark, fontWeight: '600' }}>{option}</Text>
                 </Pressable>
               ))}
           </ScrollView>
@@ -149,9 +144,7 @@ export const InsightsFilterPanel = ({
     )}
 
     <OptionChips label="Month" options={MONTHS} value={monthFilter || null} onChange={onMonthChange} />
-    <Pressable onPress={onClearMonth} style={{ backgroundColor: 'rgba(255,255,255,0.12)', padding: 10, borderRadius: 12 }}>
-      <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Clear Month Filter</Text>
-    </Pressable>
+    <AppButton label="Clear Month Filter" onPress={onClearMonth} variant="ghost" />
     <OptionChips
       label="Water Type"
       options={['All', ...WATER_TYPES] as string[]}
@@ -172,20 +165,22 @@ export const InsightsFilterPanel = ({
     />
     {(flyFilterMode === 'exact' ? exactFlyOptions.length : flyOptions.length) > 1 && (
       <View style={{ gap: 6 }}>
-        <Pressable onPress={onToggleFlyChoices} style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}>
-          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
-            {showFlyChoices
+        <AppButton
+          label={
+            showFlyChoices
               ? `Hide ${flyFilterMode === 'exact' ? 'Detailed Flies' : 'Fly Patterns'}`
-              : `Choose ${flyFilterMode === 'exact' ? 'Detailed Fly' : 'Fly Pattern'}`}
-          </Text>
-        </Pressable>
+              : `Choose ${flyFilterMode === 'exact' ? 'Detailed Fly' : 'Fly Pattern'}`
+          }
+          onPress={onToggleFlyChoices}
+          variant="secondary"
+        />
         {showFlyChoices && (
-          <ScrollView style={{ maxHeight: 220, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)' }}>
+          <ScrollView style={{ maxHeight: 220, borderWidth: 1, borderColor: appTheme.colors.borderStrong, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.surfaceLight }}>
             <Pressable
               onPress={onClearFly}
               style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
             >
-              <Text style={{ color: '#0b3d3a', fontWeight: '700' }}>
+              <Text style={{ color: appTheme.colors.textDark, fontWeight: '700' }}>
                 {flyFilterMode === 'exact' ? 'All detailed flies' : 'All fly patterns'}
               </Text>
             </Pressable>
@@ -197,7 +192,7 @@ export const InsightsFilterPanel = ({
                   onPress={() => onSelectFly(option)}
                   style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
                 >
-                  <Text style={{ color: '#0b3d3a', fontWeight: '600' }}>{option}</Text>
+                  <Text style={{ color: appTheme.colors.textDark, fontWeight: '600' }}>{option}</Text>
                 </Pressable>
               ))}
           </ScrollView>
@@ -229,5 +224,5 @@ export const InsightsFilterPanel = ({
     <Text style={{ color: '#d7f3ff' }}>
       Reviewing {filteredExperimentCount} experiment{filteredExperimentCount === 1 ? '' : 's'} across {filteredSessionCount} session{filteredSessionCount === 1 ? '' : 's'}.
     </Text>
-  </View>
+  </SectionCard>
 );

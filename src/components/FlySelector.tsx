@@ -2,6 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { FlySetup, SavedFly } from '@/types/fly';
 import { BEAD_COLORS, BEAD_SIZES_MM, BODY_TYPES, BUG_FAMILY_LABEL, BUG_STAGE_LABEL, COLLAR_TYPES, FLY_INTENTS, HOOK_SIZES, INSECT_STAGES_BY_TYPE, INSECT_TYPES, TAIL_TYPES } from '@/constants/options';
+import { SectionCard } from '@/components/ui/SectionCard';
+import { AppButton } from '@/components/ui/AppButton';
+import { appTheme } from '@/design/theme';
 
 interface FlySelectorProps {
   title: string;
@@ -20,7 +23,7 @@ interface ChipGroupProps<T extends string | number> {
 
 const ChipGroup = <T extends string | number>({ label, options, selected, onSelect }: ChipGroupProps<T>) => (
   <View style={{ gap: 6 }}>
-    <Text style={{ fontWeight: '700', color: '#d7f3ff' }}>{label}</Text>
+    <Text style={{ fontWeight: '700', color: appTheme.colors.textMuted }}>{label}</Text>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
       {options.map((option) => (
         <Pressable
@@ -29,13 +32,13 @@ const ChipGroup = <T extends string | number>({ label, options, selected, onSele
           style={{
             paddingHorizontal: 10,
             paddingVertical: 6,
-            borderRadius: 999,
+            borderRadius: appTheme.radius.pill,
             borderWidth: 1,
-            borderColor: selected === option ? '#2a9d8f' : 'rgba(202,240,248,0.18)',
-            backgroundColor: selected === option ? '#2a9d8f' : 'rgba(255,255,255,0.10)'
+            borderColor: selected === option ? appTheme.colors.chipSelectedBorder : appTheme.colors.chipBorder,
+            backgroundColor: selected === option ? appTheme.colors.chipSelectedBg : appTheme.colors.chipBg
           }}
         >
-          <Text style={{ color: selected === option ? '#f7fdff' : '#d7f3ff' }}>{String(option)}</Text>
+          <Text style={{ color: appTheme.colors.text }}>{String(option)}</Text>
         </Pressable>
       ))}
     </View>
@@ -48,18 +51,13 @@ export const FlySelector = ({ title, value, savedFlies, onChange, onSave }: FlyS
   const availableStages = INSECT_STAGES_BY_TYPE[value.bugFamily];
 
   return (
-    <View style={{ gap: 10, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)', borderRadius: 18, padding: 14, backgroundColor: 'rgba(6, 27, 44, 0.70)' }}>
-      <Text style={{ fontWeight: '800', fontSize: 18, color: '#f7fdff' }}>{title}</Text>
+    <SectionCard title={title} subtitle="Choose a saved fly or build one quickly without leaving the current flow.">
 
       {!!sortedSavedFlies.length && (
         <View style={{ gap: 6 }}>
-          <Pressable onPress={() => setShowSavedFlyList((current) => !current)} style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}>
-            <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
-              {showSavedFlyList ? 'Hide Saved Flies' : 'Choose Saved Fly'}
-            </Text>
-          </Pressable>
+          <AppButton label={showSavedFlyList ? 'Hide Saved Flies' : 'Choose Saved Fly'} onPress={() => setShowSavedFlyList((current) => !current)} variant="secondary" />
           {showSavedFlyList && (
-            <View style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)' }}>
+            <View style={{ borderWidth: 1, borderColor: appTheme.colors.borderStrong, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.surfaceLight }}>
               {sortedSavedFlies.map((fly) => (
                 <Pressable
                   key={fly.id}
@@ -80,8 +78,8 @@ export const FlySelector = ({ title, value, savedFlies, onChange, onSave }: FlyS
                   }}
                   style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
                 >
-                  <Text style={{ fontWeight: '600', color: '#0b3d3a' }}>{fly.name}</Text>
-                  <Text style={{ color: '#4b5563', fontSize: 12 }}>
+                  <Text style={{ fontWeight: '600', color: appTheme.colors.textDark }}>{fly.name}</Text>
+                  <Text style={{ color: appTheme.colors.textDarkSoft, fontSize: 12 }}>
                     {fly.bugFamily} | {fly.bugStage} | #{fly.hookSize} | {fly.beadColor}
                   </Text>
                 </Pressable>
@@ -96,7 +94,7 @@ export const FlySelector = ({ title, value, savedFlies, onChange, onSave }: FlyS
         placeholder="Fly name"
         onChangeText={(name) => onChange({ ...value, name })}
         placeholderTextColor="#5a6c78"
-        style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+        style={{ borderWidth: 1, borderColor: appTheme.colors.borderStrong, padding: 12, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
       />
       <ChipGroup label="Fly Type" options={FLY_INTENTS} selected={value.intent} onSelect={(intent) => onChange({ ...value, intent })} />
       <ChipGroup label="Hook Size" options={HOOK_SIZES} selected={value.hookSize ?? 16} onSelect={(hookSize) => onChange({ ...value, hookSize })} />
@@ -108,9 +106,7 @@ export const FlySelector = ({ title, value, savedFlies, onChange, onSave }: FlyS
       <ChipGroup label="Tail" options={TAIL_TYPES} selected={value.tail} onSelect={(tail) => onChange({ ...value, tail })} />
       <ChipGroup label="Collar" options={COLLAR_TYPES} selected={value.collar} onSelect={(collar) => onChange({ ...value, collar })} />
 
-      <Pressable onPress={onSave} style={{ backgroundColor: '#2a9d8f', padding: 12, borderRadius: 12 }}>
-        <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Save To Fly Library</Text>
-      </Pressable>
-    </View>
+      <AppButton label="Save To Fly Library" onPress={onSave} />
+    </SectionCard>
   );
 };

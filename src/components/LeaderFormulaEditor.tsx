@@ -1,6 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Text, TextInput, View } from 'react-native';
 import { LeaderFormulaSection } from '@/types/rig';
+import { SectionCard } from '@/components/ui/SectionCard';
+import { AppButton } from '@/components/ui/AppButton';
+import { appTheme } from '@/design/theme';
 
 interface LeaderFormulaEditorProps {
   onSave: (payload: { name: string; sections: LeaderFormulaSection[] }) => Promise<void>;
@@ -20,19 +23,18 @@ export const LeaderFormulaEditor = ({ onSave }: LeaderFormulaEditorProps) => {
   );
 
   return (
-    <View style={{ gap: 10, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)', borderRadius: 18, padding: 14, backgroundColor: 'rgba(6, 27, 44, 0.70)' }}>
-      <Text style={{ fontWeight: '800', fontSize: 18, color: '#f7fdff' }}>Quick Add Leader Formula</Text>
+    <SectionCard title="Quick Add Leader Formula" subtitle="Save a reusable base leader without leaving the current flow.">
       <TextInput
         value={name}
         onChangeText={setName}
         placeholder="Formula name"
         placeholderTextColor="#5a6c78"
-        style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+        style={{ borderWidth: 1, borderColor: appTheme.colors.borderStrong, padding: 12, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
       />
 
       {sections.map((section, index) => (
-        <View key={`${section.order}-${index}`} style={{ gap: 8, borderRadius: 12, padding: 10, backgroundColor: 'rgba(255,255,255,0.08)' }}>
-          <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Section {index + 1}</Text>
+        <View key={`${section.order}-${index}`} style={{ gap: 8, borderRadius: appTheme.radius.md, padding: 10, backgroundColor: appTheme.colors.surfaceMuted }}>
+          <Text style={{ color: appTheme.colors.textMuted, fontWeight: '700' }}>Section {index + 1}</Text>
           <TextInput
             value={section.materialLabel}
             onChangeText={(materialLabel) =>
@@ -40,7 +42,7 @@ export const LeaderFormulaEditor = ({ onSave }: LeaderFormulaEditorProps) => {
             }
             placeholder="Material label"
             placeholderTextColor="#5a6c78"
-            style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+            style={{ borderWidth: 1, borderColor: appTheme.colors.borderStrong, padding: 12, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
           />
           <TextInput
             value={String(section.lengthFeet)}
@@ -52,35 +54,31 @@ export const LeaderFormulaEditor = ({ onSave }: LeaderFormulaEditorProps) => {
             placeholder="Length in feet"
             keyboardType="decimal-pad"
             placeholderTextColor="#5a6c78"
-            style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+            style={{ borderWidth: 1, borderColor: appTheme.colors.borderStrong, padding: 12, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
           />
           {sections.length > 1 ? (
-            <Pressable
+            <AppButton
+              label="Remove Section"
               onPress={() => setSections((current) => current.filter((_, entryIndex) => entryIndex !== index).map((entry, entryIndex) => ({ ...entry, order: entryIndex })))}
-              style={{ backgroundColor: 'rgba(91,11,11,0.92)', padding: 10, borderRadius: 10 }}
-            >
-              <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Remove Section</Text>
-            </Pressable>
+              variant="danger"
+            />
           ) : null}
         </View>
       ))}
 
-      <Pressable
+      <AppButton
+        label="Add Section"
         onPress={() =>
           setSections((current) => [...current, { order: current.length, materialLabel: '', lengthFeet: 0 }])
         }
-        style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}
-      >
-        <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Add Section</Text>
-      </Pressable>
+        variant="secondary"
+      />
 
-      <Pressable
+      <AppButton
+        label="Save Leader Formula"
         onPress={() => onSave({ name: name.trim(), sections: sections.map((section, index) => ({ ...section, order: index })) })}
         disabled={!canSave}
-        style={{ backgroundColor: canSave ? '#2a9d8f' : '#6c757d', padding: 12, borderRadius: 12 }}
-      >
-        <Text style={{ color: '#f7fdff', textAlign: 'center', fontWeight: '700' }}>Save Leader Formula</Text>
-      </Pressable>
-    </View>
+      />
+    </SectionCard>
   );
 };

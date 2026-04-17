@@ -2,6 +2,9 @@ import React from 'react';
 import { Modal, Pressable, Text, TextInput, View } from 'react-native';
 import { TroutSpecies } from '@/types/experiment';
 import { CatchLengthUnit } from '@/types/activity';
+import { AppButton } from '@/components/ui/AppButton';
+import { ModalSurface } from '@/components/ui/ModalSurface';
+import { appTheme } from '@/design/theme';
 
 const TROUT_SPECIES_OPTIONS: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow', 'Tiger', 'Whitefish'];
 
@@ -31,57 +34,50 @@ export const PracticeCatchModal = ({
   onConfirm
 }: PracticeCatchModalProps) => (
   <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-    <View style={{ flex: 1, backgroundColor: 'rgba(5, 18, 28, 0.72)', justifyContent: 'center', padding: 20 }}>
-      <View style={{ gap: 12, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 20, padding: 16, backgroundColor: 'rgba(245,252,255,0.98)' }}>
-        <Text style={{ fontWeight: '800', fontSize: 20, color: '#102a43' }}>{title}</Text>
-        <Text style={{ color: '#334e68' }}>
-          Choose the trout species. The app will timestamp the catch automatically for catch-rate insights later.
-        </Text>
+    <ModalSurface
+      title={title}
+      subtitle="Choose the trout species. The app will timestamp the catch automatically for catch-rate insights later."
+    >
         <View style={{ gap: 8 }}>
-          <Text style={{ color: '#102a43', fontWeight: '700' }}>Species</Text>
+          <Text style={{ color: appTheme.colors.textDark, fontWeight: '700' }}>Species</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {TROUT_SPECIES_OPTIONS.map((species) => (
               <Pressable
                 key={species}
                 onPress={() => onSelectSpecies(species)}
                 style={{
-                  backgroundColor: selectedSpecies === species ? '#2a9d8f' : 'rgba(29,53,87,0.12)',
+                  backgroundColor: selectedSpecies === species ? appTheme.colors.primary : 'rgba(29,53,87,0.12)',
                   paddingVertical: 10,
                   paddingHorizontal: 12,
-                  borderRadius: 12
+                  borderRadius: appTheme.radius.md
                 }}
               >
-                <Text style={{ color: selectedSpecies === species ? 'white' : '#102a43', fontWeight: '700' }}>{species}</Text>
+                <Text style={{ color: selectedSpecies === species ? 'white' : appTheme.colors.textDark, fontWeight: '700' }}>{species}</Text>
               </Pressable>
             ))}
           </View>
         </View>
         {measurementEnabled ? (
           <View style={{ gap: 8 }}>
-            <Text style={{ color: '#102a43', fontWeight: '700' }}>Optional length ({lengthUnit})</Text>
+            <Text style={{ color: appTheme.colors.textDark, fontWeight: '700' }}>Optional length ({lengthUnit})</Text>
             <TextInput
               value={selectedLength}
               onChangeText={onSelectLength}
               keyboardType="decimal-pad"
               placeholder={`Length in ${lengthUnit}`}
               placeholderTextColor="#5a6c78"
-              style={{ borderWidth: 1, borderColor: '#cbd5e1', padding: 12, borderRadius: 12, backgroundColor: 'white', color: '#102a43' }}
+              style={{ borderWidth: 1, borderColor: appTheme.colors.borderStrong, padding: 12, borderRadius: appTheme.radius.md, backgroundColor: 'white', color: appTheme.colors.textDark }}
             />
           </View>
         ) : null}
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <Pressable onPress={onCancel} style={{ backgroundColor: '#6c757d', padding: 12, borderRadius: 12, flex: 1 }}>
-            <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Cancel</Text>
-          </Pressable>
-          <Pressable
-            onPress={onConfirm}
-            disabled={selectedSpecies === null}
-            style={{ backgroundColor: selectedSpecies ? '#264653' : '#adb5bd', padding: 12, borderRadius: 12, flex: 1 }}
-          >
-            <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Save Catch</Text>
-          </Pressable>
+          <View style={{ flex: 1 }}>
+            <AppButton label="Cancel" onPress={onCancel} variant="neutral" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <AppButton label="Save Catch" onPress={onConfirm} disabled={selectedSpecies === null} variant="tertiary" />
+          </View>
         </View>
-      </View>
-    </View>
+    </ModalSurface>
   </Modal>
 );
