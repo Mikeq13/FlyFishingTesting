@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import * as Linking from 'expo-linking';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AppStoreProvider } from './app/store';
@@ -13,12 +14,39 @@ import { CoachScreen } from './app/CoachScreen';
 import { SessionDetailScreen } from './app/SessionDetailScreen';
 import { AccessScreen } from './app/AccessScreen';
 import { ensureNotificationHandler } from './utils/sessionNotifications';
+import { consumeAuthRedirect } from './services/authService';
 
 const Stack = createNativeStackNavigator();
 
 export default function App() {
   useEffect(() => {
     ensureNotificationHandler().catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const handleUrl = async (url: string | null) => {
+      if (!url || !mounted) return;
+      try {
+        await consumeAuthRedirect(url);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    Linking.getInitialURL()
+      .then(handleUrl)
+      .catch(console.error);
+
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      handleUrl(url).catch(console.error);
+    });
+
+    return () => {
+      mounted = false;
+      subscription.remove();
+    };
   }, []);
 
   return (

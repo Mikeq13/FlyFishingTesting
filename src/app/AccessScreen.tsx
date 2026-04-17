@@ -4,7 +4,7 @@ import { ScreenBackground } from '@/components/ScreenBackground';
 import { UserDataCleanupCategory, useAppStore } from './store';
 import { getEntitlementLabel, hasPremiumAccess } from '@/engine/entitlementEngine';
 import { beginAppleSubscriptionPurchase, PREMIUM_MONTHLY_PRICE_LABEL, PREMIUM_TRIAL_LABEL } from '@/billing/storekit';
-import { formatLocalTimeInput, parseLocalTimeInput } from '@/utils/dateTime';
+import { parseLocalTimeInput } from '@/utils/dateTime';
 import { CompetitionSessionRole } from '@/types/group';
 
 export const AccessScreen = () => {
@@ -17,8 +17,13 @@ export const AccessScreen = () => {
     currentHasPremiumAccess,
     canManageAccess,
     syncStatus,
+    authStatus,
+    remoteSession,
+    isSyncEnabled,
     invites,
     sponsoredAccess,
+    signInWithMagicLink,
+    signOutRemote,
     startTrialForUser,
     grantPowerUserAccess,
     markSubscriberAccess,
@@ -55,6 +60,7 @@ export const AccessScreen = () => {
   const [inviteTargetGroupId, setInviteTargetGroupId] = React.useState<number | null>(null);
   const [inviteTargetName, setInviteTargetName] = React.useState('');
   const [inviteAcceptCode, setInviteAcceptCode] = React.useState('');
+  const [authEmail, setAuthEmail] = React.useState(currentUser?.email ?? '');
   const [competitionSchedule, setCompetitionSchedule] = React.useState([
     { sessionNumber: 1, startTime: '08:00', endTime: '11:00' },
     { sessionNumber: 2, startTime: '13:00', endTime: '16:00' },
@@ -131,6 +137,10 @@ export const AccessScreen = () => {
       return next.map((entry, index) => ({ ...entry, sessionNumber: index + 1 }));
     });
   }, [competitionSessionCount]);
+
+  React.useEffect(() => {
+    setAuthEmail(currentUser?.email ?? '');
+  }, [currentUser?.email]);
 
   if (!currentUser) {
     return (
@@ -380,15 +390,70 @@ export const AccessScreen = () => {
           <Text style={{ color: '#bde6f6' }}>Status: {currentEntitlementLabel}</Text>
           <Text style={{ color: '#bde6f6' }}>Premium features: {currentHasPremiumAccess ? 'Enabled' : 'Locked'}</Text>
           <Text style={{ color: '#bde6f6' }}>Sync queue: {syncStatus.pendingCount} pending, {syncStatus.syncedCount} synced</Text>
+          <Text style={{ color: '#bde6f6' }}>Remote auth: {remoteSession?.email ?? 'Not signed in'}</Text>
+          <Text style={{ color: '#bde6f6' }}>Shared sync: {isSyncEnabled ? 'Enabled' : 'Waiting for sign-in or env setup'}</Text>
           <Text style={{ color: '#bde6f6' }}>
             Last sync: {syncStatus.lastSyncedAt ? new Date(syncStatus.lastSyncedAt).toLocaleString() : 'Not synced yet'}
           </Text>
           <Text style={{ color: '#d7f3ff' }}>
             Plan: {PREMIUM_MONTHLY_PRICE_LABEL} with a {PREMIUM_TRIAL_LABEL.toLowerCase()}
           </Text>
-          <Pressable onPress={() => flushSyncQueue().then(() => Alert.alert('Sync queue flushed', 'Pending beta sync items were marked ready for backend upload.')).catch((error) => Alert.alert('Unable to flush sync queue', error instanceof Error ? error.message : 'Please try again.'))} style={{ backgroundColor: '#264653', padding: 12, borderRadius: 12 }}>
-            <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Sync Now</Text>
-          </Pressable>
+          <View style={{ gap: 8 }}>
+            <TextInput
+              value={authEmail}
+              onChangeText={setAuthEmail}
+              placeholder="angler@email.com"
+              placeholderTextColor="#5a6c78"
+              autoCapitalize="none"
+              keyboardType="email-address"
+              style={{ borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+            />
+            <Pressable
+              onPress={() =>
+                signInWithMagicLink(authEmail)
+                  .then(() =>
+                    Alert.alert(
+                      'Magic link sent',
+                      'Check your email on this device and open the link to finish signing in.'
+                    )
+                  )
+                  .catch((error) =>
+                    Alert.alert('Unable to start sign-in', error instanceof Error ? error.message : 'Please try again.')
+                  )
+              }
+              style={{ backgroundColor: '#2a9d8f', padding: 12, borderRadius: 12 }}
+            >
+              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
+                {authStatus === 'authenticating' ? 'Sending Magic Link...' : 'Send Magic Link'}
+              </Text>
+            </Pressable>
+            {remoteSession ? (
+              <Pressable
+                onPress={() =>
+                  signOutRemote()
+                    .then(() => Alert.alert('Signed out', 'Shared beta sync is now disconnected on this device.'))
+                    .catch((error) =>
+                      Alert.alert('Unable to sign out', error instanceof Error ? error.message : 'Please try again.')
+                    )
+                }
+                style={{ backgroundColor: '#8d0801', padding: 12, borderRadius: 12 }}
+              >
+                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Sign Out of Shared Beta</Text>
+              </Pressable>
+            ) : null}
+            <Pressable
+              onPress={() =>
+                flushSyncQueue()
+                  .then(() => Alert.alert('Sync complete', 'Pending shared records were pushed to Supabase.'))
+                  .catch((error) =>
+                    Alert.alert('Unable to sync now', error instanceof Error ? error.message : 'Please try again.')
+                  )
+              }
+              style={{ backgroundColor: '#264653', padding: 12, borderRadius: 12 }}
+            >
+              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Sync Now</Text>
+            </Pressable>
+          </View>
 
           {currentUser.role !== 'owner' && (
             <>

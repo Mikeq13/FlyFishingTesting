@@ -2,6 +2,7 @@
   "expo": {
     "name": "Fishing Lab",
     "slug": "fishing-lab",
+    "scheme": "fishinglab",
     "version": "1.0.0",
     "orientation": "default",
     "userInterfaceStyle": "light",

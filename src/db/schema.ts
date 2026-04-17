@@ -81,6 +81,14 @@ export const initDb = async (): Promise<void> => {
       synced_at TEXT,
       error_message TEXT
     )`,
+    `CREATE TABLE IF NOT EXISTS sync_metadata (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity_type TEXT NOT NULL,
+      local_record_id INTEGER NOT NULL,
+      remote_record_id TEXT,
+      last_synced_at TEXT,
+      pending_import INTEGER NOT NULL DEFAULT 1
+    )`,
     `CREATE TABLE IF NOT EXISTS sessions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -479,6 +487,16 @@ export const initDb = async (): Promise<void> => {
       created_at TEXT NOT NULL,
       synced_at TEXT,
       error_message TEXT
+    )`);
+  } catch {}
+  try {
+    await database.execAsync(`CREATE TABLE IF NOT EXISTS sync_metadata (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity_type TEXT NOT NULL,
+      local_record_id INTEGER NOT NULL,
+      remote_record_id TEXT,
+      last_synced_at TEXT,
+      pending_import INTEGER NOT NULL DEFAULT 1
     )`);
   } catch {}
   try {

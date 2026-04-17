@@ -1,11 +1,18 @@
 export type InviteStatus = 'pending' | 'accepted' | 'revoked' | 'expired';
 export type InviteGrantType = 'power_user_group';
 export type SyncQueueStatus = 'pending' | 'synced' | 'failed';
+export type AuthStatus = 'anonymous' | 'authenticating' | 'authenticated';
 export type SyncEntityType =
-  | 'user'
+  | 'profile'
   | 'group'
+  | 'group_membership'
   | 'share_preference'
+  | 'invite'
+  | 'sponsored_access'
   | 'competition'
+  | 'competition_group'
+  | 'competition_session'
+  | 'competition_participant'
   | 'competition_assignment'
   | 'session'
   | 'session_segment'
@@ -49,6 +56,21 @@ export interface SyncQueueEntry {
   createdAt: string;
   syncedAt?: string | null;
   errorMessage?: string | null;
+}
+
+export interface SyncMetadataEntry {
+  id: number;
+  entityType: SyncEntityType;
+  localRecordId: number;
+  remoteRecordId?: string | null;
+  lastSyncedAt?: string | null;
+  pendingImport: boolean;
+}
+
+export interface RemoteSessionSnapshot {
+  authUserId: string;
+  email?: string | null;
+  accessToken: string;
 }
 
 export interface SyncStatusSnapshot {
