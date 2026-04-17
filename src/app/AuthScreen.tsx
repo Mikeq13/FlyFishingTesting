@@ -10,7 +10,7 @@ import { StatusBanner } from '@/components/ui/StatusBanner';
 import { useTheme } from '@/design/theme';
 import { useResponsiveLayout } from '@/design/layout';
 import { useAppStore } from './store';
-import { hasSupabaseConfig, missingSupabaseConfigMessage } from '@/services/supabaseClient';
+import { cloudFeaturesUnavailableMessage, hasSupabaseConfig, missingSupabaseConfigMessage } from '@/services/supabaseClient';
 
 type AuthMode = 'sign_in' | 'sign_up' | 'magic_link' | 'reset';
 
@@ -85,7 +85,7 @@ export const AuthScreen = () => {
       ? 'Check your email and finish the verification or magic-link step before continuing.'
       : authStatus === 'password_reset_required'
         ? 'Choose a new password to finish the recovery flow.'
-        : 'Create an account or sign in so every session, catch, and shared action belongs to a known angler account.';
+        : 'Cloud sign-in is optional for local testing. Use it when you want email-backed identity, sync, and shared account features.';
 
   const modeOptions =
     authStatus === 'password_reset_required'
@@ -106,11 +106,11 @@ export const AuthScreen = () => {
     <ScreenBackground>
       <ScrollView contentContainerStyle={layout.buildScrollContentStyle({ centered: true, gap: 14, bottomPadding: 40 })} keyboardShouldPersistTaps="handled">
         <ScreenHeader
-          title="Account Required"
-          subtitle="Sign in so each angler account, invite, and shared data record stays tied to a real identity."
+          title="Account Sign-In"
+          subtitle="Link a real email-backed account for cloud sync and shared identity. Local mode is still available on this device."
           eyebrow="Secure Access"
         />
-        <SectionCard title="Account Access" subtitle="Use your own angler account instead of a shared local profile.">
+        <SectionCard title="Account Access" subtitle="Sign in when you want cloud sync, remote identity, or email recovery.">
           <OptionChips
             label="Account Flow"
             options={modeOptions}
@@ -126,10 +126,11 @@ export const AuthScreen = () => {
           {!hasSupabaseConfig ? (
             <StatusBanner
               tone="warning"
-              text="Supabase auth is disabled until this device has EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in .env.local, followed by a full Expo restart."
+              text={cloudFeaturesUnavailableMessage}
             />
           ) : null}
           {authStatus === 'pending_verification' ? <StatusBanner tone="info" text="The account flow is waiting on your email inbox. Finish that step, then return to the app." /> : null}
+          {!hasSupabaseConfig ? <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>You can keep using the app locally right now. Add your Supabase values later when you are ready to test cloud account flows.</Text> : null}
 
           {(mode === 'sign_up' || authStatus === 'password_reset_required') ? null : (
             <FormField label="Email">
@@ -211,7 +212,7 @@ export const AuthScreen = () => {
             onPress={() => {
               submit().catch(console.error);
             }}
-            disabled={isSubmitting || !hasSupabaseConfig}
+            disabled={isSubmitting}
           />
         </SectionCard>
       </ScrollView>

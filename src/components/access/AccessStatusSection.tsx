@@ -6,6 +6,7 @@ import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { useTheme } from '@/design/theme';
 import { SyncStatusSnapshot, RemoteSessionSnapshot, AuthStatus } from '@/types/remote';
 import { NotificationPermissionStatus, SharedDataStatus } from '@/types/appState';
+import { hasSupabaseConfig } from '@/services/supabaseClient';
 
 export const AccessStatusSection = ({
   currentUserName,
@@ -54,8 +55,8 @@ export const AccessStatusSection = ({
       <InlineSummaryRow label="Sync Queue" value={`${syncStatus.pendingCount} pending, ${syncStatus.syncedCount} synced`} tone="light" />
       <InlineSummaryRow label="Sync State" value={syncStatus.state} tone="light" />
       <InlineSummaryRow label="Shared Data" value={sharedDataStatus} tone="light" />
-      <InlineSummaryRow label="Remote Auth" value={remoteSession?.email ?? 'Not signed in'} valueMuted={!remoteSession?.email} tone="light" />
-      <InlineSummaryRow label="Shared Sync" value={isSyncEnabled ? 'Enabled' : 'Waiting for sign-in or env setup'} valueMuted={!isSyncEnabled} tone="light" />
+      <InlineSummaryRow label="Remote Auth" value={remoteSession?.email ?? 'Local-only mode'} valueMuted={!remoteSession?.email} tone="light" />
+      <InlineSummaryRow label="Shared Sync" value={isSyncEnabled ? 'Enabled' : hasSupabaseConfig ? 'Waiting for sign-in' : 'Unavailable on this device'} valueMuted={!isSyncEnabled} tone="light" />
       <InlineSummaryRow label="Notifications" value={notificationPermissionStatus} valueMuted={notificationPermissionStatus !== 'granted' && notificationPermissionStatus !== 'provisional'} tone="light" />
       <InlineSummaryRow label="Last Sync" value={syncStatus.lastSyncedAt ? new Date(syncStatus.lastSyncedAt).toLocaleString() : 'Not synced yet'} valueMuted={!syncStatus.lastSyncedAt} tone="light" />
     </View>
@@ -66,16 +67,18 @@ export const AccessStatusSection = ({
       tone="info"
       text={
         currentUserRole === 'owner'
-          ? isAuthenticatedOwner
-            ? 'Owner tools are unlocked because the owner profile is signed in with its linked owner account.'
-            : ownerIdentityLinked
-              ? 'This is the owner profile, but owner tools stay locked until the linked owner account is the one signed in.'
-              : 'This is the owner profile, but owner tools stay locked until you link this profile to your owner account.'
-          : 'Signing in enables shared sync, but it does not turn this angler into an owner or grant admin access.'
+          ? !remoteSession
+            ? 'This device is using local owner mode, so owner tools are available for field testing even without cloud sign-in.'
+            : isAuthenticatedOwner
+              ? 'Owner tools are unlocked because the owner profile is signed in with its linked owner account.'
+              : ownerIdentityLinked
+                ? 'This is the owner profile, but owner tools stay locked until the linked owner account is the one signed in.'
+                : 'This is the owner profile, but owner tools stay locked until you link this profile to your owner account.'
+          : 'Cloud sign-in enables shared sync, but it does not turn this angler into an owner or grant admin access.'
       }
     />
     <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-      Shared sync, invites, competitions, and tester sponsorship now belong to the signed-in account instead of an anonymous local profile.
+      Local testing works without sign-in. When cloud auth is configured, shared sync and remote identity attach to the signed-in account instead of staying device-local.
     </Text>
   </SectionCard>
   );

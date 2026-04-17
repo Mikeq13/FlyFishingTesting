@@ -37,7 +37,7 @@ export const BetaReadinessSection = ({
             ? 'Finishing sign-in'
             : authStatus === 'pending_verification'
               ? 'Waiting on email step'
-              : 'Sign-in required'
+              : 'Local mode active'
       }
       tone="light"
     />

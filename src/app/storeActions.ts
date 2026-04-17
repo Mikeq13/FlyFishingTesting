@@ -155,14 +155,20 @@ export const createStoreActions = ({
   | 'updateExperimentEntry'
   | 'archiveInconclusiveExperiments'
 > => {
-  const assertAuthenticated = () => {
+  const assertActiveUser = () => {
+    if (!currentUser) {
+      throw new Error('No active angler profile is selected.');
+    }
+  };
+
+  const assertRemoteAuth = () => {
     if (!remoteSession || !currentUser) {
-      throw new Error('Sign in before using the app.');
+      throw new Error('Sign in to use cloud account features on this device.');
     }
   };
 
   const assertOwnerAccess = () => {
-    if (!currentUser || currentUser.role !== 'owner' || !isAuthenticatedOwner) {
+    if (!currentUser || currentUser.role !== 'owner' || (remoteSession && !isAuthenticatedOwner)) {
       throw new Error('Only the owner can manage tester access.');
     }
   };
@@ -241,30 +247,50 @@ export const createStoreActions = ({
     setAuthStatus('pending_verification');
   },
   updatePassword: async (password) => {
-    assertAuthenticated();
+    assertRemoteAuth();
     await updateRemotePassword(password);
     setAuthStatus('authenticated');
   },
   updateAccountEmail: async (email) => {
-    assertAuthenticated();
-    await updateAccountEmailRemote(email);
-    if (currentUser) {
-      await updateLocalUser(currentUser.id, { email: email.trim().toLowerCase() });
-      await trackSyncChange('profile', 'update', currentUser.id, { email: email.trim().toLowerCase() });
-      await refresh(currentUser.id);
+    assertActiveUser();
+    if (!currentUser) {
+      throw new Error('No active angler profile is selected.');
     }
-    setAuthStatus('pending_verification');
+    const activeUser = currentUser;
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      throw new Error('Email is required.');
+    }
+    if (remoteSession) {
+      await updateAccountEmailRemote(normalizedEmail);
+      await updateLocalUser(activeUser.id, { email: normalizedEmail });
+      await trackSyncChange('profile', 'update', activeUser.id, { email: normalizedEmail });
+      await refresh(activeUser.id);
+      setAuthStatus('pending_verification');
+      return;
+    }
+    await updateLocalUser(activeUser.id, { email: normalizedEmail });
+    await refresh(activeUser.id);
   },
   updateCurrentUserName: async (name) => {
-    assertAuthenticated();
-    if (!currentUser) throw new Error('No active user selected.');
-    await updateAccountMetadata(name);
-    await updateLocalUser(currentUser.id, { name: name.trim() });
-    await trackSyncChange('profile', 'update', currentUser.id, { name: name.trim() });
-    await refresh(currentUser.id);
+    assertActiveUser();
+    if (!currentUser) {
+      throw new Error('No active angler profile is selected.');
+    }
+    const activeUser = currentUser;
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      throw new Error('Name is required.');
+    }
+    if (remoteSession) {
+      await updateAccountMetadata(trimmedName);
+      await trackSyncChange('profile', 'update', activeUser.id, { name: trimmedName });
+    }
+    await updateLocalUser(activeUser.id, { name: trimmedName });
+    await refresh(activeUser.id);
   },
   linkOwnerIdentity: async () => {
-    assertAuthenticated();
+    assertRemoteAuth();
     if (!currentUser || currentUser.role !== 'owner') {
       throw new Error('Only the owner profile can link owner identity.');
     }
@@ -279,7 +305,7 @@ export const createStoreActions = ({
     await refresh(currentUser.id);
   },
   enrollTotpMfa: async (friendlyName) => {
-    assertAuthenticated();
+    assertRemoteAuth();
     const factor = await enrollTotpFactor(friendlyName);
     setPendingTotpEnrollment({
       id: factor.id,
@@ -290,7 +316,7 @@ export const createStoreActions = ({
     });
   },
   verifyTotpMfa: async (code) => {
-    assertAuthenticated();
+    assertRemoteAuth();
     if (!pendingTotpEnrollment) {
       throw new Error('No MFA enrollment is waiting for verification.');
     }
@@ -303,7 +329,7 @@ export const createStoreActions = ({
     await refreshMfaStateInternal();
   },
   removeMfaFactor: async (factorId) => {
-    assertAuthenticated();
+    assertRemoteAuth();
     await unenrollMfaFactor(factorId);
     await refreshMfaStateInternal();
   },
@@ -319,7 +345,7 @@ export const createStoreActions = ({
     setAuthStatus('unauthenticated');
   },
   addUser: async (name) => {
-    assertAuthenticated();
+    assertActiveUser();
     const id = await createUser({
       name,
       role: 'angler',
@@ -333,7 +359,7 @@ export const createStoreActions = ({
     return id;
   },
   addSavedFly: async (payload) => {
-    assertAuthenticated();
+    assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
     const id = await createSavedFly({ ...payload, userId: activeUserId });
     await trackSyncChange('saved_setup', 'create', id, payload);
@@ -341,7 +367,7 @@ export const createStoreActions = ({
     return id;
   },
   addSavedLeaderFormula: async (payload) => {
-    assertAuthenticated();
+    assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
     const id = await createSavedLeaderFormula({ ...payload, userId: activeUserId });
     await trackSyncChange('saved_setup', 'create', id, payload);
@@ -354,7 +380,7 @@ export const createStoreActions = ({
     await refresh(activeUserId);
   },
   addSavedRigPreset: async (payload) => {
-    assertAuthenticated();
+    assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
     const id = await createSavedRigPreset({ ...payload, userId: activeUserId });
     await trackSyncChange('saved_setup', 'create', id, payload);
@@ -367,7 +393,7 @@ export const createStoreActions = ({
     await refresh(activeUserId);
   },
   addSavedRiver: async (name) => {
-    assertAuthenticated();
+    assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
     const id = await createSavedRiver({ userId: activeUserId, name });
     await trackSyncChange('saved_setup', 'create', id, { name });
@@ -375,7 +401,7 @@ export const createStoreActions = ({
     return id;
   },
   createGroup: async (name) => {
-    assertAuthenticated();
+    assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
     const group = await createLocalGroupWithDefaults(activeUserId, name);
     await trackSyncChange('group', 'create', group.id, group);
@@ -388,7 +414,7 @@ export const createStoreActions = ({
     return group;
   },
   joinGroup: async (joinCode) => {
-    assertAuthenticated();
+    assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
     const membership = await joinLocalGroupByCode(activeUserId, joinCode, groups, groupMemberships);
     await trackSyncChange('group_membership', 'join', membership.id, { joinCode, membership });
@@ -396,7 +422,7 @@ export const createStoreActions = ({
     return membership;
   },
   updateSharePreference: async (groupId, updates) => {
-    assertAuthenticated();
+    assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
     await updateLocalSharePreference(activeUserId, groupId, updates);
     const refreshed = await loadLocalAppData(activeUserId);
@@ -407,7 +433,7 @@ export const createStoreActions = ({
     await refresh(activeUserId);
   },
   createCompetition: async (payload) => {
-    assertAuthenticated();
+    assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
     const competition = await createLocalCompetitionWithParticipant(activeUserId, payload);
     await trackSyncChange('competition', 'create', competition.id, competition);
@@ -425,7 +451,7 @@ export const createStoreActions = ({
     return competition;
   },
   joinCompetition: async (joinCode) => {
-    assertAuthenticated();
+    assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
     const participant = await joinLocalCompetitionByCode(activeUserId, joinCode, competitions, competitionParticipants);
     await trackSyncChange('competition_participant', 'join', participant.id, { joinCode, participant });
@@ -433,7 +459,7 @@ export const createStoreActions = ({
     return participant;
   },
   createInvite: async (payload) => {
-    assertAuthenticated();
+    assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
     const invite = await createLocalInvite(activeUserId, payload);
     await trackSyncChange('invite', 'create', invite.id, invite);
@@ -441,7 +467,7 @@ export const createStoreActions = ({
     return invite;
   },
   acceptInvite: async (inviteCode) => {
-    assertAuthenticated();
+    assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
     const invite = await acceptLocalInvite(activeUserId, inviteCode, invites, groupMemberships);
     await trackSyncChange('invite', 'accept', invite.id, { inviteCode, inviteId: invite.id });
@@ -468,7 +494,7 @@ export const createStoreActions = ({
     await refresh(activeUserId);
   },
   upsertCompetitionAssignment: async (payload) => {
-    assertAuthenticated();
+    assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
     const assignment = await saveLocalCompetitionAssignment(activeUserId, payload);
     await trackSyncChange('competition_assignment', 'update', assignment.id, assignment);
@@ -482,7 +508,7 @@ export const createStoreActions = ({
     return assignment;
   },
   flushSyncQueue: async () => {
-    assertAuthenticated();
+    assertRemoteAuth();
     await flushSyncQueueInternal();
   },
   updateUserAccess: async (userId, next) => {
@@ -593,7 +619,7 @@ export const createStoreActions = ({
   },
   refresh,
   addSession: async (payload) => {
-    assertAuthenticated();
+    assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
     const id = await createSession({ ...payload, userId: activeUserId });
     await trackSyncChange('session', 'create', id, payload);
@@ -601,13 +627,13 @@ export const createStoreActions = ({
     return id;
   },
   updateSessionEntry: async (sessionId, payload) => {
-    assertAuthenticated();
+    assertActiveUser();
     await updateSession(sessionId, payload);
     await trackSyncChange('session', 'update', sessionId, payload);
     await refresh(activeUserId);
   },
   addSessionSegment: async (payload) => {
-    assertAuthenticated();
+    assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
     const id = await createSessionSegment({ ...payload, userId: activeUserId });
     await trackSyncChange('session_segment', 'create', id, payload);
@@ -615,13 +641,13 @@ export const createStoreActions = ({
     return id;
   },
   updateSessionSegmentEntry: async (segmentId, payload) => {
-    assertAuthenticated();
+    assertActiveUser();
     await updateSessionSegment(segmentId, payload);
     await trackSyncChange('session_segment', 'update', segmentId, payload);
     await refresh(activeUserId);
   },
   addCatchEvent: async (payload) => {
-    assertAuthenticated();
+    assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
     const id = await createCatchEvent({ ...payload, userId: activeUserId });
     await trackSyncChange('catch_event', 'create', id, payload);
@@ -629,7 +655,7 @@ export const createStoreActions = ({
     return id;
   },
   addExperiment: async (payload) => {
-    assertAuthenticated();
+    assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
     const id = await createExperiment({ ...payload, userId: activeUserId });
     await trackSyncChange('experiment', 'create', id, payload);
@@ -637,13 +663,13 @@ export const createStoreActions = ({
     return id;
   },
   updateExperimentEntry: async (experimentId, payload) => {
-    assertAuthenticated();
+    assertActiveUser();
     await updateExperiment(experimentId, payload);
     await trackSyncChange('experiment', 'update', experimentId, payload);
     await refresh(activeUserId);
   },
   archiveInconclusiveExperiments: async ({ from, to }) => {
-    assertAuthenticated();
+    assertActiveUser();
     const experimentIds = experiments
       .filter((experiment) => {
         if (experiment.outcome !== 'inconclusive') return false;

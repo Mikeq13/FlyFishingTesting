@@ -65,26 +65,26 @@ export const HomeScreen = ({ navigation }: any) => {
           </Text>
           <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 24 }}>{currentUser?.name ?? 'Loading...'}</Text>
           <Text style={{ color: theme.colors.textSoft }}>
-            Your fishing history, saved setups, invites, and competitions now stay tied to this signed-in angler account.
+            Your fishing history, saved setups, and field-test flows stay tied to this active angler profile. Cloud sign-in is available when you want remote identity and sync.
           </Text>
           <Text style={{ color: theme.colors.textMuted }}>Access: {currentEntitlementLabel}</Text>
           <Text style={{ color: theme.colors.textSoft }}>Premium features: {currentHasPremiumAccess ? 'Enabled' : 'Locked'}</Text>
-          <Text style={{ color: theme.colors.textSoft }}>Signed in as: {remoteSession?.email ?? 'No account linked'}</Text>
+          <Text style={{ color: theme.colors.textSoft }}>Cloud account: {remoteSession?.email ?? 'Running in local mode'}</Text>
           <Text style={{ color: theme.colors.textSoft }}>Beta sync queue: {syncStatus.pendingCount} pending</Text>
           <Text style={{ color: theme.colors.textSoft }}>Sync state: {syncStatus.state}</Text>
           <Text style={{ color: theme.colors.textSoft }}>Shared data: {sharedDataStatus}</Text>
           <Text style={{ color: theme.colors.textSoft }}>Notifications: {notificationPermissionStatus}</Text>
-          {authStatus === 'authenticating' && !remoteSession ? <StatusBanner tone="info" text="Finish the account sign-in on this device before using the rest of the app." /> : null}
+          {authStatus === 'authenticating' && !remoteSession ? <StatusBanner tone="info" text="Cloud sign-in is still finishing, but local testing can continue on this device." /> : null}
           {authStatus === 'pending_verification' ? <StatusBanner tone="info" text="Check your inbox to finish verification, recovery, or magic-link sign-in for this account." /> : null}
           {syncStatus.lastError ? <StatusBanner tone="error" text={`Last sync issue: ${syncStatus.lastError}`} /> : null}
           {notificationPermissionStatus === 'denied' ? <StatusBanner tone="warning" text="Device notifications are turned off, so session reminders will stay in-app only until permissions are restored." /> : null}
         </SectionCard>
-        <SectionCard title="Account Identity" subtitle="Owner and tester access come from the signed-in account, not from a generic local profile.">
+        <SectionCard title="Account Identity" subtitle="Local owner mode works for field testing now, and cloud sign-in remains available when you want remote identity.">
           <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
-            Use Access to update your account details, link the owner identity, recover your password, or manage MFA.
+            Use Access to update your local profile, manage owner testing access, or optionally link a cloud account for recovery and sync.
           </Text>
           <Text style={{ color: theme.colors.textMuted }}>
-            Owner tools: {isAuthenticatedOwner ? 'Unlocked for this session' : 'Locked until the linked owner account is signed in'}
+            Owner tools: {canManageAccess ? 'Unlocked for this session' : isAuthenticatedOwner ? 'Unlocked for this session' : 'Locked until the linked owner account is signed in'}
           </Text>
         </SectionCard>
         <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
@@ -95,6 +95,7 @@ export const HomeScreen = ({ navigation }: any) => {
             <AppButton label="View History" onPress={() => navigation.navigate('History')} variant="secondary" />
           </View>
         </View>
+        {!remoteSession ? <AppButton label="Optional Cloud Sign-In" onPress={() => navigation.navigate('Auth')} variant="ghost" /> : null}
         {[
           [`View Insights${currentHasPremiumAccess ? '' : ' (Premium)'}`, 'Insights'],
           [`Ask AI Coach${currentHasPremiumAccess ? '' : ' (Premium)'}`, 'Coach'],

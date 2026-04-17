@@ -94,6 +94,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       ((currentUser.ownerLinkedAuthId && currentUser.ownerLinkedAuthId === remoteSession.authUserId) ||
         (currentUser.ownerLinkedEmail && currentUser.ownerLinkedEmail === remoteSession.email))
   );
+  const canManageAccess = Boolean(currentUser?.role === 'owner' && (!remoteSession || isAuthenticatedOwner));
 
   const selectActiveUser = async (id: number) => {
     setActiveUserId(id);
@@ -623,7 +624,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         currentUser,
         currentEntitlementLabel: getEntitlementLabel(currentUser),
         currentHasPremiumAccess: hasPremiumAccess(currentUser),
-        canManageAccess: isAuthenticatedOwner,
+        canManageAccess,
         savedFlies,
         savedLeaderFormulas,
         savedRigPresets,

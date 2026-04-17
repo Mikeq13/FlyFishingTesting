@@ -50,7 +50,7 @@ const AppNavigator = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName={remoteSession && currentUser ? 'Home' : 'Auth'}
+        initialRouteName={currentUser ? 'Home' : 'Auth'}
         screenOptions={{
           headerTintColor: theme.colors.headerTint,
           headerBackTitleVisible: false,
@@ -58,22 +58,17 @@ const AppNavigator = () => {
           headerTitleStyle: { color: theme.colors.textDark }
         }}
       >
-        {!remoteSession || !currentUser ? (
-          <Stack.Screen name="Auth" component={AuthScreen} options={{ headerShown: false }} />
-        ) : (
-          <>
-            <Stack.Screen name="Home" component={HomeScreen} />
-            <Stack.Screen name="Session" component={SessionScreen} />
-            <Stack.Screen name="Experiment" component={ExperimentScreen} />
-            <Stack.Screen name="Practice" component={PracticeScreen} />
-            <Stack.Screen name="Competition" component={CompetitionScreen} />
-            <Stack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: 'Session' }} />
-            <Stack.Screen name="Insights" component={InsightsScreen} />
-            <Stack.Screen name="History" component={HistoryScreen} />
-            <Stack.Screen name="Coach" component={CoachScreen} />
-            <Stack.Screen name="Access" component={AccessScreen} />
-          </>
-        )}
+        <Stack.Screen name="Auth" component={AuthScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="Session" component={SessionScreen} />
+        <Stack.Screen name="Experiment" component={ExperimentScreen} />
+        <Stack.Screen name="Practice" component={PracticeScreen} />
+        <Stack.Screen name="Competition" component={CompetitionScreen} />
+        <Stack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: 'Session' }} />
+        <Stack.Screen name="Insights" component={InsightsScreen} />
+        <Stack.Screen name="History" component={HistoryScreen} />
+        <Stack.Screen name="Coach" component={CoachScreen} />
+        <Stack.Screen name="Access" component={AccessScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
