@@ -10,6 +10,7 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { AppButton } from '@/components/ui/AppButton';
 import { StatusBanner } from '@/components/ui/StatusBanner';
+import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { appTheme } from '@/design/theme';
 
 const inputStyle = {
@@ -216,11 +217,11 @@ export const HistoryScreen = ({ navigation }: any) => {
 
         return (
           <SectionCard key={session.id} title={new Date(session.date).toLocaleString()} subtitle={`${session.waterType} water • ${session.depthRange}`} tone="light">
-            <Text style={{ color: '#334e68' }}>Month: {new Date(session.date).toLocaleString('en-US', { month: 'long' })}</Text>
-            {session.riverName ? <Text style={{ color: '#334e68' }}>River: {session.riverName}</Text> : null}
-            {session.hypothesis ? <Text style={{ color: '#334e68' }}>Session hypothesis: {session.hypothesis}</Text> : null}
-            <Text style={{ color: '#334e68' }}>Session catch rate: {(rate * 100).toFixed(1)}%</Text>
-            <Text style={{ color: '#334e68' }}>Experiments logged: {sessionExperiments.length}</Text>
+            <InlineSummaryRow label="Month" value={new Date(session.date).toLocaleString('en-US', { month: 'long' })} />
+            {session.riverName ? <InlineSummaryRow label="River" value={session.riverName} /> : null}
+            {session.hypothesis ? <InlineSummaryRow label="Session Hypothesis" value={session.hypothesis} /> : null}
+            <InlineSummaryRow label="Session Catch Rate" value={`${(rate * 100).toFixed(1)}%`} />
+            <InlineSummaryRow label="Experiments Logged" value={`${sessionExperiments.length}`} />
 
             {!!sessionExperiments.length && (
               <View style={{ marginTop: 4, gap: 4 }}>
@@ -233,13 +234,11 @@ export const HistoryScreen = ({ navigation }: any) => {
 
                   return (
                     <View key={experiment.id} style={{ backgroundColor: '#e9f5fb', borderRadius: appTheme.radius.md, padding: 10, gap: 4 }}>
-                      <Text style={{ color: '#102a43' }}>Hypothesis: {experiment.hypothesis}</Text>
-                      <Text style={{ color: '#334e68' }}>Control focus: {experiment.controlFocus}</Text>
-                      <Text style={{ color: '#334e68' }}>
-                        Status: {experiment.status === 'draft' ? 'Incomplete Entry' : 'Complete'}
-                      </Text>
-                      <Text style={{ color: '#334e68' }}>Outcome: {experiment.outcome}</Text>
-                      <Text style={{ color: '#334e68' }}>Winner: {experiment.winner}</Text>
+                      <InlineSummaryRow label="Hypothesis" value={experiment.hypothesis} />
+                      <InlineSummaryRow label="Control Focus" value={experiment.controlFocus} />
+                      <InlineSummaryRow label="Status" value={experiment.status === 'draft' ? 'Incomplete Entry' : 'Complete'} />
+                      <InlineSummaryRow label="Outcome" value={experiment.outcome} />
+                      <InlineSummaryRow label="Winner" value={experiment.winner} />
                       <Text style={{ color: '#334e68' }}>Flies: {entries.map((entry) => `${entry.fly.name || entry.label} (#${entry.fly.hookSize}, ${entry.fly.beadColor}, ${entry.fly.beadSizeMm})`).join(', ')}</Text>
                       <Text style={{ color: '#334e68' }}>Catch rate: {experimentRate.toFixed(1)}%</Text>
                       {entries.some((entry) => entry.fishSizesInches.length) ? (

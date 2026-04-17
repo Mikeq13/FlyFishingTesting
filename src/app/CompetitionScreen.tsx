@@ -11,6 +11,10 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { StatusBanner } from '@/components/ui/StatusBanner';
 import { AppButton } from '@/components/ui/AppButton';
+import { ModalSurface } from '@/components/ui/ModalSurface';
+import { FormField, formInputStyle } from '@/components/ui/FormField';
+import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
+import { ActionGroup } from '@/components/ui/ActionGroup';
 import { appTheme } from '@/design/theme';
 
 const TROUT_SPECIES: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow', 'Tiger', 'Whitefish'];
@@ -144,10 +148,10 @@ export const CompetitionScreen = ({ route }: any) => {
           eyebrow={`${currentCompetitionGroup ? `Group ${currentCompetitionGroup.label}` : 'Competition'}${session.competitionBeat ? ` • Beat ${session.competitionBeat}` : ''}${currentCompetitionSession ? ` • Session ${currentCompetitionSession.sessionNumber}` : ''}`}
         />
         <SectionCard title="Assignment" subtitle="Keep the critical comp details visible without crowding the screen.">
-          {currentCompetitionGroup ? <Text style={{ color: appTheme.colors.textMuted, fontWeight: '700' }}>Assigned group: {currentCompetitionGroup.label}</Text> : null}
-          {session.competitionBeat ? <Text style={{ color: appTheme.colors.textMuted, fontWeight: '700' }}>Beat: {session.competitionBeat}</Text> : null}
-          {currentCompetitionSession ? <Text style={{ color: appTheme.colors.textMuted, fontWeight: '700' }}>Session #{currentCompetitionSession.sessionNumber}</Text> : null}
-          <Text style={{ color: appTheme.colors.textSoft }}>Role: {session.competitionRole ?? 'fishing'}</Text>
+          {currentCompetitionGroup ? <InlineSummaryRow label="Assigned Group" value={currentCompetitionGroup.label} /> : null}
+          {session.competitionBeat ? <InlineSummaryRow label="Beat" value={session.competitionBeat} /> : null}
+          {currentCompetitionSession ? <InlineSummaryRow label="Session" value={`${currentCompetitionSession.sessionNumber}`} /> : null}
+          <InlineSummaryRow label="Role" value={session.competitionRole ?? 'fishing'} />
         </SectionCard>
 
         {timer.activeAlertMinute ? (
@@ -155,21 +159,19 @@ export const CompetitionScreen = ({ route }: any) => {
         ) : null}
 
         <SectionCard title="Session Timer" subtitle="Timing stays readable so you can fish or control without second-guessing the clock.">
-          <Text style={{ color: '#d7f3ff' }}>Elapsed: {timer.elapsedLabel}</Text>
-          {timer.remainingLabel ? <Text style={{ color: '#d7f3ff' }}>Remaining: {timer.remainingLabel}</Text> : null}
+          <InlineSummaryRow label="Elapsed" value={timer.elapsedLabel} />
+          {timer.remainingLabel ? <InlineSummaryRow label="Remaining" value={timer.remainingLabel} /> : null}
           {timer.hasEnded ? <StatusBanner tone="error" text="Session ended early." /> : null}
-          {!timer.hasEnded && timer.nextAlertMinute ? <Text style={{ color: '#d7f3ff' }}>Next alert: {timer.nextAlertMinute} min</Text> : null}
+          {!timer.hasEnded && timer.nextAlertMinute ? <InlineSummaryRow label="Next Alert" value={`${timer.nextAlertMinute} min`} /> : null}
           {!timer.hasEnded ? (
             <AppButton label="End Session Early" onPress={endSessionEarly} variant="danger" />
           ) : null}
         </SectionCard>
 
         <SectionCard title="Scorecard" subtitle="Keep fish count and official length totals easy to check at a glance." tone="light">
-          <Text style={{ color: '#334e68' }}>Total fish: {competitionCatches.length}</Text>
+          <InlineSummaryRow label="Total Fish" value={`${competitionCatches.length}`} />
           {competitionRequiresMeasurement ? (
-            <Text style={{ color: '#334e68' }}>
-              Total length: {Math.round(totalLengthDisplay)} {competitionLengthUnit}
-            </Text>
+            <InlineSummaryRow label="Total Length" value={`${Math.round(totalLengthDisplay)} ${competitionLengthUnit}`} />
           ) : (
             <Text style={{ color: '#334e68' }}>This session is counting fish only. No length entry required.</Text>
           )}
@@ -186,11 +188,11 @@ export const CompetitionScreen = ({ route }: any) => {
             {competitionSummaryRows.map((row) => (
               <View key={row.assignment.id} style={{ backgroundColor: '#e9f5fb', borderRadius: appTheme.radius.md, padding: 12, gap: 4 }}>
                 <Text style={{ color: appTheme.colors.textDark, fontWeight: '800' }}>{row.name}</Text>
-                <Text style={{ color: '#334e68' }}>
-                  {row.status === 'controlling' ? 'Controlling' : `${row.fishCount} fish`}
-                  {session.competitionRequiresMeasurement && row.status !== 'controlling' ? ` | ${Math.round(row.totalLength)} ${competitionLengthUnit}` : ''}
-                </Text>
-                <Text style={{ color: '#486581', textTransform: 'capitalize' }}>{row.status}</Text>
+                <InlineSummaryRow label="Result" value={row.status === 'controlling' ? 'Controlling' : `${row.fishCount} fish`} />
+                {session.competitionRequiresMeasurement && row.status !== 'controlling' ? (
+                  <InlineSummaryRow label="Measured Length" value={`${Math.round(row.totalLength)} ${competitionLengthUnit}`} />
+                ) : null}
+                <InlineSummaryRow label="Status" value={row.status} />
               </View>
             ))}
           </SectionCard>
@@ -213,30 +215,32 @@ export const CompetitionScreen = ({ route }: any) => {
       </ScrollView>
 
       <Modal visible={showCatchModal} transparent animationType="fade" onRequestClose={() => setShowCatchModal(false)}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(4,18,29,0.76)', justifyContent: 'center', padding: 20 }}>
-          <View style={{ backgroundColor: 'rgba(8,28,41,0.96)', borderRadius: 22, padding: 18, gap: 12, borderWidth: 1, borderColor: appTheme.colors.border }}>
-            <Text style={{ color: '#f7fdff', fontSize: 22, fontWeight: '800' }}>Log Competition Fish</Text>
-            <OptionChips label="Species" options={TROUT_SPECIES} value={species} onChange={setSpecies} />
-            {competitionRequiresMeasurement ? (
-              <>
-                <Text style={{ color: '#d7f3ff' }}>
-                  Measurement unit stays on {competitionLengthUnit} for this session.
-                  {competitionLengthUnit === 'cm' ? ' Minimum fish size is 20 cm.' : ' Minimum measurable fish size is 200 mm.'}
-                </Text>
+        <ModalSurface
+          title="Log Competition Fish"
+          subtitle="Keep the scoring flow quick and clear so the phone never gets in the way of the session."
+        >
+          <OptionChips label="Species" options={TROUT_SPECIES} value={species} onChange={setSpecies} />
+          {competitionRequiresMeasurement ? (
+            <>
+              <StatusBanner
+                tone="info"
+                text={`Measurement unit stays on ${competitionLengthUnit} for this session.${competitionLengthUnit === 'cm' ? ' Minimum fish size is 20 cm.' : ' Minimum measurable fish size is 200 mm.'}`}
+              />
+              <FormField label={`Length (${competitionLengthUnit})`}>
                 <TextInput
                   value={lengthValue}
                   onChangeText={setLengthValue}
                   keyboardType="number-pad"
                   placeholder={`Length in ${competitionLengthUnit}`}
                   placeholderTextColor="#5a6c78"
-                  style={{ borderWidth: 1, borderColor: appTheme.colors.borderStrong, padding: 12, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
+                  style={formInputStyle}
                 />
-              </>
-            ) : (
-              <Text style={{ color: '#d7f3ff' }}>
-                This session is fish-count only. Save each catch with species and timestamp.
-              </Text>
-            )}
+              </FormField>
+            </>
+          ) : (
+            <StatusBanner tone="info" text="This session is fish-count only. Save each catch with species and timestamp." />
+          )}
+          <ActionGroup direction="horizontal">
             <AppButton
               label="Save Fish"
               onPress={() => {
@@ -245,8 +249,8 @@ export const CompetitionScreen = ({ route }: any) => {
               disabled={competitionRequiresMeasurement && !(Number.isFinite(Number(lengthValue)) && Number(lengthValue) >= (competitionLengthUnit === 'cm' ? 20 : 200))}
             />
             <AppButton label="Cancel" onPress={() => setShowCatchModal(false)} variant="ghost" />
-          </View>
-        </View>
+          </ActionGroup>
+        </ModalSurface>
       </Modal>
     </ScreenBackground>
   );

@@ -8,6 +8,7 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { AppButton } from '@/components/ui/AppButton';
 import { StatusBanner } from '@/components/ui/StatusBanner';
+import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 
 export const SessionDetailScreen = ({ route, navigation }: any) => {
   const { sessions, experiments, users, activeUserId, archiveExperiment, deleteExperiment } = useAppStore();
@@ -60,11 +61,11 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
         />
         {session ? (
           <SectionCard title="Session Summary" subtitle={new Date(session.date).toLocaleString()} tone="light">
-            {session.riverName ? <Text style={{ color: '#334e68' }}>River: {session.riverName}</Text> : null}
-            <Text style={{ color: '#334e68' }}>Water: {session.waterType}</Text>
-            <Text style={{ color: '#334e68' }}>Depth: {session.depthRange}</Text>
-            {session.hypothesis ? <Text style={{ color: '#334e68' }}>Session hypothesis: {session.hypothesis}</Text> : null}
-            <Text style={{ color: '#334e68' }}>Catch rate: {(catchRate(totalCatches, totalCasts) * 100).toFixed(1)}%</Text>
+            {session.riverName ? <InlineSummaryRow label="River" value={session.riverName} /> : null}
+            <InlineSummaryRow label="Water" value={session.waterType} />
+            <InlineSummaryRow label="Depth" value={session.depthRange} />
+            {session.hypothesis ? <InlineSummaryRow label="Hypothesis" value={session.hypothesis} /> : null}
+            <InlineSummaryRow label="Catch Rate" value={`${(catchRate(totalCatches, totalCasts) * 100).toFixed(1)}%`} />
           </SectionCard>
         ) : (
           <StatusBanner tone="error" text="Session not found." />
@@ -74,10 +75,10 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
         {sessionExperiments.map((e) => (
           <View key={e.id} style={{ backgroundColor: '#e9f5fb', borderRadius: 12, padding: 14, gap: 4 }}>
             <Text style={{ fontWeight: '800', color: '#102a43' }}>#{e.id} Status: {e.status === 'draft' ? 'Draft' : 'Complete'}</Text>
-            <Text style={{ color: '#334e68' }}>Outcome: {e.outcome}</Text>
-            <Text style={{ color: '#334e68' }}>Winner: {e.winner}</Text>
-            <Text style={{ color: '#334e68' }}>Hypothesis: {e.hypothesis}</Text>
-            <Text style={{ color: '#334e68' }}>Control focus: {e.controlFocus}</Text>
+            <InlineSummaryRow label="Outcome" value={e.outcome} />
+            <InlineSummaryRow label="Winner" value={e.winner} />
+            <InlineSummaryRow label="Hypothesis" value={e.hypothesis} />
+            <InlineSummaryRow label="Control Focus" value={e.controlFocus} />
             {getExperimentEntries(e).map((entry) => (
               <View key={`${e.id}-${entry.slotId}`} style={{ gap: 2 }}>
                 <Text style={{ color: '#334e68' }}>

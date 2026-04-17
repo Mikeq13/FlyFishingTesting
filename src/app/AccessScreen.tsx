@@ -1,20 +1,19 @@
 import React from 'react';
-import { Alert, Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { Alert, Platform, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { ScreenBackground } from '@/components/ScreenBackground';
-import { OptionChips } from '@/components/OptionChips';
 import { UserDataCleanupCategory, useAppStore } from './store';
-import { getEntitlementLabel, hasPremiumAccess } from '@/engine/entitlementEngine';
 import { beginAppleSubscriptionPurchase, PREMIUM_MONTHLY_PRICE_LABEL, PREMIUM_TRIAL_LABEL } from '@/billing/storekit';
 import { parseLocalTimeInput } from '@/utils/dateTime';
 import { CompetitionSessionRole } from '@/types/group';
-import { AppButton } from '@/components/ui/AppButton';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
-import { SectionCard } from '@/components/ui/SectionCard';
-import { StatusBanner } from '@/components/ui/StatusBanner';
 import { ActionGroup } from '@/components/ui/ActionGroup';
-import { FormField, formInputStyle } from '@/components/ui/FormField';
-import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
-import { appTheme } from '@/design/theme';
+import { AppButton } from '@/components/ui/AppButton';
+import { AccessStatusSection } from '@/components/access/AccessStatusSection';
+import { LocalDataSection } from '@/components/access/LocalDataSection';
+import { GroupsSharingSection } from '@/components/access/GroupsSharingSection';
+import { InvitesSponsorshipSection } from '@/components/access/InvitesSponsorshipSection';
+import { CompetitionsSection } from '@/components/access/CompetitionsSection';
+import { OwnerControlsSection } from '@/components/access/OwnerControlsSection';
 
 export const AccessScreen = () => {
   const { width } = useWindowDimensions();
@@ -217,51 +216,7 @@ export const AccessScreen = () => {
         <AppButton
           key={`${userId}-${item.key}`}
           label={item.label}
-          onPress={() => {
-            if (item.key === 'experiments') {
-              Alert.alert(
-                'Clear experiments',
-                `Choose whether to delete only incomplete draft experiments or remove all experiments for ${userName}. Drafts are unfinished entries you may not need anymore. All experiments removes both draft and completed experiment history.`,
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Delete Drafts Only',
-                    style: 'destructive',
-                    onPress: () => {
-                      runAdminAction(
-                        () => clearUserDataCategories(userId, ['drafts']),
-                        `Draft experiments deleted for ${userName}.`
-                      ).catch((error) => {
-                        const reason = error instanceof Error ? error.message : 'Please try again.';
-                        Alert.alert('Unable to finish action', reason);
-                      });
-                    }
-                  },
-                  {
-                    text: 'Delete All Experiments',
-                    style: 'destructive',
-                    onPress: () => {
-                      runAdminAction(
-                        () => clearUserDataCategories(userId, ['experiments']),
-                        `All experiments deleted for ${userName}.`
-                      ).catch((error) => {
-                        const reason = error instanceof Error ? error.message : 'Please try again.';
-                        Alert.alert('Unable to finish action', reason);
-                      });
-                    }
-                  }
-                ]
-              );
-              return;
-            }
-
-            confirmAdminAction(
-              `${item.label}?`,
-              `${item.description} This only affects ${userName} on this device.`,
-              () => (item.key === 'all' ? clearFishingDataForUser(userId) : clearUserDataCategories(userId, [item.key])),
-              `${item.label.replace('Clear ', '')} finished for ${userName}.`
-            );
-          }}
+          onPress={() => handleCleanupCategory(userId, userName, item.key)}
           variant={item.destructive ? 'danger' : 'ghost'}
         />
       ))}
@@ -368,6 +323,58 @@ export const AccessScreen = () => {
     Alert.alert('Assignment saved', 'Competition assignment updated.');
   };
 
+  const deleteCurrentProfile = async () => {
+    confirmAdminAction(
+      'Delete this angler profile?',
+      `This permanently removes ${currentUser.name} and all of their saved fishing data from this device.`,
+      () => deleteAngler(currentUser.id),
+      `${currentUser.name} was deleted from this device.`
+    );
+  };
+
+  const handleCleanupCategory = (userId: number, userName: string, category: UserDataCleanupCategory) => {
+    const item = cleanupConfig.find((entry) => entry.key === category);
+    if (!item) return;
+
+    if (item.key === 'experiments') {
+      Alert.alert(
+        'Clear experiments',
+        `Choose whether to delete only incomplete draft experiments or remove all experiments for ${userName}. Drafts are unfinished entries you may not need anymore. All experiments removes both draft and completed experiment history.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete Drafts Only',
+            style: 'destructive',
+            onPress: () => {
+              runAdminAction(() => clearUserDataCategories(userId, ['drafts']), `Draft experiments deleted for ${userName}.`).catch((error) => {
+                const reason = error instanceof Error ? error.message : 'Please try again.';
+                Alert.alert('Unable to finish action', reason);
+              });
+            }
+          },
+          {
+            text: 'Delete All Experiments',
+            style: 'destructive',
+            onPress: () => {
+              runAdminAction(() => clearUserDataCategories(userId, ['experiments']), `All experiments deleted for ${userName}.`).catch((error) => {
+                const reason = error instanceof Error ? error.message : 'Please try again.';
+                Alert.alert('Unable to finish action', reason);
+              });
+            }
+          }
+        ]
+      );
+      return;
+    }
+
+    confirmAdminAction(
+      `${item.label}?`,
+      `${item.description} This only affects ${userName} on this device.`,
+      () => (item.key === 'all' ? clearFishingDataForUser(userId) : clearUserDataCategories(userId, [item.key])),
+      `${item.label.replace('Clear ', '')} finished for ${userName}.`
+    );
+  };
+
   return (
     <ScreenBackground>
       <ScrollView
@@ -387,529 +394,112 @@ export const AccessScreen = () => {
           subtitle="Manage shared beta sync, premium access, friend groups, and competitions from one place."
           eyebrow="Utility Center"
         />
+        <AccessStatusSection
+          currentUserName={currentUser.name}
+          currentEntitlementLabel={currentEntitlementLabel}
+          currentHasPremiumAccess={currentHasPremiumAccess}
+          syncStatus={syncStatus}
+          remoteSession={remoteSession}
+          isSyncEnabled={isSyncEnabled}
+          authStatus={authStatus}
+          authEmail={authEmail}
+          onAuthEmailChange={setAuthEmail}
+          onSendMagicLink={() => signInWithMagicLink(authEmail)}
+          onSignOut={signOutRemote}
+          onSyncNow={flushSyncQueue}
+          showPremiumActions={currentUser.role !== 'owner'}
+          onStartTrial={() => runAdminAction(() => startTrialForUser(currentUser.id), '7-day trial started for this account.')}
+          onContinueWithApple={handlePurchase}
+        />
 
-        <SectionCard title="Current Access" subtitle="Your sync state, remote sign-in, and subscription tools live here.">
-          <Text style={{ color: '#f7fdff', fontWeight: '800', fontSize: 22 }}>{currentUser.name}</Text>
-          <View style={{ gap: 8, backgroundColor: appTheme.colors.surfaceMuted, borderRadius: appTheme.radius.md, padding: 12 }}>
-            <InlineSummaryRow label="Status" value={currentEntitlementLabel} />
-            <InlineSummaryRow label="Premium Features" value={currentHasPremiumAccess ? 'Enabled' : 'Locked'} />
-            <InlineSummaryRow label="Sync Queue" value={`${syncStatus.pendingCount} pending, ${syncStatus.syncedCount} synced`} />
-            <InlineSummaryRow label="Sync State" value={syncStatus.state} />
-            <InlineSummaryRow label="Remote Auth" value={remoteSession?.email ?? 'Not signed in'} valueMuted={!remoteSession?.email} />
-            <InlineSummaryRow label="Shared Sync" value={isSyncEnabled ? 'Enabled' : 'Waiting for sign-in or env setup'} valueMuted={!isSyncEnabled} />
-            <InlineSummaryRow label="Last Sync" value={syncStatus.lastSyncedAt ? new Date(syncStatus.lastSyncedAt).toLocaleString() : 'Not synced yet'} valueMuted={!syncStatus.lastSyncedAt} />
-          </View>
-          {syncStatus.lastError ? <StatusBanner tone="error" text={`Last sync issue: ${syncStatus.lastError}`} /> : null}
-          <Text style={{ color: '#d7f3ff' }}>
-            Plan: {PREMIUM_MONTHLY_PRICE_LABEL} with a {PREMIUM_TRIAL_LABEL.toLowerCase()}
-          </Text>
-          <ActionGroup>
-            <FormField label="Shared Beta Email">
-              <TextInput
-                value={authEmail}
-                onChangeText={setAuthEmail}
-                placeholder="angler@email.com"
-                placeholderTextColor="#5a6c78"
-                autoCapitalize="none"
-                keyboardType="email-address"
-                style={formInputStyle}
-              />
-            </FormField>
-            <AppButton
-              label={authStatus === 'authenticating' ? 'Sending Magic Link...' : 'Send Magic Link'}
-              onPress={() =>
-                signInWithMagicLink(authEmail)
-                  .then(() =>
-                    Alert.alert(
-                      'Magic link sent',
-                      'Check your email on this device and open the link to finish signing in.'
-                    )
-                  )
-                  .catch((error) =>
-                    Alert.alert('Unable to start sign-in', error instanceof Error ? error.message : 'Please try again.')
-                  )
-              }
-              disabled={authStatus === 'authenticating'}
-            />
-            {remoteSession ? (
-              <AppButton
-                label="Sign Out of Shared Beta"
-                onPress={() =>
-                  signOutRemote()
-                    .then(() => Alert.alert('Signed out', 'Shared beta sync is now disconnected on this device.'))
-                    .catch((error) =>
-                      Alert.alert('Unable to sign out', error instanceof Error ? error.message : 'Please try again.')
-                    )
-                }
-                variant="danger"
-              />
-            ) : null}
-            <AppButton
-              label="Sync Now"
-              onPress={() =>
-                flushSyncQueue()
-                  .then(() => Alert.alert('Sync complete', 'Pending shared records were pushed to Supabase.'))
-                  .catch((error) =>
-                    Alert.alert('Unable to sync now', error instanceof Error ? error.message : 'Please try again.')
-                  )
-              }
-              variant="tertiary"
-            />
-          </ActionGroup>
+        <LocalDataSection
+          isOwner={currentUser.role === 'owner'}
+          cleanupActions={renderCleanupActions(currentUser.id, currentUser.name)}
+          onDeleteProfile={deleteCurrentProfile}
+        />
 
-          {currentUser.role !== 'owner' && (
-            <>
-              <AppButton label="Start 7-Day Trial" onPress={() => { runAdminAction(() => startTrialForUser(currentUser.id), '7-day trial started for this account.').catch(console.error); }} />
-              <AppButton label="Continue With Apple Subscription" onPress={() => { handlePurchase().catch(console.error); }} variant="secondary" />
-            </>
-          )}
-        </SectionCard>
+        <GroupsSharingSection
+          currentUserId={currentUser.id}
+          joinedGroups={joinedGroups}
+          joinedMemberships={joinedMemberships}
+          sharePreferences={sharePreferences}
+          newGroupName={newGroupName}
+          onNewGroupNameChange={setNewGroupName}
+          joinGroupCode={joinGroupCode}
+          onJoinGroupCodeChange={setJoinGroupCode}
+          onCreateGroup={saveGroup}
+          onJoinGroup={handleJoinGroup}
+          onUpdateSharePreference={updateSharePreference}
+        />
 
-        <View style={{ gap: 8, backgroundColor: 'rgba(6, 27, 44, 0.72)', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
-          <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>My Data</Text>
-          <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
-            Clean up local fishing data for the active profile without affecting other anglers on this device.
-          </Text>
-          {renderCleanupActions(currentUser.id, currentUser.name)}
-          {currentUser.role !== 'owner' ? (
-            <Pressable
-              onPress={() =>
-                confirmAdminAction(
-                  'Delete this angler profile?',
-                  `This permanently removes ${currentUser.name} and all of their saved fishing data from this device.`,
-                  () => deleteAngler(currentUser.id),
-                  `${currentUser.name} was deleted from this device.`
-                )
-              }
-              style={{ backgroundColor: '#5b0b0b', padding: 12, borderRadius: 12 }}
-            >
-              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Delete My Angler Profile</Text>
-            </Pressable>
-          ) : (
-            <View style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 10 }}>
-              <Text style={{ color: '#d7f3ff' }}>
-                The owner profile stays in place, but you can still clear its fishing data when you want a fresh start.
-              </Text>
-            </View>
-          )}
-        </View>
+        <InvitesSponsorshipSection
+          currentUserId={currentUser.id}
+          joinedGroups={joinedGroups}
+          organizerGroups={organizerGroups}
+          inviteTargetGroupId={inviteTargetGroupId}
+          onInviteTargetGroupChange={setInviteTargetGroupId}
+          inviteTargetName={inviteTargetName}
+          onInviteTargetNameChange={setInviteTargetName}
+          inviteAcceptCode={inviteAcceptCode}
+          onInviteAcceptCodeChange={setInviteAcceptCode}
+          invites={invites}
+          sponsoredAccess={sponsoredAccess}
+          groups={groups}
+          users={users}
+          onCreateInvite={sendInvite}
+          onAcceptInvite={handleAcceptInvite}
+          onRevokeSponsoredAccess={revokeSponsoredAccess}
+        />
 
-        <SectionCard title="Groups & Sharing" subtitle="Keep friend sharing useful and easy to understand.">
-          <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
-            Create or join a group, then choose what this angler shares with that crew for joint learning.
-          </Text>
-          <TextInput
-            value={newGroupName}
-            onChangeText={setNewGroupName}
-            placeholder="New group name"
-            placeholderTextColor="#5a6c78"
-            style={{ borderRadius: appTheme.radius.md, padding: 12, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
+        <CompetitionsSection
+          currentUser={currentUser}
+          users={users}
+          competitionGroups={competitionGroups}
+          competitionSessions={competitionSessions}
+          competitionParticipants={competitionParticipants}
+          competitionAssignments={competitionAssignments}
+          newCompetitionName={newCompetitionName}
+          onNewCompetitionNameChange={setNewCompetitionName}
+          competitionGroupCount={competitionGroupCount}
+          onCompetitionGroupCountChange={setCompetitionGroupCount}
+          competitionSessionCount={competitionSessionCount}
+          onCompetitionSessionCountChange={setCompetitionSessionCount}
+          competitionSchedule={competitionSchedule}
+          onCompetitionScheduleChange={(index, next) =>
+            setCompetitionSchedule((current) =>
+              current.map((entry, entryIndex) => (entryIndex === index ? { ...entry, ...next } : entry))
+            )
+          }
+          competitionJoinCode={competitionJoinCode}
+          onCompetitionJoinCodeChange={setCompetitionJoinCode}
+          joinedCompetitionList={joinedCompetitionList}
+          getDraftForAssignment={getDraftForAssignment}
+          onUpdateAssignmentDraft={updateAssignmentDraft}
+          onCreateCompetition={saveCompetition}
+          onJoinCompetition={handleJoinCompetition}
+          onSaveAssignment={saveAssignment}
+        />
+
+        {canManageAccess ? (
+          <OwnerControlsSection
+            ownerUser={ownerUser}
+            users={users}
+            cleanupConfig={cleanupConfig}
+            onGrantPowerUser={(userId, userName) => runAdminAction(() => grantPowerUserAccess(userId), `${userName} now has power-user access.`)}
+            onStartTrial={(userId, userName) => runAdminAction(() => startTrialForUser(userId), `${userName} now has a 7-day trial.`)}
+            onMarkSubscriber={(userId, userName) => runAdminAction(() => markSubscriberAccess(userId), `${userName} is marked as subscribed.`)}
+            onResetAccess={(userId, userName) => runAdminAction(() => clearUserAccess(userId), `${userName} was reset to free access.`)}
+            onCleanupCategory={handleCleanupCategory}
+            onDeleteAngler={(userId, userName) =>
+              confirmAdminAction(
+                'Delete angler?',
+                `This permanently removes ${userName} and all of their saved fishing data from this device.`,
+                () => deleteAngler(userId),
+                `${userName} was deleted from this device.`
+              )
+            }
           />
-          <AppButton label="Create Group" onPress={() => { saveGroup().catch((error) => Alert.alert('Unable to create group', error instanceof Error ? error.message : 'Please try again.')); }} />
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TextInput
-              value={joinGroupCode}
-              onChangeText={setJoinGroupCode}
-              placeholder="Join group code"
-              placeholderTextColor="#5a6c78"
-              autoCapitalize="characters"
-              style={{ flex: 1, borderRadius: appTheme.radius.md, padding: 12, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
-            />
-            <View style={{ justifyContent: 'center' }}>
-              <AppButton label="Join" onPress={() => { handleJoinGroup().catch((error) => Alert.alert('Unable to join group', error instanceof Error ? error.message : 'Please try again.')); }} variant="secondary" />
-            </View>
-          </View>
-
-          {joinedGroups.map((group) => {
-            const pref = sharePreferences.find((item) => item.groupId === group.id && item.userId === currentUser.id);
-            const membership = joinedMemberships.find((item) => item.groupId === group.id);
-            return (
-              <View key={group.id} style={{ gap: 8, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: 12 }}>
-                <Text style={{ color: '#f7fdff', fontWeight: '800' }}>{group.name}</Text>
-                <Text style={{ color: '#bde6f6' }}>Join code: {group.joinCode} | Role: {membership?.role ?? 'member'}</Text>
-                {[
-                  ['Journal Entries', 'shareJournalEntries'],
-                  ['Practice Sessions', 'sharePracticeSessions'],
-                  ['Competition Sessions', 'shareCompetitionSessions'],
-                  ['Insights', 'shareInsights']
-                ].map(([label, key]) => (
-                  <View key={key} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>{label}</Text>
-                    <View style={{ flexDirection: 'row', gap: 8 }}>
-                      {(['On', 'Off'] as const).map((option) => {
-                        const enabled = pref ? pref[key as keyof typeof pref] : false;
-                        const selected = option === 'On' ? enabled : !enabled;
-                        return (
-                          <Pressable
-                            key={option}
-                            onPress={() =>
-                              updateSharePreference(group.id, {
-                                shareJournalEntries: pref?.shareJournalEntries ?? false,
-                                sharePracticeSessions: pref?.sharePracticeSessions ?? false,
-                                shareCompetitionSessions: pref?.shareCompetitionSessions ?? false,
-                                shareInsights: pref?.shareInsights ?? false,
-                                [key]: option === 'On'
-                              } as any).catch((error) =>
-                                Alert.alert('Unable to update sharing', error instanceof Error ? error.message : 'Please try again.')
-                              )
-                            }
-                            style={{ backgroundColor: selected ? '#2a9d8f' : 'rgba(255,255,255,0.12)', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999 }}
-                          >
-                            <Text style={{ color: 'white', fontWeight: '700' }}>{option}</Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  </View>
-                ))}
-              </View>
-            );
-          })}
-        </SectionCard>
-
-        <SectionCard title="Friend Invites & Sponsorship" subtitle="Invite trusted testers into shared learning and manage sponsored power-user access.">
-          <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
-            Invite friends into a shared group and automatically sponsor their power-user access for beta testing.
-          </Text>
-          {joinedGroups.length ? (
-            <>
-              <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Invite into Group</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                {organizerGroups.map((group) => (
-                  <Pressable
-                    key={group.id}
-                    onPress={() => setInviteTargetGroupId(group.id)}
-                    style={{ backgroundColor: inviteTargetGroupId === group.id ? '#2a9d8f' : 'rgba(255,255,255,0.12)', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 999 }}
-                  >
-                    <Text style={{ color: 'white', fontWeight: '700' }}>{group.name}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-              <TextInput
-                value={inviteTargetName}
-                onChangeText={setInviteTargetName}
-                placeholder="Friend name (optional)"
-                placeholderTextColor="#5a6c78"
-                style={{ borderRadius: appTheme.radius.md, padding: 12, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
-              />
-              <AppButton label="Create Invite" onPress={() => { sendInvite().catch((error) => Alert.alert('Unable to create invite', error instanceof Error ? error.message : 'Please try again.')); }} />
-            </>
-          ) : (
-            <Text style={{ color: '#bde6f6' }}>Create or join a friend group first before sending invites.</Text>
-          )}
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TextInput
-              value={inviteAcceptCode}
-              onChangeText={setInviteAcceptCode}
-              placeholder="Accept invite code"
-              placeholderTextColor="#5a6c78"
-              autoCapitalize="characters"
-              style={{ flex: 1, borderRadius: appTheme.radius.md, padding: 12, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
-            />
-            <View style={{ justifyContent: 'center' }}>
-              <AppButton label="Accept" onPress={() => { handleAcceptInvite().catch((error) => Alert.alert('Unable to accept invite', error instanceof Error ? error.message : 'Please try again.')); }} variant="secondary" />
-            </View>
-          </View>
-          {!!invites.length && (
-            <View style={{ gap: 8 }}>
-              <Text style={{ color: '#f7fdff', fontWeight: '700' }}>Invites</Text>
-              {invites.map((invite) => {
-                const group = groups.find((entry) => entry.id === invite.targetGroupId);
-                const inviter = users.find((entry) => entry.id === invite.inviterUserId);
-                return (
-                  <View key={invite.id} style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 10, gap: 4 }}>
-                    <Text style={{ color: '#f7fdff', fontWeight: '700' }}>{group?.name ?? 'Unknown group'}</Text>
-                    <Text style={{ color: '#d7f3ff' }}>Code: {invite.inviteCode}</Text>
-                    <Text style={{ color: '#d7f3ff' }}>Inviter: {inviter?.name ?? `Angler ${invite.inviterUserId}`}</Text>
-                    <Text style={{ color: '#d7f3ff' }}>Status: {invite.status}</Text>
-                  </View>
-                );
-              })}
-            </View>
-          )}
-          {!!sponsoredAccess.length && (
-            <View style={{ gap: 8 }}>
-              <Text style={{ color: '#f7fdff', fontWeight: '700' }}>Sponsored Access</Text>
-              {sponsoredAccess.map((entry) => {
-                const group = groups.find((groupEntry) => groupEntry.id === entry.targetGroupId);
-                const sponsor = users.find((user) => user.id === entry.sponsorUserId);
-                const sponsored = users.find((user) => user.id === entry.sponsoredUserId);
-                return (
-                  <View key={entry.id} style={{ backgroundColor: appTheme.colors.surfaceMuted, borderRadius: 12, padding: 10, gap: 8 }}>
-                    <Text style={{ color: '#f7fdff', fontWeight: '700' }}>{sponsored?.name ?? `Angler ${entry.sponsoredUserId}`}</Text>
-                    <InlineSummaryRow label="Sponsor" value={sponsor?.name ?? `Angler ${entry.sponsorUserId}`} />
-                    <InlineSummaryRow label="Group" value={group?.name ?? 'Unknown group'} />
-                    <InlineSummaryRow label="Status" value={entry.active ? 'Active' : 'Revoked'} valueMuted={!entry.active} />
-                    {entry.active && entry.sponsorUserId === currentUser.id ? (
-                      <AppButton label="Revoke Sponsored Access" onPress={() => { revokeSponsoredAccess(entry.id).then(() => Alert.alert('Sponsored access revoked', 'The owner-sponsored power-user grant was removed.')).catch((error) => Alert.alert('Unable to revoke access', error instanceof Error ? error.message : 'Please try again.')); }} variant="danger" />
-                    ) : null}
-                  </View>
-                );
-              })}
-            </View>
-          )}
-        </SectionCard>
-
-        <SectionCard title="Competitions" subtitle="Set the event clock once, then let anglers join and assignments stay reviewable.">
-          <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
-            Competitions now own their own groups and session schedule. Organizers create the event once, anglers join by code, and assignments can be reviewed and corrected before the event starts.
-          </Text>
-          <>
-            <FormField label="Competition Name">
-              <TextInput
-                value={newCompetitionName}
-                onChangeText={setNewCompetitionName}
-                placeholder="Competition name"
-                placeholderTextColor="#5a6c78"
-                style={formInputStyle}
-              />
-            </FormField>
-            <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Competition Groups</Text>
-            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-              {[1, 2, 3, 4].map((count) => (
-                <Pressable
-                  key={count}
-                  onPress={() => setCompetitionGroupCount(String(count))}
-                  style={{ backgroundColor: competitionGroupCount === String(count) ? '#2a9d8f' : 'rgba(255,255,255,0.12)', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 999 }}
-                >
-                  <Text style={{ color: 'white', fontWeight: '700' }}>{count}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <FormField label="Total Sessions">
-              <TextInput
-                value={competitionSessionCount}
-                onChangeText={setCompetitionSessionCount}
-                keyboardType="number-pad"
-                placeholder="Session count"
-                placeholderTextColor="#5a6c78"
-                style={formInputStyle}
-              />
-            </FormField>
-            <View style={{ gap: 8 }}>
-              {competitionSchedule.map((session, index) => (
-                <View key={session.sessionNumber} style={{ gap: 6, backgroundColor: appTheme.colors.surfaceMuted, borderRadius: appTheme.radius.md, padding: 12 }}>
-                  <Text style={{ color: '#f7fdff', fontWeight: '700' }}>Session {index + 1}</Text>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <View style={{ flex: 1 }}>
-                      <FormField label="Start">
-                        <TextInput
-                          value={session.startTime}
-                          onChangeText={(value) =>
-                            setCompetitionSchedule((current) =>
-                              current.map((entry, entryIndex) => (entryIndex === index ? { ...entry, startTime: value } : entry))
-                            )
-                          }
-                          placeholder="08:00"
-                          placeholderTextColor="#5a6c78"
-                          style={formInputStyle}
-                        />
-                      </FormField>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <FormField label="End">
-                        <TextInput
-                          value={session.endTime}
-                          onChangeText={(value) =>
-                            setCompetitionSchedule((current) =>
-                              current.map((entry, entryIndex) => (entryIndex === index ? { ...entry, endTime: value } : entry))
-                            )
-                          }
-                          placeholder="11:00"
-                          placeholderTextColor="#5a6c78"
-                          style={formInputStyle}
-                        />
-                      </FormField>
-                    </View>
-                  </View>
-                </View>
-              ))}
-            </View>
-            <AppButton label="Create Competition" onPress={() => { saveCompetition().catch((error) => Alert.alert('Unable to create competition', error instanceof Error ? error.message : 'Please try again.')); }} />
-          </>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <View style={{ flex: 1 }}>
-              <FormField label="Competition Join Code">
-                <TextInput
-                  value={competitionJoinCode}
-                  onChangeText={setCompetitionJoinCode}
-                  placeholder="Competition join code"
-                  placeholderTextColor="#5a6c78"
-                  autoCapitalize="characters"
-                  style={formInputStyle}
-                />
-              </FormField>
-            </View>
-            <View style={{ justifyContent: 'center' }}>
-              <AppButton label="Join" onPress={() => { handleJoinCompetition().catch((error) => Alert.alert('Unable to join competition', error instanceof Error ? error.message : 'Please try again.')); }} variant="secondary" />
-            </View>
-          </View>
-
-          {joinedCompetitionList.map((competition) => {
-            const compGroups = competitionGroups.filter((item) => item.competitionId === competition.id);
-            const compSessions = competitionSessions.filter((item) => item.competitionId === competition.id);
-            const participants = competitionParticipants.filter((participant) => participant.competitionId === competition.id);
-            const assignments = competitionAssignments.filter((assignment) => assignment.competitionId === competition.id);
-            return (
-              <View key={competition.id} style={{ gap: 8, backgroundColor: appTheme.colors.surfaceMuted, borderRadius: 14, padding: 12 }}>
-                <Text style={{ color: '#f7fdff', fontWeight: '800' }}>{competition.name}</Text>
-                <InlineSummaryRow label="Join Code" value={competition.joinCode} />
-                <InlineSummaryRow label="Competition Groups" value={compGroups.map((group) => group.label).join(', ') || 'Not generated yet'} />
-                <InlineSummaryRow label="Roster" value={`${participants.length} participants | ${new Set(assignments.map((assignment) => assignment.userId)).size} with assignments`} />
-                <View style={{ gap: 6 }}>
-                  {compSessions.map((session) => (
-                    <InlineSummaryRow key={session.id} label={`Session ${session.sessionNumber}`} value={`${session.startTime} - ${session.endTime}`} />
-                  ))}
-                </View>
-                <View style={{ gap: 8, marginTop: 4 }}>
-                  <Text style={{ color: '#f7fdff', fontWeight: '700' }}>My Assignments</Text>
-                  {compSessions.map((session) => {
-                    const existingAssignment = assignments.find(
-                      (assignment) =>
-                        assignment.userId === currentUser.id && assignment.competitionSessionId === session.id
-                    );
-                    const draft = getDraftForAssignment(competition.id, currentUser.id, session.id, {
-                      competitionGroupId: existingAssignment?.competitionGroupId ?? compGroups[0]?.id ?? null,
-                      beat: existingAssignment?.beat ?? '',
-                      role: existingAssignment?.role ?? 'fishing'
-                    });
-                    return (
-                      <View key={`me-${session.id}`} style={{ gap: 8, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 10 }}>
-                        <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Session {session.sessionNumber}</Text>
-                        <OptionChips
-                          label="Competition Group"
-                          options={compGroups.map((group) => `Group ${group.label}`)}
-                          value={compGroups.find((group) => group.id === draft.competitionGroupId) ? `Group ${compGroups.find((group) => group.id === draft.competitionGroupId)?.label}` : undefined}
-                          onChange={(value) => {
-                            const selectedGroup = compGroups.find((group) => `Group ${group.label}` === value);
-                            updateAssignmentDraft(competition.id, currentUser.id, session.id, { competitionGroupId: selectedGroup?.id ?? null });
-                          }}
-                        />
-                        <FormField label="Beat / Section">
-                          <TextInput
-                            value={draft.beat}
-                            onChangeText={(value) => updateAssignmentDraft(competition.id, currentUser.id, session.id, { beat: value })}
-                            placeholder="Beat / section"
-                            placeholderTextColor="#5a6c78"
-                            style={formInputStyle}
-                          />
-                        </FormField>
-                        <OptionChips
-                          label="Role"
-                          options={['fishing', 'controlling'] as const}
-                          value={draft.role}
-                          onChange={(role) => updateAssignmentDraft(competition.id, currentUser.id, session.id, { role })}
-                        />
-                        <AppButton label={`Save Session ${session.sessionNumber}`} onPress={() => { saveAssignment(competition.id, currentUser.id, session.id, draft).catch((error) => Alert.alert('Unable to save assignment', error instanceof Error ? error.message : 'Please try again.')); }} variant="tertiary" />
-                      </View>
-                    );
-                  })}
-                </View>
-                {competition.organizerUserId === currentUser.id ? (
-                  <View style={{ gap: 8, marginTop: 6 }}>
-                    <Text style={{ color: '#f7fdff', fontWeight: '700' }}>Organizer Review</Text>
-                    {participants.map((participant) => {
-                      const participantUser = users.find((user) => user.id === participant.userId);
-                      return (
-                        <View key={participant.id} style={{ gap: 8, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 10 }}>
-                          <Text style={{ color: '#f7fdff', fontWeight: '700' }}>{participantUser?.name ?? `Angler ${participant.userId}`}</Text>
-                          {compSessions.map((session) => {
-                            const existingAssignment = assignments.find(
-                              (assignment) =>
-                                assignment.userId === participant.userId && assignment.competitionSessionId === session.id
-                            );
-                            const draft = getDraftForAssignment(competition.id, participant.userId, session.id, {
-                              competitionGroupId: existingAssignment?.competitionGroupId ?? compGroups[0]?.id ?? null,
-                              beat: existingAssignment?.beat ?? '',
-                              role: existingAssignment?.role ?? 'fishing'
-                            });
-                            return (
-                              <View key={`${participant.id}-${session.id}`} style={{ gap: 8 }}>
-                                <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Session {session.sessionNumber}</Text>
-                                <OptionChips
-                                  label="Competition Group"
-                                  options={compGroups.map((group) => `Group ${group.label}`)}
-                                  value={compGroups.find((group) => group.id === draft.competitionGroupId) ? `Group ${compGroups.find((group) => group.id === draft.competitionGroupId)?.label}` : undefined}
-                                  onChange={(value) => {
-                                    const selectedGroup = compGroups.find((group) => `Group ${group.label}` === value);
-                                    updateAssignmentDraft(competition.id, participant.userId, session.id, { competitionGroupId: selectedGroup?.id ?? null });
-                                  }}
-                                />
-                                <FormField label="Beat / Section">
-                                  <TextInput
-                                    value={draft.beat}
-                                    onChangeText={(value) => updateAssignmentDraft(competition.id, participant.userId, session.id, { beat: value })}
-                                    placeholder="Beat / section"
-                                    placeholderTextColor="#5a6c78"
-                                    style={formInputStyle}
-                                  />
-                                </FormField>
-                                <OptionChips
-                                  label="Role"
-                                  options={['fishing', 'controlling'] as const}
-                                  value={draft.role}
-                                  onChange={(role) => updateAssignmentDraft(competition.id, participant.userId, session.id, { role })}
-                                />
-                                <AppButton label="Save Review Edit" onPress={() => { saveAssignment(competition.id, participant.userId, session.id, draft).catch((error) => Alert.alert('Unable to save assignment', error instanceof Error ? error.message : 'Please try again.')); }} variant="tertiary" />
-                              </View>
-                            );
-                          })}
-                        </View>
-                      );
-                    })}
-                  </View>
-                ) : null}
-              </View>
-            );
-          })}
-        </SectionCard>
-
-        {canManageAccess && (
-          <SectionCard title="Owner Controls" subtitle="Keep tester access changes powerful, but easier to scan and safer to use.">
-            {ownerUser && (
-              <Text style={{ color: '#d7f3ff' }}>
-                Admin access is controlled by {ownerUser.name}. You can manage access while testing with any active angler.
-              </Text>
-            )}
-            {users.map((user) => (
-              <SectionCard
-                key={user.id}
-                tone="light"
-              >
-                <Text style={{ color: '#102a43', fontWeight: '800', fontSize: 18 }}>{user.name}</Text>
-                <InlineSummaryRow label="Role" value={user.role} />
-                <InlineSummaryRow label="Access" value={getEntitlementLabel(user)} />
-                <InlineSummaryRow label="Premium" value={hasPremiumAccess(user) ? 'Enabled' : 'Locked'} />
-
-                {user.role === 'owner' ? (
-                  <View style={{ backgroundColor: '#e9f5fb', borderRadius: 12, padding: 10 }}>
-                    <Text style={{ color: '#102a43', fontWeight: '700' }}>Owner access stays enabled.</Text>
-                  </View>
-                ) : (
-                  <ActionGroup>
-                    <AppButton label="Grant Power User" onPress={() => { runAdminAction(() => grantPowerUserAccess(user.id), `${user.name} now has power-user access.`).catch(console.error); }} />
-                    <AppButton label="Start 7-Day Trial" onPress={() => { runAdminAction(() => startTrialForUser(user.id), `${user.name} now has a 7-day trial.`).catch(console.error); }} variant="secondary" />
-                    <AppButton label="Mark Subscriber" onPress={() => { runAdminAction(() => markSubscriberAccess(user.id), `${user.name} is marked as subscribed.`).catch(console.error); }} variant="tertiary" />
-                    <AppButton label="Reset Access" onPress={() => { runAdminAction(() => clearUserAccess(user.id), `${user.name} was reset to free access.`).catch(console.error); }} variant="danger" />
-                    {renderCleanupActions(user.id, user.name)}
-                    <AppButton
-                      label="Delete Angler"
-                      onPress={() =>
-                        confirmAdminAction(
-                          'Delete angler?',
-                          `This permanently removes ${user.name} and all of their saved fishing data from this device.`,
-                          () => deleteAngler(user.id),
-                          `${user.name} was deleted from this device.`
-                        )
-                      }
-                      variant="danger"
-                    />
-                  </ActionGroup>
-                )}
-              </SectionCard>
-            ))}
-          </SectionCard>
-        )}
+        ) : null}
       </ScrollView>
     </ScreenBackground>
   );
