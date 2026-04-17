@@ -117,7 +117,14 @@ export const createStoreActions = ({
   | 'addExperiment'
   | 'updateExperimentEntry'
   | 'archiveInconclusiveExperiments'
-> => ({
+> => {
+  const assertOwnerAccess = () => {
+    if (!currentUser || currentUser.role !== 'owner') {
+      throw new Error('Only the owner can manage tester access.');
+    }
+  };
+
+  return ({
   setActiveUserId: selectActiveUser,
   signInWithMagicLink: async (email) => {
     if (!hasSupabaseConfig) {
@@ -263,6 +270,7 @@ export const createStoreActions = ({
     return invite;
   },
   revokeSponsoredAccess: async (sponsoredAccessId) => {
+    assertOwnerAccess();
     await revokeLocalSponsoredAccess(sponsoredAccessId);
     await trackSyncChange('sponsored_access', 'revoke', sponsoredAccessId, { sponsoredAccessId });
     await refresh(activeUserId);
@@ -283,8 +291,12 @@ export const createStoreActions = ({
   flushSyncQueue: async () => {
     await flushSyncQueueInternal();
   },
-  updateUserAccess,
+  updateUserAccess: async (userId, next) => {
+    assertOwnerAccess();
+    await updateUserAccess(userId, next);
+  },
   startTrialForUser: async (userId) => {
+    assertOwnerAccess();
     const trialWindow = createTrialWindow();
     await updateUserAccess(userId, {
       accessLevel: 'trial',
@@ -296,6 +308,7 @@ export const createStoreActions = ({
     });
   },
   grantPowerUserAccess: async (userId) => {
+    assertOwnerAccess();
     await updateUserAccess(userId, {
       accessLevel: 'power_user',
       subscriptionStatus: 'power_user',
@@ -306,6 +319,7 @@ export const createStoreActions = ({
     });
   },
   markSubscriberAccess: async (userId, expiresAt = null) => {
+    assertOwnerAccess();
     await updateUserAccess(userId, {
       accessLevel: 'subscriber',
       subscriptionStatus: 'active',
@@ -316,6 +330,7 @@ export const createStoreActions = ({
     });
   },
   clearUserAccess: async (userId) => {
+    assertOwnerAccess();
     const target = users.find((user) => user.id === userId);
     await updateUserAccess(userId, {
       accessLevel: target?.role === 'owner' ? 'power_user' : 'free',
@@ -440,4 +455,5 @@ export const createStoreActions = ({
     await refresh(activeUserId);
     return experimentIds.length;
   }
-});
+  });
+};

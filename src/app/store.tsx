@@ -42,8 +42,6 @@ import { getNotificationPermissionStatus } from '@/utils/sessionNotifications';
 export type { UserDataCleanupCategory };
 
 const Ctx = createContext<AppStore | null>(null);
-const TESTING_PREMIUM_OVERRIDE = true;
-const TESTING_ADMIN_OVERRIDE = true;
 
 export const AppStoreProvider = ({ children }: { children: React.ReactNode }) => {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -83,10 +81,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const currentUser = useMemo(() => users.find((user) => user.id === activeUserId) ?? null, [activeUserId, users]);
   const completeExperiments = useMemo(() => experiments.filter((experiment) => experiment.status !== 'draft'), [experiments]);
   const storedOwnerUser = useMemo(() => users.find((user) => user.role === 'owner') ?? null, [users]);
-  const ownerUser = useMemo(
-    () => storedOwnerUser ?? (TESTING_ADMIN_OVERRIDE ? currentUser : null),
-    [currentUser, storedOwnerUser]
-  );
+  const ownerUser = useMemo(() => storedOwnerUser, [storedOwnerUser]);
   const isSyncEnabled = hasSupabaseConfig && !!remoteSession;
 
   const selectActiveUser = async (id: number) => {
@@ -521,9 +516,9 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         users,
         ownerUser,
         currentUser,
-        currentEntitlementLabel: TESTING_PREMIUM_OVERRIDE ? 'Testing access enabled' : getEntitlementLabel(currentUser),
-        currentHasPremiumAccess: TESTING_PREMIUM_OVERRIDE ? true : hasPremiumAccess(currentUser) || hasPremiumAccess(ownerUser),
-        canManageAccess: TESTING_ADMIN_OVERRIDE ? true : !!ownerUser,
+        currentEntitlementLabel: getEntitlementLabel(currentUser),
+        currentHasPremiumAccess: hasPremiumAccess(currentUser),
+        canManageAccess: currentUser?.role === 'owner',
         savedFlies,
         savedLeaderFormulas,
         savedRigPresets,

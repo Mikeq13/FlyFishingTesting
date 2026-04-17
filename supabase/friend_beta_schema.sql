@@ -478,8 +478,40 @@ create policy "shared session segments readable" on public.session_segments
 for select using (
   owner_auth_user_id = auth.uid()
   or exists (
-    select 1 from public.sessions s
+    select 1
+    from public.sessions s
     where s.id = session_segments.session_id
+      and (
+        s.owner_auth_user_id = auth.uid()
+        or (
+          s.shared_group_id is not null
+          and exists (
+            select 1
+            from public.group_memberships gm
+            where gm.group_id = s.shared_group_id
+              and gm.member_auth_user_id = auth.uid()
+          )
+          and exists (
+            select 1
+            from public.share_preferences sp
+            where sp.group_id = s.shared_group_id
+              and sp.user_auth_user_id = s.owner_auth_user_id
+              and (
+                (s.session_mode = 'practice' and sp.share_practice_sessions = true)
+                or (s.session_mode = 'competition' and sp.share_competition_sessions = true)
+                or (s.session_mode = 'experiment' and sp.share_journal_entries = true)
+              )
+          )
+        )
+        or (
+          s.competition_id is not null
+          and exists (
+            select 1 from public.competition_participants cp
+            where cp.competition_id = s.competition_id
+              and cp.participant_auth_user_id = auth.uid()
+          )
+        )
+      )
   )
 );
 create policy "owners manage catch events" on public.catch_events
@@ -488,8 +520,40 @@ create policy "shared catch events readable" on public.catch_events
 for select using (
   owner_auth_user_id = auth.uid()
   or exists (
-    select 1 from public.sessions s
+    select 1
+    from public.sessions s
     where s.id = catch_events.session_id
+      and (
+        s.owner_auth_user_id = auth.uid()
+        or (
+          s.shared_group_id is not null
+          and exists (
+            select 1
+            from public.group_memberships gm
+            where gm.group_id = s.shared_group_id
+              and gm.member_auth_user_id = auth.uid()
+          )
+          and exists (
+            select 1
+            from public.share_preferences sp
+            where sp.group_id = s.shared_group_id
+              and sp.user_auth_user_id = s.owner_auth_user_id
+              and (
+                (s.session_mode = 'practice' and sp.share_practice_sessions = true)
+                or (s.session_mode = 'competition' and sp.share_competition_sessions = true)
+                or (s.session_mode = 'experiment' and sp.share_journal_entries = true)
+              )
+          )
+        )
+        or (
+          s.competition_id is not null
+          and exists (
+            select 1 from public.competition_participants cp
+            where cp.competition_id = s.competition_id
+              and cp.participant_auth_user_id = auth.uid()
+          )
+        )
+      )
   )
 );
 create policy "owners manage experiments" on public.experiments
@@ -498,8 +562,40 @@ create policy "shared experiments readable" on public.experiments
 for select using (
   owner_auth_user_id = auth.uid()
   or exists (
-    select 1 from public.sessions s
+    select 1
+    from public.sessions s
     where s.id = experiments.session_id
+      and (
+        s.owner_auth_user_id = auth.uid()
+        or (
+          s.shared_group_id is not null
+          and exists (
+            select 1
+            from public.group_memberships gm
+            where gm.group_id = s.shared_group_id
+              and gm.member_auth_user_id = auth.uid()
+          )
+          and exists (
+            select 1
+            from public.share_preferences sp
+            where sp.group_id = s.shared_group_id
+              and sp.user_auth_user_id = s.owner_auth_user_id
+              and (
+                (s.session_mode = 'practice' and sp.share_practice_sessions = true)
+                or (s.session_mode = 'competition' and sp.share_competition_sessions = true)
+                or (s.session_mode = 'experiment' and sp.share_journal_entries = true)
+              )
+          )
+        )
+        or (
+          s.competition_id is not null
+          and exists (
+            select 1 from public.competition_participants cp
+            where cp.competition_id = s.competition_id
+              and cp.participant_auth_user_id = auth.uid()
+          )
+        )
+      )
   )
 );
 create policy "owners manage saved flies" on public.saved_flies
