@@ -14,7 +14,7 @@ import { cloudFeaturesUnavailableMessage, hasSupabaseConfig, missingSupabaseConf
 
 type AuthMode = 'sign_in' | 'sign_up' | 'magic_link' | 'reset';
 
-export const AuthScreen = () => {
+export const AuthScreen = ({ navigation }: any) => {
   const { theme } = useTheme();
   const layout = useResponsiveLayout();
   const {
@@ -85,7 +85,7 @@ export const AuthScreen = () => {
       ? 'Check your email and finish the verification or magic-link step before continuing.'
       : authStatus === 'password_reset_required'
         ? 'Choose a new password to finish the recovery flow.'
-        : 'Cloud sign-in is optional for local testing. Use it when you want email-backed identity, sync, and shared account features.';
+        : 'Sign in with your real account so shared data, notifications, and beta access stay tied to the correct angler.';
 
   const modeOptions =
     authStatus === 'password_reset_required'
@@ -107,10 +107,10 @@ export const AuthScreen = () => {
       <ScrollView contentContainerStyle={layout.buildScrollContentStyle({ centered: true, gap: 14, bottomPadding: 40 })} keyboardShouldPersistTaps="handled">
         <ScreenHeader
           title="Account Sign-In"
-          subtitle="Link a real email-backed account for cloud sync and shared identity. Local mode is still available on this device."
+          subtitle="Use your real beta account so sync, sharing, and recovery work correctly on this device."
           eyebrow="Secure Access"
         />
-        <SectionCard title="Account Access" subtitle="Sign in when you want cloud sync, remote identity, or email recovery.">
+        <SectionCard title="Account Access" subtitle="Sign in to use the full shared beta experience, password recovery, and native account features.">
           <OptionChips
             label="Account Flow"
             options={modeOptions}
@@ -130,7 +130,7 @@ export const AuthScreen = () => {
             />
           ) : null}
           {authStatus === 'pending_verification' ? <StatusBanner tone="info" text="The account flow is waiting on your email inbox. Finish that step, then return to the app." /> : null}
-          {!hasSupabaseConfig ? <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>You can keep using the app locally right now. Add your Supabase values later when you are ready to test cloud account flows.</Text> : null}
+          {!hasSupabaseConfig ? <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>This native beta build expects real Supabase configuration before account access, shared data, and sync can work.</Text> : null}
 
           {(mode === 'sign_up' || authStatus === 'password_reset_required') ? null : (
             <FormField label="Email">

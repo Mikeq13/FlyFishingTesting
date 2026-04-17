@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { Experiment, Insight } from '@/types/experiment';
 import { SavedRiver, Session } from '@/types/session';
 import { UserProfile } from '@/types/user';
@@ -72,6 +73,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const [authStatus, setAuthStatus] = useState<AuthStatus>(hasSupabaseConfig ? 'authenticating' : 'unauthenticated');
   const [remoteSession, setRemoteSession] = useState<RemoteSessionSnapshot | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [localBootstrapReady, setLocalBootstrapReady] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
   const [sharedDataStatus, setSharedDataStatus] = useState<SharedDataStatus>('idle');
@@ -102,9 +104,13 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   };
 
   const bootstrap = async () => {
-    const bootstrapped = await bootstrapLocalApp();
-    setUsers(bootstrapped.users);
-    setActiveUserId(bootstrapped.activeUserId);
+    try {
+      const bootstrapped = await bootstrapLocalApp();
+      setUsers(bootstrapped.users);
+      setActiveUserId(bootstrapped.activeUserId);
+    } finally {
+      setLocalBootstrapReady(true);
+    }
   };
 
   const mergeById = <T extends { id: number }>(primary: T[], incoming: T[]) => {
@@ -402,6 +408,27 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   }, []);
 
   useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+
+      getNotificationPermissionStatus()
+        .then(setNotificationPermissionStatus)
+        .catch((error) => {
+          console.error(error);
+          setNotificationPermissionStatus('unknown');
+        });
+
+      if (remoteSession && currentUser && !isSyncing) {
+        flushSyncQueue().catch(console.error);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [currentUser, isSyncing, remoteSession]);
+
+  useEffect(() => {
     if (!remoteSession) {
       setMfaFactors([]);
       setPendingTotpEnrollment(null);
@@ -483,6 +510,18 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     }, 600);
 
     return () => clearTimeout(timeoutId);
+  }, [currentUser, isSyncing, remoteSession, syncQueue]);
+
+  useEffect(() => {
+    if (!remoteSession || !currentUser || isSyncing) return;
+    const hasRetryableEntries = syncQueue.some((entry) => entry.status === 'pending' || entry.status === 'failed');
+    if (!hasRetryableEntries) return;
+
+    const intervalId = setInterval(() => {
+      flushSyncQueue().catch(console.error);
+    }, 15000);
+
+    return () => clearInterval(intervalId);
   }, [currentUser, isSyncing, remoteSession, syncQueue]);
 
   const insights = useMemo(() => generateInsights(buildAggregates(sessions, completeExperiments)), [sessions, completeExperiments]);
@@ -646,6 +685,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         authStatus,
         remoteSession,
         authReady,
+        localBootstrapReady,
         isSyncEnabled,
         ownerIdentityLinked,
         isAuthenticatedOwner,

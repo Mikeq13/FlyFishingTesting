@@ -30,9 +30,9 @@ const AuthLoadingScreen = () => (
 
 const AppNavigator = () => {
   const { theme } = useTheme();
-  const { authReady, remoteSession, currentUser } = useAppStore();
+  const { authReady, localBootstrapReady, remoteSession, currentUser } = useAppStore();
 
-  if (!authReady || (remoteSession && !currentUser)) {
+  if (!authReady || !localBootstrapReady || (remoteSession && !currentUser)) {
     return (
       <NavigationContainer>
         <Stack.Navigator
@@ -50,7 +50,7 @@ const AppNavigator = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName={currentUser ? 'Home' : 'Auth'}
+        initialRouteName={remoteSession && currentUser ? 'Home' : 'Auth'}
         screenOptions={{
           headerTintColor: theme.colors.headerTint,
           headerBackTitleVisible: false,
@@ -58,17 +58,22 @@ const AppNavigator = () => {
           headerTitleStyle: { color: theme.colors.textDark }
         }}
       >
-        <Stack.Screen name="Auth" component={AuthScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="Session" component={SessionScreen} />
-        <Stack.Screen name="Experiment" component={ExperimentScreen} />
-        <Stack.Screen name="Practice" component={PracticeScreen} />
-        <Stack.Screen name="Competition" component={CompetitionScreen} />
-        <Stack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: 'Session' }} />
-        <Stack.Screen name="Insights" component={InsightsScreen} />
-        <Stack.Screen name="History" component={HistoryScreen} />
-        <Stack.Screen name="Coach" component={CoachScreen} />
-        <Stack.Screen name="Access" component={AccessScreen} />
+        {!remoteSession || !currentUser ? (
+          <Stack.Screen name="Auth" component={AuthScreen} options={{ headerShown: false }} />
+        ) : (
+          <>
+            <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="Session" component={SessionScreen} />
+            <Stack.Screen name="Experiment" component={ExperimentScreen} />
+            <Stack.Screen name="Practice" component={PracticeScreen} />
+            <Stack.Screen name="Competition" component={CompetitionScreen} />
+            <Stack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: 'Session' }} />
+            <Stack.Screen name="Insights" component={InsightsScreen} />
+            <Stack.Screen name="History" component={HistoryScreen} />
+            <Stack.Screen name="Coach" component={CoachScreen} />
+            <Stack.Screen name="Access" component={AccessScreen} />
+          </>
+        )}
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -92,6 +92,8 @@ export const AccessScreen = () => {
   const [passwordResetEmail, setPasswordResetEmail] = React.useState(currentUser?.email ?? remoteSession?.email ?? '');
   const [mfaFriendlyName, setMfaFriendlyName] = React.useState('Fishing Lab Authenticator');
   const [mfaCode, setMfaCode] = React.useState('');
+  const [showMyData, setShowMyData] = React.useState(false);
+  const [showGroupSettings, setShowGroupSettings] = React.useState(false);
   const [competitionSchedule, setCompetitionSchedule] = React.useState([
     { sessionNumber: 1, startTime: '08:00', endTime: '11:00' },
     { sessionNumber: 2, startTime: '13:00', endTime: '16:00' },
@@ -477,25 +479,53 @@ export const AccessScreen = () => {
           </Text>
         </SectionCard>
 
-        <LocalDataSection
-          isOwner={currentUser.role === 'owner'}
-          cleanupActions={renderCleanupActions(currentUser.id, currentUser.name)}
-          onDeleteProfile={deleteCurrentProfile}
-        />
+        <SectionCard title="My Data" subtitle="Keep local data cleanup available without leaving it expanded all the time." tone="light">
+          <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+            Review or clean up the active angler profile only when you need it.
+          </Text>
+          <AppButton
+            label={showMyData ? 'Hide My Data' : 'Open My Data'}
+            onPress={() => setShowMyData((current) => !current)}
+            surfaceTone="light"
+          />
+        </SectionCard>
 
-        <GroupsSharingSection
-          currentUserId={currentUser.id}
-          joinedGroups={joinedGroups}
-          joinedMemberships={joinedMemberships}
-          sharePreferences={sharePreferences}
-          newGroupName={newGroupName}
-          onNewGroupNameChange={setNewGroupName}
-          joinGroupCode={joinGroupCode}
-          onJoinGroupCodeChange={setJoinGroupCode}
-          onCreateGroup={saveGroup}
-          onJoinGroup={handleJoinGroup}
-          onUpdateSharePreference={updateSharePreference}
-        />
+        {showMyData ? (
+          <LocalDataSection
+            isOwner={currentUser.role === 'owner'}
+            cleanupActions={renderCleanupActions(currentUser.id, currentUser.name)}
+            onDeleteProfile={deleteCurrentProfile}
+          />
+        ) : null}
+
+        <SectionCard title="Group Settings" subtitle="Groups and sharing stay available, but out of the way during day-to-day beta use." tone="light">
+          <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+            {joinedGroups.length
+              ? `This angler is in ${joinedGroups.length} group${joinedGroups.length === 1 ? '' : 's'}. Open settings to adjust sharing, create a group, or join another one.`
+              : 'Open settings to create a group, join one, or manage what this angler shares with the crew.'}
+          </Text>
+          <AppButton
+            label={showGroupSettings ? 'Hide Group Settings' : 'Open Group Settings'}
+            onPress={() => setShowGroupSettings((current) => !current)}
+            surfaceTone="light"
+          />
+        </SectionCard>
+
+        {showGroupSettings ? (
+          <GroupsSharingSection
+            currentUserId={currentUser.id}
+            joinedGroups={joinedGroups}
+            joinedMemberships={joinedMemberships}
+            sharePreferences={sharePreferences}
+            newGroupName={newGroupName}
+            onNewGroupNameChange={setNewGroupName}
+            joinGroupCode={joinGroupCode}
+            onJoinGroupCodeChange={setJoinGroupCode}
+            onCreateGroup={saveGroup}
+            onJoinGroup={handleJoinGroup}
+            onUpdateSharePreference={updateSharePreference}
+          />
+        ) : null}
 
         <InvitesSponsorshipSection
           currentUserId={currentUser.id}

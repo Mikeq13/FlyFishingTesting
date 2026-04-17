@@ -45,7 +45,7 @@ export const StatusBanner = ({
         borderColor: palette.borderColor
       }}
     >
-      <Text style={{ color: palette.color, fontWeight: '800' }}>{text}</Text>
+      <Text style={{ color: palette.color, fontWeight: '800', lineHeight: 20 }}>{text}</Text>
     </View>
   );
 };

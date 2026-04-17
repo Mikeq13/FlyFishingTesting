@@ -118,13 +118,13 @@ export const AccountSecuritySection = ({
       </View>
 
       {!remoteSession ? (
-        <StatusBanner tone="warning" text={hasSupabaseConfig ? 'Cloud sign-in is optional here. Local testing stays available, and shared sync turns on after you sign in.' : 'This device is running in local mode. Add Supabase env values later if you want cloud sign-in, email recovery, or shared sync.'} />
+        <StatusBanner tone="warning" text={hasSupabaseConfig ? 'Sign in before using shared sync, invites, competitions, or owner verification tools.' : 'This device is missing the Supabase values required for account access, email recovery, and shared sync.'} />
       ) : null}
       {authStatus === 'pending_verification' ? (
         <StatusBanner tone="info" text="Check your inbox and finish the verification step. Some account changes stay pending until that email step completes." />
       ) : null}
       <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-        Signing in proves identity for cloud sync. Local owner testing still works without it, but cloud recovery, MFA, and remote account linking need a signed-in session.
+        Signing in proves identity for shared sync. It does not automatically grant owner powers or sponsored tester access.
       </Text>
 
       <FormField label="Account Name" tone="light">
