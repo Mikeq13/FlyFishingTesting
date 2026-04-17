@@ -4,7 +4,16 @@ import { SavedRiver, Session } from '@/types/session';
 import { UserProfile } from '@/types/user';
 import { FlySetup, SavedFly } from '@/types/fly';
 import { CatchEvent, SessionSegment } from '@/types/activity';
-import { Competition, CompetitionParticipant, CompetitionSessionAssignment, Group, GroupMembership, SharePreference } from '@/types/group';
+import {
+  Competition,
+  CompetitionGroup,
+  CompetitionParticipant,
+  CompetitionSession,
+  CompetitionSessionAssignment,
+  Group,
+  GroupMembership,
+  SharePreference
+} from '@/types/group';
 import { LeaderFormula, RigPreset } from '@/types/rig';
 import { createSession, deleteSessionsForUser, listSessions, updateSession } from '@/db/sessionRepo';
 import { archiveExperiments, createExperiment, deleteDraftExperimentsForUser, deleteExperiments, deleteExperimentsForUser, listExperiments, updateExperiment } from '@/db/experimentRepo';
@@ -65,6 +74,8 @@ interface AppStore {
   groupMemberships: GroupMembership[];
   sharePreferences: SharePreference[];
   competitions: Competition[];
+  competitionGroups: CompetitionGroup[];
+  competitionSessions: CompetitionSession[];
   competitionParticipants: CompetitionParticipant[];
   competitionAssignments: CompetitionSessionAssignment[];
   activeUserId: number | null;
@@ -79,9 +90,14 @@ interface AppStore {
   createGroup: (name: string) => Promise<Group>;
   joinGroup: (joinCode: string) => Promise<GroupMembership>;
   updateSharePreference: (groupId: number, updates: Omit<SharePreference, 'id' | 'userId' | 'groupId' | 'updatedAt'>) => Promise<void>;
-  createCompetition: (payload: Omit<Competition, 'id' | 'organizerUserId' | 'createdAt' | 'joinCode'>) => Promise<Competition>;
+  createCompetition: (payload: {
+    name: string;
+    groupCount: number;
+    sessions: Array<{ sessionNumber: number; startTime: string; endTime: string }>;
+  }) => Promise<Competition>;
   joinCompetition: (joinCode: string) => Promise<CompetitionParticipant>;
   upsertCompetitionAssignment: (payload: Omit<CompetitionSessionAssignment, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => Promise<CompetitionSessionAssignment>;
+  upsertCompetitionAssignmentForUser: (userId: number, payload: Omit<CompetitionSessionAssignment, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => Promise<CompetitionSessionAssignment>;
   updateUserAccess: (userId: number, next: { accessLevel: AccessLevel; subscriptionStatus: SubscriptionStatus; trialStartedAt?: string | null; trialEndsAt?: string | null; subscriptionExpiresAt?: string | null; grantedByUserId?: number | null; }) => Promise<void>;
   startTrialForUser: (userId: number) => Promise<void>;
   grantPowerUserAccess: (userId: number) => Promise<void>;
@@ -127,6 +143,8 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const [groupMemberships, setGroupMemberships] = useState<GroupMembership[]>([]);
   const [sharePreferences, setSharePreferences] = useState<SharePreference[]>([]);
   const [competitions, setCompetitions] = useState<Competition[]>([]);
+  const [competitionGroups, setCompetitionGroups] = useState<CompetitionGroup[]>([]);
+  const [competitionSessions, setCompetitionSessions] = useState<CompetitionSession[]>([]);
   const [competitionParticipants, setCompetitionParticipants] = useState<CompetitionParticipant[]>([]);
   const [competitionAssignments, setCompetitionAssignments] = useState<CompetitionSessionAssignment[]>([]);
   const [activeUserId, setActiveUserId] = useState<number | null>(null);
@@ -168,6 +186,8 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     setGroupMemberships(loaded.groupMemberships);
     setSharePreferences(loaded.sharePreferences);
     setCompetitions(loaded.competitions);
+    setCompetitionGroups(loaded.competitionGroups);
+    setCompetitionSessions(loaded.competitionSessions);
     setCompetitionParticipants(loaded.competitionParticipants);
     setCompetitionAssignments(loaded.competitionAssignments);
     setAnglerComparisons(loaded.anglerComparisons);
@@ -228,6 +248,8 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         groupMemberships,
         sharePreferences,
         competitions,
+        competitionGroups,
+        competitionSessions,
         competitionParticipants,
         competitionAssignments,
         activeUserId,
@@ -303,6 +325,11 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         upsertCompetitionAssignment: async (payload) => {
           if (!activeUserId) throw new Error('No active user selected.');
           const assignment = await saveLocalCompetitionAssignment(activeUserId, payload);
+          await refresh(activeUserId);
+          return assignment;
+        },
+        upsertCompetitionAssignmentForUser: async (userId, payload) => {
+          const assignment = await saveLocalCompetitionAssignment(userId, payload);
           await refresh(activeUserId);
           return assignment;
         },

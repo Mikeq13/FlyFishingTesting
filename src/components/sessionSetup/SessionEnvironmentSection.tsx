@@ -21,18 +21,13 @@ interface SessionEnvironmentSectionProps {
   joinedCompetitions: Competition[];
   selectedCompetitionId: number | null;
   onCompetitionSelect: (competitionId: number | null) => void;
-  competitionAssignedGroup: string;
-  onCompetitionAssignedGroupChange: (value: string) => void;
+  competitionAssignmentOptions: Array<{ id: number; label: string }>;
+  selectedCompetitionAssignmentId: number | null;
+  onCompetitionAssignmentSelect: (assignmentId: number | null) => void;
+  competitionAssignedGroupLabel: string;
   competitionBeat: string;
-  onCompetitionBeatChange: (value: string) => void;
-  competitionSessionNumber: string;
-  onCompetitionSessionNumberChange: (value: string) => void;
+  competitionSessionLabel: string;
   competitionRole: CompetitionSessionRole;
-  onCompetitionRoleChange: (value: CompetitionSessionRole) => void;
-  competitionStartAtInput: string;
-  onCompetitionStartAtInputChange: (value: string) => void;
-  competitionEndAtInput: string;
-  onCompetitionEndAtInputChange: (value: string) => void;
   competitionRequiresMeasurement: boolean;
   onCompetitionRequiresMeasurementChange: (value: boolean) => void;
   competitionLengthUnit: CompetitionLengthUnit;
@@ -54,18 +49,13 @@ export const SessionEnvironmentSection = ({
   joinedCompetitions,
   selectedCompetitionId,
   onCompetitionSelect,
-  competitionAssignedGroup,
-  onCompetitionAssignedGroupChange,
+  competitionAssignmentOptions,
+  selectedCompetitionAssignmentId,
+  onCompetitionAssignmentSelect,
+  competitionAssignedGroupLabel,
   competitionBeat,
-  onCompetitionBeatChange,
-  competitionSessionNumber,
-  onCompetitionSessionNumberChange,
+  competitionSessionLabel,
   competitionRole,
-  onCompetitionRoleChange,
-  competitionStartAtInput,
-  onCompetitionStartAtInputChange,
-  competitionEndAtInput,
-  onCompetitionEndAtInputChange,
   competitionRequiresMeasurement,
   onCompetitionRequiresMeasurementChange,
   competitionLengthUnit,
@@ -121,17 +111,29 @@ export const SessionEnvironmentSection = ({
         ) : (
           <Text style={{ color: '#bde6f6' }}>Join or create a competition in Access & Billing before starting a comp session.</Text>
         )}
-        <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Assigned Group</Text>
-        <TextInput value={competitionAssignedGroup} onChangeText={onCompetitionAssignedGroupChange} placeholder="Ex: Group A" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
-        <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Beat / Section</Text>
-        <TextInput value={competitionBeat} onChangeText={onCompetitionBeatChange} placeholder="Beat / section name" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
-        <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Session Number</Text>
-        <TextInput value={competitionSessionNumber} onChangeText={onCompetitionSessionNumberChange} placeholder="Session number" keyboardType="number-pad" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
-        <OptionChips label="Your Role" options={['fishing', 'controlling'] as const} value={competitionRole} onChange={(value) => onCompetitionRoleChange(value as CompetitionSessionRole)} />
-        <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Competition Start (YYYY-MM-DD HH:MM)</Text>
-        <TextInput value={competitionStartAtInput} onChangeText={onCompetitionStartAtInputChange} placeholder="2026-04-16 08:00" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
-        <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Competition End (YYYY-MM-DD HH:MM)</Text>
-        <TextInput value={competitionEndAtInput} onChangeText={onCompetitionEndAtInputChange} placeholder="2026-04-16 11:00" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
+        {!!competitionAssignmentOptions.length ? (
+          <OptionChips
+            label="Saved Assignment"
+            options={competitionAssignmentOptions.map((assignment) => assignment.label)}
+            value={competitionAssignmentOptions.find((assignment) => assignment.id === selectedCompetitionAssignmentId)?.label ?? competitionAssignmentOptions[0]?.label}
+            onChange={(value) => {
+              const selected = competitionAssignmentOptions.find((assignment) => assignment.label === value);
+              onCompetitionAssignmentSelect(selected?.id ?? null);
+            }}
+          />
+        ) : (
+          <Text style={{ color: '#bde6f6' }}>No saved assignment yet. Enter your group, beat, and role in Access & Billing first.</Text>
+        )}
+        <View style={{ gap: 6, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 12 }}>
+          <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Assigned Group</Text>
+          <Text style={{ color: '#f7fdff' }}>{competitionAssignedGroupLabel || 'Not selected'}</Text>
+          <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Beat / Section</Text>
+          <Text style={{ color: '#f7fdff' }}>{competitionBeat || 'Not selected'}</Text>
+          <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Session</Text>
+          <Text style={{ color: '#f7fdff' }}>{competitionSessionLabel || 'Not selected'}</Text>
+          <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Your Role</Text>
+          <Text style={{ color: '#f7fdff', textTransform: 'capitalize' }}>{competitionRole}</Text>
+        </View>
         <OptionChips label="Measure Fish This Session?" options={['Yes', 'No'] as const} value={competitionRequiresMeasurement ? 'Yes' : 'No'} onChange={(value) => onCompetitionRequiresMeasurementChange(value === 'Yes')} />
         {competitionRequiresMeasurement ? (
           <>

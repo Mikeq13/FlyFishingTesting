@@ -12,7 +12,7 @@ const TROUT_SPECIES: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow',
 
 export const CompetitionScreen = ({ route }: any) => {
   const sessionId = route?.params?.sessionId as number;
-  const { sessions, allSessions, catchEvents, allCatchEvents, users, competitionAssignments, addCatchEvent, updateSessionEntry, upsertCompetitionAssignment } = useAppStore();
+  const { sessions, allSessions, catchEvents, allCatchEvents, users, competitionAssignments, competitionGroups, competitionSessions, addCatchEvent, updateSessionEntry, upsertCompetitionAssignment } = useAppStore();
   const session = sessions.find((candidate) => candidate.id === sessionId) ?? null;
   const [showCatchModal, setShowCatchModal] = useState(false);
   const [species, setSpecies] = useState<TroutSpecies>('Rainbow');
@@ -32,13 +32,21 @@ export const CompetitionScreen = ({ route }: any) => {
     alertMarkersMinutes: session?.alertMarkersMinutes
   });
   useSessionAlerts(session, timer.activeAlertMinute);
+  const currentCompetitionGroup = useMemo(
+    () => competitionGroups.find((group) => group.id === session?.competitionGroupId) ?? null,
+    [competitionGroups, session?.competitionGroupId]
+  );
+  const currentCompetitionSession = useMemo(
+    () => competitionSessions.find((entry) => entry.id === session?.competitionSessionId) ?? null,
+    [competitionSessions, session?.competitionSessionId]
+  );
   const competitionSummaryRows = useMemo(() => {
-    if (!session?.competitionId || !session.competitionAssignedGroup || !session.competitionSessionNumber) return [];
+    if (!session?.competitionId || !session.competitionGroupId || !session.competitionSessionId) return [];
     const relevantAssignments = competitionAssignments.filter(
       (assignment) =>
         assignment.competitionId === session.competitionId &&
-        assignment.assignedGroup.toLowerCase() === session.competitionAssignedGroup?.toLowerCase() &&
-        assignment.sessionNumber === session.competitionSessionNumber
+        assignment.competitionGroupId === session.competitionGroupId &&
+        assignment.competitionSessionId === session.competitionSessionId
     );
 
     return relevantAssignments.map((assignment) => {
@@ -107,15 +115,13 @@ export const CompetitionScreen = ({ route }: any) => {
         onPress: async () => {
           const endedAt = new Date().toISOString();
           await updateSessionEntry(session.id, buildSessionUpdatePayload(session, { endedAt }));
-          if (session.competitionId && session.competitionSessionNumber) {
+          if (session.competitionId && session.competitionGroupId && session.competitionSessionId) {
             await upsertCompetitionAssignment({
               competitionId: session.competitionId,
-              assignedGroup: session.competitionAssignedGroup ?? 'Open Group',
-              sessionNumber: session.competitionSessionNumber,
+              competitionGroupId: session.competitionGroupId,
+              competitionSessionId: session.competitionSessionId,
               beat: session.competitionBeat ?? 'Open Beat',
               role: session.competitionRole ?? 'fishing',
-              startAt: session.startAt ?? session.date,
-              endAt: session.endAt ?? endedAt,
               sessionId: session.id
             });
           }
@@ -132,9 +138,9 @@ export const CompetitionScreen = ({ route }: any) => {
           <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
             Track every fish quickly with exact times, species, and score-ready totals for post-session review and tie-break scenarios.
           </Text>
-          {session.competitionAssignedGroup ? <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Assigned group: {session.competitionAssignedGroup}</Text> : null}
+          {currentCompetitionGroup ? <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Assigned group: {currentCompetitionGroup.label}</Text> : null}
           {session.competitionBeat ? <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Beat: {session.competitionBeat}</Text> : null}
-          {session.competitionSessionNumber ? <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Session #{session.competitionSessionNumber}</Text> : null}
+          {currentCompetitionSession ? <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Session #{currentCompetitionSession.sessionNumber}</Text> : null}
           <Text style={{ color: '#d7f3ff' }}>Role: {session.competitionRole ?? 'fishing'}</Text>
         </View>
 

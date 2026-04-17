@@ -8,8 +8,8 @@ import { CompetitionLengthUnit, SessionMode, WaterType } from '@/types/session';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { applyRigPresetToRig, createDefaultRigSetup, setRigFlyCount } from '@/utils/rigSetup';
 import { getInvalidReminderMarkers, isReminderMarkerAllowed } from '@/utils/sessionReminders';
-import { CompetitionSessionRole, Group } from '@/types/group';
-import { formatLocalDateTimeInput, parseLocalDateTimeInput } from '@/utils/dateTime';
+import { Group } from '@/types/group';
+import { combineDateAndTime } from '@/utils/dateTime';
 import { SessionEnvironmentSection } from '@/components/sessionSetup/SessionEnvironmentSection';
 import { PracticeSetupSection } from '@/components/sessionSetup/PracticeSetupSection';
 import { ReminderSettingsSection } from '@/components/sessionSetup/ReminderSettingsSection';
@@ -34,7 +34,7 @@ const MODE_COPY: Record<SessionMode, { title: string; subtitle: string; button: 
 
 export const SessionScreen = ({ navigation, route }: any) => {
   const { width } = useWindowDimensions();
-  const { addSession, updateSessionEntry, addSavedFly, addSavedLeaderFormula, deleteSavedLeaderFormula, addSavedRigPreset, deleteSavedRigPreset, addSavedRiver, savedFlies, savedLeaderFormulas, savedRigPresets, savedRivers, users, activeUserId, sessions, experiments, groups, groupMemberships, competitions, competitionParticipants, upsertCompetitionAssignment } = useAppStore();
+  const { addSession, updateSessionEntry, addSavedFly, addSavedLeaderFormula, deleteSavedLeaderFormula, addSavedRigPreset, deleteSavedRigPreset, addSavedRiver, savedFlies, savedLeaderFormulas, savedRigPresets, savedRivers, users, activeUserId, sessions, experiments, groups, groupMemberships, competitions, competitionGroups, competitionSessions, competitionParticipants, competitionAssignments, upsertCompetitionAssignment } = useAppStore();
   const mode = (route?.params?.mode ?? 'experiment') as SessionMode;
   const modeCopy = MODE_COPY[mode] ?? MODE_COPY.experiment;
   const activeUser = users.find((user) => user.id === activeUserId);
@@ -48,18 +48,13 @@ export const SessionScreen = ({ navigation, route }: any) => {
   const [alertMarkersMinutes, setAlertMarkersMinutes] = useState<number[]>([15]);
   const [customAlertMinute, setCustomAlertMinute] = useState('');
   const [customAlertError, setCustomAlertError] = useState('');
-  const [competitionBeat, setCompetitionBeat] = useState('');
-  const [competitionSessionNumber, setCompetitionSessionNumber] = useState('1');
   const [competitionRequiresMeasurement, setCompetitionRequiresMeasurement] = useState(true);
   const [competitionLengthUnit, setCompetitionLengthUnit] = useState<CompetitionLengthUnit>('mm');
   const [selectedSharedGroupId, setSelectedSharedGroupId] = useState<number | null>(null);
   const [practiceMeasurementEnabled, setPracticeMeasurementEnabled] = useState(false);
   const [practiceLengthUnit, setPracticeLengthUnit] = useState<'in' | 'cm' | 'mm'>('in');
   const [selectedCompetitionId, setSelectedCompetitionId] = useState<number | null>(null);
-  const [competitionAssignedGroup, setCompetitionAssignedGroup] = useState('');
-  const [competitionRole, setCompetitionRole] = useState<CompetitionSessionRole>('fishing');
-  const [competitionStartAtInput, setCompetitionStartAtInput] = useState(() => formatLocalDateTimeInput(new Date()));
-  const [competitionEndAtInput, setCompetitionEndAtInput] = useState(() => formatLocalDateTimeInput(new Date(Date.now() + 3 * 60 * 60 * 1000)));
+  const [selectedCompetitionAssignmentId, setSelectedCompetitionAssignmentId] = useState<number | null>(null);
   const [notificationSoundEnabled, setNotificationSoundEnabled] = useState(true);
   const [notificationVibrationEnabled, setNotificationVibrationEnabled] = useState(true);
   const [practiceRigSetup, setPracticeRigSetup] = useState(() => createDefaultRigSetup([]));
@@ -98,6 +93,39 @@ export const SessionScreen = ({ navigation, route }: any) => {
         .filter((competition): competition is (typeof competitions)[number] => !!competition),
     [activeUserId, competitionParticipants, competitions]
   );
+  const selectedCompetitionAssignments = useMemo(
+    () =>
+      competitionAssignments.filter(
+        (assignment) =>
+          assignment.userId === activeUserId && assignment.competitionId === selectedCompetitionId
+      ),
+    [activeUserId, competitionAssignments, selectedCompetitionId]
+  );
+  const selectedCompetitionAssignment = useMemo(
+    () =>
+      selectedCompetitionAssignments.find((assignment) => assignment.id === selectedCompetitionAssignmentId) ??
+      selectedCompetitionAssignments[0] ??
+      null,
+    [selectedCompetitionAssignmentId, selectedCompetitionAssignments]
+  );
+  const selectedCompetitionGroup = useMemo(
+    () =>
+      competitionGroups.find(
+        (group) => group.id === selectedCompetitionAssignment?.competitionGroupId
+      ) ?? null,
+    [competitionGroups, selectedCompetitionAssignment?.competitionGroupId]
+  );
+  const selectedCompetitionSession = useMemo(
+    () =>
+      competitionSessions.find(
+        (session) => session.id === selectedCompetitionAssignment?.competitionSessionId
+      ) ?? null,
+    [competitionSessions, selectedCompetitionAssignment?.competitionSessionId]
+  );
+  const selectedCompetitionAssignmentLabel = useMemo(() => {
+    if (!selectedCompetitionAssignment || !selectedCompetitionGroup || !selectedCompetitionSession) return '';
+    return `Session ${selectedCompetitionSession.sessionNumber} • Group ${selectedCompetitionGroup.label} • ${selectedCompetitionAssignment.beat}`;
+  }, [selectedCompetitionAssignment, selectedCompetitionGroup, selectedCompetitionSession]);
 
   React.useEffect(() => {
     if (!joinedGroups.length) return;
@@ -105,18 +133,21 @@ export const SessionScreen = ({ navigation, route }: any) => {
   }, [joinedGroups]);
 
   React.useEffect(() => {
-    if (!selectedCompetitionId) return;
-    const selectedCompetition = joinedCompetitions.find((competition) => competition.id === selectedCompetitionId);
-    if (!selectedCompetition) return;
-    setCompetitionStartAtInput(formatLocalDateTimeInput(selectedCompetition.startAt));
-    setCompetitionEndAtInput(formatLocalDateTimeInput(selectedCompetition.endAt));
-    setSelectedSharedGroupId(selectedCompetition.groupId);
-  }, [joinedCompetitions, selectedCompetitionId]);
-
-  React.useEffect(() => {
     if (!joinedCompetitions.length || selectedCompetitionId) return;
     setSelectedCompetitionId(joinedCompetitions[0].id);
   }, [joinedCompetitions, selectedCompetitionId]);
+
+  React.useEffect(() => {
+    if (!selectedCompetitionAssignments.length) {
+      setSelectedCompetitionAssignmentId(null);
+      return;
+    }
+    setSelectedCompetitionAssignmentId((current) =>
+      current && selectedCompetitionAssignments.some((assignment) => assignment.id === current)
+        ? current
+        : selectedCompetitionAssignments[0].id
+    );
+  }, [selectedCompetitionAssignments]);
 
   const saveRiver = async () => {
     const normalizedRiverName = riverName.trim();
@@ -128,27 +159,28 @@ export const SessionScreen = ({ navigation, route }: any) => {
   const plannedDurationMinutes = useMemo(() => {
     if (mode === 'experiment') return undefined;
     if (mode === 'competition') {
-      const parsedStartAt = parseLocalDateTimeInput(competitionStartAtInput);
-      const parsedEndAt = parseLocalDateTimeInput(competitionEndAtInput);
-      if (!parsedStartAt || !parsedEndAt) return undefined;
-      return Math.max(0, Math.round((new Date(parsedEndAt).getTime() - new Date(parsedStartAt).getTime()) / 60000));
+      if (!selectedCompetitionSession) return undefined;
+      const start = combineDateAndTime(new Date(), selectedCompetitionSession.startTime);
+      const end = combineDateAndTime(new Date(), selectedCompetitionSession.endTime);
+      if (!start || !end) return undefined;
+      return Math.max(0, Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60000));
     }
     const hours = Math.max(0, Number(durationHours || '0'));
     const minutes = Math.max(0, Number(durationMinutes || '0'));
     const total = hours * 60 + minutes;
     return Number.isFinite(total) && total > 0 ? total : undefined;
-  }, [competitionEndAtInput, competitionStartAtInput, durationHours, durationMinutes, mode]);
+  }, [durationHours, durationMinutes, mode, selectedCompetitionSession]);
 
   const plannedEndLabel = useMemo(() => {
     if (mode === 'experiment' || !plannedDurationMinutes) return null;
     const plannedEnd =
       mode === 'competition'
-        ? parseLocalDateTimeInput(competitionEndAtInput)
-          ? new Date(parseLocalDateTimeInput(competitionEndAtInput)!)
+        ? selectedCompetitionSession
+          ? new Date(combineDateAndTime(new Date(), selectedCompetitionSession.endTime) ?? Date.now() + plannedDurationMinutes * 60 * 1000)
           : new Date(Date.now() + plannedDurationMinutes * 60 * 1000)
         : new Date(Date.now() + plannedDurationMinutes * 60 * 1000);
     return plannedEnd.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  }, [competitionEndAtInput, mode, plannedDurationMinutes]);
+  }, [mode, plannedDurationMinutes, selectedCompetitionSession]);
 
   const alertIntervalMinutes = useMemo(() => {
     if (mode === 'experiment') return undefined;
@@ -184,10 +216,24 @@ export const SessionScreen = ({ navigation, route }: any) => {
     if (invalidReminderMarkers.length) {
       return;
     }
-    const competitionStartAt = mode === 'competition' ? parseLocalDateTimeInput(competitionStartAtInput) : null;
-    const competitionEndAt = mode === 'competition' ? parseLocalDateTimeInput(competitionEndAtInput) : null;
-    if (mode === 'competition' && (!competitionStartAt || !competitionEndAt || new Date(competitionEndAt) <= new Date(competitionStartAt))) {
-      setCustomAlertError('Competition sessions need a valid start and end time.');
+    const competitionStartAt =
+      mode === 'competition' && selectedCompetitionSession
+        ? combineDateAndTime(new Date(), selectedCompetitionSession.startTime)
+        : null;
+    const competitionEndAt =
+      mode === 'competition' && selectedCompetitionSession
+        ? combineDateAndTime(new Date(), selectedCompetitionSession.endTime)
+        : null;
+    if (
+      mode === 'competition' &&
+      (!selectedCompetitionAssignment ||
+        !selectedCompetitionGroup ||
+        !selectedCompetitionSession ||
+        !competitionStartAt ||
+        !competitionEndAt ||
+        new Date(competitionEndAt) <= new Date(competitionStartAt))
+    ) {
+      setCustomAlertError('Choose a saved competition assignment before starting the session.');
       return;
     }
     const normalizedRiverName = riverName.trim();
@@ -211,10 +257,12 @@ export const SessionScreen = ({ navigation, route }: any) => {
       practiceMeasurementEnabled: mode === 'practice' ? practiceMeasurementEnabled : undefined,
       practiceLengthUnit: mode === 'practice' ? practiceLengthUnit : undefined,
       competitionId: mode === 'competition' ? selectedCompetitionId ?? undefined : undefined,
-      competitionAssignedGroup: mode === 'competition' ? competitionAssignedGroup.trim() || undefined : undefined,
-      competitionRole: mode === 'competition' ? competitionRole : undefined,
-      competitionBeat: mode === 'competition' ? competitionBeat.trim() || undefined : undefined,
-      competitionSessionNumber: mode === 'competition' ? Number(competitionSessionNumber || '0') || undefined : undefined,
+      competitionGroupId: mode === 'competition' ? selectedCompetitionGroup?.id : undefined,
+      competitionSessionId: mode === 'competition' ? selectedCompetitionSession?.id : undefined,
+      competitionAssignedGroup: mode === 'competition' ? selectedCompetitionGroup?.label : undefined,
+      competitionRole: mode === 'competition' ? selectedCompetitionAssignment?.role : undefined,
+      competitionBeat: mode === 'competition' ? selectedCompetitionAssignment?.beat : undefined,
+      competitionSessionNumber: mode === 'competition' ? selectedCompetitionSession?.sessionNumber : undefined,
       competitionRequiresMeasurement: mode === 'competition' ? competitionRequiresMeasurement : undefined,
       competitionLengthUnit: mode === 'competition' ? competitionLengthUnit : undefined,
       startingRigSetup: mode === 'practice' ? practiceRigSetup : undefined,
@@ -225,12 +273,10 @@ export const SessionScreen = ({ navigation, route }: any) => {
     if (mode === 'competition' && selectedCompetitionId) {
       const assignment = await upsertCompetitionAssignment({
         competitionId: selectedCompetitionId,
-        assignedGroup: competitionAssignedGroup.trim() || 'Open Group',
-        sessionNumber: Number(competitionSessionNumber || '0') || 1,
-        beat: competitionBeat.trim() || 'Open Beat',
-        role: competitionRole,
-        startAt: competitionStartAt!,
-        endAt: competitionEndAt!,
+        competitionGroupId: selectedCompetitionGroup!.id,
+        competitionSessionId: selectedCompetitionSession!.id,
+        beat: selectedCompetitionAssignment!.beat,
+        role: selectedCompetitionAssignment!.role,
         sessionId: id
       });
       await updateSessionEntry(id, {
@@ -251,10 +297,12 @@ export const SessionScreen = ({ navigation, route }: any) => {
         practiceLengthUnit: undefined,
         competitionId: selectedCompetitionId,
         competitionAssignmentId: assignment.id,
-        competitionAssignedGroup: competitionAssignedGroup.trim() || undefined,
-        competitionRole,
-        competitionBeat: competitionBeat.trim() || undefined,
-        competitionSessionNumber: Number(competitionSessionNumber || '0') || undefined,
+        competitionGroupId: selectedCompetitionGroup!.id,
+        competitionSessionId: selectedCompetitionSession!.id,
+        competitionAssignedGroup: selectedCompetitionGroup!.label,
+        competitionRole: selectedCompetitionAssignment!.role,
+        competitionBeat: selectedCompetitionAssignment!.beat,
+        competitionSessionNumber: selectedCompetitionSession!.sessionNumber,
         competitionRequiresMeasurement,
         competitionLengthUnit,
         startingRigSetup: undefined,
@@ -297,18 +345,20 @@ export const SessionScreen = ({ navigation, route }: any) => {
           joinedCompetitions={joinedCompetitions}
           selectedCompetitionId={selectedCompetitionId}
           onCompetitionSelect={setSelectedCompetitionId}
-          competitionAssignedGroup={competitionAssignedGroup}
-          onCompetitionAssignedGroupChange={setCompetitionAssignedGroup}
-          competitionBeat={competitionBeat}
-          onCompetitionBeatChange={setCompetitionBeat}
-          competitionSessionNumber={competitionSessionNumber}
-          onCompetitionSessionNumberChange={setCompetitionSessionNumber}
-          competitionRole={competitionRole}
-          onCompetitionRoleChange={setCompetitionRole}
-          competitionStartAtInput={competitionStartAtInput}
-          onCompetitionStartAtInputChange={setCompetitionStartAtInput}
-          competitionEndAtInput={competitionEndAtInput}
-          onCompetitionEndAtInputChange={setCompetitionEndAtInput}
+          competitionAssignmentOptions={selectedCompetitionAssignments.map((assignment) => {
+            const group = competitionGroups.find((item) => item.id === assignment.competitionGroupId);
+            const compSession = competitionSessions.find((item) => item.id === assignment.competitionSessionId);
+            return {
+              id: assignment.id,
+              label: `Session ${compSession?.sessionNumber ?? '?'} • Group ${group?.label ?? '?'} • ${assignment.beat}`
+            };
+          })}
+          selectedCompetitionAssignmentId={selectedCompetitionAssignment?.id ?? null}
+          onCompetitionAssignmentSelect={setSelectedCompetitionAssignmentId}
+          competitionAssignedGroupLabel={selectedCompetitionGroup?.label ?? ''}
+          competitionBeat={selectedCompetitionAssignment?.beat ?? ''}
+          competitionSessionLabel={selectedCompetitionSession ? `Session ${selectedCompetitionSession.sessionNumber} • ${selectedCompetitionSession.startTime} - ${selectedCompetitionSession.endTime}` : ''}
+          competitionRole={selectedCompetitionAssignment?.role ?? 'fishing'}
           competitionRequiresMeasurement={competitionRequiresMeasurement}
           onCompetitionRequiresMeasurementChange={setCompetitionRequiresMeasurement}
           competitionLengthUnit={competitionLengthUnit}
@@ -364,7 +414,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
               onPracticeLengthUnitChange={setPracticeLengthUnit}
             />
           ) : null}
-          {!!joinedGroups.length ? (
+          {mode !== 'competition' && !!joinedGroups.length ? (
             <OptionChips
               label="Share With Group"
               options={['Private', ...joinedGroups.map((group) => group.name)]}

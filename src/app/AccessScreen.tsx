@@ -4,7 +4,8 @@ import { ScreenBackground } from '@/components/ScreenBackground';
 import { UserDataCleanupCategory, useAppStore } from './store';
 import { getEntitlementLabel, hasPremiumAccess } from '@/engine/entitlementEngine';
 import { beginAppleSubscriptionPurchase, PREMIUM_MONTHLY_PRICE_LABEL, PREMIUM_TRIAL_LABEL } from '@/billing/storekit';
-import { formatLocalDateTimeInput, formatReadableDateTime, parseLocalDateTimeInput } from '@/utils/dateTime';
+import { formatLocalTimeInput, parseLocalTimeInput } from '@/utils/dateTime';
+import { CompetitionSessionRole } from '@/types/group';
 
 export const AccessScreen = () => {
   const { width } = useWindowDimensions();
@@ -26,22 +27,30 @@ export const AccessScreen = () => {
     groupMemberships,
     sharePreferences,
     competitions,
+    competitionGroups,
+    competitionSessions,
     competitionParticipants,
     competitionAssignments,
     createGroup,
     joinGroup,
     updateSharePreference,
     createCompetition,
-    joinCompetition
+    joinCompetition,
+    upsertCompetitionAssignmentForUser
   } = useAppStore();
   const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 980) : undefined;
   const [newGroupName, setNewGroupName] = React.useState('');
   const [joinGroupCode, setJoinGroupCode] = React.useState('');
   const [newCompetitionName, setNewCompetitionName] = React.useState('');
-  const [selectedCompetitionGroupId, setSelectedCompetitionGroupId] = React.useState<number | null>(null);
+  const [competitionGroupCount, setCompetitionGroupCount] = React.useState('2');
+  const [competitionSessionCount, setCompetitionSessionCount] = React.useState('3');
   const [competitionJoinCode, setCompetitionJoinCode] = React.useState('');
-  const [competitionStartInput, setCompetitionStartInput] = React.useState(() => formatLocalDateTimeInput(new Date()));
-  const [competitionEndInput, setCompetitionEndInput] = React.useState(() => formatLocalDateTimeInput(new Date(Date.now() + 3 * 60 * 60 * 1000)));
+  const [competitionSchedule, setCompetitionSchedule] = React.useState([
+    { sessionNumber: 1, startTime: '08:00', endTime: '11:00' },
+    { sessionNumber: 2, startTime: '13:00', endTime: '16:00' },
+    { sessionNumber: 3, startTime: '17:00', endTime: '20:00' }
+  ]);
+  const [assignmentDrafts, setAssignmentDrafts] = React.useState<Record<string, { competitionGroupId: number | null; beat: string; role: CompetitionSessionRole }>>({});
 
   const joinedMemberships = React.useMemo(
     () => groupMemberships.filter((membership) => membership.userId === currentUser?.id),
@@ -63,11 +72,49 @@ export const AccessScreen = () => {
     [competitionParticipants, competitions, currentUser?.id]
   );
 
+  const getAssignmentDraftKey = (competitionId: number, userId: number, competitionSessionId: number) =>
+    `${competitionId}:${userId}:${competitionSessionId}`;
+
+  const updateAssignmentDraft = (
+    competitionId: number,
+    userId: number,
+    competitionSessionId: number,
+    next: Partial<{ competitionGroupId: number | null; beat: string; role: CompetitionSessionRole }>
+  ) => {
+    const key = getAssignmentDraftKey(competitionId, userId, competitionSessionId);
+    setAssignmentDrafts((current) => ({
+      ...current,
+      [key]: {
+        ...current[key],
+        competitionGroupId: current[key]?.competitionGroupId ?? null,
+        beat: current[key]?.beat ?? '',
+        role: current[key]?.role ?? 'fishing',
+        ...next
+      }
+    }));
+  };
+
+  const getDraftForAssignment = (
+    competitionId: number,
+    userId: number,
+    competitionSessionId: number,
+    fallback: { competitionGroupId: number | null; beat: string; role: CompetitionSessionRole }
+  ) => assignmentDrafts[getAssignmentDraftKey(competitionId, userId, competitionSessionId)] ?? fallback;
+
   React.useEffect(() => {
-    if (!selectedCompetitionGroupId && joinedGroups[0]) {
-      setSelectedCompetitionGroupId(joinedGroups[0].id);
-    }
-  }, [joinedGroups, selectedCompetitionGroupId]);
+    const count = Math.max(1, Math.min(8, Number(competitionSessionCount) || 1));
+    setCompetitionSchedule((current) => {
+      const next = Array.from({ length: count }, (_, index) => {
+        const existing = current[index];
+        return existing ?? {
+          sessionNumber: index + 1,
+          startTime: '08:00',
+          endTime: '11:00'
+        };
+      });
+      return next.map((entry, index) => ({ ...entry, sessionNumber: index + 1 }));
+    });
+  }, [competitionSessionCount]);
 
   if (!currentUser) {
     return (
@@ -210,19 +257,33 @@ export const AccessScreen = () => {
   };
 
   const saveCompetition = async () => {
-    const parsedStart = parseLocalDateTimeInput(competitionStartInput);
-    const parsedEnd = parseLocalDateTimeInput(competitionEndInput);
-    if (!newCompetitionName.trim() || !selectedCompetitionGroupId || !parsedStart || !parsedEnd || new Date(parsedEnd) <= new Date(parsedStart)) {
-      Alert.alert('Competition details incomplete', 'Enter a name, choose a group, and use valid start/end times.');
+    const name = newCompetitionName.trim();
+    const groupCount = Math.max(1, Math.min(4, Number(competitionGroupCount) || 1));
+    const sessionCount = Math.max(1, Math.min(8, Number(competitionSessionCount) || 1));
+    const normalizedSchedule = competitionSchedule.slice(0, sessionCount);
+    const invalidSession = normalizedSchedule.find((session) => {
+      const start = parseLocalTimeInput(session.startTime);
+      const end = parseLocalTimeInput(session.endTime);
+      if (!start || !end) return true;
+      return end.hours * 60 + end.minutes <= start.hours * 60 + start.minutes;
+    });
+
+    if (!name || invalidSession) {
+      Alert.alert('Competition details incomplete', 'Enter a name, choose group/session counts, and use valid start and end times for every session.');
       return;
     }
     const created = await createCompetition({
-      groupId: selectedCompetitionGroupId,
-      name: newCompetitionName.trim(),
-      startAt: parsedStart,
-      endAt: parsedEnd
+      name,
+      groupCount,
+      sessions: normalizedSchedule.map((session, index) => ({
+        sessionNumber: index + 1,
+        startTime: session.startTime,
+        endTime: session.endTime
+      }))
     });
     setNewCompetitionName('');
+    setCompetitionGroupCount('2');
+    setCompetitionSessionCount('3');
     Alert.alert('Competition created', `${created.name} is ready. Join code: ${created.joinCode}`);
   };
 
@@ -232,6 +293,27 @@ export const AccessScreen = () => {
     await joinCompetition(code);
     setCompetitionJoinCode('');
     Alert.alert('Competition joined', 'Enter your assignment details from the comp website when you start your session.');
+  };
+
+  const saveAssignment = async (
+    competitionId: number,
+    userId: number,
+    competitionSessionId: number,
+    draft: { competitionGroupId: number | null; beat: string; role: CompetitionSessionRole }
+  ) => {
+    if (!draft.competitionGroupId || !draft.beat.trim()) {
+      Alert.alert('Assignment incomplete', 'Choose a competition group and enter a beat before saving.');
+      return;
+    }
+
+    await upsertCompetitionAssignmentForUser(userId, {
+      competitionId,
+      competitionGroupId: draft.competitionGroupId,
+      competitionSessionId,
+      beat: draft.beat.trim(),
+      role: draft.role
+    });
+    Alert.alert('Assignment saved', 'Competition assignment updated.');
   };
 
   return (
@@ -384,38 +466,72 @@ export const AccessScreen = () => {
         <View style={{ gap: 10, backgroundColor: 'rgba(6, 27, 44, 0.72)', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
           <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>Competitions</Text>
           <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
-            Organizers create a comp and share the join code. Each angler joins, then enters their own group, beat, and session details from the external draw website.
+            Competitions now own their own groups and session schedule. Organizers create the event once, anglers join by code, and assignments can be reviewed and corrected before the event starts.
           </Text>
-          {!!joinedGroups.length ? (
-            <>
-              <TextInput
-                value={newCompetitionName}
-                onChangeText={setNewCompetitionName}
-                placeholder="Competition name"
-                placeholderTextColor="#5a6c78"
-                style={{ borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
-              />
-              <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Competition Group</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                {joinedGroups.map((group) => (
-                  <Pressable
-                    key={group.id}
-                    onPress={() => setSelectedCompetitionGroupId(group.id)}
-                    style={{ backgroundColor: selectedCompetitionGroupId === group.id ? '#2a9d8f' : 'rgba(255,255,255,0.12)', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 999 }}
-                  >
-                    <Text style={{ color: 'white', fontWeight: '700' }}>{group.name}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-              <TextInput value={competitionStartInput} onChangeText={setCompetitionStartInput} placeholder="Start (YYYY-MM-DD HH:MM)" placeholderTextColor="#5a6c78" style={{ borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
-              <TextInput value={competitionEndInput} onChangeText={setCompetitionEndInput} placeholder="End (YYYY-MM-DD HH:MM)" placeholderTextColor="#5a6c78" style={{ borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
-              <Pressable onPress={() => saveCompetition().catch((error) => Alert.alert('Unable to create competition', error instanceof Error ? error.message : 'Please try again.'))} style={{ backgroundColor: '#2a9d8f', padding: 12, borderRadius: 12 }}>
-                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Create Competition</Text>
-              </Pressable>
-            </>
-          ) : (
-            <Text style={{ color: '#bde6f6' }}>Join or create a group first so the competition has a shared roster.</Text>
-          )}
+          <>
+            <TextInput
+              value={newCompetitionName}
+              onChangeText={setNewCompetitionName}
+              placeholder="Competition name"
+              placeholderTextColor="#5a6c78"
+              style={{ borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+            />
+            <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Competition Groups</Text>
+            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+              {[1, 2, 3, 4].map((count) => (
+                <Pressable
+                  key={count}
+                  onPress={() => setCompetitionGroupCount(String(count))}
+                  style={{ backgroundColor: competitionGroupCount === String(count) ? '#2a9d8f' : 'rgba(255,255,255,0.12)', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 999 }}
+                >
+                  <Text style={{ color: 'white', fontWeight: '700' }}>{count}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Total Sessions</Text>
+            <TextInput
+              value={competitionSessionCount}
+              onChangeText={setCompetitionSessionCount}
+              keyboardType="number-pad"
+              placeholder="Session count"
+              placeholderTextColor="#5a6c78"
+              style={{ borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+            />
+            <View style={{ gap: 8 }}>
+              {competitionSchedule.map((session, index) => (
+                <View key={session.sessionNumber} style={{ gap: 6, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 12 }}>
+                  <Text style={{ color: '#f7fdff', fontWeight: '700' }}>Session {index + 1}</Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <TextInput
+                      value={session.startTime}
+                      onChangeText={(value) =>
+                        setCompetitionSchedule((current) =>
+                          current.map((entry, entryIndex) => (entryIndex === index ? { ...entry, startTime: value } : entry))
+                        )
+                      }
+                      placeholder="08:00"
+                      placeholderTextColor="#5a6c78"
+                      style={{ flex: 1, borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+                    />
+                    <TextInput
+                      value={session.endTime}
+                      onChangeText={(value) =>
+                        setCompetitionSchedule((current) =>
+                          current.map((entry, entryIndex) => (entryIndex === index ? { ...entry, endTime: value } : entry))
+                        )
+                      }
+                      placeholder="11:00"
+                      placeholderTextColor="#5a6c78"
+                      style={{ flex: 1, borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+                    />
+                  </View>
+                </View>
+              ))}
+            </View>
+            <Pressable onPress={() => saveCompetition().catch((error) => Alert.alert('Unable to create competition', error instanceof Error ? error.message : 'Please try again.'))} style={{ backgroundColor: '#2a9d8f', padding: 12, borderRadius: 12 }}>
+              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Create Competition</Text>
+            </Pressable>
+          </>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <TextInput
               value={competitionJoinCode}
@@ -431,16 +547,141 @@ export const AccessScreen = () => {
           </View>
 
           {joinedCompetitionList.map((competition) => {
-            const group = groups.find((item) => item.id === competition.groupId);
+            const compGroups = competitionGroups.filter((item) => item.competitionId === competition.id);
+            const compSessions = competitionSessions.filter((item) => item.competitionId === competition.id);
             const participants = competitionParticipants.filter((participant) => participant.competitionId === competition.id);
             const assignments = competitionAssignments.filter((assignment) => assignment.competitionId === competition.id);
             return (
               <View key={competition.id} style={{ gap: 6, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: 12 }}>
                 <Text style={{ color: '#f7fdff', fontWeight: '800' }}>{competition.name}</Text>
                 <Text style={{ color: '#bde6f6' }}>Join code: {competition.joinCode}</Text>
-                <Text style={{ color: '#bde6f6' }}>Group: {group?.name ?? 'Unknown group'}</Text>
-                <Text style={{ color: '#bde6f6' }}>Window: {formatReadableDateTime(competition.startAt)} to {formatReadableDateTime(competition.endAt)}</Text>
+                <Text style={{ color: '#bde6f6' }}>Competition groups: {compGroups.map((group) => group.label).join(', ') || 'Not generated yet'}</Text>
                 <Text style={{ color: '#d7f3ff' }}>Participants: {participants.length} | Assignments entered: {new Set(assignments.map((assignment) => assignment.userId)).size}</Text>
+                <View style={{ gap: 6 }}>
+                  {compSessions.map((session) => (
+                    <Text key={session.id} style={{ color: '#d7f3ff' }}>
+                      Session {session.sessionNumber}: {session.startTime} - {session.endTime}
+                    </Text>
+                  ))}
+                </View>
+                <View style={{ gap: 8, marginTop: 4 }}>
+                  <Text style={{ color: '#f7fdff', fontWeight: '700' }}>My Assignments</Text>
+                  {compSessions.map((session) => {
+                    const existingAssignment = assignments.find(
+                      (assignment) =>
+                        assignment.userId === currentUser.id && assignment.competitionSessionId === session.id
+                    );
+                    const draft = getDraftForAssignment(competition.id, currentUser.id, session.id, {
+                      competitionGroupId: existingAssignment?.competitionGroupId ?? compGroups[0]?.id ?? null,
+                      beat: existingAssignment?.beat ?? '',
+                      role: existingAssignment?.role ?? 'fishing'
+                    });
+                    return (
+                      <View key={`me-${session.id}`} style={{ gap: 6, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 10 }}>
+                        <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Session {session.sessionNumber}</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                          {compGroups.map((group) => (
+                            <Pressable
+                              key={group.id}
+                              onPress={() => updateAssignmentDraft(competition.id, currentUser.id, session.id, { competitionGroupId: group.id })}
+                              style={{ backgroundColor: draft.competitionGroupId === group.id ? '#2a9d8f' : 'rgba(255,255,255,0.12)', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999 }}
+                            >
+                              <Text style={{ color: 'white', fontWeight: '700' }}>Group {group.label}</Text>
+                            </Pressable>
+                          ))}
+                        </ScrollView>
+                        <TextInput
+                          value={draft.beat}
+                          onChangeText={(value) => updateAssignmentDraft(competition.id, currentUser.id, session.id, { beat: value })}
+                          placeholder="Beat / section"
+                          placeholderTextColor="#5a6c78"
+                          style={{ borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+                        />
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                          {(['fishing', 'controlling'] as const).map((role) => (
+                            <Pressable
+                              key={role}
+                              onPress={() => updateAssignmentDraft(competition.id, currentUser.id, session.id, { role })}
+                              style={{ backgroundColor: draft.role === role ? '#2a9d8f' : 'rgba(255,255,255,0.12)', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999 }}
+                            >
+                              <Text style={{ color: 'white', fontWeight: '700' }}>{role}</Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                        <Pressable
+                          onPress={() => saveAssignment(competition.id, currentUser.id, session.id, draft).catch((error) => Alert.alert('Unable to save assignment', error instanceof Error ? error.message : 'Please try again.'))}
+                          style={{ backgroundColor: '#264653', padding: 10, borderRadius: 12 }}
+                        >
+                          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Save Session {session.sessionNumber}</Text>
+                        </Pressable>
+                      </View>
+                    );
+                  })}
+                </View>
+                {competition.organizerUserId === currentUser.id ? (
+                  <View style={{ gap: 8, marginTop: 6 }}>
+                    <Text style={{ color: '#f7fdff', fontWeight: '700' }}>Organizer Review</Text>
+                    {participants.map((participant) => {
+                      const participantUser = users.find((user) => user.id === participant.userId);
+                      return (
+                        <View key={participant.id} style={{ gap: 8, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 10 }}>
+                          <Text style={{ color: '#f7fdff', fontWeight: '700' }}>{participantUser?.name ?? `Angler ${participant.userId}`}</Text>
+                          {compSessions.map((session) => {
+                            const existingAssignment = assignments.find(
+                              (assignment) =>
+                                assignment.userId === participant.userId && assignment.competitionSessionId === session.id
+                            );
+                            const draft = getDraftForAssignment(competition.id, participant.userId, session.id, {
+                              competitionGroupId: existingAssignment?.competitionGroupId ?? compGroups[0]?.id ?? null,
+                              beat: existingAssignment?.beat ?? '',
+                              role: existingAssignment?.role ?? 'fishing'
+                            });
+                            return (
+                              <View key={`${participant.id}-${session.id}`} style={{ gap: 6 }}>
+                                <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Session {session.sessionNumber}</Text>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                                  {compGroups.map((group) => (
+                                    <Pressable
+                                      key={group.id}
+                                      onPress={() => updateAssignmentDraft(competition.id, participant.userId, session.id, { competitionGroupId: group.id })}
+                                      style={{ backgroundColor: draft.competitionGroupId === group.id ? '#2a9d8f' : 'rgba(255,255,255,0.12)', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999 }}
+                                    >
+                                      <Text style={{ color: 'white', fontWeight: '700' }}>Group {group.label}</Text>
+                                    </Pressable>
+                                  ))}
+                                </ScrollView>
+                                <TextInput
+                                  value={draft.beat}
+                                  onChangeText={(value) => updateAssignmentDraft(competition.id, participant.userId, session.id, { beat: value })}
+                                  placeholder="Beat / section"
+                                  placeholderTextColor="#5a6c78"
+                                  style={{ borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+                                />
+                                <View style={{ flexDirection: 'row', gap: 8 }}>
+                                  {(['fishing', 'controlling'] as const).map((role) => (
+                                    <Pressable
+                                      key={role}
+                                      onPress={() => updateAssignmentDraft(competition.id, participant.userId, session.id, { role })}
+                                      style={{ backgroundColor: draft.role === role ? '#2a9d8f' : 'rgba(255,255,255,0.12)', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999 }}
+                                    >
+                                      <Text style={{ color: 'white', fontWeight: '700' }}>{role}</Text>
+                                    </Pressable>
+                                  ))}
+                                </View>
+                                <Pressable
+                                  onPress={() => saveAssignment(competition.id, participant.userId, session.id, draft).catch((error) => Alert.alert('Unable to save assignment', error instanceof Error ? error.message : 'Please try again.'))}
+                                  style={{ backgroundColor: '#264653', padding: 10, borderRadius: 12 }}
+                                >
+                                  <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Save Review Edit</Text>
+                                </Pressable>
+                              </View>
+                            );
+                          })}
+                        </View>
+                      );
+                    })}
+                  </View>
+                ) : null}
               </View>
             );
           })}

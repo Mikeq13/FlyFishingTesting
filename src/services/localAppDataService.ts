@@ -3,9 +3,30 @@ import { SavedRiver, Session } from '@/types/session';
 import { UserProfile } from '@/types/user';
 import { CatchEvent, SessionSegment } from '@/types/activity';
 import { SavedFly } from '@/types/fly';
-import { Competition, CompetitionParticipant, CompetitionSessionAssignment, Group, GroupMembership, SharePreference } from '@/types/group';
+import {
+  Competition,
+  CompetitionGroup,
+  CompetitionParticipant,
+  CompetitionSession,
+  CompetitionSessionAssignment,
+  Group,
+  GroupMembership,
+  SharePreference
+} from '@/types/group';
 import { LeaderFormula, RigPreset } from '@/types/rig';
-import { createCompetition, createCompetitionParticipant, deleteCompetitionsForUser, listCompetitionAssignments, listCompetitionParticipants, listCompetitions, upsertCompetitionAssignment } from '@/db/competitionRepo';
+import {
+  createCompetition,
+  createCompetitionGroup,
+  createCompetitionParticipant,
+  createCompetitionSession,
+  deleteCompetitionsForUser,
+  listCompetitionAssignments,
+  listCompetitionGroups,
+  listCompetitionParticipants,
+  listCompetitions,
+  listCompetitionSessions,
+  upsertCompetitionAssignment
+} from '@/db/competitionRepo';
 import { deleteDraftExperimentsForUser, deleteExperimentsForUser, listExperiments } from '@/db/experimentRepo';
 import { createGroup, createGroupMembership, createSharePreference, deleteGroupsForUser, listGroupMemberships, listGroups, listSharePreferences, upsertSharePreference } from '@/db/groupRepo';
 import { createUser, deleteUser, listUsers, updateUser } from '@/db/userRepo';
@@ -40,6 +61,8 @@ export interface LoadedLocalAppData {
   groupMemberships: GroupMembership[];
   sharePreferences: SharePreference[];
   competitions: Competition[];
+  competitionGroups: CompetitionGroup[];
+  competitionSessions: CompetitionSession[];
   competitionParticipants: CompetitionParticipant[];
   competitionAssignments: CompetitionSessionAssignment[];
   anglerComparisons: Insight[];
@@ -95,6 +118,8 @@ export const loadLocalAppData = async (preferredUserId?: number | null): Promise
       groupMemberships: [],
       sharePreferences: [],
       competitions: [],
+      competitionGroups: [],
+      competitionSessions: [],
       competitionParticipants: [],
       competitionAssignments: [],
       anglerComparisons: [],
@@ -102,7 +127,7 @@ export const loadLocalAppData = async (preferredUserId?: number | null): Promise
     };
   }
 
-  const [sessions, sessionSegments, catchEvents, experiments, savedFlies, savedLeaderFormulas, savedRigPresets, savedRivers, groups, groupMemberships, sharePreferences, competitions, competitionParticipants, competitionAssignments] = await Promise.all([
+  const [sessions, sessionSegments, catchEvents, experiments, savedFlies, savedLeaderFormulas, savedRigPresets, savedRivers, groups, groupMemberships, sharePreferences, competitions, competitionGroups, competitionSessions, competitionParticipants, competitionAssignments] = await Promise.all([
     listSessions(activeUserId),
     listSessionSegments(activeUserId),
     listCatchEvents(activeUserId),
@@ -115,6 +140,8 @@ export const loadLocalAppData = async (preferredUserId?: number | null): Promise
     listGroupMemberships(),
     listSharePreferences(),
     listCompetitions(),
+    listCompetitionGroups(),
+    listCompetitionSessions(),
     listCompetitionParticipants(),
     listCompetitionAssignments()
   ]);
@@ -140,6 +167,8 @@ export const loadLocalAppData = async (preferredUserId?: number | null): Promise
     groupMemberships,
     sharePreferences,
     competitions,
+    competitionGroups,
+    competitionSessions,
     competitionParticipants,
     competitionAssignments,
     anglerComparisons: generateAnglerComparisons(users, allSessionLists.flat(), allExperimentLists.flat().filter((experiment) => experiment.status !== 'draft')),
@@ -191,10 +220,38 @@ export const updateLocalSharePreference = async (
 
 export const createLocalCompetitionWithParticipant = async (
   activeUserId: number,
-  payload: Omit<Competition, 'id' | 'organizerUserId' | 'createdAt' | 'joinCode'>
+  payload: {
+    name: string;
+    groupCount: number;
+    sessions: Array<{
+      sessionNumber: number;
+      startTime: string;
+      endTime: string;
+    }>;
+  }
 ) => {
-  const competition = await createCompetition({ ...payload, organizerUserId: activeUserId });
+  const competition = await createCompetition({
+    name: payload.name,
+    organizerUserId: activeUserId,
+    groupCount: payload.groupCount,
+    sessionCount: payload.sessions.length
+  });
   await createCompetitionParticipant({ competitionId: competition.id, userId: activeUserId });
+  for (let index = 0; index < payload.groupCount; index += 1) {
+    await createCompetitionGroup({
+      competitionId: competition.id,
+      label: String.fromCharCode(65 + index),
+      sortOrder: index + 1
+    });
+  }
+  for (const session of payload.sessions) {
+    await createCompetitionSession({
+      competitionId: competition.id,
+      sessionNumber: session.sessionNumber,
+      startTime: session.startTime,
+      endTime: session.endTime
+    });
+  }
   return competition;
 };
 
@@ -214,9 +271,9 @@ export const joinLocalCompetitionByCode = async (
 };
 
 export const saveLocalCompetitionAssignment = async (
-  activeUserId: number,
+  userId: number,
   payload: Omit<CompetitionSessionAssignment, 'id' | 'userId' | 'createdAt' | 'updatedAt'>
-) => upsertCompetitionAssignment({ ...payload, userId: activeUserId });
+) => upsertCompetitionAssignment({ ...payload, userId });
 
 export const clearLocalFishingDataForUser = async (userId: number) => {
   await deleteCatchEventsForUser(userId);

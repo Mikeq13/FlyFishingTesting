@@ -31,12 +31,11 @@ export interface SharePreference {
 
 export interface Competition {
   id: number;
-  groupId: number;
   organizerUserId: number;
   name: string;
   joinCode: string;
-  startAt: string;
-  endAt: string;
+  groupCount: number;
+  sessionCount: number;
   createdAt: string;
 }
 
@@ -47,16 +46,29 @@ export interface CompetitionParticipant {
   joinedAt: string;
 }
 
+export interface CompetitionGroup {
+  id: number;
+  competitionId: number;
+  label: string;
+  sortOrder: number;
+}
+
+export interface CompetitionSession {
+  id: number;
+  competitionId: number;
+  sessionNumber: number;
+  startTime: string;
+  endTime: string;
+}
+
 export interface CompetitionSessionAssignment {
   id: number;
   competitionId: number;
   userId: number;
-  assignedGroup: string;
-  sessionNumber: number;
+  competitionGroupId: number;
+  competitionSessionId: number;
   beat: string;
   role: CompetitionSessionRole;
-  startAt: string;
-  endAt: string;
   sessionId?: number;
   createdAt: string;
   updatedAt: string;

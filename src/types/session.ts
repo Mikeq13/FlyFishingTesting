@@ -40,6 +40,8 @@ export interface Session {
   practiceLengthUnit?: PracticeLengthUnit;
   competitionId?: number;
   competitionAssignmentId?: number;
+  competitionGroupId?: number;
+  competitionSessionId?: number;
   competitionAssignedGroup?: string;
   competitionRole?: CompetitionSessionRole;
   competitionBeat?: string;

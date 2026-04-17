@@ -59,6 +59,8 @@ export const initDb = async (): Promise<void> => {
       practice_length_unit TEXT NOT NULL DEFAULT 'in',
       competition_id INTEGER,
       competition_assignment_id INTEGER,
+      competition_group_id INTEGER,
+      competition_session_id INTEGER,
       competition_assigned_group TEXT,
       competition_role TEXT NOT NULL DEFAULT 'fishing',
       competition_beat TEXT,
@@ -105,15 +107,28 @@ export const initDb = async (): Promise<void> => {
     )`,
     `CREATE TABLE IF NOT EXISTS competitions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      group_id INTEGER NOT NULL,
       organizer_user_id INTEGER NOT NULL,
       name TEXT NOT NULL,
       join_code TEXT NOT NULL,
-      start_at TEXT NOT NULL,
-      end_at TEXT NOT NULL,
+      group_count INTEGER NOT NULL DEFAULT 1,
+      session_count INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL,
-      FOREIGN KEY(group_id) REFERENCES groups(id),
       FOREIGN KEY(organizer_user_id) REFERENCES users(id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS competition_groups (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      competition_id INTEGER NOT NULL,
+      label TEXT NOT NULL,
+      sort_order INTEGER NOT NULL,
+      FOREIGN KEY(competition_id) REFERENCES competitions(id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS competition_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      competition_id INTEGER NOT NULL,
+      session_number INTEGER NOT NULL,
+      start_time TEXT NOT NULL,
+      end_time TEXT NOT NULL,
+      FOREIGN KEY(competition_id) REFERENCES competitions(id)
     )`,
     `CREATE TABLE IF NOT EXISTS competition_participants (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -127,17 +142,17 @@ export const initDb = async (): Promise<void> => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       competition_id INTEGER NOT NULL,
       user_id INTEGER NOT NULL,
-      assigned_group TEXT NOT NULL,
-      session_number INTEGER NOT NULL,
+      competition_group_id INTEGER,
+      competition_session_id INTEGER,
       beat TEXT NOT NULL,
       assignment_role TEXT NOT NULL DEFAULT 'fishing',
-      start_at TEXT NOT NULL,
-      end_at TEXT NOT NULL,
       session_id INTEGER,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       FOREIGN KEY(competition_id) REFERENCES competitions(id),
       FOREIGN KEY(user_id) REFERENCES users(id),
+      FOREIGN KEY(competition_group_id) REFERENCES competition_groups(id),
+      FOREIGN KEY(competition_session_id) REFERENCES competition_sessions(id),
       FOREIGN KEY(session_id) REFERENCES sessions(id)
     )`,
     `CREATE TABLE IF NOT EXISTS experiments (
@@ -307,6 +322,12 @@ export const initDb = async (): Promise<void> => {
     await database.execAsync(`ALTER TABLE sessions ADD COLUMN competition_assignment_id INTEGER;`);
   } catch {}
   try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN competition_group_id INTEGER;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN competition_session_id INTEGER;`);
+  } catch {}
+  try {
     await database.execAsync(`ALTER TABLE sessions ADD COLUMN competition_assigned_group TEXT;`);
   } catch {}
   try {
@@ -424,15 +445,38 @@ export const initDb = async (): Promise<void> => {
   try {
     await database.execAsync(`CREATE TABLE IF NOT EXISTS competitions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      group_id INTEGER NOT NULL,
       organizer_user_id INTEGER NOT NULL,
       name TEXT NOT NULL,
       join_code TEXT NOT NULL,
-      start_at TEXT NOT NULL,
-      end_at TEXT NOT NULL,
+      group_count INTEGER NOT NULL DEFAULT 1,
+      session_count INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL,
-      FOREIGN KEY(group_id) REFERENCES groups(id),
       FOREIGN KEY(organizer_user_id) REFERENCES users(id)
+    )`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE competitions ADD COLUMN group_count INTEGER NOT NULL DEFAULT 1;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE competitions ADD COLUMN session_count INTEGER NOT NULL DEFAULT 1;`);
+  } catch {}
+  try {
+    await database.execAsync(`CREATE TABLE IF NOT EXISTS competition_groups (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      competition_id INTEGER NOT NULL,
+      label TEXT NOT NULL,
+      sort_order INTEGER NOT NULL,
+      FOREIGN KEY(competition_id) REFERENCES competitions(id)
+    )`);
+  } catch {}
+  try {
+    await database.execAsync(`CREATE TABLE IF NOT EXISTS competition_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      competition_id INTEGER NOT NULL,
+      session_number INTEGER NOT NULL,
+      start_time TEXT NOT NULL,
+      end_time TEXT NOT NULL,
+      FOREIGN KEY(competition_id) REFERENCES competitions(id)
     )`);
   } catch {}
   try {
@@ -450,18 +494,24 @@ export const initDb = async (): Promise<void> => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       competition_id INTEGER NOT NULL,
       user_id INTEGER NOT NULL,
-      assigned_group TEXT NOT NULL,
-      session_number INTEGER NOT NULL,
+      competition_group_id INTEGER,
+      competition_session_id INTEGER,
       beat TEXT NOT NULL,
       assignment_role TEXT NOT NULL DEFAULT 'fishing',
-      start_at TEXT NOT NULL,
-      end_at TEXT NOT NULL,
       session_id INTEGER,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       FOREIGN KEY(competition_id) REFERENCES competitions(id),
       FOREIGN KEY(user_id) REFERENCES users(id),
+      FOREIGN KEY(competition_group_id) REFERENCES competition_groups(id),
+      FOREIGN KEY(competition_session_id) REFERENCES competition_sessions(id),
       FOREIGN KEY(session_id) REFERENCES sessions(id)
     )`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE competition_session_assignments ADD COLUMN competition_group_id INTEGER;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE competition_session_assignments ADD COLUMN competition_session_id INTEGER;`);
   } catch {}
 };

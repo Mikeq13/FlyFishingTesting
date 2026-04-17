@@ -12,8 +12,8 @@ export const createSession = async (payload: Omit<Session, 'id'>): Promise<numbe
 
   const db = await getDb();
   const result = await db.runAsync(
-    `INSERT INTO sessions (user_id, date, session_mode, planned_duration_minutes, alert_interval_minutes, alert_markers_json, notification_sound_enabled, notification_vibration_enabled, ended_at, start_at, end_at, water_type, depth_range, shared_group_id, practice_measurement_enabled, practice_length_unit, competition_id, competition_assignment_id, competition_assigned_group, competition_role, competition_beat, competition_session_number, competition_requires_measurement, competition_length_unit, starting_rig_setup_json, river_name, hypothesis, insect_type, insect_stage, insect_confidence, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO sessions (user_id, date, session_mode, planned_duration_minutes, alert_interval_minutes, alert_markers_json, notification_sound_enabled, notification_vibration_enabled, ended_at, start_at, end_at, water_type, depth_range, shared_group_id, practice_measurement_enabled, practice_length_unit, competition_id, competition_assignment_id, competition_group_id, competition_session_id, competition_assigned_group, competition_role, competition_beat, competition_session_number, competition_requires_measurement, competition_length_unit, starting_rig_setup_json, river_name, hypothesis, insect_type, insect_stage, insect_confidence, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     payload.userId,
     payload.date,
     payload.mode,
@@ -32,6 +32,8 @@ export const createSession = async (payload: Omit<Session, 'id'>): Promise<numbe
     payload.practiceLengthUnit ?? 'in',
     payload.competitionId ?? null,
     payload.competitionAssignmentId ?? null,
+    payload.competitionGroupId ?? null,
+    payload.competitionSessionId ?? null,
     payload.competitionAssignedGroup ?? null,
     payload.competitionRole ?? 'fishing',
     payload.competitionBeat ?? null,
@@ -60,7 +62,7 @@ export const updateSession = async (sessionId: number, payload: Omit<Session, 'i
   const db = await getDb();
   await db.runAsync(
     `UPDATE sessions
-     SET date = ?, session_mode = ?, planned_duration_minutes = ?, alert_interval_minutes = ?, alert_markers_json = ?, notification_sound_enabled = ?, notification_vibration_enabled = ?, ended_at = ?, start_at = ?, end_at = ?, water_type = ?, depth_range = ?, shared_group_id = ?, practice_measurement_enabled = ?, practice_length_unit = ?, competition_id = ?, competition_assignment_id = ?, competition_assigned_group = ?, competition_role = ?, competition_beat = ?, competition_session_number = ?, competition_requires_measurement = ?, competition_length_unit = ?, starting_rig_setup_json = ?, river_name = ?, hypothesis = ?, notes = ?
+     SET date = ?, session_mode = ?, planned_duration_minutes = ?, alert_interval_minutes = ?, alert_markers_json = ?, notification_sound_enabled = ?, notification_vibration_enabled = ?, ended_at = ?, start_at = ?, end_at = ?, water_type = ?, depth_range = ?, shared_group_id = ?, practice_measurement_enabled = ?, practice_length_unit = ?, competition_id = ?, competition_assignment_id = ?, competition_group_id = ?, competition_session_id = ?, competition_assigned_group = ?, competition_role = ?, competition_beat = ?, competition_session_number = ?, competition_requires_measurement = ?, competition_length_unit = ?, starting_rig_setup_json = ?, river_name = ?, hypothesis = ?, notes = ?
      WHERE id = ?`,
     payload.date,
     payload.mode,
@@ -79,6 +81,8 @@ export const updateSession = async (sessionId: number, payload: Omit<Session, 'i
     payload.practiceLengthUnit ?? 'in',
     payload.competitionId ?? null,
     payload.competitionAssignmentId ?? null,
+    payload.competitionGroupId ?? null,
+    payload.competitionSessionId ?? null,
     payload.competitionAssignedGroup ?? null,
     payload.competitionRole ?? 'fishing',
     payload.competitionBeat ?? null,
@@ -113,6 +117,8 @@ export const listSessions = async (userId: number): Promise<Session[]> => {
         practiceLengthUnit: session.practiceLengthUnit ?? 'in',
         competitionId: session.competitionId ?? undefined,
         competitionAssignmentId: session.competitionAssignmentId ?? undefined,
+        competitionGroupId: session.competitionGroupId ?? undefined,
+        competitionSessionId: session.competitionSessionId ?? undefined,
         competitionAssignedGroup: session.competitionAssignedGroup ?? undefined,
         competitionRole: session.competitionRole ?? 'fishing',
         competitionBeat: session.competitionBeat ?? undefined,
@@ -147,6 +153,8 @@ export const listSessions = async (userId: number): Promise<Session[]> => {
     practiceLengthUnit: r.practice_length_unit ?? 'in',
     competitionId: r.competition_id ?? undefined,
     competitionAssignmentId: r.competition_assignment_id ?? undefined,
+    competitionGroupId: r.competition_group_id ?? undefined,
+    competitionSessionId: r.competition_session_id ?? undefined,
     competitionAssignedGroup: r.competition_assigned_group ?? undefined,
     competitionRole: r.competition_role ?? 'fishing',
     competitionBeat: r.competition_beat ?? undefined,

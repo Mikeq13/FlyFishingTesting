@@ -1,9 +1,19 @@
-import { Competition, CompetitionParticipant, CompetitionSessionAssignment } from '@/types/group';
+import {
+  Competition,
+  CompetitionGroup,
+  CompetitionParticipant,
+  CompetitionSession,
+  CompetitionSessionAssignment
+} from '@/types/group';
 import { getDb, isWeb } from './schema';
 import { deleteWebRows, insertWebRow, listWebRows, updateWebRows } from './webStore';
 
 const WEB_COMPETITIONS_KEY = 'fishing_lab.competitions';
 const WEB_COMPETITIONS_ID_KEY = 'fishing_lab.competitions.nextId';
+const WEB_COMPETITION_GROUPS_KEY = 'fishing_lab.competition_groups';
+const WEB_COMPETITION_GROUPS_ID_KEY = 'fishing_lab.competition_groups.nextId';
+const WEB_COMPETITION_SESSIONS_KEY = 'fishing_lab.competition_sessions';
+const WEB_COMPETITION_SESSIONS_ID_KEY = 'fishing_lab.competition_sessions.nextId';
 const WEB_PARTICIPANTS_KEY = 'fishing_lab.competition_participants';
 const WEB_PARTICIPANTS_ID_KEY = 'fishing_lab.competition_participants.nextId';
 const WEB_ASSIGNMENTS_KEY = 'fishing_lab.competition_assignments';
@@ -18,15 +28,34 @@ const ensureCompetitionTables = async () => {
   const db = await getDb();
   await db.execAsync(`CREATE TABLE IF NOT EXISTS competitions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    group_id INTEGER NOT NULL,
     organizer_user_id INTEGER NOT NULL,
     name TEXT NOT NULL,
     join_code TEXT NOT NULL,
-    start_at TEXT NOT NULL,
-    end_at TEXT NOT NULL,
+    group_count INTEGER NOT NULL DEFAULT 1,
+    session_count INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL,
-    FOREIGN KEY(group_id) REFERENCES groups(id),
     FOREIGN KEY(organizer_user_id) REFERENCES users(id)
+  )`);
+  try {
+    await db.execAsync(`ALTER TABLE competitions ADD COLUMN group_count INTEGER NOT NULL DEFAULT 1`);
+  } catch {}
+  try {
+    await db.execAsync(`ALTER TABLE competitions ADD COLUMN session_count INTEGER NOT NULL DEFAULT 1`);
+  } catch {}
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS competition_groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    competition_id INTEGER NOT NULL,
+    label TEXT NOT NULL,
+    sort_order INTEGER NOT NULL,
+    FOREIGN KEY(competition_id) REFERENCES competitions(id)
+  )`);
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS competition_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    competition_id INTEGER NOT NULL,
+    session_number INTEGER NOT NULL,
+    start_time TEXT NOT NULL,
+    end_time TEXT NOT NULL,
+    FOREIGN KEY(competition_id) REFERENCES competitions(id)
   )`);
   await db.execAsync(`CREATE TABLE IF NOT EXISTS competition_participants (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,19 +69,25 @@ const ensureCompetitionTables = async () => {
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     competition_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
-    assigned_group TEXT NOT NULL,
-    session_number INTEGER NOT NULL,
+    competition_group_id INTEGER,
+    competition_session_id INTEGER,
     beat TEXT NOT NULL,
     assignment_role TEXT NOT NULL DEFAULT 'fishing',
-    start_at TEXT NOT NULL,
-    end_at TEXT NOT NULL,
     session_id INTEGER,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     FOREIGN KEY(competition_id) REFERENCES competitions(id),
     FOREIGN KEY(user_id) REFERENCES users(id),
+    FOREIGN KEY(competition_group_id) REFERENCES competition_groups(id),
+    FOREIGN KEY(competition_session_id) REFERENCES competition_sessions(id),
     FOREIGN KEY(session_id) REFERENCES sessions(id)
   )`);
+  try {
+    await db.execAsync(`ALTER TABLE competition_session_assignments ADD COLUMN competition_group_id INTEGER`);
+  } catch {}
+  try {
+    await db.execAsync(`ALTER TABLE competition_session_assignments ADD COLUMN competition_session_id INTEGER`);
+  } catch {}
   ensuredCompetitionTables = true;
 };
 
@@ -73,14 +108,13 @@ export const createCompetition = async (
     await ensureCompetitionTables();
     const db = await getDb();
     const result = await db.runAsync(
-      `INSERT INTO competitions (group_id, organizer_user_id, name, join_code, start_at, end_at, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      nextPayload.groupId,
+      `INSERT INTO competitions (organizer_user_id, name, join_code, group_count, session_count, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       nextPayload.organizerUserId,
       nextPayload.name,
       nextPayload.joinCode,
-      nextPayload.startAt,
-      nextPayload.endAt,
+      nextPayload.groupCount,
+      nextPayload.sessionCount,
       createdAt
     );
     id = result.lastInsertRowId;
@@ -96,16 +130,102 @@ export const listCompetitions = async (): Promise<Competition[]> => {
 
   await ensureCompetitionTables();
   const db = await getDb();
-  const rows = await db.getAllAsync<any>('SELECT * FROM competitions ORDER BY start_at DESC');
+  const rows = await db.getAllAsync<any>('SELECT * FROM competitions ORDER BY created_at DESC');
   return rows.map((row) => ({
     id: row.id,
-    groupId: row.group_id,
     organizerUserId: row.organizer_user_id,
     name: row.name,
     joinCode: row.join_code,
-    startAt: row.start_at,
-    endAt: row.end_at,
+    groupCount: row.group_count ?? 1,
+    sessionCount: row.session_count ?? 1,
     createdAt: row.created_at
+  }));
+};
+
+export const createCompetitionGroup = async (
+  payload: Omit<CompetitionGroup, 'id'>
+): Promise<CompetitionGroup> => {
+  let id: number;
+
+  if (isWeb) {
+    id = insertWebRow<CompetitionGroup>(WEB_COMPETITION_GROUPS_KEY, WEB_COMPETITION_GROUPS_ID_KEY, payload);
+  } else {
+    await ensureCompetitionTables();
+    const db = await getDb();
+    const result = await db.runAsync(
+      `INSERT INTO competition_groups (competition_id, label, sort_order) VALUES (?, ?, ?)`,
+      payload.competitionId,
+      payload.label,
+      payload.sortOrder
+    );
+    id = result.lastInsertRowId;
+  }
+
+  return { id, ...payload };
+};
+
+export const listCompetitionGroups = async (): Promise<CompetitionGroup[]> => {
+  if (isWeb) {
+    return listWebRows<CompetitionGroup>(WEB_COMPETITION_GROUPS_KEY);
+  }
+
+  await ensureCompetitionTables();
+  const db = await getDb();
+  const rows = await db.getAllAsync<any>(
+    'SELECT * FROM competition_groups ORDER BY competition_id ASC, sort_order ASC'
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    competitionId: row.competition_id,
+    label: row.label,
+    sortOrder: row.sort_order
+  }));
+};
+
+export const createCompetitionSession = async (
+  payload: Omit<CompetitionSession, 'id'>
+): Promise<CompetitionSession> => {
+  let id: number;
+
+  if (isWeb) {
+    id = insertWebRow<CompetitionSession>(
+      WEB_COMPETITION_SESSIONS_KEY,
+      WEB_COMPETITION_SESSIONS_ID_KEY,
+      payload
+    );
+  } else {
+    await ensureCompetitionTables();
+    const db = await getDb();
+    const result = await db.runAsync(
+      `INSERT INTO competition_sessions (competition_id, session_number, start_time, end_time)
+       VALUES (?, ?, ?, ?)`,
+      payload.competitionId,
+      payload.sessionNumber,
+      payload.startTime,
+      payload.endTime
+    );
+    id = result.lastInsertRowId;
+  }
+
+  return { id, ...payload };
+};
+
+export const listCompetitionSessions = async (): Promise<CompetitionSession[]> => {
+  if (isWeb) {
+    return listWebRows<CompetitionSession>(WEB_COMPETITION_SESSIONS_KEY);
+  }
+
+  await ensureCompetitionTables();
+  const db = await getDb();
+  const rows = await db.getAllAsync<any>(
+    'SELECT * FROM competition_sessions ORDER BY competition_id ASC, session_number ASC'
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    competitionId: row.competition_id,
+    sessionNumber: row.session_number,
+    startTime: row.start_time,
+    endTime: row.end_time
   }));
 };
 
@@ -160,7 +280,7 @@ export const upsertCompetitionAssignment = async (
       (assignment) =>
         assignment.competitionId === payload.competitionId &&
         assignment.userId === payload.userId &&
-        assignment.sessionNumber === payload.sessionNumber
+        assignment.competitionSessionId === payload.competitionSessionId
     );
     if (existing) {
       updateWebRows<CompetitionSessionAssignment>(WEB_ASSIGNMENTS_KEY, (rows) =>
@@ -192,24 +312,23 @@ export const upsertCompetitionAssignment = async (
   const db = await getDb();
   const existingRows = await db.getAllAsync<{ id: number; created_at: string }>(
     `SELECT id, created_at FROM competition_session_assignments
-     WHERE competition_id = ? AND user_id = ? AND session_number = ?
+     WHERE competition_id = ? AND user_id = ? AND competition_session_id = ?
      LIMIT 1`,
     payload.competitionId,
     payload.userId,
-    payload.sessionNumber
+    payload.competitionSessionId
   );
   const existing = existingRows[0];
 
   if (existing) {
     await db.runAsync(
       `UPDATE competition_session_assignments
-       SET assigned_group = ?, beat = ?, assignment_role = ?, start_at = ?, end_at = ?, session_id = ?, updated_at = ?
+       SET competition_group_id = ?, beat = ?, assignment_role = ?, competition_session_id = ?, session_id = ?, updated_at = ?
        WHERE id = ?`,
-      payload.assignedGroup,
+      payload.competitionGroupId,
       payload.beat,
       payload.role,
-      payload.startAt,
-      payload.endAt,
+      payload.competitionSessionId,
       payload.sessionId ?? null,
       updatedAt,
       existing.id
@@ -224,16 +343,14 @@ export const upsertCompetitionAssignment = async (
 
   const result = await db.runAsync(
     `INSERT INTO competition_session_assignments
-     (competition_id, user_id, assigned_group, session_number, beat, assignment_role, start_at, end_at, session_id, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     (competition_id, user_id, competition_group_id, competition_session_id, beat, assignment_role, session_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     payload.competitionId,
     payload.userId,
-    payload.assignedGroup,
-    payload.sessionNumber,
+    payload.competitionGroupId,
+    payload.competitionSessionId,
     payload.beat,
     payload.role,
-    payload.startAt,
-    payload.endAt,
     payload.sessionId ?? null,
     createdAt,
     updatedAt
@@ -255,18 +372,16 @@ export const listCompetitionAssignments = async (): Promise<CompetitionSessionAs
   await ensureCompetitionTables();
   const db = await getDb();
   const rows = await db.getAllAsync<any>(
-    'SELECT * FROM competition_session_assignments ORDER BY start_at DESC, session_number ASC'
+    'SELECT * FROM competition_session_assignments ORDER BY competition_session_id ASC, user_id ASC'
   );
   return rows.map((row) => ({
     id: row.id,
     competitionId: row.competition_id,
     userId: row.user_id,
-    assignedGroup: row.assigned_group,
-    sessionNumber: row.session_number,
+    competitionGroupId: row.competition_group_id,
+    competitionSessionId: row.competition_session_id,
     beat: row.beat,
     role: row.assignment_role,
-    startAt: row.start_at,
-    endAt: row.end_at,
     sessionId: row.session_id ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -279,6 +394,8 @@ export const deleteCompetitionsForUser = async (userId: number): Promise<void> =
 
   if (isWeb) {
     deleteWebRows<Competition>(WEB_COMPETITIONS_KEY, (row) => ownedIds.includes(row.id));
+    deleteWebRows<CompetitionGroup>(WEB_COMPETITION_GROUPS_KEY, (row) => ownedIds.includes(row.competitionId));
+    deleteWebRows<CompetitionSession>(WEB_COMPETITION_SESSIONS_KEY, (row) => ownedIds.includes(row.competitionId));
     deleteWebRows<CompetitionParticipant>(WEB_PARTICIPANTS_KEY, (row) => row.userId === userId || ownedIds.includes(row.competitionId));
     deleteWebRows<CompetitionSessionAssignment>(WEB_ASSIGNMENTS_KEY, (row) => row.userId === userId || ownedIds.includes(row.competitionId));
     return;
@@ -291,6 +408,8 @@ export const deleteCompetitionsForUser = async (userId: number): Promise<void> =
   if (ownedIds.length) {
     for (const competitionId of ownedIds) {
       await db.runAsync('DELETE FROM competition_session_assignments WHERE competition_id = ?', competitionId);
+      await db.runAsync('DELETE FROM competition_groups WHERE competition_id = ?', competitionId);
+      await db.runAsync('DELETE FROM competition_sessions WHERE competition_id = ?', competitionId);
       await db.runAsync('DELETE FROM competition_participants WHERE competition_id = ?', competitionId);
       await db.runAsync('DELETE FROM competitions WHERE id = ?', competitionId);
     }

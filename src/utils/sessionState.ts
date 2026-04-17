@@ -33,6 +33,8 @@ export const buildSessionUpdatePayload = (
   practiceLengthUnit: session.practiceLengthUnit,
   competitionId: session.competitionId,
   competitionAssignmentId: session.competitionAssignmentId,
+  competitionGroupId: session.competitionGroupId,
+  competitionSessionId: session.competitionSessionId,
   competitionAssignedGroup: session.competitionAssignedGroup,
   competitionRole: session.competitionRole,
   competitionBeat: session.competitionBeat,
