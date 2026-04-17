@@ -12,7 +12,7 @@ import { SectionCard } from '@/components/ui/SectionCard';
 import { StatusBanner } from '@/components/ui/StatusBanner';
 import { SelectableListPanel } from '@/components/ui/SelectableListPanel';
 import { FormField, getFormInputStyle } from '@/components/ui/FormField';
-import { appTheme, useTheme } from '@/design/theme';
+import { useTheme } from '@/design/theme';
 import { applyRigPresetToRig, createDefaultRigSetup, setRigFlyCount } from '@/utils/rigSetup';
 import { getInvalidReminderMarkers, isReminderMarkerAllowed } from '@/utils/sessionReminders';
 import { Group } from '@/types/group';
@@ -41,7 +41,7 @@ const MODE_COPY: Record<SessionMode, { title: string; subtitle: string; button: 
 };
 
 export const SessionScreen = ({ navigation, route }: any) => {
-  useTheme();
+  const { theme } = useTheme();
   const layout = useResponsiveLayout();
   const { addSession, updateSessionEntry, addSavedFly, addSavedLeaderFormula, deleteSavedLeaderFormula, addSavedRigPreset, deleteSavedRigPreset, addSavedRiver, savedFlies, savedLeaderFormulas, savedRigPresets, savedRivers, users, activeUserId, sessions, experiments, groups, groupMemberships, competitions, competitionGroups, competitionSessions, competitionParticipants, competitionAssignments, upsertCompetitionAssignment, sharedDataStatus, syncStatus, notificationPermissionStatus, authStatus, remoteSession } = useAppStore();
   const mode = (route?.params?.mode ?? 'experiment') as SessionMode;
@@ -506,11 +506,11 @@ export const SessionScreen = ({ navigation, route }: any) => {
           )}
           {mode === 'experiment' ? (
             <FormField label="Hypothesis">
-              <TextInput value={hypothesis} onChangeText={setHypothesis} placeholder="Hypothesis" placeholderTextColor={appTheme.colors.inputPlaceholder} style={formInputStyle} />
+              <TextInput value={hypothesis} onChangeText={setHypothesis} placeholder="Hypothesis" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
             </FormField>
           ) : null}
           <FormField label="Session Notes">
-            <TextInput value={notes} onChangeText={setNotes} placeholder="Session notes" placeholderTextColor={appTheme.colors.inputPlaceholder} multiline style={{ ...formInputStyle, minHeight: 96, textAlignVertical: 'top' }} />
+            <TextInput value={notes} onChangeText={setNotes} placeholder="Session notes" placeholderTextColor={theme.colors.inputPlaceholder} multiline style={{ ...formInputStyle, minHeight: 96, textAlignVertical: 'top' }} />
           </FormField>
         </SectionCard>
         <AppButton label={modeCopy.button} onPress={onStart} disabled={invalidReminderMarkers.length > 0} />

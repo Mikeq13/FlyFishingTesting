@@ -4,7 +4,7 @@ import { CastCounter } from '@/components/CastCounter';
 import { CatchCounter } from '@/components/CatchCounter';
 import { FlySelector } from '@/components/FlySelector';
 import { SectionCard } from '@/components/ui/SectionCard';
-import { appTheme } from '@/design/theme';
+import { useTheme } from '@/design/theme';
 import { SavedFly } from '@/types/fly';
 import { ExperimentFlyEntry } from '@/types/experiment';
 
@@ -32,7 +32,10 @@ export const ExperimentFlyCard = ({
   onIncrementCasts,
   onDecrementCatches,
   onIncrementCatches
-}: ExperimentFlyCardProps) => (
+}: ExperimentFlyCardProps) => {
+  const { theme } = useTheme();
+
+  return (
   <SectionCard tone="dark">
     <FlySelector
       title={entry.label}
@@ -57,10 +60,11 @@ export const ExperimentFlyCard = ({
       />
     </View>
     {!!entry.fishSizesInches.length && (
-      <Text style={{ color: appTheme.colors.textSoft, fontSize: 12 }}>
+      <Text style={{ color: theme.colors.textSoft, fontSize: 12 }}>
         Fish log:{' '}
         {entry.fishSizesInches.map((size, fishIndex) => `${size}" ${entry.fishSpecies[fishIndex] ?? 'Trout'}`).join(', ')}
       </Text>
     )}
   </SectionCard>
-);
+  );
+};

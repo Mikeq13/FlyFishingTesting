@@ -3,7 +3,7 @@ import { Modal, Pressable, Text, View } from 'react-native';
 import { TroutSpecies } from '@/types/experiment';
 import { AppButton } from '@/components/ui/AppButton';
 import { ModalSurface } from '@/components/ui/ModalSurface';
-import { appTheme } from '@/design/theme';
+import { useTheme } from '@/design/theme';
 
 const TROUT_SPECIES_OPTIONS: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow', 'Tiger', 'Whitefish'];
 const FISH_SIZE_OPTIONS = Array.from({ length: 17 }, (_, index) => index + 8);
@@ -28,7 +28,10 @@ export const ExperimentCatchModal = ({
   onSelectSize,
   onCancel,
   onConfirm
-}: ExperimentCatchModalProps) => (
+}: ExperimentCatchModalProps) => {
+  const { theme } = useTheme();
+
+  return (
   <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
     <ModalSurface
       title={title}
@@ -36,41 +39,43 @@ export const ExperimentCatchModal = ({
     >
 
         <View style={{ gap: 8 }}>
-          <Text style={{ color: appTheme.colors.textDark, fontWeight: '700' }}>Species</Text>
+          <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>Species</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {TROUT_SPECIES_OPTIONS.map((species) => (
               <Pressable
                 key={species}
                 onPress={() => onSelectSpecies(species)}
                 style={{
-                  backgroundColor: selectedSpecies === species ? appTheme.colors.primary : 'rgba(29,53,87,0.12)',
+                  backgroundColor: selectedSpecies === species ? theme.colors.primary : theme.colors.surfaceMuted,
                   paddingVertical: 10,
                   paddingHorizontal: 12,
-                  borderRadius: appTheme.radius.md
+                  borderRadius: theme.radius.md,
+                  borderWidth: 1,
+                  borderColor: selectedSpecies === species ? theme.colors.borderStrong : theme.colors.borderLight
                 }}
               >
-                <Text style={{ color: selectedSpecies === species ? 'white' : appTheme.colors.textDark, fontWeight: '700' }}>{species}</Text>
+                <Text style={{ color: selectedSpecies === species ? theme.colors.buttonText : theme.colors.textDark, fontWeight: '700' }}>{species}</Text>
               </Pressable>
             ))}
           </View>
         </View>
 
         <View style={{ gap: 8 }}>
-          <Text style={{ color: appTheme.colors.textDark, fontWeight: '700' }}>Length</Text>
+          <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>Length</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {FISH_SIZE_OPTIONS.map((size) => (
               <Pressable
                 key={size}
                 onPress={() => onSelectSize(size)}
                 style={{
-                  backgroundColor: selectedSize === size ? appTheme.colors.secondary : 'rgba(29,53,87,0.12)',
+                  backgroundColor: selectedSize === size ? theme.colors.secondary : theme.colors.surfaceMuted,
                   paddingVertical: 10,
                   paddingHorizontal: 12,
-                  borderRadius: appTheme.radius.md,
+                  borderRadius: theme.radius.md,
                   minWidth: 58
                 }}
               >
-                <Text style={{ color: selectedSize === size ? 'white' : appTheme.colors.textDark, textAlign: 'center', fontWeight: '700' }}>{size}"</Text>
+                <Text style={{ color: selectedSize === size ? theme.colors.buttonText : theme.colors.textDark, textAlign: 'center', fontWeight: '700' }}>{size}"</Text>
               </Pressable>
             ))}
           </View>
@@ -81,9 +86,10 @@ export const ExperimentCatchModal = ({
             <AppButton label="Cancel" onPress={onCancel} variant="neutral" />
           </View>
           <View style={{ flex: 1 }}>
-            <AppButton label="Save Catch" onPress={onConfirm} disabled={selectedSpecies === null} variant="tertiary" />
+            <AppButton label="Save Catch" onPress={onConfirm} disabled={selectedSpecies === null} />
           </View>
         </View>
     </ModalSurface>
   </Modal>
-);
+  );
+};

@@ -6,7 +6,7 @@ import { AppButton } from '@/components/ui/AppButton';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { StatusBanner } from '@/components/ui/StatusBanner';
-import { appTheme, useTheme } from '@/design/theme';
+import { useTheme } from '@/design/theme';
 import { useAppStore } from './store';
 import { SessionMode } from '@/types/session';
 import { useResponsiveLayout } from '@/design/layout';
@@ -92,17 +92,17 @@ export const HomeScreen = ({ navigation }: any) => {
           eyebrow="On The Water"
         />
         <SectionCard>
-          <Text style={{ color: '#d7f3ff', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 }}>
+          <Text style={{ color: theme.colors.textMuted, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 }}>
             Active Angler
           </Text>
-          <Text style={{ color: appTheme.colors.text, fontWeight: '800', fontSize: 24 }}>{activeUser?.name ?? 'Loading...'}</Text>
-          <Text style={{ color: appTheme.colors.textSoft }}>Choose a saved angler or create a new profile before you head into a session.</Text>
-          <Text style={{ color: appTheme.colors.textMuted }}>Access: {currentEntitlementLabel}</Text>
-          <Text style={{ color: appTheme.colors.textSoft }}>Premium features: {currentHasPremiumAccess ? 'Enabled' : 'Locked'}</Text>
-          <Text style={{ color: appTheme.colors.textSoft }}>Beta sync queue: {syncStatus.pendingCount} pending</Text>
-          <Text style={{ color: appTheme.colors.textSoft }}>Sync state: {syncStatus.state}</Text>
-          <Text style={{ color: appTheme.colors.textSoft }}>Shared data: {sharedDataStatus}</Text>
-          <Text style={{ color: appTheme.colors.textSoft }}>Notifications: {notificationPermissionStatus}</Text>
+          <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 24 }}>{activeUser?.name ?? 'Loading...'}</Text>
+          <Text style={{ color: theme.colors.textSoft }}>Choose a saved angler or create a new profile before you head into a session.</Text>
+          <Text style={{ color: theme.colors.textMuted }}>Access: {currentEntitlementLabel}</Text>
+          <Text style={{ color: theme.colors.textSoft }}>Premium features: {currentHasPremiumAccess ? 'Enabled' : 'Locked'}</Text>
+          <Text style={{ color: theme.colors.textSoft }}>Beta sync queue: {syncStatus.pendingCount} pending</Text>
+          <Text style={{ color: theme.colors.textSoft }}>Sync state: {syncStatus.state}</Text>
+          <Text style={{ color: theme.colors.textSoft }}>Shared data: {sharedDataStatus}</Text>
+          <Text style={{ color: theme.colors.textSoft }}>Notifications: {notificationPermissionStatus}</Text>
           {authStatus === 'authenticating' && !remoteSession ? <StatusBanner tone="info" text="Finish the magic-link sign-in on this device to turn shared beta sync on." /> : null}
           {syncStatus.lastError ? <StatusBanner tone="error" text={`Last sync issue: ${syncStatus.lastError}`} /> : null}
           {notificationPermissionStatus === 'denied' ? <StatusBanner tone="warning" text="Device notifications are turned off, so session reminders will stay in-app only until permissions are restored." /> : null}
@@ -122,7 +122,7 @@ export const HomeScreen = ({ navigation }: any) => {
             onChangeText={setNewUserName}
             placeholder="Enter angler name"
             placeholderTextColor={theme.colors.inputPlaceholder}
-            style={{ borderRadius: 12, padding: 12, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.inputText, borderWidth: 1, borderColor: appTheme.colors.borderStrong }}
+            style={{ borderRadius: 12, padding: 12, backgroundColor: theme.colors.inputBg, color: theme.colors.inputText, borderWidth: 1, borderColor: theme.colors.borderStrong }}
           />
 
           {showAnglerList ? (
@@ -134,13 +134,13 @@ export const HomeScreen = ({ navigation }: any) => {
                   style={{
                     padding: 12,
                     borderRadius: 14,
-                    backgroundColor: user.id === activeUserId ? 'rgba(42,157,143,0.92)' : 'rgba(255,255,255,0.12)',
+                    backgroundColor: user.id === activeUserId ? theme.colors.primary : theme.colors.surfaceMuted,
                     borderWidth: 1,
-                    borderColor: user.id === activeUserId ? 'rgba(255,255,255,0.26)' : 'rgba(202,240,248,0.10)'
+                    borderColor: user.id === activeUserId ? theme.colors.borderStrong : theme.colors.border
                   }}
                 >
-                  <Text style={{ color: appTheme.colors.text, fontWeight: '700', fontSize: 16 }}>{user.name}</Text>
-                  <Text style={{ color: appTheme.colors.textMuted, fontSize: 12 }}>
+                  <Text style={{ color: theme.colors.text, fontWeight: '700', fontSize: 16 }}>{user.name}</Text>
+                  <Text style={{ color: theme.colors.textMuted, fontSize: 12 }}>
                     Added {new Date(user.createdAt).toLocaleDateString()}
                   </Text>
                 </Pressable>
@@ -181,8 +181,8 @@ export const HomeScreen = ({ navigation }: any) => {
             }}
           >
             <View style={{ gap: 4 }}>
-              <Text style={{ color: appTheme.colors.text, fontSize: 24, fontWeight: '800' }}>What are you doing today?</Text>
-              <Text style={{ color: appTheme.colors.textMuted, lineHeight: 20 }}>
+              <Text style={{ color: theme.colors.text, fontSize: 24, fontWeight: '800' }}>What are you doing today?</Text>
+              <Text style={{ color: theme.colors.textMuted, lineHeight: 20 }}>
                 Choose the session style that best matches today’s water and how you want to log intel.
               </Text>
             </View>
@@ -200,8 +200,8 @@ export const HomeScreen = ({ navigation }: any) => {
                 gap: 4
               }}
               >
-                <Text style={{ color: appTheme.colors.text, fontWeight: '800', fontSize: 17 }}>{option.title}</Text>
-                <Text style={{ color: appTheme.colors.textMuted, lineHeight: 19 }}>{option.description}</Text>
+                <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 17 }}>{option.title}</Text>
+                <Text style={{ color: theme.colors.textMuted, lineHeight: 19 }}>{option.description}</Text>
               </Pressable>
             ))}
 

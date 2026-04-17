@@ -2,9 +2,12 @@ import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { DepthRange } from '@/types/session';
 import { DEPTH_RANGES } from '@/constants/options';
-import { appTheme } from '@/design/theme';
+import { useTheme } from '@/design/theme';
 
-export const DepthSelector = ({ value, onChange }: { value: DepthRange; onChange: (v: DepthRange) => void }) => (
+export const DepthSelector = ({ value, onChange }: { value: DepthRange; onChange: (v: DepthRange) => void }) => {
+  const { theme } = useTheme();
+
+  return (
   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
     {DEPTH_RANGES.map((o) => (
       <Pressable
@@ -14,13 +17,14 @@ export const DepthSelector = ({ value, onChange }: { value: DepthRange; onChange
           paddingHorizontal: 12,
           paddingVertical: 8,
           borderWidth: 1,
-          borderColor: value === o ? appTheme.colors.chipSelectedBorder : appTheme.colors.chipBorder,
-          backgroundColor: value === o ? appTheme.colors.chipSelectedBg : appTheme.colors.chipBg,
-          borderRadius: appTheme.radius.sm
+          borderColor: value === o ? theme.colors.chipSelectedBorder : theme.colors.chipBorder,
+          backgroundColor: value === o ? theme.colors.chipSelectedBg : theme.colors.chipBg,
+          borderRadius: theme.radius.sm
         }}
       >
-        <Text style={{ color: appTheme.colors.text, fontWeight: '700' }}>{o}</Text>
+        <Text style={{ color: value === o ? theme.colors.chipSelectedText : theme.colors.chipText, fontWeight: '700' }}>{o}</Text>
       </Pressable>
     ))}
   </View>
-);
+  );
+};

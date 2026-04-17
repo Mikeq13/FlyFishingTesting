@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { Alert, Platform, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { ExperimentCatchModal } from '@/components/ExperimentCatchModal';
 import { ExperimentFlyCard } from '@/components/ExperimentFlyCard';
 import { ExperimentSavedActionsModal } from '@/components/ExperimentSavedActionsModal';
@@ -18,11 +18,14 @@ import { applyRigPresetToRig, createDefaultRigSetup, getFlyCount, syncRigSetupFr
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { AppButton } from '@/components/ui/AppButton';
 import { StatusBanner } from '@/components/ui/StatusBanner';
+import { SectionCard } from '@/components/ui/SectionCard';
+import { useTheme } from '@/design/theme';
 
 const isDraftExperiment = (entries: ExperimentFlyEntry[]) =>
   entries.some((entry) => entry.casts <= 0 || !entry.fly.name.trim());
 
 export const ExperimentScreen = ({ route, navigation }: any) => {
+  const { theme } = useTheme();
   const { width } = useWindowDimensions();
   const { addExperiment, addSavedFly, addSavedLeaderFormula, deleteSavedLeaderFormula, addSavedRigPreset, deleteSavedRigPreset, savedFlies, savedLeaderFormulas, savedRigPresets, users, activeUserId, experiments, updateExperimentEntry, sessions } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
@@ -310,26 +313,34 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           />
         ))}
 
-        <AppButton
-          label={
-            isSaving
-              ? existingExperiment
-                ? 'Updating...'
-                : 'Saving...'
-              : existingExperiment
-                ? isDraft
-                  ? 'Update Draft'
-                  : 'Update Experiment'
-                : isDraft
-                  ? 'Save Draft'
-                  : 'Save Experiment'
-          }
-          onPress={() => {
-            save().catch(console.error);
-          }}
-          disabled={isSaving}
-          variant="tertiary"
-        />
+        <SectionCard title="Save Progress" subtitle="This is the primary action for this screen." tone="light">
+          <Text style={{ color: theme.colors.textDarkSoft }}>
+            {existingExperiment
+              ? 'Saving here updates the experiment you already started.'
+              : isDraft
+                ? 'Draft saves keep incomplete experiments available for later.'
+                : 'Save the finished experiment once the comparison looks right.'}
+          </Text>
+          <AppButton
+            label={
+              isSaving
+                ? existingExperiment
+                  ? 'Updating...'
+                  : 'Saving...'
+                : existingExperiment
+                  ? isDraft
+                    ? 'Update Draft'
+                    : 'Update Experiment'
+                  : isDraft
+                    ? 'Save Draft'
+                    : 'Save Experiment'
+            }
+            onPress={() => {
+              save().catch(console.error);
+            }}
+            disabled={isSaving}
+          />
+        </SectionCard>
 
       </ScrollView>
       </KeyboardDismissView>

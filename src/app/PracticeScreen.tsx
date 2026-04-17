@@ -19,9 +19,10 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { StatusBanner } from '@/components/ui/StatusBanner';
 import { AppButton } from '@/components/ui/AppButton';
-import { appTheme } from '@/design/theme';
+import { useTheme } from '@/design/theme';
 
 export const PracticeScreen = ({ route }: any) => {
+  const { theme } = useTheme();
   const sessionId = route?.params?.sessionId as number;
   const {
     sessions,
@@ -185,12 +186,12 @@ export const PracticeScreen = ({ route }: any) => {
         ) : null}
 
         <SectionCard title="Session Timer" subtitle="Keep your timing, reminders, and practice measuring in one glance.">
-          <Text style={{ color: '#d7f3ff' }}>Elapsed: {timer.elapsedLabel}</Text>
-          {timer.remainingLabel ? <Text style={{ color: '#d7f3ff' }}>Remaining: {timer.remainingLabel}</Text> : null}
+            <Text style={{ color: theme.colors.text }}>Elapsed: {timer.elapsedLabel}</Text>
+          {timer.remainingLabel ? <Text style={{ color: theme.colors.text }}>Remaining: {timer.remainingLabel}</Text> : null}
           {timer.hasEnded ? <StatusBanner tone="error" text="Session ended early." /> : null}
-          {!timer.hasEnded && timer.nextAlertMinute ? <Text style={{ color: '#d7f3ff' }}>Next alert: {timer.nextAlertMinute} min</Text> : null}
+          {!timer.hasEnded && timer.nextAlertMinute ? <Text style={{ color: theme.colors.text }}>Next alert: {timer.nextAlertMinute} min</Text> : null}
           {session.practiceMeasurementEnabled ? (
-            <Text style={{ color: '#bde6f6' }}>
+            <Text style={{ color: theme.colors.textSoft }}>
               Practice measuring is on. Add length in {session.practiceLengthUnit ?? 'in'} whenever it helps your scouting notes.
             </Text>
           ) : null}
@@ -200,10 +201,10 @@ export const PracticeScreen = ({ route }: any) => {
         </SectionCard>
 
         <SectionCard title="Active Water Segment" subtitle="Track the current water, then move fast when you want a new segment.">
-          <Text style={{ color: '#d7f3ff' }}>Current water: {activeSegment?.waterType ?? session.waterType}</Text>
-          <Text style={{ color: '#d7f3ff' }}>Current depth: {activeSegment?.depthRange ?? session.depthRange}</Text>
+          <Text style={{ color: theme.colors.text }}>Current water: {activeSegment?.waterType ?? session.waterType}</Text>
+          <Text style={{ color: theme.colors.text }}>Current depth: {activeSegment?.depthRange ?? session.depthRange}</Text>
           <OptionChips label="Next Water Type" options={WATER_TYPES} value={nextWaterType} onChange={setNextWaterType} />
-          <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Next Water Depth</Text>
+          <Text style={{ color: theme.colors.text, fontWeight: '700' }}>Next Water Depth</Text>
           <DepthSelector value={nextDepthRange} onChange={setNextDepthRange} />
           <AppButton label="Change Water" onPress={() => { changeWater().catch(console.error); }} disabled={timer.hasEnded} variant="secondary" />
         </SectionCard>
@@ -266,11 +267,14 @@ export const PracticeScreen = ({ route }: any) => {
 
         <SectionCard title="Log Catches" subtitle="Quick tap logging stays front and center while you practice.">
           {!currentRigSetup.assignments.length ? (
-            <Text style={{ color: '#bde6f6' }}>Add flies to the rig before logging practice catches.</Text>
+            <Text style={{ color: theme.colors.textSoft }}>Add flies to the rig before logging practice catches.</Text>
           ) : (
             currentRigSetup.assignments.map((assignment, index) => (
-              <View key={`${assignment.position}-${assignment.fly.name}-${index}`} style={{ backgroundColor: appTheme.colors.surfaceMuted, borderRadius: appTheme.radius.md, padding: 12, gap: 8 }}>
-                <Text style={{ color: '#f7fdff', fontWeight: '800' }}>
+              <View
+                key={`${assignment.position}-${assignment.fly.name}-${index}`}
+                style={{ backgroundColor: theme.colors.surfaceMuted, borderRadius: theme.radius.md, padding: 12, gap: 8, borderWidth: 1, borderColor: theme.colors.border }}
+              >
+                <Text style={{ color: theme.colors.text, fontWeight: '800' }}>
                   {assignment.position}: {assignment.fly.name} #{assignment.fly.hookSize} {assignment.fly.beadColor} {assignment.fly.beadSizeMm}
                 </Text>
                 <AppButton
@@ -290,10 +294,10 @@ export const PracticeScreen = ({ route }: any) => {
 
         <SectionCard title="Recent Success" subtitle="A quick read on what has connected lately." tone="light">
           {!recentCatches.length ? (
-            <Text style={{ color: '#486581' }}>No catches logged yet in this practice session.</Text>
+            <Text style={{ color: theme.colors.textDarkSoft }}>No catches logged yet in this practice session.</Text>
           ) : (
             recentCatches.map((event) => (
-              <Text key={event.id} style={{ color: '#334e68' }}>
+              <Text key={event.id} style={{ color: theme.colors.textDarkSoft }}>
                 {new Date(event.caughtAt).toLocaleTimeString()} - {event.flyName || 'Fly'}{event.species ? ` - ${event.species}` : ''}
               </Text>
             ))

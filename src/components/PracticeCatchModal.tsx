@@ -4,7 +4,7 @@ import { TroutSpecies } from '@/types/experiment';
 import { CatchLengthUnit } from '@/types/activity';
 import { AppButton } from '@/components/ui/AppButton';
 import { ModalSurface } from '@/components/ui/ModalSurface';
-import { appTheme } from '@/design/theme';
+import { useTheme } from '@/design/theme';
 
 const TROUT_SPECIES_OPTIONS: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow', 'Tiger', 'Whitefish'];
 
@@ -32,41 +32,46 @@ export const PracticeCatchModal = ({
   onSelectLength,
   onCancel,
   onConfirm
-}: PracticeCatchModalProps) => (
+}: PracticeCatchModalProps) => {
+  const { theme } = useTheme();
+
+  return (
   <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
     <ModalSurface
       title={title}
       subtitle="Choose the trout species. The app will timestamp the catch automatically for catch-rate insights later."
     >
         <View style={{ gap: 8 }}>
-          <Text style={{ color: appTheme.colors.textDark, fontWeight: '700' }}>Species</Text>
+          <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>Species</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {TROUT_SPECIES_OPTIONS.map((species) => (
               <Pressable
                 key={species}
                 onPress={() => onSelectSpecies(species)}
                 style={{
-                  backgroundColor: selectedSpecies === species ? appTheme.colors.primary : 'rgba(29,53,87,0.12)',
+                  backgroundColor: selectedSpecies === species ? theme.colors.primary : theme.colors.surfaceMuted,
                   paddingVertical: 10,
                   paddingHorizontal: 12,
-                  borderRadius: appTheme.radius.md
+                  borderRadius: theme.radius.md,
+                  borderWidth: 1,
+                  borderColor: selectedSpecies === species ? theme.colors.borderStrong : theme.colors.borderLight
                 }}
               >
-                <Text style={{ color: selectedSpecies === species ? 'white' : appTheme.colors.textDark, fontWeight: '700' }}>{species}</Text>
+                <Text style={{ color: selectedSpecies === species ? theme.colors.buttonText : theme.colors.textDark, fontWeight: '700' }}>{species}</Text>
               </Pressable>
             ))}
           </View>
         </View>
         {measurementEnabled ? (
           <View style={{ gap: 8 }}>
-            <Text style={{ color: appTheme.colors.textDark, fontWeight: '700' }}>Optional length ({lengthUnit})</Text>
+            <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>Optional length ({lengthUnit})</Text>
             <TextInput
               value={selectedLength}
               onChangeText={onSelectLength}
               keyboardType="decimal-pad"
               placeholder={`Length in ${lengthUnit}`}
-              placeholderTextColor="#5a6c78"
-              style={{ borderWidth: 1, borderColor: appTheme.colors.borderStrong, padding: 12, borderRadius: appTheme.radius.md, backgroundColor: 'white', color: appTheme.colors.textDark }}
+              placeholderTextColor={theme.colors.inputPlaceholder}
+              style={{ borderWidth: 1, borderColor: theme.colors.borderStrong, padding: 12, borderRadius: theme.radius.md, backgroundColor: theme.colors.inputBg, color: theme.colors.textDark }}
             />
           </View>
         ) : null}
@@ -75,9 +80,10 @@ export const PracticeCatchModal = ({
             <AppButton label="Cancel" onPress={onCancel} variant="neutral" />
           </View>
           <View style={{ flex: 1 }}>
-            <AppButton label="Save Catch" onPress={onConfirm} disabled={selectedSpecies === null} variant="tertiary" />
+            <AppButton label="Save Catch" onPress={onConfirm} disabled={selectedSpecies === null} />
           </View>
         </View>
     </ModalSurface>
   </Modal>
-);
+  );
+};

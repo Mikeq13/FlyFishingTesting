@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, ScrollView, Text } from 'react-native';
-import { appTheme } from '@/design/theme';
+import { useTheme } from '@/design/theme';
 
 export const SelectableListPanel = ({
   items,
@@ -8,14 +8,17 @@ export const SelectableListPanel = ({
 }: {
   items: Array<{ key: string | number; label: string; onPress: () => void }>;
   maxHeight?: number;
-}) => (
+}) => {
+  const { theme } = useTheme();
+
+  return (
   <ScrollView
     style={{
       maxHeight,
       borderWidth: 1,
-      borderColor: appTheme.colors.borderStrong,
-      borderRadius: appTheme.radius.md,
-      backgroundColor: appTheme.colors.surfaceLight
+      borderColor: theme.colors.borderStrong,
+      borderRadius: theme.radius.md,
+      backgroundColor: theme.colors.surfaceLight
     }}
   >
     {items.map((item, index) => (
@@ -23,14 +26,15 @@ export const SelectableListPanel = ({
         key={item.key}
         onPress={item.onPress}
         style={{
-          paddingHorizontal: appTheme.spacing.md,
-          paddingVertical: appTheme.spacing.md,
+          paddingHorizontal: theme.spacing.md,
+          paddingVertical: theme.spacing.md,
           borderBottomWidth: index === items.length - 1 ? 0 : 1,
-          borderBottomColor: '#d8e2eb'
+          borderBottomColor: theme.colors.borderLight
         }}
       >
-        <Text style={{ color: appTheme.colors.textDark, fontWeight: '600' }}>{item.label}</Text>
+        <Text style={{ color: theme.colors.textDark, fontWeight: '600' }}>{item.label}</Text>
       </Pressable>
     ))}
   </ScrollView>
-);
+  );
+};

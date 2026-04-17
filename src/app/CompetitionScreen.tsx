@@ -15,13 +15,13 @@ import { ModalSurface } from '@/components/ui/ModalSurface';
 import { FormField, getFormInputStyle } from '@/components/ui/FormField';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { ActionGroup } from '@/components/ui/ActionGroup';
-import { appTheme, useTheme } from '@/design/theme';
+import { useTheme } from '@/design/theme';
 import { useResponsiveLayout } from '@/design/layout';
 
 const TROUT_SPECIES: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow', 'Tiger', 'Whitefish'];
 
 export const CompetitionScreen = ({ route }: any) => {
-  useTheme();
+  const { theme } = useTheme();
   const layout = useResponsiveLayout();
   const sessionId = route?.params?.sessionId as number;
   const { sessions, allSessions, catchEvents, allCatchEvents, users, competitionAssignments, competitionGroups, competitionSessions, addCatchEvent, updateSessionEntry, upsertCompetitionAssignment, notificationPermissionStatus } = useAppStore();
@@ -180,7 +180,7 @@ export const CompetitionScreen = ({ route }: any) => {
           {competitionRequiresMeasurement ? (
             <InlineSummaryRow label="Total Length" value={`${Math.round(totalLengthDisplay)} ${competitionLengthUnit}`} tone="light" />
           ) : (
-            <Text style={{ color: appTheme.colors.textDarkSoft }}>This session is counting fish only. No length entry required.</Text>
+            <Text style={{ color: theme.colors.textDarkSoft }}>This session is counting fish only. No length entry required.</Text>
           )}
           <AppButton
             label={session.competitionRole === 'controlling' ? 'Controlling This Session' : 'Log Competition Fish'}
@@ -197,14 +197,14 @@ export const CompetitionScreen = ({ route }: any) => {
                 key={row.assignment.id}
                 style={{
                   backgroundColor: 'rgba(255,255,255,0.72)',
-                  borderRadius: appTheme.radius.md,
+                  borderRadius: theme.radius.md,
                   padding: 12,
                   gap: 4,
                   borderWidth: 1,
-                  borderColor: 'rgba(16,42,67,0.08)'
+                  borderColor: theme.colors.borderLight
                 }}
               >
-                <Text style={{ color: appTheme.colors.textDark, fontWeight: '800' }}>{row.name}</Text>
+                <Text style={{ color: theme.colors.textDark, fontWeight: '800' }}>{row.name}</Text>
                 <InlineSummaryRow label="Result" value={row.status === 'controlling' ? 'Controlling' : `${row.fishCount} fish`} tone="light" />
                 {session.competitionRequiresMeasurement && row.status !== 'controlling' ? (
                   <InlineSummaryRow label="Measured Length" value={`${Math.round(row.totalLength)} ${competitionLengthUnit}`} tone="light" />
@@ -219,10 +219,10 @@ export const CompetitionScreen = ({ route }: any) => {
 
         <SectionCard title="Catch Times" subtitle="Each logged fish stays easy to verify by time and measurement." tone="light">
           {!competitionCatches.length ? (
-            <Text style={{ color: appTheme.colors.textDarkSoft }}>No competition fish logged yet.</Text>
+            <Text style={{ color: theme.colors.textDarkSoft }}>No competition fish logged yet.</Text>
           ) : (
             competitionCatches.map((event) => (
-              <Text key={event.id} style={{ color: appTheme.colors.textDarkSoft }}>
+              <Text key={event.id} style={{ color: theme.colors.textDarkSoft }}>
                 {new Date(event.caughtAt).toLocaleTimeString()} - {event.species || 'Fish'}
                 {event.lengthValue ? ` - ${event.lengthValue} ${event.lengthUnit}` : ''}
               </Text>
@@ -249,7 +249,7 @@ export const CompetitionScreen = ({ route }: any) => {
                   onChangeText={setLengthValue}
                   keyboardType="number-pad"
                   placeholder={`Length in ${competitionLengthUnit}`}
-                  placeholderTextColor={appTheme.colors.inputPlaceholder}
+                  placeholderTextColor={theme.colors.inputPlaceholder}
                   style={formInputStyle}
                 />
               </FormField>

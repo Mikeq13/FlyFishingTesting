@@ -4,7 +4,7 @@ import { OptionChips } from '@/components/OptionChips';
 import { ExperimentControlFocus, ExperimentFlyEntry } from '@/types/experiment';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { AppButton } from '@/components/ui/AppButton';
-import { appTheme } from '@/design/theme';
+import { useTheme } from '@/design/theme';
 
 const FLY_COUNT_OPTIONS = [1, 2, 3] as const;
 const CONTROL_FOCUS_OPTIONS: ExperimentControlFocus[] = ['bead color', 'bead size', 'body type', 'collar', 'fly type', 'hook size', 'pattern', 'tail'];
@@ -33,7 +33,10 @@ export const ExperimentSetupPanel = ({
   castStep,
   onCastStepChange,
   isCompactLayout
-}: ExperimentSetupPanelProps) => (
+}: ExperimentSetupPanelProps) => {
+  const { theme } = useTheme();
+
+  return (
   <>
     <SectionCard title="Flies In This Experiment" subtitle="Keep the fly count choice obvious before you start logging casts and fish.">
       <View style={{ flexDirection: isCompactLayout ? 'column' : 'row', gap: 8 }}>
@@ -43,11 +46,11 @@ export const ExperimentSetupPanel = ({
             onPress={() => onFlyCountChange(option)}
             style={{
               flex: 1,
-              backgroundColor: flyCount === option ? appTheme.colors.primary : appTheme.colors.surfaceMuted,
+              backgroundColor: flyCount === option ? theme.colors.primary : theme.colors.surfaceMuted,
               padding: 12,
-              borderRadius: appTheme.radius.md,
+              borderRadius: theme.radius.md,
               borderWidth: 1,
-              borderColor: flyCount === option ? appTheme.colors.borderStrong : appTheme.colors.border
+              borderColor: flyCount === option ? theme.colors.borderStrong : theme.colors.border
             }}
           >
             <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>{option}</Text>
@@ -67,11 +70,11 @@ export const ExperimentSetupPanel = ({
               onPress={() => onBaselineIndexChange(index)}
               style={{
                 flex: 1,
-                backgroundColor: baselineIndex === index ? appTheme.colors.primary : appTheme.colors.surfaceMuted,
+                backgroundColor: baselineIndex === index ? theme.colors.primary : theme.colors.surfaceMuted,
                 padding: 12,
-                borderRadius: appTheme.radius.md,
+                borderRadius: theme.radius.md,
                 borderWidth: 1,
-                borderColor: baselineIndex === index ? appTheme.colors.borderStrong : appTheme.colors.border
+                borderColor: baselineIndex === index ? theme.colors.borderStrong : theme.colors.border
               }}
             >
               <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
@@ -92,4 +95,5 @@ export const ExperimentSetupPanel = ({
       </View>
     </View>
   </>
-);
+  );
+};
