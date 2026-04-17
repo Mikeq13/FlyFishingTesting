@@ -3,6 +3,8 @@ import { Text, View } from 'react-native';
 import { CastCounter } from '@/components/CastCounter';
 import { CatchCounter } from '@/components/CatchCounter';
 import { FlySelector } from '@/components/FlySelector';
+import { SectionCard } from '@/components/ui/SectionCard';
+import { appTheme } from '@/design/theme';
 import { SavedFly } from '@/types/fly';
 import { ExperimentFlyEntry } from '@/types/experiment';
 
@@ -31,7 +33,7 @@ export const ExperimentFlyCard = ({
   onDecrementCatches,
   onIncrementCatches
 }: ExperimentFlyCardProps) => (
-  <View style={{ gap: 8 }}>
+  <SectionCard tone="dark">
     <FlySelector
       title={entry.label}
       value={entry.fly}
@@ -55,10 +57,10 @@ export const ExperimentFlyCard = ({
       />
     </View>
     {!!entry.fishSizesInches.length && (
-      <Text style={{ color: '#bde6f6', fontSize: 12 }}>
+      <Text style={{ color: appTheme.colors.textSoft, fontSize: 12 }}>
         Fish log:{' '}
         {entry.fishSizesInches.map((size, fishIndex) => `${size}" ${entry.fishSpecies[fishIndex] ?? 'Trout'}`).join(', ')}
       </Text>
     )}
-  </View>
+  </SectionCard>
 );

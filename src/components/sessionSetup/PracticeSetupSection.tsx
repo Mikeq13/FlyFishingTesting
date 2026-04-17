@@ -2,6 +2,7 @@ import React from 'react';
 import { OptionChips } from '@/components/OptionChips';
 import { RigFlyManager } from '@/components/RigFlyManager';
 import { RigSetupPanel } from '@/components/RigSetupPanel';
+import { SectionCard } from '@/components/ui/SectionCard';
 import { PracticeLengthUnit } from '@/types/session';
 import { RigSetup, LeaderFormula, RigPreset } from '@/types/rig';
 import { FlySetup, SavedFly } from '@/types/fly';
@@ -59,9 +60,11 @@ export const PracticeSetupSection = ({
       onDeleteRigPreset={onDeleteRigPreset}
     />
     <RigFlyManager title="Fly Assignments" rigSetup={rigSetup} savedFlies={savedFlies} onChange={onRigSetupChange} onCreateFly={onCreateFly} />
-    <OptionChips label="Measure Fish In Practice?" options={['Yes', 'No'] as const} value={practiceMeasurementEnabled ? 'Yes' : 'No'} onChange={(value) => onPracticeMeasurementEnabledChange(value === 'Yes')} />
-    {practiceMeasurementEnabled ? (
-      <OptionChips label="Practice Length Unit" options={['in', 'cm', 'mm'] as const} value={practiceLengthUnit} onChange={(value) => onPracticeLengthUnitChange(value as PracticeLengthUnit)} />
-    ) : null}
+    <SectionCard title="Practice Catch Measurement" subtitle="Keep quick logging fast, and only turn on length entry when this practice session calls for it.">
+      <OptionChips label="Measure Fish In Practice?" options={['Yes', 'No'] as const} value={practiceMeasurementEnabled ? 'Yes' : 'No'} onChange={(value) => onPracticeMeasurementEnabledChange(value === 'Yes')} />
+      {practiceMeasurementEnabled ? (
+        <OptionChips label="Practice Length Unit" options={['in', 'cm', 'mm'] as const} value={practiceLengthUnit} onChange={(value) => onPracticeLengthUnitChange(value as PracticeLengthUnit)} />
+      ) : null}
+    </SectionCard>
   </>
 );

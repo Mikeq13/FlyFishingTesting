@@ -1,6 +1,7 @@
 import React from 'react';
 import { Alert, Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { ScreenBackground } from '@/components/ScreenBackground';
+import { OptionChips } from '@/components/OptionChips';
 import { UserDataCleanupCategory, useAppStore } from './store';
 import { getEntitlementLabel, hasPremiumAccess } from '@/engine/entitlementEngine';
 import { beginAppleSubscriptionPurchase, PREMIUM_MONTHLY_PRICE_LABEL, PREMIUM_TRIAL_LABEL } from '@/billing/storekit';
@@ -10,6 +11,9 @@ import { AppButton } from '@/components/ui/AppButton';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { StatusBanner } from '@/components/ui/StatusBanner';
+import { ActionGroup } from '@/components/ui/ActionGroup';
+import { FormField, formInputStyle } from '@/components/ui/FormField';
+import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { appTheme } from '@/design/theme';
 
 export const AccessScreen = () => {
@@ -207,11 +211,12 @@ export const AccessScreen = () => {
     { key: 'all', label: 'Clear Everything', description: 'Removes sessions, experiments, saved flies, saved leader formulas, saved rig presets, and saved rivers for this profile.', destructive: true }
   ];
 
-  const renderCleanupActions = (userId: number, userName: string, tone: 'dark' | 'light') => (
-    <View style={{ gap: 8 }}>
+  const renderCleanupActions = (userId: number, userName: string) => (
+    <ActionGroup>
       {cleanupConfig.map((item) => (
-        <Pressable
+        <AppButton
           key={`${userId}-${item.key}`}
+          label={item.label}
           onPress={() => {
             if (item.key === 'experiments') {
               Alert.alert(
@@ -257,23 +262,10 @@ export const AccessScreen = () => {
               `${item.label.replace('Clear ', '')} finished for ${userName}.`
             );
           }}
-          style={{
-            backgroundColor:
-              tone === 'dark'
-                ? item.destructive ? '#6c584c' : 'rgba(255,255,255,0.10)'
-                : item.destructive ? '#6c584c' : '#e9f5fb',
-            padding: 12,
-            borderRadius: 12,
-            borderWidth: tone === 'dark' && !item.destructive ? 1 : 0,
-            borderColor: 'rgba(202,240,248,0.16)'
-          }}
-        >
-          <Text style={{ color: tone === 'dark' || item.destructive ? 'white' : '#102a43', textAlign: 'center', fontWeight: '700' }}>
-            {item.label}
-          </Text>
-        </Pressable>
+          variant={item.destructive ? 'danger' : 'ghost'}
+        />
       ))}
-    </View>
+    </ActionGroup>
   );
 
   const saveGroup = async () => {
@@ -398,29 +390,31 @@ export const AccessScreen = () => {
 
         <SectionCard title="Current Access" subtitle="Your sync state, remote sign-in, and subscription tools live here.">
           <Text style={{ color: '#f7fdff', fontWeight: '800', fontSize: 22 }}>{currentUser.name}</Text>
-          <Text style={{ color: '#bde6f6' }}>Status: {currentEntitlementLabel}</Text>
-          <Text style={{ color: '#bde6f6' }}>Premium features: {currentHasPremiumAccess ? 'Enabled' : 'Locked'}</Text>
-          <Text style={{ color: '#bde6f6' }}>Sync queue: {syncStatus.pendingCount} pending, {syncStatus.syncedCount} synced</Text>
-          <Text style={{ color: '#bde6f6' }}>Sync state: {syncStatus.state}</Text>
-          <Text style={{ color: '#bde6f6' }}>Remote auth: {remoteSession?.email ?? 'Not signed in'}</Text>
-          <Text style={{ color: '#bde6f6' }}>Shared sync: {isSyncEnabled ? 'Enabled' : 'Waiting for sign-in or env setup'}</Text>
-          <Text style={{ color: '#bde6f6' }}>
-            Last sync: {syncStatus.lastSyncedAt ? new Date(syncStatus.lastSyncedAt).toLocaleString() : 'Not synced yet'}
-          </Text>
+          <View style={{ gap: 8, backgroundColor: appTheme.colors.surfaceMuted, borderRadius: appTheme.radius.md, padding: 12 }}>
+            <InlineSummaryRow label="Status" value={currentEntitlementLabel} />
+            <InlineSummaryRow label="Premium Features" value={currentHasPremiumAccess ? 'Enabled' : 'Locked'} />
+            <InlineSummaryRow label="Sync Queue" value={`${syncStatus.pendingCount} pending, ${syncStatus.syncedCount} synced`} />
+            <InlineSummaryRow label="Sync State" value={syncStatus.state} />
+            <InlineSummaryRow label="Remote Auth" value={remoteSession?.email ?? 'Not signed in'} valueMuted={!remoteSession?.email} />
+            <InlineSummaryRow label="Shared Sync" value={isSyncEnabled ? 'Enabled' : 'Waiting for sign-in or env setup'} valueMuted={!isSyncEnabled} />
+            <InlineSummaryRow label="Last Sync" value={syncStatus.lastSyncedAt ? new Date(syncStatus.lastSyncedAt).toLocaleString() : 'Not synced yet'} valueMuted={!syncStatus.lastSyncedAt} />
+          </View>
           {syncStatus.lastError ? <StatusBanner tone="error" text={`Last sync issue: ${syncStatus.lastError}`} /> : null}
           <Text style={{ color: '#d7f3ff' }}>
             Plan: {PREMIUM_MONTHLY_PRICE_LABEL} with a {PREMIUM_TRIAL_LABEL.toLowerCase()}
           </Text>
-          <View style={{ gap: 8 }}>
-            <TextInput
-              value={authEmail}
-              onChangeText={setAuthEmail}
-              placeholder="angler@email.com"
-              placeholderTextColor="#5a6c78"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              style={{ borderRadius: appTheme.radius.md, padding: 12, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
-            />
+          <ActionGroup>
+            <FormField label="Shared Beta Email">
+              <TextInput
+                value={authEmail}
+                onChangeText={setAuthEmail}
+                placeholder="angler@email.com"
+                placeholderTextColor="#5a6c78"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                style={formInputStyle}
+              />
+            </FormField>
             <AppButton
               label={authStatus === 'authenticating' ? 'Sending Magic Link...' : 'Send Magic Link'}
               onPress={() =>
@@ -461,7 +455,7 @@ export const AccessScreen = () => {
               }
               variant="tertiary"
             />
-          </View>
+          </ActionGroup>
 
           {currentUser.role !== 'owner' && (
             <>
@@ -476,7 +470,7 @@ export const AccessScreen = () => {
           <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
             Clean up local fishing data for the active profile without affecting other anglers on this device.
           </Text>
-          {renderCleanupActions(currentUser.id, currentUser.name, 'dark')}
+          {renderCleanupActions(currentUser.id, currentUser.name)}
           {currentUser.role !== 'owner' ? (
             <Pressable
               onPress={() =>
@@ -641,11 +635,11 @@ export const AccessScreen = () => {
                 const sponsor = users.find((user) => user.id === entry.sponsorUserId);
                 const sponsored = users.find((user) => user.id === entry.sponsoredUserId);
                 return (
-                  <View key={entry.id} style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 10, gap: 6 }}>
+                  <View key={entry.id} style={{ backgroundColor: appTheme.colors.surfaceMuted, borderRadius: 12, padding: 10, gap: 8 }}>
                     <Text style={{ color: '#f7fdff', fontWeight: '700' }}>{sponsored?.name ?? `Angler ${entry.sponsoredUserId}`}</Text>
-                    <Text style={{ color: '#d7f3ff' }}>Sponsor: {sponsor?.name ?? `Angler ${entry.sponsorUserId}`}</Text>
-                    <Text style={{ color: '#d7f3ff' }}>Group: {group?.name ?? 'Unknown group'}</Text>
-                    <Text style={{ color: '#d7f3ff' }}>Status: {entry.active ? 'Active' : 'Revoked'}</Text>
+                    <InlineSummaryRow label="Sponsor" value={sponsor?.name ?? `Angler ${entry.sponsorUserId}`} />
+                    <InlineSummaryRow label="Group" value={group?.name ?? 'Unknown group'} />
+                    <InlineSummaryRow label="Status" value={entry.active ? 'Active' : 'Revoked'} valueMuted={!entry.active} />
                     {entry.active && entry.sponsorUserId === currentUser.id ? (
                       <AppButton label="Revoke Sponsored Access" onPress={() => { revokeSponsoredAccess(entry.id).then(() => Alert.alert('Sponsored access revoked', 'The owner-sponsored power-user grant was removed.')).catch((error) => Alert.alert('Unable to revoke access', error instanceof Error ? error.message : 'Please try again.')); }} variant="danger" />
                     ) : null}
@@ -661,13 +655,15 @@ export const AccessScreen = () => {
             Competitions now own their own groups and session schedule. Organizers create the event once, anglers join by code, and assignments can be reviewed and corrected before the event starts.
           </Text>
           <>
-            <TextInput
-              value={newCompetitionName}
-              onChangeText={setNewCompetitionName}
-              placeholder="Competition name"
-              placeholderTextColor="#5a6c78"
-              style={{ borderRadius: appTheme.radius.md, padding: 12, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
-            />
+            <FormField label="Competition Name">
+              <TextInput
+                value={newCompetitionName}
+                onChangeText={setNewCompetitionName}
+                placeholder="Competition name"
+                placeholderTextColor="#5a6c78"
+                style={formInputStyle}
+              />
+            </FormField>
             <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Competition Groups</Text>
             <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
               {[1, 2, 3, 4].map((count) => (
@@ -680,42 +676,51 @@ export const AccessScreen = () => {
                 </Pressable>
               ))}
             </View>
-            <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Total Sessions</Text>
-            <TextInput
-              value={competitionSessionCount}
-              onChangeText={setCompetitionSessionCount}
-              keyboardType="number-pad"
-              placeholder="Session count"
-              placeholderTextColor="#5a6c78"
-              style={{ borderRadius: appTheme.radius.md, padding: 12, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
-            />
+            <FormField label="Total Sessions">
+              <TextInput
+                value={competitionSessionCount}
+                onChangeText={setCompetitionSessionCount}
+                keyboardType="number-pad"
+                placeholder="Session count"
+                placeholderTextColor="#5a6c78"
+                style={formInputStyle}
+              />
+            </FormField>
             <View style={{ gap: 8 }}>
               {competitionSchedule.map((session, index) => (
                 <View key={session.sessionNumber} style={{ gap: 6, backgroundColor: appTheme.colors.surfaceMuted, borderRadius: appTheme.radius.md, padding: 12 }}>
                   <Text style={{ color: '#f7fdff', fontWeight: '700' }}>Session {index + 1}</Text>
                   <View style={{ flexDirection: 'row', gap: 8 }}>
-                    <TextInput
-                      value={session.startTime}
-                      onChangeText={(value) =>
-                        setCompetitionSchedule((current) =>
-                          current.map((entry, entryIndex) => (entryIndex === index ? { ...entry, startTime: value } : entry))
-                        )
-                      }
-                      placeholder="08:00"
-                      placeholderTextColor="#5a6c78"
-                      style={{ flex: 1, borderRadius: appTheme.radius.md, padding: 12, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
-                    />
-                    <TextInput
-                      value={session.endTime}
-                      onChangeText={(value) =>
-                        setCompetitionSchedule((current) =>
-                          current.map((entry, entryIndex) => (entryIndex === index ? { ...entry, endTime: value } : entry))
-                        )
-                      }
-                      placeholder="11:00"
-                      placeholderTextColor="#5a6c78"
-                      style={{ flex: 1, borderRadius: appTheme.radius.md, padding: 12, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
-                    />
+                    <View style={{ flex: 1 }}>
+                      <FormField label="Start">
+                        <TextInput
+                          value={session.startTime}
+                          onChangeText={(value) =>
+                            setCompetitionSchedule((current) =>
+                              current.map((entry, entryIndex) => (entryIndex === index ? { ...entry, startTime: value } : entry))
+                            )
+                          }
+                          placeholder="08:00"
+                          placeholderTextColor="#5a6c78"
+                          style={formInputStyle}
+                        />
+                      </FormField>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <FormField label="End">
+                        <TextInput
+                          value={session.endTime}
+                          onChangeText={(value) =>
+                            setCompetitionSchedule((current) =>
+                              current.map((entry, entryIndex) => (entryIndex === index ? { ...entry, endTime: value } : entry))
+                            )
+                          }
+                          placeholder="11:00"
+                          placeholderTextColor="#5a6c78"
+                          style={formInputStyle}
+                        />
+                      </FormField>
+                    </View>
                   </View>
                 </View>
               ))}
@@ -723,14 +728,18 @@ export const AccessScreen = () => {
             <AppButton label="Create Competition" onPress={() => { saveCompetition().catch((error) => Alert.alert('Unable to create competition', error instanceof Error ? error.message : 'Please try again.')); }} />
           </>
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TextInput
-              value={competitionJoinCode}
-              onChangeText={setCompetitionJoinCode}
-              placeholder="Competition join code"
-              placeholderTextColor="#5a6c78"
-              autoCapitalize="characters"
-              style={{ flex: 1, borderRadius: appTheme.radius.md, padding: 12, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
-            />
+            <View style={{ flex: 1 }}>
+              <FormField label="Competition Join Code">
+                <TextInput
+                  value={competitionJoinCode}
+                  onChangeText={setCompetitionJoinCode}
+                  placeholder="Competition join code"
+                  placeholderTextColor="#5a6c78"
+                  autoCapitalize="characters"
+                  style={formInputStyle}
+                />
+              </FormField>
+            </View>
             <View style={{ justifyContent: 'center' }}>
               <AppButton label="Join" onPress={() => { handleJoinCompetition().catch((error) => Alert.alert('Unable to join competition', error instanceof Error ? error.message : 'Please try again.')); }} variant="secondary" />
             </View>
@@ -742,16 +751,14 @@ export const AccessScreen = () => {
             const participants = competitionParticipants.filter((participant) => participant.competitionId === competition.id);
             const assignments = competitionAssignments.filter((assignment) => assignment.competitionId === competition.id);
             return (
-              <View key={competition.id} style={{ gap: 6, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: 12 }}>
+              <View key={competition.id} style={{ gap: 8, backgroundColor: appTheme.colors.surfaceMuted, borderRadius: 14, padding: 12 }}>
                 <Text style={{ color: '#f7fdff', fontWeight: '800' }}>{competition.name}</Text>
-                <Text style={{ color: '#bde6f6' }}>Join code: {competition.joinCode}</Text>
-                <Text style={{ color: '#bde6f6' }}>Competition groups: {compGroups.map((group) => group.label).join(', ') || 'Not generated yet'}</Text>
-                <Text style={{ color: '#d7f3ff' }}>Participants: {participants.length} | Assignments entered: {new Set(assignments.map((assignment) => assignment.userId)).size}</Text>
+                <InlineSummaryRow label="Join Code" value={competition.joinCode} />
+                <InlineSummaryRow label="Competition Groups" value={compGroups.map((group) => group.label).join(', ') || 'Not generated yet'} />
+                <InlineSummaryRow label="Roster" value={`${participants.length} participants | ${new Set(assignments.map((assignment) => assignment.userId)).size} with assignments`} />
                 <View style={{ gap: 6 }}>
                   {compSessions.map((session) => (
-                    <Text key={session.id} style={{ color: '#d7f3ff' }}>
-                      Session {session.sessionNumber}: {session.startTime} - {session.endTime}
-                    </Text>
+                    <InlineSummaryRow key={session.id} label={`Session ${session.sessionNumber}`} value={`${session.startTime} - ${session.endTime}`} />
                   ))}
                 </View>
                 <View style={{ gap: 8, marginTop: 4 }}>
@@ -767,37 +774,32 @@ export const AccessScreen = () => {
                       role: existingAssignment?.role ?? 'fishing'
                     });
                     return (
-                      <View key={`me-${session.id}`} style={{ gap: 6, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 10 }}>
+                      <View key={`me-${session.id}`} style={{ gap: 8, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 10 }}>
                         <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Session {session.sessionNumber}</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                          {compGroups.map((group) => (
-                            <Pressable
-                              key={group.id}
-                              onPress={() => updateAssignmentDraft(competition.id, currentUser.id, session.id, { competitionGroupId: group.id })}
-                              style={{ backgroundColor: draft.competitionGroupId === group.id ? '#2a9d8f' : 'rgba(255,255,255,0.12)', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999 }}
-                            >
-                              <Text style={{ color: 'white', fontWeight: '700' }}>Group {group.label}</Text>
-                            </Pressable>
-                          ))}
-                        </ScrollView>
-                        <TextInput
-                          value={draft.beat}
-                          onChangeText={(value) => updateAssignmentDraft(competition.id, currentUser.id, session.id, { beat: value })}
-                          placeholder="Beat / section"
-                          placeholderTextColor="#5a6c78"
-                          style={{ borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+                        <OptionChips
+                          label="Competition Group"
+                          options={compGroups.map((group) => `Group ${group.label}`)}
+                          value={compGroups.find((group) => group.id === draft.competitionGroupId) ? `Group ${compGroups.find((group) => group.id === draft.competitionGroupId)?.label}` : undefined}
+                          onChange={(value) => {
+                            const selectedGroup = compGroups.find((group) => `Group ${group.label}` === value);
+                            updateAssignmentDraft(competition.id, currentUser.id, session.id, { competitionGroupId: selectedGroup?.id ?? null });
+                          }}
                         />
-                        <View style={{ flexDirection: 'row', gap: 8 }}>
-                          {(['fishing', 'controlling'] as const).map((role) => (
-                            <Pressable
-                              key={role}
-                              onPress={() => updateAssignmentDraft(competition.id, currentUser.id, session.id, { role })}
-                              style={{ backgroundColor: draft.role === role ? '#2a9d8f' : 'rgba(255,255,255,0.12)', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999 }}
-                            >
-                              <Text style={{ color: 'white', fontWeight: '700' }}>{role}</Text>
-                            </Pressable>
-                          ))}
-                        </View>
+                        <FormField label="Beat / Section">
+                          <TextInput
+                            value={draft.beat}
+                            onChangeText={(value) => updateAssignmentDraft(competition.id, currentUser.id, session.id, { beat: value })}
+                            placeholder="Beat / section"
+                            placeholderTextColor="#5a6c78"
+                            style={formInputStyle}
+                          />
+                        </FormField>
+                        <OptionChips
+                          label="Role"
+                          options={['fishing', 'controlling'] as const}
+                          value={draft.role}
+                          onChange={(role) => updateAssignmentDraft(competition.id, currentUser.id, session.id, { role })}
+                        />
                         <AppButton label={`Save Session ${session.sessionNumber}`} onPress={() => { saveAssignment(competition.id, currentUser.id, session.id, draft).catch((error) => Alert.alert('Unable to save assignment', error instanceof Error ? error.message : 'Please try again.')); }} variant="tertiary" />
                       </View>
                     );
@@ -822,37 +824,32 @@ export const AccessScreen = () => {
                               role: existingAssignment?.role ?? 'fishing'
                             });
                             return (
-                              <View key={`${participant.id}-${session.id}`} style={{ gap: 6 }}>
+                              <View key={`${participant.id}-${session.id}`} style={{ gap: 8 }}>
                                 <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Session {session.sessionNumber}</Text>
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                                  {compGroups.map((group) => (
-                                    <Pressable
-                                      key={group.id}
-                                      onPress={() => updateAssignmentDraft(competition.id, participant.userId, session.id, { competitionGroupId: group.id })}
-                                      style={{ backgroundColor: draft.competitionGroupId === group.id ? '#2a9d8f' : 'rgba(255,255,255,0.12)', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999 }}
-                                    >
-                                      <Text style={{ color: 'white', fontWeight: '700' }}>Group {group.label}</Text>
-                                    </Pressable>
-                                  ))}
-                                </ScrollView>
-                                <TextInput
-                                  value={draft.beat}
-                                  onChangeText={(value) => updateAssignmentDraft(competition.id, participant.userId, session.id, { beat: value })}
-                                  placeholder="Beat / section"
-                                  placeholderTextColor="#5a6c78"
-                                  style={{ borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+                                <OptionChips
+                                  label="Competition Group"
+                                  options={compGroups.map((group) => `Group ${group.label}`)}
+                                  value={compGroups.find((group) => group.id === draft.competitionGroupId) ? `Group ${compGroups.find((group) => group.id === draft.competitionGroupId)?.label}` : undefined}
+                                  onChange={(value) => {
+                                    const selectedGroup = compGroups.find((group) => `Group ${group.label}` === value);
+                                    updateAssignmentDraft(competition.id, participant.userId, session.id, { competitionGroupId: selectedGroup?.id ?? null });
+                                  }}
                                 />
-                                <View style={{ flexDirection: 'row', gap: 8 }}>
-                                  {(['fishing', 'controlling'] as const).map((role) => (
-                                    <Pressable
-                                      key={role}
-                                      onPress={() => updateAssignmentDraft(competition.id, participant.userId, session.id, { role })}
-                                      style={{ backgroundColor: draft.role === role ? '#2a9d8f' : 'rgba(255,255,255,0.12)', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999 }}
-                                    >
-                                      <Text style={{ color: 'white', fontWeight: '700' }}>{role}</Text>
-                                    </Pressable>
-                                  ))}
-                                </View>
+                                <FormField label="Beat / Section">
+                                  <TextInput
+                                    value={draft.beat}
+                                    onChangeText={(value) => updateAssignmentDraft(competition.id, participant.userId, session.id, { beat: value })}
+                                    placeholder="Beat / section"
+                                    placeholderTextColor="#5a6c78"
+                                    style={formInputStyle}
+                                  />
+                                </FormField>
+                                <OptionChips
+                                  label="Role"
+                                  options={['fishing', 'controlling'] as const}
+                                  value={draft.role}
+                                  onChange={(role) => updateAssignmentDraft(competition.id, participant.userId, session.id, { role })}
+                                />
                                 <AppButton label="Save Review Edit" onPress={() => { saveAssignment(competition.id, participant.userId, session.id, draft).catch((error) => Alert.alert('Unable to save assignment', error instanceof Error ? error.message : 'Please try again.')); }} variant="tertiary" />
                               </View>
                             );
@@ -875,33 +872,26 @@ export const AccessScreen = () => {
               </Text>
             )}
             {users.map((user) => (
-              <View
+              <SectionCard
                 key={user.id}
-                style={{
-                  gap: 8,
-                  backgroundColor: 'rgba(245,252,255,0.96)',
-                  borderRadius: 18,
-                  padding: 14,
-                  borderWidth: 1,
-                  borderColor: 'rgba(202,240,248,0.18)'
-                }}
+                tone="light"
               >
                 <Text style={{ color: '#102a43', fontWeight: '800', fontSize: 18 }}>{user.name}</Text>
-                <Text style={{ color: '#334e68' }}>Role: {user.role}</Text>
-                <Text style={{ color: '#334e68' }}>Access: {getEntitlementLabel(user)}</Text>
-                <Text style={{ color: '#334e68' }}>Premium: {hasPremiumAccess(user) ? 'Enabled' : 'Locked'}</Text>
+                <InlineSummaryRow label="Role" value={user.role} />
+                <InlineSummaryRow label="Access" value={getEntitlementLabel(user)} />
+                <InlineSummaryRow label="Premium" value={hasPremiumAccess(user) ? 'Enabled' : 'Locked'} />
 
                 {user.role === 'owner' ? (
                   <View style={{ backgroundColor: '#e9f5fb', borderRadius: 12, padding: 10 }}>
                     <Text style={{ color: '#102a43', fontWeight: '700' }}>Owner access stays enabled.</Text>
                   </View>
                 ) : (
-                  <>
+                  <ActionGroup>
                     <AppButton label="Grant Power User" onPress={() => { runAdminAction(() => grantPowerUserAccess(user.id), `${user.name} now has power-user access.`).catch(console.error); }} />
                     <AppButton label="Start 7-Day Trial" onPress={() => { runAdminAction(() => startTrialForUser(user.id), `${user.name} now has a 7-day trial.`).catch(console.error); }} variant="secondary" />
                     <AppButton label="Mark Subscriber" onPress={() => { runAdminAction(() => markSubscriberAccess(user.id), `${user.name} is marked as subscribed.`).catch(console.error); }} variant="tertiary" />
                     <AppButton label="Reset Access" onPress={() => { runAdminAction(() => clearUserAccess(user.id), `${user.name} was reset to free access.`).catch(console.error); }} variant="danger" />
-                    {renderCleanupActions(user.id, user.name, 'light')}
+                    {renderCleanupActions(user.id, user.name)}
                     <AppButton
                       label="Delete Angler"
                       onPress={() =>
@@ -914,9 +904,9 @@ export const AccessScreen = () => {
                       }
                       variant="danger"
                     />
-                  </>
+                  </ActionGroup>
                 )}
-              </View>
+              </SectionCard>
             ))}
           </SectionCard>
         )}

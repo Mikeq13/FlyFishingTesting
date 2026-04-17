@@ -10,6 +10,8 @@ import { AppButton } from '@/components/ui/AppButton';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { StatusBanner } from '@/components/ui/StatusBanner';
+import { SelectableListPanel } from '@/components/ui/SelectableListPanel';
+import { FormField, formInputStyle } from '@/components/ui/FormField';
 import { appTheme } from '@/design/theme';
 import { applyRigPresetToRig, createDefaultRigSetup, setRigFlyCount } from '@/utils/rigSetup';
 import { getInvalidReminderMarkers, isReminderMarkerAllowed } from '@/utils/sessionReminders';
@@ -471,27 +473,27 @@ export const SessionScreen = ({ navigation, route }: any) => {
                 variant="secondary"
               />
               {showSavedHypothesisList && (
-                <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: appTheme.colors.borderStrong, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.surfaceLight }}>
-                  {savedHypotheses.map((savedHypothesis) => (
-                    <Pressable
-                      key={savedHypothesis}
-                      onPress={() => {
-                        setHypothesis(savedHypothesis);
-                        setShowSavedHypothesisList(false);
-                      }}
-                      style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
-                    >
-                      <Text style={{ color: appTheme.colors.textDark, fontWeight: '600' }}>{savedHypothesis}</Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
+                <SelectableListPanel
+                  items={savedHypotheses.map((savedHypothesis) => ({
+                    key: savedHypothesis,
+                    label: savedHypothesis,
+                    onPress: () => {
+                      setHypothesis(savedHypothesis);
+                      setShowSavedHypothesisList(false);
+                    }
+                  }))}
+                />
               )}
             </>
           )}
           {mode === 'experiment' ? (
-            <TextInput value={hypothesis} onChangeText={setHypothesis} placeholder="Hypothesis" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: appTheme.colors.borderStrong, padding: 12, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }} />
+            <FormField label="Hypothesis">
+              <TextInput value={hypothesis} onChangeText={setHypothesis} placeholder="Hypothesis" placeholderTextColor="#5a6c78" style={formInputStyle} />
+            </FormField>
           ) : null}
-          <TextInput value={notes} onChangeText={setNotes} placeholder="Session notes" placeholderTextColor="#5a6c78" multiline style={{ borderWidth: 1, borderColor: appTheme.colors.borderStrong, padding: 12, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark, minHeight: 96, textAlignVertical: 'top' }} />
+          <FormField label="Session Notes">
+            <TextInput value={notes} onChangeText={setNotes} placeholder="Session notes" placeholderTextColor="#5a6c78" multiline style={{ ...formInputStyle, minHeight: 96, textAlignVertical: 'top' }} />
+          </FormField>
         </SectionCard>
         <AppButton label={modeCopy.button} onPress={onStart} disabled={invalidReminderMarkers.length > 0} />
       </ScrollView>
