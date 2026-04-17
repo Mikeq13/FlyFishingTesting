@@ -4,8 +4,28 @@
     "slug": "fishing-lab",
     "scheme": "fishinglab",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "orientation": "default",
     "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "com.fishinglab.app",
+      "buildNumber": "1",
+      "supportsTablet": true,
+      "usesAppleSignIn": false,
+      "infoPlist": {
+        "NSUserNotificationsUsageDescription": "Fishing Lab uses notifications for practice and competition reminders during beta testing."
+      }
+    },
+    "android": {
+      "package": "com.fishinglab.app",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.VIBRATE"
+      ]
+    },
     "web": {
       "name": "Fishing Lab",
       "shortName": "Fish Lab",
@@ -18,6 +38,7 @@
     },
     "plugins": [
       "expo-dev-client",
+      "expo-notifications",
       "expo-sqlite"
     ]
   }
