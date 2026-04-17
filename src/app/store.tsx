@@ -32,16 +32,22 @@ import { generateInsights } from '@/engine/insightEngine';
 import { buildTopFlyInsights, buildTopFlyRecords, TopFlyRecord } from '@/engine/topFlyEngine';
 import { isWithinDateRange } from '@/utils/dateRange';
 import { AccessLevel, SubscriptionStatus } from '@/types/user';
+import { Invite, SponsoredAccess, SyncQueueEntry, SyncStatusSnapshot } from '@/types/remote';
 import {
+  acceptLocalInvite,
   bootstrapLocalApp,
   clearLocalFishingDataForUser,
   clearLocalUserDataCategories,
   createLocalCompetitionWithParticipant,
   createLocalGroupWithDefaults,
+  createLocalInvite,
   deleteLocalAnglerData,
+  enqueueLocalSyncChange,
+  flushLocalSyncQueue,
   joinLocalCompetitionByCode,
   joinLocalGroupByCode,
   loadLocalAppData,
+  revokeLocalSponsoredAccess,
   saveLocalCompetitionAssignment,
   updateLocalSharePreference
 } from '@/services/localAppDataService';
@@ -78,6 +84,10 @@ interface AppStore {
   competitionSessions: CompetitionSession[];
   competitionParticipants: CompetitionParticipant[];
   competitionAssignments: CompetitionSessionAssignment[];
+  invites: Invite[];
+  sponsoredAccess: SponsoredAccess[];
+  syncQueue: SyncQueueEntry[];
+  syncStatus: SyncStatusSnapshot;
   activeUserId: number | null;
   setActiveUserId: (id: number) => Promise<void>;
   addUser: (name: string) => Promise<number>;
@@ -96,8 +106,12 @@ interface AppStore {
     sessions: Array<{ sessionNumber: number; startTime: string; endTime: string }>;
   }) => Promise<Competition>;
   joinCompetition: (joinCode: string) => Promise<CompetitionParticipant>;
+  createInvite: (payload: { targetGroupId: number; targetName?: string | null }) => Promise<Invite>;
+  acceptInvite: (inviteCode: string) => Promise<Invite>;
+  revokeSponsoredAccess: (sponsoredAccessId: number) => Promise<void>;
   upsertCompetitionAssignment: (payload: Omit<CompetitionSessionAssignment, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => Promise<CompetitionSessionAssignment>;
   upsertCompetitionAssignmentForUser: (userId: number, payload: Omit<CompetitionSessionAssignment, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => Promise<CompetitionSessionAssignment>;
+  flushSyncQueue: () => Promise<void>;
   updateUserAccess: (userId: number, next: { accessLevel: AccessLevel; subscriptionStatus: SubscriptionStatus; trialStartedAt?: string | null; trialEndsAt?: string | null; subscriptionExpiresAt?: string | null; grantedByUserId?: number | null; }) => Promise<void>;
   startTrialForUser: (userId: number) => Promise<void>;
   grantPowerUserAccess: (userId: number) => Promise<void>;
@@ -147,6 +161,9 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const [competitionSessions, setCompetitionSessions] = useState<CompetitionSession[]>([]);
   const [competitionParticipants, setCompetitionParticipants] = useState<CompetitionParticipant[]>([]);
   const [competitionAssignments, setCompetitionAssignments] = useState<CompetitionSessionAssignment[]>([]);
+  const [invites, setInvites] = useState<Invite[]>([]);
+  const [sponsoredAccess, setSponsoredAccess] = useState<SponsoredAccess[]>([]);
+  const [syncQueue, setSyncQueue] = useState<SyncQueueEntry[]>([]);
   const [activeUserId, setActiveUserId] = useState<number | null>(null);
   const sessionMap = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
   const currentUser = useMemo(() => users.find((user) => user.id === activeUserId) ?? null, [activeUserId, users]);
@@ -190,6 +207,9 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     setCompetitionSessions(loaded.competitionSessions);
     setCompetitionParticipants(loaded.competitionParticipants);
     setCompetitionAssignments(loaded.competitionAssignments);
+    setInvites(loaded.invites);
+    setSponsoredAccess(loaded.sponsoredAccess);
+    setSyncQueue(loaded.syncQueue);
     setAnglerComparisons(loaded.anglerComparisons);
     setTopFlyRecords(loaded.topFlyRecords);
   };
@@ -204,6 +224,36 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
 
   const insights = useMemo(() => generateInsights(buildAggregates(sessions, completeExperiments)), [sessions, completeExperiments]);
   const topFlyInsights = useMemo(() => buildTopFlyInsights(topFlyRecords), [topFlyRecords]);
+  const syncStatus = useMemo<SyncStatusSnapshot>(() => {
+    const pendingCount = syncQueue.filter((entry) => entry.status === 'pending').length;
+    const failedCount = syncQueue.filter((entry) => entry.status === 'failed').length;
+    const syncedEntries = syncQueue.filter((entry) => entry.status === 'synced');
+    const lastSyncedAt = syncedEntries
+      .map((entry) => entry.syncedAt ?? null)
+      .filter((value): value is string => !!value)
+      .sort()
+      .at(-1) ?? null;
+    return {
+      pendingCount,
+      failedCount,
+      syncedCount: syncedEntries.length,
+      lastSyncedAt
+    };
+  }, [syncQueue]);
+
+  const trackSyncChange = async (
+    entityType: SyncQueueEntry['entityType'],
+    operation: SyncQueueEntry['operation'],
+    recordId: number | null,
+    payload: unknown
+  ) => {
+    await enqueueLocalSyncChange({
+      entityType,
+      operation,
+      recordId,
+      payloadJson: JSON.stringify(payload)
+    });
+  };
 
   const updateUserAccess = async (
     userId: number,
@@ -217,6 +267,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     }
   ) => {
     await updateUser(userId, next);
+    await trackSyncChange('user', 'update', userId, next);
     await refresh(activeUserId);
   };
 
@@ -252,10 +303,15 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         competitionSessions,
         competitionParticipants,
         competitionAssignments,
+        invites,
+        sponsoredAccess,
+        syncQueue,
+        syncStatus,
         activeUserId,
         setActiveUserId: selectActiveUser,
         addUser: async (name) => {
           const id = await createUser(name);
+          await trackSyncChange('user', 'create', id, { name });
           await saveActiveUserId(id);
           setActiveUserId(id);
           await refresh(id);
@@ -264,74 +320,110 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         addSavedFly: async (payload) => {
           if (!activeUserId) throw new Error('No active user selected.');
           const id = await createSavedFly({ ...payload, userId: activeUserId });
+          await trackSyncChange('saved_setup', 'create', id, payload);
           await refresh(activeUserId);
           return id;
         },
         addSavedLeaderFormula: async (payload) => {
           if (!activeUserId) throw new Error('No active user selected.');
           const id = await createSavedLeaderFormula({ ...payload, userId: activeUserId });
+          await trackSyncChange('saved_setup', 'create', id, payload);
           await refresh(activeUserId);
           return id;
         },
         deleteSavedLeaderFormula: async (formulaId) => {
           await deleteSavedLeaderFormula(formulaId);
+          await trackSyncChange('saved_setup', 'delete', formulaId, { formulaId });
           await refresh(activeUserId);
         },
         addSavedRigPreset: async (payload) => {
           if (!activeUserId) throw new Error('No active user selected.');
           const id = await createSavedRigPreset({ ...payload, userId: activeUserId });
+          await trackSyncChange('saved_setup', 'create', id, payload);
           await refresh(activeUserId);
           return id;
         },
         deleteSavedRigPreset: async (presetId) => {
           await deleteSavedRigPreset(presetId);
+          await trackSyncChange('saved_setup', 'delete', presetId, { presetId });
           await refresh(activeUserId);
         },
         addSavedRiver: async (name) => {
           if (!activeUserId) throw new Error('No active user selected.');
           const id = await createSavedRiver({ userId: activeUserId, name });
+          await trackSyncChange('saved_setup', 'create', id, { name });
           await refresh(activeUserId);
           return id;
         },
         createGroup: async (name) => {
           if (!activeUserId) throw new Error('No active user selected.');
           const group = await createLocalGroupWithDefaults(activeUserId, name);
+          await trackSyncChange('group', 'create', group.id, group);
           await refresh(activeUserId);
           return group;
         },
         joinGroup: async (joinCode) => {
           if (!activeUserId) throw new Error('No active user selected.');
           const membership = await joinLocalGroupByCode(activeUserId, joinCode, groups, groupMemberships);
+          await trackSyncChange('group', 'join', membership.id, { joinCode, membership });
           await refresh(activeUserId);
           return membership;
         },
         updateSharePreference: async (groupId, updates) => {
           if (!activeUserId) throw new Error('No active user selected.');
           await updateLocalSharePreference(activeUserId, groupId, updates);
+          await trackSyncChange('share_preference', 'update', groupId, { groupId, updates });
           await refresh(activeUserId);
         },
         createCompetition: async (payload) => {
           if (!activeUserId) throw new Error('No active user selected.');
           const competition = await createLocalCompetitionWithParticipant(activeUserId, payload);
+          await trackSyncChange('competition', 'create', competition.id, competition);
           await refresh(activeUserId);
           return competition;
         },
         joinCompetition: async (joinCode) => {
           if (!activeUserId) throw new Error('No active user selected.');
           const participant = await joinLocalCompetitionByCode(activeUserId, joinCode, competitions, competitionParticipants);
+          await trackSyncChange('competition', 'join', participant.id, { joinCode, participant });
           await refresh(activeUserId);
           return participant;
+        },
+        createInvite: async (payload) => {
+          if (!activeUserId) throw new Error('No active user selected.');
+          const invite = await createLocalInvite(activeUserId, payload);
+          await trackSyncChange('group', 'create', invite.id, invite);
+          await refresh(activeUserId);
+          return invite;
+        },
+        acceptInvite: async (inviteCode) => {
+          if (!activeUserId) throw new Error('No active user selected.');
+          const invite = await acceptLocalInvite(activeUserId, inviteCode, invites, groupMemberships);
+          await trackSyncChange('group', 'accept', invite.id, { inviteCode, inviteId: invite.id });
+          await refresh(activeUserId);
+          return invite;
+        },
+        revokeSponsoredAccess: async (sponsoredAccessId) => {
+          await revokeLocalSponsoredAccess(sponsoredAccessId);
+          await trackSyncChange('user', 'revoke', sponsoredAccessId, { sponsoredAccessId });
+          await refresh(activeUserId);
         },
         upsertCompetitionAssignment: async (payload) => {
           if (!activeUserId) throw new Error('No active user selected.');
           const assignment = await saveLocalCompetitionAssignment(activeUserId, payload);
+          await trackSyncChange('competition_assignment', 'update', assignment.id, assignment);
           await refresh(activeUserId);
           return assignment;
         },
         upsertCompetitionAssignmentForUser: async (userId, payload) => {
           const assignment = await saveLocalCompetitionAssignment(userId, payload);
+          await trackSyncChange('competition_assignment', 'update', assignment.id, assignment);
           await refresh(activeUserId);
           return assignment;
+        },
+        flushSyncQueue: async () => {
+          await flushLocalSyncQueue();
+          await refresh(activeUserId);
         },
         updateUserAccess,
         startTrialForUser: async (userId) => {
@@ -436,37 +528,44 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         addSession: async (payload) => {
           if (!activeUserId) throw new Error('No active user selected.');
           const id = await createSession({ ...payload, userId: activeUserId });
+          await trackSyncChange('session', 'create', id, payload);
           await refresh();
           return id;
         },
         updateSessionEntry: async (sessionId, payload) => {
           await updateSession(sessionId, payload);
+          await trackSyncChange('session', 'update', sessionId, payload);
           await refresh(activeUserId);
         },
         addSessionSegment: async (payload) => {
           if (!activeUserId) throw new Error('No active user selected.');
           const id = await createSessionSegment({ ...payload, userId: activeUserId });
+          await trackSyncChange('session_segment', 'create', id, payload);
           await refresh(activeUserId);
           return id;
         },
         updateSessionSegmentEntry: async (segmentId, payload) => {
           await updateSessionSegment(segmentId, payload);
+          await trackSyncChange('session_segment', 'update', segmentId, payload);
           await refresh(activeUserId);
         },
         addCatchEvent: async (payload) => {
           if (!activeUserId) throw new Error('No active user selected.');
           const id = await createCatchEvent({ ...payload, userId: activeUserId });
+          await trackSyncChange('catch_event', 'create', id, payload);
           await refresh(activeUserId);
           return id;
         },
         addExperiment: async (payload) => {
           if (!activeUserId) throw new Error('No active user selected.');
           const id = await createExperiment({ ...payload, userId: activeUserId });
+          await trackSyncChange('experiment', 'create', id, payload);
           await refresh();
           return id;
         },
         updateExperimentEntry: async (experimentId, payload) => {
           await updateExperiment(experimentId, payload);
+          await trackSyncChange('experiment', 'update', experimentId, payload);
           await refresh(activeUserId);
         },
         archiveInconclusiveExperiments: async ({ from, to }) => {

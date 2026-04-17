@@ -42,6 +42,9 @@ import { initDb } from '@/db/schema';
 import { generateAnglerComparisons } from '@/engine/anglerComparisonEngine';
 import { buildTopFlyRecords, TopFlyRecord } from '@/engine/topFlyEngine';
 import type { UserDataCleanupCategory } from '@/app/store';
+import { Invite, SponsoredAccess, SyncQueueEntry } from '@/types/remote';
+import { createInvite, createSponsoredAccess, deleteAccessRecordsForUser, listInvites, listSponsoredAccess, updateInvite, updateSponsoredAccess } from '@/db/accessRepo';
+import { createSyncQueueEntry, deleteSyncQueueEntriesForUserReset, listSyncQueueEntries, markAllPendingSyncEntriesAsSynced } from '@/db/syncRepo';
 
 export interface LoadedLocalAppData {
   users: UserProfile[];
@@ -65,6 +68,9 @@ export interface LoadedLocalAppData {
   competitionSessions: CompetitionSession[];
   competitionParticipants: CompetitionParticipant[];
   competitionAssignments: CompetitionSessionAssignment[];
+  invites: Invite[];
+  sponsoredAccess: SponsoredAccess[];
+  syncQueue: SyncQueueEntry[];
   anglerComparisons: Insight[];
   topFlyRecords: TopFlyRecord[];
 }
@@ -122,12 +128,15 @@ export const loadLocalAppData = async (preferredUserId?: number | null): Promise
       competitionSessions: [],
       competitionParticipants: [],
       competitionAssignments: [],
+      invites: [],
+      sponsoredAccess: [],
+      syncQueue: [],
       anglerComparisons: [],
       topFlyRecords: []
     };
   }
 
-  const [sessions, sessionSegments, catchEvents, experiments, savedFlies, savedLeaderFormulas, savedRigPresets, savedRivers, groups, groupMemberships, sharePreferences, competitions, competitionGroups, competitionSessions, competitionParticipants, competitionAssignments] = await Promise.all([
+  const [sessions, sessionSegments, catchEvents, experiments, savedFlies, savedLeaderFormulas, savedRigPresets, savedRivers, groups, groupMemberships, sharePreferences, competitions, competitionGroups, competitionSessions, competitionParticipants, competitionAssignments, invites, sponsoredAccess, syncQueue] = await Promise.all([
     listSessions(activeUserId),
     listSessionSegments(activeUserId),
     listCatchEvents(activeUserId),
@@ -143,7 +152,10 @@ export const loadLocalAppData = async (preferredUserId?: number | null): Promise
     listCompetitionGroups(),
     listCompetitionSessions(),
     listCompetitionParticipants(),
-    listCompetitionAssignments()
+    listCompetitionAssignments(),
+    listInvites(),
+    listSponsoredAccess(),
+    listSyncQueueEntries()
   ]);
   const allSessionLists = await Promise.all(users.map((user) => listSessions(user.id)));
   const allExperimentLists = await Promise.all(users.map((user) => listExperiments(user.id)));
@@ -171,6 +183,9 @@ export const loadLocalAppData = async (preferredUserId?: number | null): Promise
     competitionSessions,
     competitionParticipants,
     competitionAssignments,
+    invites,
+    sponsoredAccess,
+    syncQueue,
     anglerComparisons: generateAnglerComparisons(users, allSessionLists.flat(), allExperimentLists.flat().filter((experiment) => experiment.status !== 'draft')),
     topFlyRecords: buildTopFlyRecords(sessions, experiments.filter((experiment) => experiment.status !== 'draft'))
   };
@@ -275,6 +290,105 @@ export const saveLocalCompetitionAssignment = async (
   payload: Omit<CompetitionSessionAssignment, 'id' | 'userId' | 'createdAt' | 'updatedAt'>
 ) => upsertCompetitionAssignment({ ...payload, userId });
 
+export const createLocalInvite = async (
+  activeUserId: number,
+  payload: { targetGroupId: number; targetName?: string | null }
+) =>
+  createInvite({
+    inviterUserId: activeUserId,
+    targetGroupId: payload.targetGroupId,
+    targetName: payload.targetName ?? null,
+    grantType: 'power_user_group'
+  });
+
+export const acceptLocalInvite = async (
+  activeUserId: number,
+  inviteCode: string,
+  invites: Invite[],
+  groupMemberships: GroupMembership[]
+) => {
+  const invite = invites.find(
+    (entry) =>
+      entry.inviteCode.toLowerCase() === inviteCode.trim().toLowerCase() &&
+      entry.status === 'pending'
+  );
+  if (!invite) throw new Error('Invite code not found.');
+
+  const existingMembership = groupMemberships.find(
+    (membership) => membership.groupId === invite.targetGroupId && membership.userId === activeUserId
+  );
+  if (!existingMembership) {
+    await createGroupMembership({ groupId: invite.targetGroupId, userId: activeUserId, role: 'member' });
+    await createSharePreference({
+      groupId: invite.targetGroupId,
+      userId: activeUserId,
+      shareJournalEntries: false,
+      sharePracticeSessions: false,
+      shareCompetitionSessions: false,
+      shareInsights: false
+    });
+  }
+
+  const existingSponsored = (await listSponsoredAccess()).find(
+    (entry) =>
+      entry.sponsorUserId === invite.inviterUserId &&
+      entry.sponsoredUserId === activeUserId &&
+      entry.targetGroupId === invite.targetGroupId &&
+      entry.active
+  );
+  if (!existingSponsored) {
+    await createSponsoredAccess({
+      sponsorUserId: invite.inviterUserId,
+      sponsoredUserId: activeUserId,
+      targetGroupId: invite.targetGroupId,
+      grantedAccessLevel: 'power_user',
+      active: true
+    });
+  }
+
+  await updateUser(activeUserId, {
+    accessLevel: 'power_user',
+    subscriptionStatus: 'power_user',
+    grantedByUserId: invite.inviterUserId
+  });
+  await updateInvite(invite.id, {
+    status: 'accepted',
+    acceptedByUserId: activeUserId,
+    acceptedAt: new Date().toISOString()
+  });
+  return invite;
+};
+
+export const revokeLocalSponsoredAccess = async (
+  sponsoredAccessId: number
+) => {
+  const sponsoredEntries = await listSponsoredAccess();
+  const target = sponsoredEntries.find((entry) => entry.id === sponsoredAccessId);
+  if (!target) throw new Error('Sponsored access record not found.');
+  await updateSponsoredAccess(sponsoredAccessId, { active: false, revokedAt: new Date().toISOString() });
+  const users = await listUsers();
+  const sponsoredUser = users.find((user) => user.id === target.sponsoredUserId);
+  if (
+    sponsoredUser &&
+    sponsoredUser.accessLevel === 'power_user' &&
+    sponsoredUser.grantedByUserId === target.sponsorUserId
+  ) {
+    await updateUser(sponsoredUser.id, {
+      accessLevel: 'free',
+      subscriptionStatus: 'not_started',
+      grantedByUserId: null
+    });
+  }
+};
+
+export const enqueueLocalSyncChange = async (
+  payload: Omit<SyncQueueEntry, 'id' | 'createdAt' | 'status' | 'syncedAt' | 'errorMessage'>
+) => createSyncQueueEntry(payload);
+
+export const flushLocalSyncQueue = async () => {
+  await markAllPendingSyncEntriesAsSynced();
+};
+
 export const clearLocalFishingDataForUser = async (userId: number) => {
   await deleteCatchEventsForUser(userId);
   await deleteSessionSegmentsForUser(userId);
@@ -286,6 +400,8 @@ export const clearLocalFishingDataForUser = async (userId: number) => {
   await deleteSavedLeaderFormulasForUser(userId);
   await deleteSavedRigPresetsForUser(userId);
   await deleteSavedRiversForUser(userId);
+  await deleteAccessRecordsForUser(userId);
+  await deleteSyncQueueEntriesForUserReset();
 };
 
 export const clearLocalUserDataCategories = async (userId: number, categories: UserDataCleanupCategory[]) => {

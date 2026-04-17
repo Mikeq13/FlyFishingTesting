@@ -27,6 +27,8 @@ export const initDb = async (): Promise<void> => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       created_at TEXT NOT NULL,
+      email TEXT,
+      remote_auth_id TEXT,
       role TEXT NOT NULL DEFAULT 'angler',
       access_level TEXT NOT NULL DEFAULT 'free',
       subscription_status TEXT NOT NULL DEFAULT 'not_started',
@@ -38,6 +40,46 @@ export const initDb = async (): Promise<void> => {
     `CREATE TABLE IF NOT EXISTS app_settings (
       key TEXT PRIMARY KEY NOT NULL,
       value TEXT NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS invites (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      inviter_user_id INTEGER NOT NULL,
+      target_group_id INTEGER NOT NULL,
+      invite_code TEXT NOT NULL,
+      target_name TEXT,
+      grant_type TEXT NOT NULL DEFAULT 'power_user_group',
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TEXT NOT NULL,
+      accepted_by_user_id INTEGER,
+      accepted_at TEXT,
+      revoked_at TEXT,
+      FOREIGN KEY(inviter_user_id) REFERENCES users(id),
+      FOREIGN KEY(target_group_id) REFERENCES groups(id),
+      FOREIGN KEY(accepted_by_user_id) REFERENCES users(id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS sponsored_access (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sponsor_user_id INTEGER NOT NULL,
+      sponsored_user_id INTEGER NOT NULL,
+      target_group_id INTEGER NOT NULL,
+      granted_access_level TEXT NOT NULL DEFAULT 'power_user',
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      revoked_at TEXT,
+      FOREIGN KEY(sponsor_user_id) REFERENCES users(id),
+      FOREIGN KEY(sponsored_user_id) REFERENCES users(id),
+      FOREIGN KEY(target_group_id) REFERENCES groups(id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS sync_queue (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity_type TEXT NOT NULL,
+      operation TEXT NOT NULL,
+      record_id INTEGER,
+      payload_json TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TEXT NOT NULL,
+      synced_at TEXT,
+      error_message TEXT
     )`,
     `CREATE TABLE IF NOT EXISTS sessions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -256,6 +298,12 @@ export const initDb = async (): Promise<void> => {
   }
 
   try {
+    await database.execAsync(`ALTER TABLE users ADD COLUMN email TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE users ADD COLUMN remote_auth_id TEXT;`);
+  } catch {}
+  try {
     await database.execAsync(`ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'angler';`);
   } catch {}
   try {
@@ -386,6 +434,52 @@ export const initDb = async (): Promise<void> => {
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE session_segments ADD COLUMN rig_setup_json TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`CREATE TABLE IF NOT EXISTS invites (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      inviter_user_id INTEGER NOT NULL,
+      target_group_id INTEGER NOT NULL,
+      invite_code TEXT NOT NULL,
+      target_name TEXT,
+      grant_type TEXT NOT NULL DEFAULT 'power_user_group',
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TEXT NOT NULL,
+      accepted_by_user_id INTEGER,
+      accepted_at TEXT,
+      revoked_at TEXT,
+      FOREIGN KEY(inviter_user_id) REFERENCES users(id),
+      FOREIGN KEY(target_group_id) REFERENCES groups(id),
+      FOREIGN KEY(accepted_by_user_id) REFERENCES users(id)
+    )`);
+  } catch {}
+  try {
+    await database.execAsync(`CREATE TABLE IF NOT EXISTS sponsored_access (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sponsor_user_id INTEGER NOT NULL,
+      sponsored_user_id INTEGER NOT NULL,
+      target_group_id INTEGER NOT NULL,
+      granted_access_level TEXT NOT NULL DEFAULT 'power_user',
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      revoked_at TEXT,
+      FOREIGN KEY(sponsor_user_id) REFERENCES users(id),
+      FOREIGN KEY(sponsored_user_id) REFERENCES users(id),
+      FOREIGN KEY(target_group_id) REFERENCES groups(id)
+    )`);
+  } catch {}
+  try {
+    await database.execAsync(`CREATE TABLE IF NOT EXISTS sync_queue (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity_type TEXT NOT NULL,
+      operation TEXT NOT NULL,
+      record_id INTEGER,
+      payload_json TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TEXT NOT NULL,
+      synced_at TEXT,
+      error_message TEXT
+    )`);
   } catch {}
   try {
     await database.execAsync(`CREATE TABLE IF NOT EXISTS saved_leader_formulas (

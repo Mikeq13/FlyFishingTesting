@@ -6,6 +6,8 @@ export interface UserProfile {
   id: number;
   name: string;
   createdAt: string;
+  email?: string | null;
+  remoteAuthId?: string | null;
   role: UserRole;
   accessLevel: AccessLevel;
   subscriptionStatus: SubscriptionStatus;

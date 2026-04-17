@@ -7,6 +7,8 @@ const WEB_USERS_ID_KEY = 'fishing_lab.users.nextId';
 
 type CreateUserInput = {
   name: string;
+  email?: string | null;
+  remoteAuthId?: string | null;
   role?: UserRole;
   accessLevel?: AccessLevel;
   subscriptionStatus?: SubscriptionStatus;
@@ -27,6 +29,8 @@ const mapUserRow = (row: any, index: number): UserProfile => {
     id: row.id,
     name: row.name,
     createdAt: row.created_at ?? row.createdAt,
+    email: row.email ?? null,
+    remoteAuthId: row.remote_auth_id ?? row.remoteAuthId ?? null,
     role,
     accessLevel,
     subscriptionStatus,
@@ -50,6 +54,8 @@ export const createUser = async (input: string | CreateUserInput): Promise<numbe
       {
         name: payload.name,
         createdAt: new Date().toISOString(),
+        email: payload.email ?? null,
+        remoteAuthId: payload.remoteAuthId ?? null,
         role,
         accessLevel,
         subscriptionStatus,
@@ -64,10 +70,12 @@ export const createUser = async (input: string | CreateUserInput): Promise<numbe
 
   const db = await getDb();
   const result = await db.runAsync(
-    `INSERT INTO users (name, created_at, role, access_level, subscription_status, trial_started_at, trial_ends_at, subscription_expires_at, granted_by_user_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO users (name, created_at, email, remote_auth_id, role, access_level, subscription_status, trial_started_at, trial_ends_at, subscription_expires_at, granted_by_user_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     payload.name,
     new Date().toISOString(),
+    payload.email ?? null,
+    payload.remoteAuthId ?? null,
     role,
     accessLevel,
     subscriptionStatus,
@@ -108,6 +116,14 @@ export const updateUser = async (id: number, updates: UpdateUserInput): Promise<
   if (updates.name !== undefined) {
     assignments.push('name = ?');
     args.push(updates.name);
+  }
+  if (updates.email !== undefined) {
+    assignments.push('email = ?');
+    args.push(updates.email);
+  }
+  if (updates.remoteAuthId !== undefined) {
+    assignments.push('remote_auth_id = ?');
+    args.push(updates.remoteAuthId);
   }
   if (updates.role !== undefined) {
     assignments.push('role = ?');

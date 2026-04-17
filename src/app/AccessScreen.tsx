@@ -16,6 +16,9 @@ export const AccessScreen = () => {
     currentEntitlementLabel,
     currentHasPremiumAccess,
     canManageAccess,
+    syncStatus,
+    invites,
+    sponsoredAccess,
     startTrialForUser,
     grantPowerUserAccess,
     markSubscriberAccess,
@@ -36,7 +39,11 @@ export const AccessScreen = () => {
     updateSharePreference,
     createCompetition,
     joinCompetition,
-    upsertCompetitionAssignmentForUser
+    upsertCompetitionAssignmentForUser,
+    createInvite,
+    acceptInvite,
+    revokeSponsoredAccess,
+    flushSyncQueue
   } = useAppStore();
   const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 980) : undefined;
   const [newGroupName, setNewGroupName] = React.useState('');
@@ -45,6 +52,9 @@ export const AccessScreen = () => {
   const [competitionGroupCount, setCompetitionGroupCount] = React.useState('2');
   const [competitionSessionCount, setCompetitionSessionCount] = React.useState('3');
   const [competitionJoinCode, setCompetitionJoinCode] = React.useState('');
+  const [inviteTargetGroupId, setInviteTargetGroupId] = React.useState<number | null>(null);
+  const [inviteTargetName, setInviteTargetName] = React.useState('');
+  const [inviteAcceptCode, setInviteAcceptCode] = React.useState('');
   const [competitionSchedule, setCompetitionSchedule] = React.useState([
     { sessionNumber: 1, startTime: '08:00', endTime: '11:00' },
     { sessionNumber: 2, startTime: '13:00', endTime: '16:00' },
@@ -100,6 +110,12 @@ export const AccessScreen = () => {
     competitionSessionId: number,
     fallback: { competitionGroupId: number | null; beat: string; role: CompetitionSessionRole }
   ) => assignmentDrafts[getAssignmentDraftKey(competitionId, userId, competitionSessionId)] ?? fallback;
+
+  React.useEffect(() => {
+    if (!inviteTargetGroupId && joinedGroups[0]) {
+      setInviteTargetGroupId(joinedGroups[0].id);
+    }
+  }, [inviteTargetGroupId, joinedGroups]);
 
   React.useEffect(() => {
     const count = Math.max(1, Math.min(8, Number(competitionSessionCount) || 1));
@@ -295,6 +311,27 @@ export const AccessScreen = () => {
     Alert.alert('Competition joined', 'Enter your assignment details from the comp website when you start your session.');
   };
 
+  const sendInvite = async () => {
+    if (!inviteTargetGroupId) {
+      Alert.alert('Choose a group', 'Select which friend group the invite should join.');
+      return;
+    }
+    const invite = await createInvite({
+      targetGroupId: inviteTargetGroupId,
+      targetName: inviteTargetName.trim() || null
+    });
+    setInviteTargetName('');
+    Alert.alert('Invite created', `Share this invite code: ${invite.inviteCode}`);
+  };
+
+  const handleAcceptInvite = async () => {
+    const code = inviteAcceptCode.trim();
+    if (!code) return;
+    await acceptInvite(code);
+    setInviteAcceptCode('');
+    Alert.alert('Invite accepted', 'You now have sponsored power-user access and joined the shared group.');
+  };
+
   const saveAssignment = async (
     competitionId: number,
     userId: number,
@@ -342,9 +379,16 @@ export const AccessScreen = () => {
           <Text style={{ color: '#f7fdff', fontWeight: '800', fontSize: 22 }}>{currentUser.name}</Text>
           <Text style={{ color: '#bde6f6' }}>Status: {currentEntitlementLabel}</Text>
           <Text style={{ color: '#bde6f6' }}>Premium features: {currentHasPremiumAccess ? 'Enabled' : 'Locked'}</Text>
+          <Text style={{ color: '#bde6f6' }}>Sync queue: {syncStatus.pendingCount} pending, {syncStatus.syncedCount} synced</Text>
+          <Text style={{ color: '#bde6f6' }}>
+            Last sync: {syncStatus.lastSyncedAt ? new Date(syncStatus.lastSyncedAt).toLocaleString() : 'Not synced yet'}
+          </Text>
           <Text style={{ color: '#d7f3ff' }}>
             Plan: {PREMIUM_MONTHLY_PRICE_LABEL} with a {PREMIUM_TRIAL_LABEL.toLowerCase()}
           </Text>
+          <Pressable onPress={() => flushSyncQueue().then(() => Alert.alert('Sync queue flushed', 'Pending beta sync items were marked ready for backend upload.')).catch((error) => Alert.alert('Unable to flush sync queue', error instanceof Error ? error.message : 'Please try again.'))} style={{ backgroundColor: '#264653', padding: 12, borderRadius: 12 }}>
+            <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Sync Now</Text>
+          </Pressable>
 
           {currentUser.role !== 'owner' && (
             <>
@@ -461,6 +505,94 @@ export const AccessScreen = () => {
               </View>
             );
           })}
+        </View>
+
+        <View style={{ gap: 10, backgroundColor: 'rgba(6, 27, 44, 0.72)', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
+          <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>Friend Invites & Sponsorship</Text>
+          <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
+            Invite friends into a shared group and automatically sponsor their power-user access for beta testing.
+          </Text>
+          {joinedGroups.length ? (
+            <>
+              <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Invite into Group</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                {joinedGroups.map((group) => (
+                  <Pressable
+                    key={group.id}
+                    onPress={() => setInviteTargetGroupId(group.id)}
+                    style={{ backgroundColor: inviteTargetGroupId === group.id ? '#2a9d8f' : 'rgba(255,255,255,0.12)', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 999 }}
+                  >
+                    <Text style={{ color: 'white', fontWeight: '700' }}>{group.name}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+              <TextInput
+                value={inviteTargetName}
+                onChangeText={setInviteTargetName}
+                placeholder="Friend name (optional)"
+                placeholderTextColor="#5a6c78"
+                style={{ borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+              />
+              <Pressable onPress={() => sendInvite().catch((error) => Alert.alert('Unable to create invite', error instanceof Error ? error.message : 'Please try again.'))} style={{ backgroundColor: '#2a9d8f', padding: 12, borderRadius: 12 }}>
+                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Create Invite</Text>
+              </Pressable>
+            </>
+          ) : (
+            <Text style={{ color: '#bde6f6' }}>Create or join a friend group first before sending invites.</Text>
+          )}
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TextInput
+              value={inviteAcceptCode}
+              onChangeText={setInviteAcceptCode}
+              placeholder="Accept invite code"
+              placeholderTextColor="#5a6c78"
+              autoCapitalize="characters"
+              style={{ flex: 1, borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+            />
+            <Pressable onPress={() => handleAcceptInvite().catch((error) => Alert.alert('Unable to accept invite', error instanceof Error ? error.message : 'Please try again.'))} style={{ backgroundColor: '#1d3557', paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, justifyContent: 'center' }}>
+              <Text style={{ color: 'white', fontWeight: '700' }}>Accept</Text>
+            </Pressable>
+          </View>
+          {!!invites.length && (
+            <View style={{ gap: 8 }}>
+              <Text style={{ color: '#f7fdff', fontWeight: '700' }}>Invites</Text>
+              {invites.map((invite) => {
+                const group = groups.find((entry) => entry.id === invite.targetGroupId);
+                const inviter = users.find((entry) => entry.id === invite.inviterUserId);
+                return (
+                  <View key={invite.id} style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 10, gap: 4 }}>
+                    <Text style={{ color: '#f7fdff', fontWeight: '700' }}>{group?.name ?? 'Unknown group'}</Text>
+                    <Text style={{ color: '#d7f3ff' }}>Code: {invite.inviteCode}</Text>
+                    <Text style={{ color: '#d7f3ff' }}>Inviter: {inviter?.name ?? `Angler ${invite.inviterUserId}`}</Text>
+                    <Text style={{ color: '#d7f3ff' }}>Status: {invite.status}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+          {!!sponsoredAccess.length && (
+            <View style={{ gap: 8 }}>
+              <Text style={{ color: '#f7fdff', fontWeight: '700' }}>Sponsored Access</Text>
+              {sponsoredAccess.map((entry) => {
+                const group = groups.find((groupEntry) => groupEntry.id === entry.targetGroupId);
+                const sponsor = users.find((user) => user.id === entry.sponsorUserId);
+                const sponsored = users.find((user) => user.id === entry.sponsoredUserId);
+                return (
+                  <View key={entry.id} style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 10, gap: 6 }}>
+                    <Text style={{ color: '#f7fdff', fontWeight: '700' }}>{sponsored?.name ?? `Angler ${entry.sponsoredUserId}`}</Text>
+                    <Text style={{ color: '#d7f3ff' }}>Sponsor: {sponsor?.name ?? `Angler ${entry.sponsorUserId}`}</Text>
+                    <Text style={{ color: '#d7f3ff' }}>Group: {group?.name ?? 'Unknown group'}</Text>
+                    <Text style={{ color: '#d7f3ff' }}>Status: {entry.active ? 'Active' : 'Revoked'}</Text>
+                    {entry.active && entry.sponsorUserId === currentUser.id ? (
+                      <Pressable onPress={() => revokeSponsoredAccess(entry.id).then(() => Alert.alert('Sponsored access revoked', 'The owner-sponsored power-user grant was removed.')).catch((error) => Alert.alert('Unable to revoke access', error instanceof Error ? error.message : 'Please try again.'))} style={{ backgroundColor: '#8d0801', padding: 10, borderRadius: 12 }}>
+                        <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Revoke Sponsored Access</Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                );
+              })}
+            </View>
+          )}
         </View>
 
         <View style={{ gap: 10, backgroundColor: 'rgba(6, 27, 44, 0.72)', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
