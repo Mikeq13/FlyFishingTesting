@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { ImageBackground, Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { appTheme } from '@/design/theme';
 
 const themes = [
   {
@@ -28,7 +29,7 @@ const themes = [
 
 export const ScreenBackground = ({ children }: { children: React.ReactNode }) => {
   const { width, height } = useWindowDimensions();
-  const theme = useMemo(() => themes[Math.floor(Math.random() * themes.length)], []);
+  const theme = useMemo(() => themes[0], []);
   const isLandscape = width > height;
   const isWideWeb = Platform.OS === 'web' && width >= 900;
   const minHeight = Platform.OS === 'web' ? height : undefined;
@@ -70,11 +71,11 @@ export const ScreenBackground = ({ children }: { children: React.ReactNode }) =>
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#08161f'
+    backgroundColor: appTheme.colors.bg
   },
   bg: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#08161f'
+    backgroundColor: appTheme.colors.bg
   },
   image: {
     opacity: 0.95

@@ -15,6 +15,11 @@ import { RigSetup } from '@/types/rig';
 import { applyRigPresetToRig, createDefaultRigSetup, setRigFlyCount } from '@/utils/rigSetup';
 import { buildSessionSegmentUpdatePayload, buildSessionUpdatePayload, getSessionPlannedDurationMinutes } from '@/utils/sessionState';
 import { useSessionAlerts } from '@/hooks/useSessionAlerts';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { SectionCard } from '@/components/ui/SectionCard';
+import { StatusBanner } from '@/components/ui/StatusBanner';
+import { AppButton } from '@/components/ui/AppButton';
+import { appTheme } from '@/design/theme';
 
 export const PracticeScreen = ({ route }: any) => {
   const sessionId = route?.params?.sessionId as number;
@@ -165,26 +170,20 @@ export const PracticeScreen = ({ route }: any) => {
   return (
     <ScreenBackground>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
-        <View style={{ gap: 4 }}>
-          <Text style={{ fontSize: 28, fontWeight: '800', color: '#f7fdff' }}>Practice Session</Text>
-          <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
-            Stay light, change water fast, and log which flies are producing without breaking your rhythm.
-          </Text>
-        </View>
+        <ScreenHeader
+          title="Practice Session"
+          subtitle="Stay light, change water fast, and log what is producing without breaking your rhythm."
+          eyebrow={session.riverName ?? 'On-Water Workflow'}
+        />
 
         {timer.activeAlertMinute ? (
-          <View style={{ backgroundColor: 'rgba(252,211,77,0.22)', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: 'rgba(252,211,77,0.4)' }}>
-            <Text style={{ color: '#fff7d6', fontWeight: '800' }}>
-              Time marker: {timer.activeAlertMinute} minutes into your practice session.
-            </Text>
-          </View>
+          <StatusBanner tone="warning" text={`Time marker: ${timer.activeAlertMinute} minutes into your practice session.`} />
         ) : null}
 
-        <View style={{ backgroundColor: 'rgba(6, 27, 44, 0.72)', borderRadius: 18, padding: 14, gap: 8, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
-          <Text style={{ color: '#f7fdff', fontWeight: '800', fontSize: 18 }}>Session Timer</Text>
+        <SectionCard title="Session Timer" subtitle="Keep your timing, reminders, and practice measuring in one glance.">
           <Text style={{ color: '#d7f3ff' }}>Elapsed: {timer.elapsedLabel}</Text>
           {timer.remainingLabel ? <Text style={{ color: '#d7f3ff' }}>Remaining: {timer.remainingLabel}</Text> : null}
-          {timer.hasEnded ? <Text style={{ color: '#fca5a5', fontWeight: '700' }}>Session ended early.</Text> : null}
+          {timer.hasEnded ? <StatusBanner tone="error" text="Session ended early." /> : null}
           {!timer.hasEnded && timer.nextAlertMinute ? <Text style={{ color: '#d7f3ff' }}>Next alert: {timer.nextAlertMinute} min</Text> : null}
           {session.practiceMeasurementEnabled ? (
             <Text style={{ color: '#bde6f6' }}>
@@ -192,23 +191,18 @@ export const PracticeScreen = ({ route }: any) => {
             </Text>
           ) : null}
           {!timer.hasEnded ? (
-            <Pressable onPress={endSessionEarly} style={{ backgroundColor: 'rgba(145, 48, 48, 0.95)', padding: 12, borderRadius: 12 }}>
-              <Text style={{ color: '#fff8f8', textAlign: 'center', fontWeight: '700' }}>End Session Early</Text>
-            </Pressable>
+            <AppButton label="End Session Early" onPress={endSessionEarly} variant="danger" />
           ) : null}
-        </View>
+        </SectionCard>
 
-        <View style={{ backgroundColor: 'rgba(6, 27, 44, 0.72)', borderRadius: 18, padding: 14, gap: 10, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
-          <Text style={{ color: '#f7fdff', fontWeight: '800', fontSize: 18 }}>Active Water Segment</Text>
+        <SectionCard title="Active Water Segment" subtitle="Track the current water, then move fast when you want a new segment.">
           <Text style={{ color: '#d7f3ff' }}>Current water: {activeSegment?.waterType ?? session.waterType}</Text>
           <Text style={{ color: '#d7f3ff' }}>Current depth: {activeSegment?.depthRange ?? session.depthRange}</Text>
           <OptionChips label="Next Water Type" options={WATER_TYPES} value={nextWaterType} onChange={setNextWaterType} />
           <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Next Water Depth</Text>
           <DepthSelector value={nextDepthRange} onChange={setNextDepthRange} />
-          <Pressable disabled={timer.hasEnded} onPress={changeWater} style={{ backgroundColor: timer.hasEnded ? '#5b7282' : '#1d3557', padding: 12, borderRadius: 12 }}>
-            <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Change Water</Text>
-          </Pressable>
-        </View>
+          <AppButton label="Change Water" onPress={() => { changeWater().catch(console.error); }} disabled={timer.hasEnded} variant="secondary" />
+        </SectionCard>
 
         <RigSetupPanel
           title="Rig Setup"
@@ -266,34 +260,31 @@ export const PracticeScreen = ({ route }: any) => {
           }}
         />
 
-        <View style={{ backgroundColor: 'rgba(6, 27, 44, 0.72)', borderRadius: 18, padding: 14, gap: 10, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
-          <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Log Catches</Text>
+        <SectionCard title="Log Catches" subtitle="Quick tap logging stays front and center while you practice.">
           {!currentRigSetup.assignments.length ? (
             <Text style={{ color: '#bde6f6' }}>Add flies to the rig before logging practice catches.</Text>
           ) : (
             currentRigSetup.assignments.map((assignment, index) => (
-              <View key={`${assignment.position}-${assignment.fly.name}-${index}`} style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: 12, gap: 8 }}>
+              <View key={`${assignment.position}-${assignment.fly.name}-${index}`} style={{ backgroundColor: appTheme.colors.surfaceMuted, borderRadius: appTheme.radius.md, padding: 12, gap: 8 }}>
                 <Text style={{ color: '#f7fdff', fontWeight: '800' }}>
                   {assignment.position}: {assignment.fly.name} #{assignment.fly.hookSize} {assignment.fly.beadColor} {assignment.fly.beadSizeMm}
                 </Text>
-                <Pressable
-                  disabled={timer.hasEnded}
+                <AppButton
+                  label="Log Catch"
                   onPress={() => {
                     setPendingCatchFly(assignment.fly);
                     setPendingCatchSpecies(null);
                     setPendingCatchLength('');
                   }}
-                  style={{ backgroundColor: timer.hasEnded ? '#5b7282' : '#264653', padding: 10, borderRadius: 10 }}
-                >
-                  <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Log Catch</Text>
-                </Pressable>
+                  disabled={timer.hasEnded}
+                  variant="tertiary"
+                />
               </View>
             ))
           )}
-        </View>
+        </SectionCard>
 
-        <View style={{ backgroundColor: 'rgba(245,252,255,0.96)', borderRadius: 18, padding: 14, gap: 8 }}>
-          <Text style={{ color: '#102a43', fontWeight: '800', fontSize: 18 }}>Recent Success</Text>
+        <SectionCard title="Recent Success" subtitle="A quick read on what has connected lately." tone="light">
           {!recentCatches.length ? (
             <Text style={{ color: '#486581' }}>No catches logged yet in this practice session.</Text>
           ) : (
@@ -303,7 +294,7 @@ export const PracticeScreen = ({ route }: any) => {
               </Text>
             ))
           )}
-        </View>
+        </SectionCard>
       </ScrollView>
       <PracticeCatchModal
         visible={pendingCatchFly !== null}

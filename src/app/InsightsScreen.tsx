@@ -1,10 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import { Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { Platform, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { InsightCard } from '@/components/InsightCard';
 import { InsightsFilterPanel } from '@/components/InsightsFilterPanel';
 import { OptionChips } from '@/components/OptionChips';
 import { PremiumFeatureGate } from '@/components/PremiumFeatureGate';
 import { ScreenBackground } from '@/components/ScreenBackground';
+import { AppButton } from '@/components/ui/AppButton';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { SectionCard } from '@/components/ui/SectionCard';
+import { appTheme } from '@/design/theme';
 import { buildAggregates } from '@/engine/aggregationEngine';
 import { generateAnglerComparisons } from '@/engine/anglerComparisonEngine';
 import { generateInsights } from '@/engine/insightEngine';
@@ -300,41 +304,42 @@ export const InsightsScreen = ({ navigation }: any) => {
           />
         ) : (
           <>
-            <View style={{ gap: 4 }}>
-              <Text style={{ fontSize: 28, fontWeight: '800', color: '#f7fdff' }}>Insights</Text>
-              <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
-                Review the strongest patterns in your data, your best flies, and where anglers overlap.
-              </Text>
-            </View>
-
-            <OptionChips
-              label="Insights Context"
-              options={['mine', 'group', 'friend'] as const}
-              value={insightsContext}
-              onChange={(value) => setInsightsContext(value as InsightsContextMode)}
+            <ScreenHeader
+              title="Insights"
+              subtitle="Review the strongest patterns in your data, your best flies, and where anglers overlap."
+              eyebrow="Shared Learning"
             />
-            {insightsContext !== 'mine' && joinedGroups.length ? (
+
+            <SectionCard title="View Context" subtitle="Switch between your own data, a shared group, or a friend comparison without losing trust in the numbers.">
               <OptionChips
-                label="Shared Group"
-                options={joinedGroups.map((group) => group.name)}
-                value={joinedGroups.find((group) => group.id === selectedGroupId)?.name ?? joinedGroups[0]?.name}
-                onChange={(value) => {
-                  const selected = joinedGroups.find((group) => group.name === value);
-                  setSelectedGroupId(selected?.id ?? null);
-                }}
+                label="Insights Context"
+                options={['mine', 'group', 'friend'] as const}
+                value={insightsContext}
+                onChange={(value) => setInsightsContext(value as InsightsContextMode)}
               />
-            ) : null}
-            {insightsContext === 'friend' && visibleFriendOptions.length ? (
-              <OptionChips
-                label="Specific Friend"
-                options={visibleFriendOptions.map((user) => user.name)}
-                value={visibleFriendOptions.find((user) => user.id === selectedFriendUserId)?.name ?? visibleFriendOptions[0]?.name}
-                onChange={(value) => {
-                  const selected = visibleFriendOptions.find((user) => user.name === value);
-                  setSelectedFriendUserId(selected?.id ?? null);
-                }}
-              />
-            ) : null}
+              {insightsContext !== 'mine' && joinedGroups.length ? (
+                <OptionChips
+                  label="Shared Group"
+                  options={joinedGroups.map((group) => group.name)}
+                  value={joinedGroups.find((group) => group.id === selectedGroupId)?.name ?? joinedGroups[0]?.name}
+                  onChange={(value) => {
+                    const selected = joinedGroups.find((group) => group.name === value);
+                    setSelectedGroupId(selected?.id ?? null);
+                  }}
+                />
+              ) : null}
+              {insightsContext === 'friend' && visibleFriendOptions.length ? (
+                <OptionChips
+                  label="Specific Friend"
+                  options={visibleFriendOptions.map((user) => user.name)}
+                  value={visibleFriendOptions.find((user) => user.id === selectedFriendUserId)?.name ?? visibleFriendOptions[0]?.name}
+                  onChange={(value) => {
+                    const selected = visibleFriendOptions.find((user) => user.name === value);
+                    setSelectedFriendUserId(selected?.id ?? null);
+                  }}
+                />
+              ) : null}
+            </SectionCard>
 
             <InsightsFilterPanel
               riverOptions={riverOptions}
@@ -396,8 +401,7 @@ export const InsightsScreen = ({ navigation }: any) => {
               filteredSessionCount={filteredSessions.length}
             />
 
-            <View style={{ gap: 10, backgroundColor: 'rgba(6, 27, 44, 0.70)', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
-              <Text style={{ color: '#f7fdff', fontWeight: '800', fontSize: 18 }}>Catch Analytics</Text>
+            <SectionCard title="Catch Analytics" subtitle="See what is actually surfacing in the selected context right now.">
               <Text style={{ color: '#d7f3ff' }}>
                 Sessions in view: {filteredSessions.length} | Catch records in view: {filteredCatchEvents.length}
               </Text>
@@ -437,7 +441,7 @@ export const InsightsScreen = ({ navigation }: any) => {
                   {analytics.sizeBands.map(([band, count]) => renderChartRow(band, count, analytics.maxSizeBandCount, '#4ea8de'))}
                 </View>
               )}
-            </View>
+            </SectionCard>
 
             {filteredInsights.map((insight, idx) => (
               <InsightCard key={`${insight.type}-${idx}`} insight={insight} />
@@ -468,7 +472,7 @@ export const InsightsScreen = ({ navigation }: any) => {
                       return (
                         <View
                           key={`${record.name}-${record.hookSize}-${record.beadSizeMm}`}
-                          style={{ backgroundColor: 'rgba(6, 27, 44, 0.70)', borderRadius: 16, padding: 12, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}
+                          style={{ backgroundColor: appTheme.colors.surface, borderRadius: appTheme.radius.md, padding: 12, borderWidth: 1, borderColor: appTheme.colors.border }}
                         >
                           <Text style={{ color: '#f7fdff', fontWeight: '700', fontSize: 16 }}>{record.name}</Text>
                           <Text style={{ color: '#d7f3ff' }}>
@@ -512,15 +516,9 @@ export const InsightsScreen = ({ navigation }: any) => {
               </>
             )}
 
-            <Pressable onPress={() => navigation.navigate('Session')} style={{ backgroundColor: '#2a9d8f', borderRadius: 14, padding: 14, marginTop: 6 }}>
-              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Back to Session Setup</Text>
-            </Pressable>
-            <Pressable onPress={() => navigation.navigate('History')} style={{ backgroundColor: '#1d3557', borderRadius: 14, padding: 14 }}>
-              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>View History</Text>
-            </Pressable>
-            <Pressable onPress={() => navigation.navigate('Home')} style={{ backgroundColor: '#264653', borderRadius: 14, padding: 14 }}>
-              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Go Home</Text>
-            </Pressable>
+            <AppButton label="Back to Session Setup" onPress={() => navigation.navigate('Session')} />
+            <AppButton label="View History" onPress={() => navigation.navigate('History')} variant="secondary" />
+            <AppButton label="Go Home" onPress={() => navigation.navigate('Home')} variant="tertiary" />
           </>
         )}
       </ScrollView>

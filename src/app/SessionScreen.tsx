@@ -6,6 +6,11 @@ import { DEPTH_RANGES } from '@/constants/options';
 import { useAppStore } from './store';
 import { CompetitionLengthUnit, SessionMode, WaterType } from '@/types/session';
 import { ScreenBackground } from '@/components/ScreenBackground';
+import { AppButton } from '@/components/ui/AppButton';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { SectionCard } from '@/components/ui/SectionCard';
+import { StatusBanner } from '@/components/ui/StatusBanner';
+import { appTheme } from '@/design/theme';
 import { applyRigPresetToRig, createDefaultRigSetup, setRigFlyCount } from '@/utils/rigSetup';
 import { getInvalidReminderMarkers, isReminderMarkerAllowed } from '@/utils/sessionReminders';
 import { Group } from '@/types/group';
@@ -322,11 +327,11 @@ export const SessionScreen = ({ navigation, route }: any) => {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        <View style={{ gap: 4 }}>
-          <Text style={{ fontSize: 28, fontWeight: '800', color: '#f7fdff' }}>{modeCopy.title}</Text>
-          <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>{modeCopy.subtitle}</Text>
-          <Text style={{ color: '#dbf5ff', fontWeight: '700' }}>Angler: {activeUser?.name ?? 'Loading...'}</Text>
-        </View>
+        <ScreenHeader
+          title={modeCopy.title}
+          subtitle={modeCopy.subtitle}
+          eyebrow={`Angler: ${activeUser?.name ?? 'Loading...'}`}
+        />
         <SessionEnvironmentSection
           mode={mode}
           riverName={riverName}
@@ -364,7 +369,16 @@ export const SessionScreen = ({ navigation, route }: any) => {
           competitionLengthUnit={competitionLengthUnit}
           onCompetitionLengthUnitChange={setCompetitionLengthUnit}
         />
-        <View style={{ gap: 8, backgroundColor: 'rgba(6, 27, 44, 0.70)', padding: 14, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
+        <SectionCard
+          title={mode === 'practice' ? 'Session Setup' : mode === 'competition' ? 'Competition Setup' : 'Journal Setup'}
+          subtitle={
+            mode === 'practice'
+              ? 'Keep the important setup close at hand without turning this into a long form.'
+              : mode === 'competition'
+                ? 'Confirm the assignment, alerts, and measurement rules before the session starts.'
+                : 'Capture the hypothesis and notes you want to test today.'
+          }
+        >
           {mode === 'practice' ? (
             <PracticeSetupSection
               rigSetup={practiceRigSetup}
@@ -447,15 +461,17 @@ export const SessionScreen = ({ navigation, route }: any) => {
               onNotificationVibrationEnabledChange={setNotificationVibrationEnabled}
             />
           ) : null}
+          {reminderValidationMessage ? <StatusBanner tone="warning" text={reminderValidationMessage} /> : null}
+          {customAlertError && !reminderValidationMessage ? <StatusBanner tone="error" text={customAlertError} /> : null}
           {mode === 'experiment' && !!savedHypotheses.length && (
             <>
-              <Pressable onPress={() => setShowSavedHypothesisList((current) => !current)} style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}>
-                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
-                  {showSavedHypothesisList ? 'Hide Saved Hypotheses' : 'Choose Saved Hypothesis'}
-                </Text>
-              </Pressable>
+              <AppButton
+                label={showSavedHypothesisList ? 'Hide Saved Hypotheses' : 'Choose Saved Hypothesis'}
+                onPress={() => setShowSavedHypothesisList((current) => !current)}
+                variant="secondary"
+              />
               {showSavedHypothesisList && (
-                <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)' }}>
+                <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: appTheme.colors.borderStrong, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.surfaceLight }}>
                   {savedHypotheses.map((savedHypothesis) => (
                     <Pressable
                       key={savedHypothesis}
@@ -465,7 +481,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
                       }}
                       style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
                     >
-                      <Text style={{ color: '#0b3d3a', fontWeight: '600' }}>{savedHypothesis}</Text>
+                      <Text style={{ color: appTheme.colors.textDark, fontWeight: '600' }}>{savedHypothesis}</Text>
                     </Pressable>
                   ))}
                 </ScrollView>
@@ -473,13 +489,11 @@ export const SessionScreen = ({ navigation, route }: any) => {
             </>
           )}
           {mode === 'experiment' ? (
-            <TextInput value={hypothesis} onChangeText={setHypothesis} placeholder="Hypothesis" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }} />
+            <TextInput value={hypothesis} onChangeText={setHypothesis} placeholder="Hypothesis" placeholderTextColor="#5a6c78" style={{ borderWidth: 1, borderColor: appTheme.colors.borderStrong, padding: 12, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }} />
           ) : null}
-          <TextInput value={notes} onChangeText={setNotes} placeholder="Session notes" placeholderTextColor="#5a6c78" multiline style={{ borderWidth: 1, borderColor: 'rgba(202,240,248,0.18)', padding: 12, borderRadius: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43', minHeight: 96, textAlignVertical: 'top' }} />
-        </View>
-        <Pressable onPress={onStart} disabled={invalidReminderMarkers.length > 0} style={{ backgroundColor: invalidReminderMarkers.length > 0 ? '#6c757d' : '#2a9d8f', padding: 14, borderRadius: 14, width: '100%' }}>
-          <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>{modeCopy.button}</Text>
-        </Pressable>
+          <TextInput value={notes} onChangeText={setNotes} placeholder="Session notes" placeholderTextColor="#5a6c78" multiline style={{ borderWidth: 1, borderColor: appTheme.colors.borderStrong, padding: 12, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark, minHeight: 96, textAlignVertical: 'top' }} />
+        </SectionCard>
+        <AppButton label={modeCopy.button} onPress={onStart} disabled={invalidReminderMarkers.length > 0} />
       </ScrollView>
       </KeyboardDismissView>
     </ScreenBackground>

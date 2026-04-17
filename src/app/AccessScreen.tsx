@@ -6,6 +6,11 @@ import { getEntitlementLabel, hasPremiumAccess } from '@/engine/entitlementEngin
 import { beginAppleSubscriptionPurchase, PREMIUM_MONTHLY_PRICE_LABEL, PREMIUM_TRIAL_LABEL } from '@/billing/storekit';
 import { parseLocalTimeInput } from '@/utils/dateTime';
 import { CompetitionSessionRole } from '@/types/group';
+import { AppButton } from '@/components/ui/AppButton';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { SectionCard } from '@/components/ui/SectionCard';
+import { StatusBanner } from '@/components/ui/StatusBanner';
+import { appTheme } from '@/design/theme';
 
 export const AccessScreen = () => {
   const { width } = useWindowDimensions();
@@ -385,15 +390,13 @@ export const AccessScreen = () => {
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={{ gap: 4 }}>
-          <Text style={{ fontSize: 28, fontWeight: '800', color: '#f7fdff' }}>Access & Billing</Text>
-          <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
-            Manage premium access, subscription status, and power-user access from one place.
-          </Text>
-        </View>
+        <ScreenHeader
+          title="Access & Billing"
+          subtitle="Manage shared beta sync, premium access, friend groups, and competitions from one place."
+          eyebrow="Utility Center"
+        />
 
-        <View style={{ gap: 8, backgroundColor: 'rgba(6, 27, 44, 0.72)', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
-          <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>Current Access</Text>
+        <SectionCard title="Current Access" subtitle="Your sync state, remote sign-in, and subscription tools live here.">
           <Text style={{ color: '#f7fdff', fontWeight: '800', fontSize: 22 }}>{currentUser.name}</Text>
           <Text style={{ color: '#bde6f6' }}>Status: {currentEntitlementLabel}</Text>
           <Text style={{ color: '#bde6f6' }}>Premium features: {currentHasPremiumAccess ? 'Enabled' : 'Locked'}</Text>
@@ -404,7 +407,7 @@ export const AccessScreen = () => {
           <Text style={{ color: '#bde6f6' }}>
             Last sync: {syncStatus.lastSyncedAt ? new Date(syncStatus.lastSyncedAt).toLocaleString() : 'Not synced yet'}
           </Text>
-          {syncStatus.lastError ? <Text style={{ color: '#f7b4b4' }}>Last sync issue: {syncStatus.lastError}</Text> : null}
+          {syncStatus.lastError ? <StatusBanner tone="error" text={`Last sync issue: ${syncStatus.lastError}`} /> : null}
           <Text style={{ color: '#d7f3ff' }}>
             Plan: {PREMIUM_MONTHLY_PRICE_LABEL} with a {PREMIUM_TRIAL_LABEL.toLowerCase()}
           </Text>
@@ -416,9 +419,10 @@ export const AccessScreen = () => {
               placeholderTextColor="#5a6c78"
               autoCapitalize="none"
               keyboardType="email-address"
-              style={{ borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+              style={{ borderRadius: appTheme.radius.md, padding: 12, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
             />
-            <Pressable
+            <AppButton
+              label={authStatus === 'authenticating' ? 'Sending Magic Link...' : 'Send Magic Link'}
               onPress={() =>
                 signInWithMagicLink(authEmail)
                   .then(() =>
@@ -431,14 +435,11 @@ export const AccessScreen = () => {
                     Alert.alert('Unable to start sign-in', error instanceof Error ? error.message : 'Please try again.')
                   )
               }
-              style={{ backgroundColor: '#2a9d8f', padding: 12, borderRadius: 12 }}
-            >
-              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>
-                {authStatus === 'authenticating' ? 'Sending Magic Link...' : 'Send Magic Link'}
-              </Text>
-            </Pressable>
+              disabled={authStatus === 'authenticating'}
+            />
             {remoteSession ? (
-              <Pressable
+              <AppButton
+                label="Sign Out of Shared Beta"
                 onPress={() =>
                   signOutRemote()
                     .then(() => Alert.alert('Signed out', 'Shared beta sync is now disconnected on this device.'))
@@ -446,12 +447,11 @@ export const AccessScreen = () => {
                       Alert.alert('Unable to sign out', error instanceof Error ? error.message : 'Please try again.')
                     )
                 }
-                style={{ backgroundColor: '#8d0801', padding: 12, borderRadius: 12 }}
-              >
-                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Sign Out of Shared Beta</Text>
-              </Pressable>
+                variant="danger"
+              />
             ) : null}
-            <Pressable
+            <AppButton
+              label="Sync Now"
               onPress={() =>
                 flushSyncQueue()
                   .then(() => Alert.alert('Sync complete', 'Pending shared records were pushed to Supabase.'))
@@ -459,23 +459,17 @@ export const AccessScreen = () => {
                     Alert.alert('Unable to sync now', error instanceof Error ? error.message : 'Please try again.')
                   )
               }
-              style={{ backgroundColor: '#264653', padding: 12, borderRadius: 12 }}
-            >
-              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Sync Now</Text>
-            </Pressable>
+              variant="tertiary"
+            />
           </View>
 
           {currentUser.role !== 'owner' && (
             <>
-              <Pressable onPress={() => runAdminAction(() => startTrialForUser(currentUser.id), '7-day trial started for this account.')} style={{ backgroundColor: '#2a9d8f', padding: 12, borderRadius: 12 }}>
-                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Start 7-Day Trial</Text>
-              </Pressable>
-              <Pressable onPress={handlePurchase} style={{ backgroundColor: '#1d3557', padding: 12, borderRadius: 12 }}>
-                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Continue With Apple Subscription</Text>
-              </Pressable>
+              <AppButton label="Start 7-Day Trial" onPress={() => { runAdminAction(() => startTrialForUser(currentUser.id), '7-day trial started for this account.').catch(console.error); }} />
+              <AppButton label="Continue With Apple Subscription" onPress={() => { handlePurchase().catch(console.error); }} variant="secondary" />
             </>
           )}
-        </View>
+        </SectionCard>
 
         <View style={{ gap: 8, backgroundColor: 'rgba(6, 27, 44, 0.72)', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
           <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>My Data</Text>
@@ -506,8 +500,7 @@ export const AccessScreen = () => {
           )}
         </View>
 
-        <View style={{ gap: 10, backgroundColor: 'rgba(6, 27, 44, 0.72)', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
-          <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>Groups & Sharing</Text>
+        <SectionCard title="Groups & Sharing" subtitle="Keep friend sharing useful and easy to understand.">
           <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
             Create or join a group, then choose what this angler shares with that crew for joint learning.
           </Text>
@@ -516,11 +509,9 @@ export const AccessScreen = () => {
             onChangeText={setNewGroupName}
             placeholder="New group name"
             placeholderTextColor="#5a6c78"
-            style={{ borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+            style={{ borderRadius: appTheme.radius.md, padding: 12, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
           />
-          <Pressable onPress={() => saveGroup().catch((error) => Alert.alert('Unable to create group', error instanceof Error ? error.message : 'Please try again.'))} style={{ backgroundColor: '#2a9d8f', padding: 12, borderRadius: 12 }}>
-            <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Create Group</Text>
-          </Pressable>
+          <AppButton label="Create Group" onPress={() => { saveGroup().catch((error) => Alert.alert('Unable to create group', error instanceof Error ? error.message : 'Please try again.')); }} />
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <TextInput
               value={joinGroupCode}
@@ -528,11 +519,11 @@ export const AccessScreen = () => {
               placeholder="Join group code"
               placeholderTextColor="#5a6c78"
               autoCapitalize="characters"
-              style={{ flex: 1, borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+              style={{ flex: 1, borderRadius: appTheme.radius.md, padding: 12, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
             />
-            <Pressable onPress={() => handleJoinGroup().catch((error) => Alert.alert('Unable to join group', error instanceof Error ? error.message : 'Please try again.'))} style={{ backgroundColor: '#1d3557', paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, justifyContent: 'center' }}>
-              <Text style={{ color: 'white', fontWeight: '700' }}>Join</Text>
-            </Pressable>
+            <View style={{ justifyContent: 'center' }}>
+              <AppButton label="Join" onPress={() => { handleJoinGroup().catch((error) => Alert.alert('Unable to join group', error instanceof Error ? error.message : 'Please try again.')); }} variant="secondary" />
+            </View>
           </View>
 
           {joinedGroups.map((group) => {
@@ -580,10 +571,9 @@ export const AccessScreen = () => {
               </View>
             );
           })}
-        </View>
+        </SectionCard>
 
-        <View style={{ gap: 10, backgroundColor: 'rgba(6, 27, 44, 0.72)', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
-          <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>Friend Invites & Sponsorship</Text>
+        <SectionCard title="Friend Invites & Sponsorship" subtitle="Invite trusted testers into shared learning and manage sponsored power-user access.">
           <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
             Invite friends into a shared group and automatically sponsor their power-user access for beta testing.
           </Text>
@@ -606,11 +596,9 @@ export const AccessScreen = () => {
                 onChangeText={setInviteTargetName}
                 placeholder="Friend name (optional)"
                 placeholderTextColor="#5a6c78"
-                style={{ borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+                style={{ borderRadius: appTheme.radius.md, padding: 12, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
               />
-              <Pressable onPress={() => sendInvite().catch((error) => Alert.alert('Unable to create invite', error instanceof Error ? error.message : 'Please try again.'))} style={{ backgroundColor: '#2a9d8f', padding: 12, borderRadius: 12 }}>
-                <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Create Invite</Text>
-              </Pressable>
+              <AppButton label="Create Invite" onPress={() => { sendInvite().catch((error) => Alert.alert('Unable to create invite', error instanceof Error ? error.message : 'Please try again.')); }} />
             </>
           ) : (
             <Text style={{ color: '#bde6f6' }}>Create or join a friend group first before sending invites.</Text>
@@ -622,11 +610,11 @@ export const AccessScreen = () => {
               placeholder="Accept invite code"
               placeholderTextColor="#5a6c78"
               autoCapitalize="characters"
-              style={{ flex: 1, borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+              style={{ flex: 1, borderRadius: appTheme.radius.md, padding: 12, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
             />
-            <Pressable onPress={() => handleAcceptInvite().catch((error) => Alert.alert('Unable to accept invite', error instanceof Error ? error.message : 'Please try again.'))} style={{ backgroundColor: '#1d3557', paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, justifyContent: 'center' }}>
-              <Text style={{ color: 'white', fontWeight: '700' }}>Accept</Text>
-            </Pressable>
+            <View style={{ justifyContent: 'center' }}>
+              <AppButton label="Accept" onPress={() => { handleAcceptInvite().catch((error) => Alert.alert('Unable to accept invite', error instanceof Error ? error.message : 'Please try again.')); }} variant="secondary" />
+            </View>
           </View>
           {!!invites.length && (
             <View style={{ gap: 8 }}>
@@ -668,10 +656,9 @@ export const AccessScreen = () => {
               })}
             </View>
           )}
-        </View>
+        </SectionCard>
 
-        <View style={{ gap: 10, backgroundColor: 'rgba(6, 27, 44, 0.72)', borderRadius: 18, padding: 14, borderWidth: 1, borderColor: 'rgba(202,240,248,0.16)' }}>
-          <Text style={{ color: '#d7f3ff', fontWeight: '700', fontSize: 16 }}>Competitions</Text>
+        <SectionCard title="Competitions" subtitle="Set the event clock once, then let anglers join and assignments stay reviewable.">
           <Text style={{ color: '#d7f3ff', lineHeight: 20 }}>
             Competitions now own their own groups and session schedule. Organizers create the event once, anglers join by code, and assignments can be reviewed and corrected before the event starts.
           </Text>
@@ -681,7 +668,7 @@ export const AccessScreen = () => {
               onChangeText={setNewCompetitionName}
               placeholder="Competition name"
               placeholderTextColor="#5a6c78"
-              style={{ borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+              style={{ borderRadius: appTheme.radius.md, padding: 12, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
             />
             <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Competition Groups</Text>
             <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
@@ -702,11 +689,11 @@ export const AccessScreen = () => {
               keyboardType="number-pad"
               placeholder="Session count"
               placeholderTextColor="#5a6c78"
-              style={{ borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+              style={{ borderRadius: appTheme.radius.md, padding: 12, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
             />
             <View style={{ gap: 8 }}>
               {competitionSchedule.map((session, index) => (
-                <View key={session.sessionNumber} style={{ gap: 6, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 12 }}>
+                <View key={session.sessionNumber} style={{ gap: 6, backgroundColor: appTheme.colors.surfaceMuted, borderRadius: appTheme.radius.md, padding: 12 }}>
                   <Text style={{ color: '#f7fdff', fontWeight: '700' }}>Session {index + 1}</Text>
                   <View style={{ flexDirection: 'row', gap: 8 }}>
                     <TextInput
@@ -718,7 +705,7 @@ export const AccessScreen = () => {
                       }
                       placeholder="08:00"
                       placeholderTextColor="#5a6c78"
-                      style={{ flex: 1, borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+                      style={{ flex: 1, borderRadius: appTheme.radius.md, padding: 12, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
                     />
                     <TextInput
                       value={session.endTime}
@@ -729,15 +716,13 @@ export const AccessScreen = () => {
                       }
                       placeholder="11:00"
                       placeholderTextColor="#5a6c78"
-                      style={{ flex: 1, borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+                      style={{ flex: 1, borderRadius: appTheme.radius.md, padding: 12, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
                     />
                   </View>
                 </View>
               ))}
             </View>
-            <Pressable onPress={() => saveCompetition().catch((error) => Alert.alert('Unable to create competition', error instanceof Error ? error.message : 'Please try again.'))} style={{ backgroundColor: '#2a9d8f', padding: 12, borderRadius: 12 }}>
-              <Text style={{ color: 'white', textAlign: 'center', fontWeight: '700' }}>Create Competition</Text>
-            </Pressable>
+            <AppButton label="Create Competition" onPress={() => { saveCompetition().catch((error) => Alert.alert('Unable to create competition', error instanceof Error ? error.message : 'Please try again.')); }} />
           </>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <TextInput
@@ -746,11 +731,11 @@ export const AccessScreen = () => {
               placeholder="Competition join code"
               placeholderTextColor="#5a6c78"
               autoCapitalize="characters"
-              style={{ flex: 1, borderRadius: 12, padding: 12, backgroundColor: 'rgba(245,252,255,0.96)', color: '#102a43' }}
+              style={{ flex: 1, borderRadius: appTheme.radius.md, padding: 12, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
             />
-            <Pressable onPress={() => handleJoinCompetition().catch((error) => Alert.alert('Unable to join competition', error instanceof Error ? error.message : 'Please try again.'))} style={{ backgroundColor: '#1d3557', paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12, justifyContent: 'center' }}>
-              <Text style={{ color: 'white', fontWeight: '700' }}>Join</Text>
-            </Pressable>
+            <View style={{ justifyContent: 'center' }}>
+              <AppButton label="Join" onPress={() => { handleJoinCompetition().catch((error) => Alert.alert('Unable to join competition', error instanceof Error ? error.message : 'Please try again.')); }} variant="secondary" />
+            </View>
           </View>
 
           {joinedCompetitionList.map((competition) => {
@@ -892,7 +877,7 @@ export const AccessScreen = () => {
               </View>
             );
           })}
-        </View>
+        </SectionCard>
 
         {canManageAccess && (
           <View style={{ gap: 10 }}>

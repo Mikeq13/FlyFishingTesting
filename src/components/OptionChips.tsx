@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
+import { appTheme } from '@/design/theme';
 
 interface OptionChipsProps<T extends string> {
   label: string;
@@ -10,7 +11,7 @@ interface OptionChipsProps<T extends string> {
 
 export const OptionChips = <T extends string>({ label, options, value, onChange }: OptionChipsProps<T>) => (
   <View style={{ gap: 8 }}>
-    <Text style={{ color: '#f4fbff', fontWeight: '800' }}>{label}</Text>
+    <Text style={{ color: appTheme.colors.text, fontWeight: '800' }}>{label}</Text>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
       {options.map((option) => (
         <Pressable
@@ -19,13 +20,13 @@ export const OptionChips = <T extends string>({ label, options, value, onChange 
           style={{
             paddingHorizontal: 12,
             paddingVertical: 8,
-            borderRadius: 999,
+            borderRadius: appTheme.radius.pill,
             borderWidth: 1,
-            borderColor: value === option ? '#84d9f4' : 'rgba(255,255,255,0.22)',
-            backgroundColor: value === option ? 'rgba(132,217,244,0.28)' : 'rgba(6,28,41,0.5)'
+            borderColor: value === option ? appTheme.colors.chipSelectedBorder : appTheme.colors.chipBorder,
+            backgroundColor: value === option ? appTheme.colors.chipSelectedBg : appTheme.colors.chipBg
           }}
         >
-          <Text style={{ color: '#f4fbff', fontWeight: '700' }}>{option}</Text>
+          <Text style={{ color: appTheme.colors.text, fontWeight: '700' }}>{option}</Text>
         </Pressable>
       ))}
     </View>
