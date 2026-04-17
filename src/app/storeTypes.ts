@@ -16,6 +16,7 @@ import {
 import { LeaderFormula, RigPreset } from '@/types/rig';
 import { AuthStatus, Invite, RemoteSessionSnapshot, SponsoredAccess, SyncQueueEntry, SyncStatusSnapshot } from '@/types/remote';
 import { TopFlyRecord } from '@/engine/topFlyEngine';
+import { NotificationPermissionStatus, SharedDataStatus } from '@/types/appState';
 
 export type UserDataCleanupCategory = 'drafts' | 'experiments' | 'sessions' | 'flies' | 'formulas' | 'rig_presets' | 'rivers' | 'all';
 
@@ -53,6 +54,8 @@ export interface AppStore {
   sponsoredAccess: SponsoredAccess[];
   syncQueue: SyncQueueEntry[];
   syncStatus: SyncStatusSnapshot;
+  sharedDataStatus: SharedDataStatus;
+  notificationPermissionStatus: NotificationPermissionStatus;
   authStatus: AuthStatus;
   remoteSession: RemoteSessionSnapshot | null;
   isSyncEnabled: boolean;

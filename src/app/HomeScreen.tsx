@@ -33,7 +33,7 @@ const SESSION_MODE_OPTIONS: Array<{
 ];
 
 export const HomeScreen = ({ navigation }: any) => {
-  const { users, activeUserId, setActiveUserId, addUser, currentEntitlementLabel, currentHasPremiumAccess, currentUser, canManageAccess, syncStatus } = useAppStore();
+  const { users, activeUserId, setActiveUserId, addUser, currentEntitlementLabel, currentHasPremiumAccess, currentUser, canManageAccess, syncStatus, sharedDataStatus, notificationPermissionStatus, authStatus, remoteSession } = useAppStore();
   const { width } = useWindowDimensions();
   const activeUser = users.find((u) => u.id === activeUserId);
   const [newUserName, setNewUserName] = React.useState('');
@@ -105,7 +105,11 @@ export const HomeScreen = ({ navigation }: any) => {
           <Text style={{ color: appTheme.colors.textSoft }}>Premium features: {currentHasPremiumAccess ? 'Enabled' : 'Locked'}</Text>
           <Text style={{ color: appTheme.colors.textSoft }}>Beta sync queue: {syncStatus.pendingCount} pending</Text>
           <Text style={{ color: appTheme.colors.textSoft }}>Sync state: {syncStatus.state}</Text>
+          <Text style={{ color: appTheme.colors.textSoft }}>Shared data: {sharedDataStatus}</Text>
+          <Text style={{ color: appTheme.colors.textSoft }}>Notifications: {notificationPermissionStatus}</Text>
+          {authStatus === 'authenticating' && !remoteSession ? <StatusBanner tone="info" text="Finish the magic-link sign-in on this device to turn shared beta sync on." /> : null}
           {syncStatus.lastError ? <StatusBanner tone="error" text={`Last sync issue: ${syncStatus.lastError}`} /> : null}
+          {notificationPermissionStatus === 'denied' ? <StatusBanner tone="warning" text="Device notifications are turned off, so session reminders will stay in-app only until permissions are restored." /> : null}
         </SectionCard>
         <SectionCard title="Profiles" subtitle="Keep profile switching and session setup quick and clear.">
           <View style={{ flexDirection: isCompactLayout ? 'column' : 'row', gap: 8 }}>

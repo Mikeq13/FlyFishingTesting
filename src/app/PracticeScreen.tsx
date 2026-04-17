@@ -39,7 +39,8 @@ export const PracticeScreen = ({ route }: any) => {
     updateSessionEntry,
     addSessionSegment,
     updateSessionSegmentEntry,
-    addCatchEvent
+    addCatchEvent,
+    notificationPermissionStatus
   } = useAppStore();
   const session = sessions.find((candidate) => candidate.id === sessionId) ?? null;
   const [isBootstrappingSegment, setIsBootstrappingSegment] = useState(false);
@@ -178,6 +179,9 @@ export const PracticeScreen = ({ route }: any) => {
 
         {timer.activeAlertMinute ? (
           <StatusBanner tone="warning" text={`Time marker: ${timer.activeAlertMinute} minutes into your practice session.`} />
+        ) : null}
+        {notificationPermissionStatus === 'denied' ? (
+          <StatusBanner tone="info" text="Phone notifications are off on this device, so reminder banners will only appear while the app is open." />
         ) : null}
 
         <SectionCard title="Session Timer" subtitle="Keep your timing, reminders, and practice measuring in one glance.">

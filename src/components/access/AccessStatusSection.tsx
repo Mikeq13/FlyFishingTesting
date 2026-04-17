@@ -8,12 +8,15 @@ import { ActionGroup } from '@/components/ui/ActionGroup';
 import { FormField, formInputStyle } from '@/components/ui/FormField';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { SyncStatusSnapshot, RemoteSessionSnapshot, AuthStatus } from '@/types/remote';
+import { NotificationPermissionStatus, SharedDataStatus } from '@/types/appState';
 
 export const AccessStatusSection = ({
   currentUserName,
   currentEntitlementLabel,
   currentHasPremiumAccess,
   syncStatus,
+  sharedDataStatus,
+  notificationPermissionStatus,
   remoteSession,
   isSyncEnabled,
   authStatus,
@@ -30,6 +33,8 @@ export const AccessStatusSection = ({
   currentEntitlementLabel: string;
   currentHasPremiumAccess: boolean;
   syncStatus: SyncStatusSnapshot;
+  sharedDataStatus: SharedDataStatus;
+  notificationPermissionStatus: NotificationPermissionStatus;
   remoteSession: RemoteSessionSnapshot | null;
   isSyncEnabled: boolean;
   authStatus: AuthStatus;
@@ -49,11 +54,17 @@ export const AccessStatusSection = ({
       <InlineSummaryRow label="Premium Features" value={currentHasPremiumAccess ? 'Enabled' : 'Locked'} />
       <InlineSummaryRow label="Sync Queue" value={`${syncStatus.pendingCount} pending, ${syncStatus.syncedCount} synced`} />
       <InlineSummaryRow label="Sync State" value={syncStatus.state} />
+      <InlineSummaryRow label="Shared Data" value={sharedDataStatus} />
       <InlineSummaryRow label="Remote Auth" value={remoteSession?.email ?? 'Not signed in'} valueMuted={!remoteSession?.email} />
       <InlineSummaryRow label="Shared Sync" value={isSyncEnabled ? 'Enabled' : 'Waiting for sign-in or env setup'} valueMuted={!isSyncEnabled} />
+      <InlineSummaryRow label="Notifications" value={notificationPermissionStatus} valueMuted={notificationPermissionStatus !== 'granted' && notificationPermissionStatus !== 'provisional'} />
       <InlineSummaryRow label="Last Sync" value={syncStatus.lastSyncedAt ? new Date(syncStatus.lastSyncedAt).toLocaleString() : 'Not synced yet'} valueMuted={!syncStatus.lastSyncedAt} />
     </View>
+    {authStatus === 'authenticating' && !remoteSession ? (
+      <StatusBanner tone="info" text="Magic link sent. Open it on this device to finish sign-in. If the app was interrupted, come back here and send a fresh link." />
+    ) : null}
     {syncStatus.lastError ? <StatusBanner tone="error" text={`Last sync issue: ${syncStatus.lastError}`} /> : null}
+    {notificationPermissionStatus === 'denied' ? <StatusBanner tone="warning" text="Notifications are blocked on this device. Session reminders will stay in-app until phone notification access is re-enabled." /> : null}
     <Text style={{ color: '#d7f3ff' }}>
       Plan: {PREMIUM_MONTHLY_PRICE_LABEL} with a {PREMIUM_TRIAL_LABEL.toLowerCase()}
     </Text>

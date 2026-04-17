@@ -7,6 +7,7 @@ import { appTheme } from '@/design/theme';
 import { SESSION_ALERT_MARKERS } from '@/constants/options';
 import { SessionMode } from '@/types/session';
 import { isReminderMarkerAllowed } from '@/utils/sessionReminders';
+import { NotificationPermissionStatus } from '@/types/appState';
 
 interface ReminderSettingsSectionProps {
   mode: SessionMode;
@@ -27,6 +28,7 @@ interface ReminderSettingsSectionProps {
   onNotificationSoundEnabledChange: (value: boolean) => void;
   notificationVibrationEnabled: boolean;
   onNotificationVibrationEnabledChange: (value: boolean) => void;
+  notificationPermissionStatus: NotificationPermissionStatus;
 }
 
 export const ReminderSettingsSection = ({
@@ -47,7 +49,8 @@ export const ReminderSettingsSection = ({
   notificationSoundEnabled,
   onNotificationSoundEnabledChange,
   notificationVibrationEnabled,
-  onNotificationVibrationEnabledChange
+  onNotificationVibrationEnabledChange,
+  notificationPermissionStatus
 }: ReminderSettingsSectionProps) => (
   <>
     <Text style={{ color: appTheme.colors.text, fontWeight: '700', fontSize: 16 }}>Session Timer</Text>
@@ -113,6 +116,11 @@ export const ReminderSettingsSection = ({
       <Text style={{ color: appTheme.colors.textSoft, lineHeight: 20 }}>
         Local reminders follow your session settings here, while the phone still applies its own notification permissions and device behavior.
       </Text>
+      {notificationPermissionStatus === 'denied' ? (
+        <Text style={{ color: '#fca5a5', lineHeight: 20 }}>
+          Phone notifications are blocked right now, so reminder banners can only appear while the app is open.
+        </Text>
+      ) : null}
     </View>
   </>
 );

@@ -21,7 +21,7 @@ const TROUT_SPECIES: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow',
 
 export const CompetitionScreen = ({ route }: any) => {
   const sessionId = route?.params?.sessionId as number;
-  const { sessions, allSessions, catchEvents, allCatchEvents, users, competitionAssignments, competitionGroups, competitionSessions, addCatchEvent, updateSessionEntry, upsertCompetitionAssignment } = useAppStore();
+  const { sessions, allSessions, catchEvents, allCatchEvents, users, competitionAssignments, competitionGroups, competitionSessions, addCatchEvent, updateSessionEntry, upsertCompetitionAssignment, notificationPermissionStatus } = useAppStore();
   const session = sessions.find((candidate) => candidate.id === sessionId) ?? null;
   const [showCatchModal, setShowCatchModal] = useState(false);
   const [species, setSpecies] = useState<TroutSpecies>('Rainbow');
@@ -156,6 +156,9 @@ export const CompetitionScreen = ({ route }: any) => {
 
         {timer.activeAlertMinute ? (
           <StatusBanner tone="warning" text={`Time marker: ${timer.activeAlertMinute} minutes into your competition session.`} />
+        ) : null}
+        {notificationPermissionStatus === 'denied' ? (
+          <StatusBanner tone="info" text="Phone notifications are off on this device, so competition reminders will only appear while the app is open." />
         ) : null}
 
         <SectionCard title="Session Timer" subtitle="Timing stays readable so you can fish or control without second-guessing the clock.">

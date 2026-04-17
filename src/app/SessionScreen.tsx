@@ -41,7 +41,7 @@ const MODE_COPY: Record<SessionMode, { title: string; subtitle: string; button: 
 
 export const SessionScreen = ({ navigation, route }: any) => {
   const { width } = useWindowDimensions();
-  const { addSession, updateSessionEntry, addSavedFly, addSavedLeaderFormula, deleteSavedLeaderFormula, addSavedRigPreset, deleteSavedRigPreset, addSavedRiver, savedFlies, savedLeaderFormulas, savedRigPresets, savedRivers, users, activeUserId, sessions, experiments, groups, groupMemberships, competitions, competitionGroups, competitionSessions, competitionParticipants, competitionAssignments, upsertCompetitionAssignment } = useAppStore();
+  const { addSession, updateSessionEntry, addSavedFly, addSavedLeaderFormula, deleteSavedLeaderFormula, addSavedRigPreset, deleteSavedRigPreset, addSavedRiver, savedFlies, savedLeaderFormulas, savedRigPresets, savedRivers, users, activeUserId, sessions, experiments, groups, groupMemberships, competitions, competitionGroups, competitionSessions, competitionParticipants, competitionAssignments, upsertCompetitionAssignment, sharedDataStatus, syncStatus, notificationPermissionStatus, authStatus, remoteSession } = useAppStore();
   const mode = (route?.params?.mode ?? 'experiment') as SessionMode;
   const modeCopy = MODE_COPY[mode] ?? MODE_COPY.experiment;
   const activeUser = users.find((user) => user.id === activeUserId);
@@ -371,6 +371,21 @@ export const SessionScreen = ({ navigation, route }: any) => {
           competitionLengthUnit={competitionLengthUnit}
           onCompetitionLengthUnitChange={setCompetitionLengthUnit}
         />
+        {mode === 'competition' && authStatus === 'authenticating' && !remoteSession ? (
+          <StatusBanner tone="info" text="Finish magic-link sign-in on this device before relying on synced competition assignments." />
+        ) : null}
+        {mode === 'competition' && sharedDataStatus === 'loading' ? (
+          <StatusBanner tone="info" text="Loading shared competition assignments from the beta backend..." />
+        ) : null}
+        {mode === 'competition' && sharedDataStatus === 'error' ? (
+          <StatusBanner tone="error" text={syncStatus.lastError ? `Shared assignments could not load: ${syncStatus.lastError}` : 'Shared assignments could not load right now. You can retry from Access & Billing.'} />
+        ) : null}
+        {mode === 'competition' && selectedCompetitionId && !selectedCompetitionAssignments.length && sharedDataStatus === 'ready' ? (
+          <StatusBanner tone="warning" text="This competition does not have a saved assignment for this angler yet. Add or review the assignment in Access & Billing before starting the session." />
+        ) : null}
+        {mode === 'competition' && selectedCompetitionAssignment && (!selectedCompetitionGroup || !selectedCompetitionSession) ? (
+          <StatusBanner tone="warning" text="This saved assignment is missing its synced group or session details. Open Access & Billing, review the assignment, and sync again before starting." />
+        ) : null}
         <SectionCard
           title={mode === 'practice' ? 'Session Setup' : mode === 'competition' ? 'Competition Setup' : 'Journal Setup'}
           subtitle={
@@ -461,6 +476,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
               onNotificationSoundEnabledChange={setNotificationSoundEnabled}
               notificationVibrationEnabled={notificationVibrationEnabled}
               onNotificationVibrationEnabledChange={setNotificationVibrationEnabled}
+              notificationPermissionStatus={notificationPermissionStatus}
             />
           ) : null}
           {reminderValidationMessage ? <StatusBanner tone="warning" text={reminderValidationMessage} /> : null}

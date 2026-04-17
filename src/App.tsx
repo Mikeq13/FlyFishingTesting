@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import * as Linking from 'expo-linking';
+import { Alert } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AppStoreProvider } from './app/store';
@@ -32,6 +33,8 @@ export default function App() {
         await consumeAuthRedirect(url);
       } catch (error) {
         console.error(error);
+        const message = error instanceof Error ? error.message : 'Please request a fresh magic link and try again.';
+        Alert.alert('Sign-in link could not be completed', message);
       }
     };
 

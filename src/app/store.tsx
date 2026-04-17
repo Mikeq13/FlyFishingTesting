@@ -36,6 +36,8 @@ import { fetchRemoteAccessSnapshot } from '@/services/remoteAccessService';
 import { fetchRemoteSharedDataSnapshot } from '@/services/remoteSharedDataService';
 import { createStoreActions } from '@/app/storeActions';
 import { AppStore, UserDataCleanupCategory } from '@/app/storeTypes';
+import { NotificationPermissionStatus, SharedDataStatus } from '@/types/appState';
+import { getNotificationPermissionStatus } from '@/utils/sessionNotifications';
 
 export type { UserDataCleanupCategory };
 
@@ -73,6 +75,8 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const [remoteSession, setRemoteSession] = useState<RemoteSessionSnapshot | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
+  const [sharedDataStatus, setSharedDataStatus] = useState<SharedDataStatus>('idle');
+  const [notificationPermissionStatus, setNotificationPermissionStatus] = useState<NotificationPermissionStatus>('unknown');
   const [activeUserId, setActiveUserId] = useState<number | null>(null);
   const importSeededRef = useRef<string | null>(null);
   const sessionMap = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
@@ -130,10 +134,12 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     let nextSponsoredAccess = loaded.sponsoredAccess;
 
     if (hasSupabaseConfig && remoteSession) {
+      setSharedDataStatus('loading');
       try {
         const remoteAccess = await fetchRemoteAccessSnapshot(remoteSession.authUserId);
         const remoteShared = await fetchRemoteSharedDataSnapshot(remoteSession.authUserId, remoteAccess);
         setLastSyncError(null);
+        setSharedDataStatus('ready');
 
         nextUsers = mergeById(loaded.users, remoteAccess.users);
         nextGroups = mergeById(loaded.groups, remoteAccess.groups);
@@ -161,7 +167,10 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       } catch (error) {
         console.error(error);
         setLastSyncError(error instanceof Error ? error.message : 'Unable to load shared data from Supabase.');
+        setSharedDataStatus('error');
       }
+    } else {
+      setSharedDataStatus('idle');
     }
 
     setUsers(nextUsers);
@@ -308,6 +317,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     if (!hasSupabaseConfig) {
       setAuthStatus('anonymous');
       setRemoteSession(null);
+      setSharedDataStatus('idle');
       return;
     }
 
@@ -336,6 +346,15 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       mounted = false;
       unsubscribe();
     };
+  }, []);
+
+  useEffect(() => {
+    getNotificationPermissionStatus()
+      .then(setNotificationPermissionStatus)
+      .catch((error) => {
+        console.error(error);
+        setNotificationPermissionStatus('unknown');
+      });
   }, []);
 
   useEffect(() => {
@@ -521,6 +540,8 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         sponsoredAccess,
         syncQueue,
         syncStatus,
+        sharedDataStatus,
+        notificationPermissionStatus,
         authStatus,
         remoteSession,
         isSyncEnabled,

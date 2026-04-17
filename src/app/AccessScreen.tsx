@@ -25,6 +25,8 @@ export const AccessScreen = () => {
     currentHasPremiumAccess,
     canManageAccess,
     syncStatus,
+    sharedDataStatus,
+    notificationPermissionStatus,
     authStatus,
     remoteSession,
     isSyncEnabled,
@@ -399,6 +401,8 @@ export const AccessScreen = () => {
           currentEntitlementLabel={currentEntitlementLabel}
           currentHasPremiumAccess={currentHasPremiumAccess}
           syncStatus={syncStatus}
+          sharedDataStatus={sharedDataStatus}
+          notificationPermissionStatus={notificationPermissionStatus}
           remoteSession={remoteSession}
           isSyncEnabled={isSyncEnabled}
           authStatus={authStatus}

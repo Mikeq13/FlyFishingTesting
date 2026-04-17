@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import { Session } from '@/types/session';
 import { deleteAppSetting, getAppSetting, setAppSetting } from '@/db/settingsRepo';
 import { normalizeReminderMarkers } from './sessionReminders';
+import { NotificationPermissionStatus } from '@/types/appState';
 
 const SESSION_NOTIFICATION_KEY_PREFIX = 'session_notification_ids';
 
@@ -62,6 +63,19 @@ export const ensureNotificationPermissions = async (): Promise<boolean> => {
 
   const nextPermissions = await Notifications.requestPermissionsAsync();
   return nextPermissions.granted || nextPermissions.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL;
+};
+
+export const getNotificationPermissionStatus = async (): Promise<NotificationPermissionStatus> => {
+  const Notifications = await loadNotificationsModule();
+  if (!Notifications) return Platform.OS === 'web' ? 'unsupported' : 'unknown';
+
+  const permissions = await Notifications.getPermissionsAsync();
+  if (permissions.granted) return 'granted';
+  if (permissions.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL) {
+    return 'provisional';
+  }
+  if (permissions.canAskAgain === false) return 'denied';
+  return 'unknown';
 };
 
 export const cancelSessionNotifications = async (sessionId: number): Promise<void> => {
