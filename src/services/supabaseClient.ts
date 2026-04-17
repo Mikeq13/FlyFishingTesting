@@ -6,6 +6,8 @@ const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 export const hasSupabaseConfig = Boolean(supabaseUrl && supabaseAnonKey);
+export const missingSupabaseConfigMessage =
+  'Supabase is not configured on this device yet. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to your local .env.local file, then restart Expo with -c.';
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase env vars are missing. Shared beta sync will stay disabled until EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY are set.');

@@ -10,6 +10,7 @@ import { StatusBanner } from '@/components/ui/StatusBanner';
 import { useTheme } from '@/design/theme';
 import { useResponsiveLayout } from '@/design/layout';
 import { useAppStore } from './store';
+import { hasSupabaseConfig, missingSupabaseConfigMessage } from '@/services/supabaseClient';
 
 type AuthMode = 'sign_in' | 'sign_up' | 'magic_link' | 'reset';
 
@@ -33,6 +34,10 @@ export const AuthScreen = () => {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const submit = async () => {
+    if (!hasSupabaseConfig) {
+      Alert.alert('Supabase config missing', missingSupabaseConfigMessage);
+      return;
+    }
     setIsSubmitting(true);
     try {
       if (authStatus === 'password_reset_required') {
@@ -118,6 +123,12 @@ export const AuthScreen = () => {
             }}
           />
           <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>{statusText}</Text>
+          {!hasSupabaseConfig ? (
+            <StatusBanner
+              tone="warning"
+              text="Supabase auth is disabled until this device has EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in .env.local, followed by a full Expo restart."
+            />
+          ) : null}
           {authStatus === 'pending_verification' ? <StatusBanner tone="info" text="The account flow is waiting on your email inbox. Finish that step, then return to the app." /> : null}
 
           {(mode === 'sign_up' || authStatus === 'password_reset_required') ? null : (
@@ -200,7 +211,7 @@ export const AuthScreen = () => {
             onPress={() => {
               submit().catch(console.error);
             }}
-            disabled={isSubmitting}
+            disabled={isSubmitting || !hasSupabaseConfig}
           />
         </SectionCard>
       </ScrollView>
