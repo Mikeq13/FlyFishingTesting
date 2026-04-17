@@ -85,7 +85,9 @@ export const AuthScreen = ({ navigation }: any) => {
       ? 'Check your email and finish the verification or magic-link step before continuing.'
       : authStatus === 'password_reset_required'
         ? 'Choose a new password to finish the recovery flow.'
-        : 'Sign in with your real account so shared data, notifications, and beta access stay tied to the correct angler.';
+        : mode === 'sign_up'
+          ? 'Create your real beta account so your personal angler profile, sync, sharing, and recovery stay tied to the right person.'
+          : 'Sign in with your real account so your personal angler profile, notifications, and beta access stay tied to the correct person.';
 
   const modeOptions =
     authStatus === 'password_reset_required'
@@ -132,7 +134,7 @@ export const AuthScreen = ({ navigation }: any) => {
           {authStatus === 'pending_verification' ? <StatusBanner tone="info" text="The account flow is waiting on your email inbox. Finish that step, then return to the app." /> : null}
           {!hasSupabaseConfig ? <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>This native beta build expects real Supabase configuration before account access, shared data, and sync can work.</Text> : null}
 
-          {(mode === 'sign_up' || authStatus === 'password_reset_required') ? null : (
+          {authStatus === 'password_reset_required' ? null : (
             <FormField label="Email">
               <TextInput
                 value={email}

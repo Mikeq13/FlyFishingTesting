@@ -65,7 +65,7 @@ export const HomeScreen = ({ navigation }: any) => {
           </Text>
           <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 24 }}>{currentUser?.name ?? 'Loading...'}</Text>
           <Text style={{ color: theme.colors.textSoft }}>
-            Your fishing history, saved setups, invites, and shared beta data stay tied to this signed-in angler account.
+            Your fishing history, personal angler profile, saved setups, invites, and shared beta data stay tied to this signed-in account.
           </Text>
           <Text style={{ color: theme.colors.textMuted }}>Access: {currentEntitlementLabel}</Text>
           <Text style={{ color: theme.colors.textSoft }}>Premium features: {currentHasPremiumAccess ? 'Enabled' : 'Locked'}</Text>
@@ -81,7 +81,7 @@ export const HomeScreen = ({ navigation }: any) => {
         </SectionCard>
         <SectionCard title="Account Identity" subtitle="Owner and tester access depend on the signed-in beta account.">
           <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
-            Use Access to update your account details, manage tester access, recover your password, or verify the owner account.
+            Use Access to update your account details, verify the owner account, and manage group or tester access tied to this signed-in person.
           </Text>
           <Text style={{ color: theme.colors.textMuted }}>
             Owner tools: {canManageAccess ? 'Unlocked for this session' : isAuthenticatedOwner ? 'Unlocked for this session' : 'Locked until the linked owner account is signed in'}

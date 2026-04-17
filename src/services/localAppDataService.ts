@@ -79,7 +79,7 @@ export const bootstrapLocalApp = async (): Promise<{ users: UserProfile[]; activ
   await initDb();
   let existingUsers = await listUsers();
   if (!existingUsers.length) {
-    const id = await createUser({ name: 'Primary Angler', role: 'owner', accessLevel: 'power_user', subscriptionStatus: 'power_user' });
+    const id = await createUser({ name: 'Owner Account', role: 'owner', accessLevel: 'power_user', subscriptionStatus: 'power_user' });
     await saveActiveUserId(id);
     existingUsers = await listUsers();
     return { users: existingUsers, activeUserId: id };

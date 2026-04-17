@@ -43,6 +43,7 @@ import { getNotificationPermissionStatus } from '@/utils/sessionNotifications';
 export type { UserDataCleanupCategory };
 
 const Ctx = createContext<AppStore | null>(null);
+const OWNER_ACCOUNT_EMAIL = '13jmmq@gmail.com';
 
 export const AppStoreProvider = ({ children }: { children: React.ReactNode }) => {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -97,6 +98,8 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         (currentUser.ownerLinkedEmail && currentUser.ownerLinkedEmail === remoteSession.email))
   );
   const canManageAccess = Boolean(currentUser?.role === 'owner' && (!remoteSession || isAuthenticatedOwner));
+  const normalizeEmail = (value?: string | null) => value?.trim().toLowerCase() ?? null;
+  const ownerAccountEmail = normalizeEmail(OWNER_ACCOUNT_EMAIL);
 
   const selectActiveUser = async (id: number) => {
     setActiveUserId(id);
@@ -214,30 +217,52 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   };
 
   const ensureUserForRemoteSession = async (snapshot: RemoteSessionSnapshot) => {
+    const normalizedEmail = normalizeEmail(snapshot.email);
     const matchedByAuthId = users.find((user) => user.remoteAuthId === snapshot.authUserId);
-    const matchedByEmail = snapshot.email ? users.find((user) => user.email?.toLowerCase() === snapshot.email?.toLowerCase()) : null;
-    const loneOwnerCandidate =
-      !matchedByAuthId &&
-      !matchedByEmail &&
-      users.length === 1 &&
-      users[0]?.role === 'owner' &&
-      !users[0]?.remoteAuthId
-        ? users[0]
+    const ownerCandidate =
+      normalizedEmail && normalizedEmail === ownerAccountEmail
+        ? users.find((user) => user.role === 'owner') ?? null
         : null;
-    const targetUser = matchedByAuthId ?? matchedByEmail ?? loneOwnerCandidate;
+    const matchedByEmail = normalizedEmail
+      ? users.find(
+          (user) =>
+            normalizeEmail(user.email) === normalizedEmail &&
+            (user.role !== 'owner' || normalizedEmail === ownerAccountEmail)
+        )
+      : null;
+    const targetUser = matchedByAuthId ?? ownerCandidate ?? matchedByEmail;
     const derivedName =
       snapshot.email?.split('@')[0]?.replace(/[._-]+/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase()) || 'Angler';
+    const profileName =
+      !targetUser?.name || targetUser.name === 'Owner Account' || targetUser.name === 'Primary Angler'
+        ? derivedName
+        : targetUser.name;
 
     if (targetUser) {
       await updateUser(targetUser.id, {
+        name: profileName,
         remoteAuthId: snapshot.authUserId,
         email: snapshot.email ?? targetUser.email ?? null,
-        emailVerifiedAt: snapshot.emailVerifiedAt ?? targetUser.emailVerifiedAt ?? null
+        emailVerifiedAt: snapshot.emailVerifiedAt ?? targetUser.emailVerifiedAt ?? null,
+        ownerLinkedEmail: targetUser.role === 'owner' && normalizedEmail === ownerAccountEmail ? snapshot.email ?? targetUser.ownerLinkedEmail ?? null : targetUser.ownerLinkedEmail ?? null,
+        ownerLinkedAuthId:
+          targetUser.role === 'owner' && normalizedEmail === ownerAccountEmail
+            ? snapshot.authUserId
+            : targetUser.ownerLinkedAuthId ?? null
       });
       await trackSyncChange('profile', 'update', targetUser.id, {
+        name: profileName,
         remoteAuthId: snapshot.authUserId,
         email: snapshot.email ?? targetUser.email ?? null,
-        emailVerifiedAt: snapshot.emailVerifiedAt ?? targetUser.emailVerifiedAt ?? null
+        emailVerifiedAt: snapshot.emailVerifiedAt ?? targetUser.emailVerifiedAt ?? null,
+        ownerLinkedEmail:
+          targetUser.role === 'owner' && normalizedEmail === ownerAccountEmail
+            ? snapshot.email ?? targetUser.ownerLinkedEmail ?? null
+            : targetUser.ownerLinkedEmail ?? null,
+        ownerLinkedAuthId:
+          targetUser.role === 'owner' && normalizedEmail === ownerAccountEmail
+            ? snapshot.authUserId
+            : targetUser.ownerLinkedAuthId ?? null
       });
       await selectActiveUser(targetUser.id);
       return targetUser.id;
