@@ -37,6 +37,8 @@ export const GroupsSharingSection = ({
   onCreateInvite,
   onAcceptInvite,
   onRevokeSponsoredAccess,
+  onLeaveGroup,
+  onDeleteGroup,
   embedded = false
 }: {
   currentUserId: number;
@@ -65,6 +67,8 @@ export const GroupsSharingSection = ({
   onCreateInvite: () => Promise<void>;
   onAcceptInvite: () => Promise<void>;
   onRevokeSponsoredAccess: (id: number) => Promise<void>;
+  onLeaveGroup: (groupId: number) => Promise<{ membershipId: number; groupId: number; deletedGroup: boolean }>;
+  onDeleteGroup: (groupId: number) => Promise<void>;
   embedded?: boolean;
 }) => {
   const { theme } = useTheme();
@@ -184,6 +188,54 @@ export const GroupsSharingSection = ({
                 }
               />
             ))}
+            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+              {membership?.role !== 'organizer' ? (
+                <AppButton
+                  label="Leave Group"
+                  onPress={() => {
+                    Alert.alert('Leave this group?', `You will stop sharing with ${group.name}. If you are the last member, the group will be removed.`, [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Leave',
+                        style: 'destructive',
+                        onPress: () => {
+                          onLeaveGroup(group.id)
+                            .then((result) => {
+                              Alert.alert('Group updated', result.deletedGroup ? 'You left the group, and it was removed because no members remained.' : 'You left the group.');
+                            })
+                            .catch((error) => Alert.alert('Unable to leave group', error instanceof Error ? error.message : 'Please try again.'));
+                        }
+                      }
+                    ]);
+                  }}
+                  variant="neutral"
+                  surfaceTone="light"
+                />
+              ) : null}
+              {membership?.role === 'organizer' ? (
+                <AppButton
+                  label="Delete Group"
+                  onPress={() => {
+                    Alert.alert('Delete this group?', `${group.name} and its related sharing records will be removed for everyone in the group.`, [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: () => {
+                          onDeleteGroup(group.id)
+                            .then(() => {
+                              Alert.alert('Group deleted', `${group.name} and its related sharing records were removed.`);
+                            })
+                            .catch((error) => Alert.alert('Unable to delete group', error instanceof Error ? error.message : 'Please try again.'));
+                        }
+                      }
+                    ]);
+                  }}
+                  variant="danger"
+                  surfaceTone="light"
+                />
+              ) : null}
+            </View>
           </View>
         );
       })}

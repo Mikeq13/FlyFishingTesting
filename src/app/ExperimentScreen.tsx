@@ -496,6 +496,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
               flyCount={visibleEntries.length}
               editMode="leader"
               forceEditorOpen
+              tone="light"
               savedLeaderFormulas={savedLeaderFormulas}
               savedRigPresets={savedRigPresets}
               onChange={(next) => {
@@ -544,6 +545,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
               }}
               editMode="rig"
               forceEditorOpen
+              tone="light"
               savedLeaderFormulas={savedLeaderFormulas}
               savedRigPresets={savedRigPresets}
               onChange={(next) => {
@@ -604,6 +606,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                 title="Flies"
                 rigSetup={rigSetup}
                 savedFlies={savedFlies}
+                tone="light"
                 onChange={(nextRigSetup) => {
                   setRigSetup(nextRigSetup);
                   setFlyEntries((current) =>

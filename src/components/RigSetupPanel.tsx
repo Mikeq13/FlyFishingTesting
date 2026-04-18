@@ -18,6 +18,7 @@ interface RigSetupPanelProps {
   onFlyCountChange?: (nextCount: 1 | 2 | 3) => void;
   editMode?: 'all' | 'leader' | 'rig';
   forceEditorOpen?: boolean;
+  tone?: 'dark' | 'light';
   savedLeaderFormulas: LeaderFormula[];
   savedRigPresets: RigPreset[];
   onChange: (next: RigSetup) => void;
@@ -35,6 +36,7 @@ export const RigSetupPanel = ({
   onFlyCountChange,
   editMode = 'all',
   forceEditorOpen = false,
+  tone = 'dark',
   savedLeaderFormulas,
   savedRigPresets,
   onChange,
@@ -45,6 +47,7 @@ export const RigSetupPanel = ({
   onDeleteRigPreset
 }: RigSetupPanelProps) => {
   const { theme } = useTheme();
+  const isLightTone = tone === 'light';
   const [showFormulaList, setShowFormulaList] = useState(false);
   const [showFormulaEditor, setShowFormulaEditor] = useState(false);
   const [showPresetList, setShowPresetList] = useState(false);
@@ -80,20 +83,22 @@ export const RigSetupPanel = ({
   };
 
   return (
-    <SectionCard title={title} subtitle="Keep leaders from fly line to tippet ring and rigs from tippet ring to point fly in one place.">
+    <SectionCard title={title} subtitle="Keep leaders from fly line to tippet ring and rigs from tippet ring to point fly in one place." tone={tone}>
       {!forceEditorOpen && !showSetupEditor ? (
         <View
           style={{
             gap: 8,
             borderRadius: theme.radius.md,
             padding: 12,
-            backgroundColor: theme.colors.surfaceMuted
+            backgroundColor: isLightTone ? theme.colors.nestedSurface : theme.colors.surfaceMuted,
+            borderWidth: isLightTone ? 1 : 0,
+            borderColor: isLightTone ? theme.colors.nestedSurfaceBorder : 'transparent'
           }}
         >
-          <Text style={{ color: theme.colors.text, fontWeight: '800' }}>
+          <Text style={{ color: isLightTone ? theme.colors.textDark : theme.colors.text, fontWeight: '800' }}>
             Leader: {rigSetup.leaderFormulaName ?? (rigSetup.leaderFormulaSectionsSnapshot.length ? 'Custom leader' : 'Not chosen')}
           </Text>
-          <Text style={{ color: theme.colors.textMuted }}>Rig: {rigSummary}</Text>
+          <Text style={{ color: isLightTone ? theme.colors.textDarkSoft : theme.colors.textMuted }}>Rig: {rigSummary}</Text>
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
             {editMode !== 'rig' ? (
               <AppButton
@@ -107,6 +112,7 @@ export const RigSetupPanel = ({
                   setShowPresetEditor(false);
                 }}
                 variant="ghost"
+                surfaceTone={isLightTone ? 'light' : 'dark'}
               />
             ) : null}
             {editMode !== 'leader' ? (
@@ -121,6 +127,7 @@ export const RigSetupPanel = ({
                   setShowFormulaEditor(false);
                 }}
                 variant="ghost"
+                surfaceTone={isLightTone ? 'light' : 'dark'}
               />
             ) : null}
           </View>
@@ -133,7 +140,7 @@ export const RigSetupPanel = ({
             <>
               {!!sortedFormulas.length ? (
                 <>
-                  <AppButton label={showFormulaList ? 'Hide Existing Leaders' : 'Existing Leader'} onPress={() => setShowFormulaList((current) => !current)} variant="secondary" />
+                  <AppButton label={showFormulaList ? 'Hide Existing Leaders' : 'Existing Leader'} onPress={() => setShowFormulaList((current) => !current)} variant="secondary" surfaceTone={isLightTone ? 'light' : 'dark'} />
                   {showFormulaList ? (
                     <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: theme.colors.borderStrong, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceLight }}>
                       {sortedFormulas.map((formula) => (
@@ -162,6 +169,7 @@ export const RigSetupPanel = ({
                                 }
                               }}
                               variant="danger"
+                              surfaceTone="light"
                             />
                           ) : null}
                         </View>
@@ -171,7 +179,7 @@ export const RigSetupPanel = ({
                 </>
               ) : null}
 
-              <AppButton label={showFormulaEditor ? 'Hide New Leader' : 'New Leader'} onPress={() => setShowFormulaEditor((current) => !current)} variant="tertiary" />
+              <AppButton label={showFormulaEditor ? 'Hide New Leader' : 'New Leader'} onPress={() => setShowFormulaEditor((current) => !current)} variant="tertiary" surfaceTone={isLightTone ? 'light' : 'dark'} />
 
               {showFormulaEditor ? (
                 <LeaderFormulaEditor
@@ -191,7 +199,7 @@ export const RigSetupPanel = ({
 
           {(editMode !== 'leader' && (editTarget === 'all' || editTarget === 'rig')) ? (
             <>
-              <AppButton label={showPresetEditor ? 'Hide New Rig' : 'New Rig'} onPress={() => setShowPresetEditor((current) => !current)} variant="ghost" />
+              <AppButton label={showPresetEditor ? 'Hide New Rig' : 'New Rig'} onPress={() => setShowPresetEditor((current) => !current)} variant="ghost" surfaceTone={isLightTone ? 'light' : 'dark'} />
 
               {showPresetEditor ? (
                 <RigPresetEditor
@@ -208,7 +216,7 @@ export const RigSetupPanel = ({
 
               {!!sortedPresets.length ? (
                 <>
-                  <AppButton label={showPresetList ? 'Hide Existing Rigs' : 'Existing Rig'} onPress={() => setShowPresetList((current) => !current)} variant="secondary" />
+                  <AppButton label={showPresetList ? 'Hide Existing Rigs' : 'Existing Rig'} onPress={() => setShowPresetList((current) => !current)} variant="secondary" surfaceTone={isLightTone ? 'light' : 'dark'} />
                   {showPresetList ? (
                     <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: theme.colors.borderStrong, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceLight }}>
                       {sortedPresets.map((preset) => (
@@ -234,6 +242,7 @@ export const RigSetupPanel = ({
                                 onDeleteRigPreset(preset.id).catch(console.error);
                               }}
                               variant="danger"
+                              surfaceTone="light"
                             />
                           ) : null}
                         </View>
@@ -249,17 +258,19 @@ export const RigSetupPanel = ({
                   options={['1', '2', '3'] as const}
                   value={String(flyCount || 1)}
                   onChange={(value) => onFlyCountChange(Number(value) as 1 | 2 | 3)}
+                  tone={isLightTone ? 'light' : 'dark'}
                 />
               ) : null}
 
               <View style={{ gap: 8 }}>
                 {rigSetup.addedTippetSections.map((section, index) => (
-                  <View key={`${section.label}-${index}`} style={{ gap: 8, borderRadius: theme.radius.md, padding: 10, backgroundColor: theme.colors.surfaceMuted }}>
-                    <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{section.label}</Text>
+                  <View key={`${section.label}-${index}`} style={{ gap: 8, borderRadius: theme.radius.md, padding: 10, backgroundColor: isLightTone ? theme.colors.nestedSurface : theme.colors.surfaceMuted, borderWidth: isLightTone ? 1 : 0, borderColor: isLightTone ? theme.colors.nestedSurfaceBorder : 'transparent' }}>
+                    <Text style={{ color: isLightTone ? theme.colors.textDark : theme.colors.text, fontWeight: '700' }}>{section.label}</Text>
                     <OptionChips
                       label="Tippet Size"
                       options={TIPPET_SIZES}
                       value={section.size}
+                      tone={isLightTone ? 'light' : 'dark'}
                       onChange={(value) =>
                         onChange({
                           ...rigSetup,
@@ -290,7 +301,7 @@ export const RigSetupPanel = ({
             </>
           ) : null}
 
-          {!forceEditorOpen ? <AppButton label="Hide Setup Details" onPress={closeSetupEditor} variant="ghost" /> : null}
+          {!forceEditorOpen ? <AppButton label="Hide Setup Details" onPress={closeSetupEditor} variant="ghost" surfaceTone={isLightTone ? 'light' : 'dark'} /> : null}
         </>
       ) : null}
     </SectionCard>

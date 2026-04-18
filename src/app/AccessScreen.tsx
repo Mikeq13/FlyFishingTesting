@@ -84,6 +84,8 @@ export const AccessScreen = ({ navigation }: any) => {
     competitionAssignments,
     createGroup,
     joinGroup,
+    leaveGroup,
+    deleteGroup,
     updateSharePreference,
     createCompetition,
     joinCompetition,
@@ -339,6 +341,7 @@ export const AccessScreen = ({ navigation }: any) => {
     { key: 'formulas', label: 'Clear Leader Formulas', description: 'Removes saved leader formulas but keeps sessions, experiments, flies, and saved rivers.' },
     { key: 'rig_presets', label: 'Clear Rig Presets', description: 'Removes saved rig presets but keeps sessions, experiments, flies, and leader formulas.' },
     { key: 'rivers', label: 'Clear Saved Rivers', description: 'Removes saved rivers but keeps sessions, experiments, and saved flies.' },
+    { key: 'groups', label: 'Clear Groups', description: 'Removes groups you own, leaves groups you joined, and clears related sharing or invite records tied to those groups.' },
     { key: 'all', label: 'Clear Everything', description: 'Removes sessions, experiments, saved flies, saved leader formulas, saved rig presets, and saved rivers for this profile.', destructive: true }
   ];
 
@@ -788,6 +791,8 @@ export const AccessScreen = ({ navigation }: any) => {
               onCreateInvite={sendInvite}
               onAcceptInvite={handleAcceptInvite}
               onRevokeSponsoredAccess={revokeSponsoredAccess}
+              onLeaveGroup={leaveGroup}
+              onDeleteGroup={deleteGroup}
               embedded
             />
           )

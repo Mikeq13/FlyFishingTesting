@@ -28,7 +28,20 @@ import {
   upsertCompetitionAssignment
 } from '@/db/competitionRepo';
 import { deleteDraftExperimentsForUser, deleteExperimentsForUser, listExperiments } from '@/db/experimentRepo';
-import { createGroup, createGroupMembership, createSharePreference, deleteGroupsForUser, listGroupMemberships, listGroups, listSharePreferences, upsertSharePreference } from '@/db/groupRepo';
+import {
+  createGroup,
+  createGroupMembership,
+  createSharePreference,
+  deleteGroup,
+  deleteGroupMembership,
+  deleteGroupsForUser,
+  deleteSharePreferencesForGroup,
+  deleteSharePreferencesForUserAndGroup,
+  listGroupMemberships,
+  listGroups,
+  listSharePreferences,
+  upsertSharePreference
+} from '@/db/groupRepo';
 import { createUser, deleteUser, listUsers, updateUser } from '@/db/userRepo';
 import { deleteSavedFliesForUser, listSavedFlies } from '@/db/savedFlyRepo';
 import { deleteSavedLeaderFormulasForUser, listSavedLeaderFormulas } from '@/db/savedLeaderFormulaRepo';
@@ -43,7 +56,16 @@ import { generateAnglerComparisons } from '@/engine/anglerComparisonEngine';
 import { buildTopFlyRecords, TopFlyRecord } from '@/engine/topFlyEngine';
 import type { UserDataCleanupCategory } from '@/app/store';
 import { Invite, SponsoredAccess, SyncQueueEntry } from '@/types/remote';
-import { createInvite, createSponsoredAccess, deleteAccessRecordsForUser, listInvites, listSponsoredAccess, updateInvite, updateSponsoredAccess } from '@/db/accessRepo';
+import {
+  createInvite,
+  createSponsoredAccess,
+  deleteAccessRecordsForGroup,
+  deleteAccessRecordsForUser,
+  listInvites,
+  listSponsoredAccess,
+  updateInvite,
+  updateSponsoredAccess
+} from '@/db/accessRepo';
 import { createSyncQueueEntry, deleteSyncQueueEntriesForUserReset, listSyncQueueEntries, markAllPendingSyncEntriesAsSynced } from '@/db/syncRepo';
 
 export interface LoadedLocalAppData {
@@ -232,6 +254,77 @@ export const updateLocalSharePreference = async (
   groupId: number,
   updates: Omit<SharePreference, 'id' | 'userId' | 'groupId' | 'updatedAt'>
 ) => upsertSharePreference({ userId: activeUserId, groupId, ...updates });
+
+const pruneEmptyGroupIfNeeded = async (groupId: number) => {
+  const memberships = await listGroupMemberships();
+  const remainingMemberships = memberships.filter((membership) => membership.groupId === groupId);
+  if (remainingMemberships.length) return false;
+  await deleteSharePreferencesForGroup(groupId);
+  await deleteAccessRecordsForGroup(groupId);
+  await deleteGroup(groupId);
+  return true;
+};
+
+export const leaveLocalGroup = async (activeUserId: number, groupId: number) => {
+  const memberships = await listGroupMemberships();
+  const membership = memberships.find((entry) => entry.userId === activeUserId && entry.groupId === groupId);
+  if (!membership) throw new Error('Group membership not found.');
+
+  await deleteSharePreferencesForUserAndGroup(activeUserId, groupId);
+  await deleteGroupMembership(membership.id);
+  const deletedGroup = await pruneEmptyGroupIfNeeded(groupId);
+
+  return {
+    membershipId: membership.id,
+    groupId,
+    deletedGroup
+  };
+};
+
+export const deleteLocalGroup = async (activeUserId: number, groupId: number) => {
+  const groups = await listGroups();
+  const targetGroup = groups.find((entry) => entry.id === groupId);
+  if (!targetGroup) throw new Error('Group not found.');
+  if (targetGroup.createdByUserId !== activeUserId) {
+    throw new Error('Only the organizer can delete this group.');
+  }
+
+  await deleteSharePreferencesForGroup(groupId);
+  await deleteAccessRecordsForGroup(groupId);
+  await deleteGroup(groupId);
+};
+
+export const clearLocalGroupsForUser = async (userId: number) => {
+  const memberships = await listGroupMemberships();
+  const ownedGroups = (await listGroups()).filter((group) => group.createdByUserId === userId);
+  const joinedMemberships = memberships.filter((membership) => membership.userId === userId);
+  let removedGroups = 0;
+  let removedMemberships = 0;
+
+  for (const membership of joinedMemberships) {
+    await deleteSharePreferencesForUserAndGroup(userId, membership.groupId);
+    await deleteGroupMembership(membership.id);
+    removedMemberships += 1;
+    const deletedGroup = await pruneEmptyGroupIfNeeded(membership.groupId);
+    if (deletedGroup) {
+      removedGroups += 1;
+    }
+  }
+
+  for (const group of ownedGroups) {
+    const stillExists = (await listGroups()).some((entry) => entry.id === group.id);
+    if (!stillExists) continue;
+    await deleteSharePreferencesForGroup(group.id);
+    await deleteAccessRecordsForGroup(group.id);
+    await deleteGroup(group.id);
+    removedGroups += 1;
+  }
+
+  return {
+    removedGroups,
+    removedMemberships
+  };
+};
 
 export const createLocalCompetitionWithParticipant = async (
   activeUserId: number,

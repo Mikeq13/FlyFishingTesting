@@ -234,6 +234,54 @@ export const upsertSharePreference = async (
   await createSharePreference(payload);
 };
 
+export const deleteGroupMembership = async (membershipId: number): Promise<void> => {
+  if (isWeb) {
+    deleteWebRows<GroupMembership>(WEB_MEMBERSHIPS_KEY, (row) => row.id === membershipId);
+    return;
+  }
+
+  await ensureGroupTables();
+  const db = await getDb();
+  await db.runAsync('DELETE FROM group_memberships WHERE id = ?', membershipId);
+};
+
+export const deleteSharePreferencesForGroup = async (groupId: number): Promise<void> => {
+  if (isWeb) {
+    deleteWebRows<SharePreference>(WEB_SHARE_PREFS_KEY, (row) => row.groupId === groupId);
+    return;
+  }
+
+  await ensureGroupTables();
+  const db = await getDb();
+  await db.runAsync('DELETE FROM share_preferences WHERE group_id = ?', groupId);
+};
+
+export const deleteSharePreferencesForUserAndGroup = async (userId: number, groupId: number): Promise<void> => {
+  if (isWeb) {
+    deleteWebRows<SharePreference>(WEB_SHARE_PREFS_KEY, (row) => row.userId === userId && row.groupId === groupId);
+    return;
+  }
+
+  await ensureGroupTables();
+  const db = await getDb();
+  await db.runAsync('DELETE FROM share_preferences WHERE user_id = ? AND group_id = ?', userId, groupId);
+};
+
+export const deleteGroup = async (groupId: number): Promise<void> => {
+  if (isWeb) {
+    deleteWebRows<Group>(WEB_GROUPS_KEY, (row) => row.id === groupId);
+    deleteWebRows<GroupMembership>(WEB_MEMBERSHIPS_KEY, (row) => row.groupId === groupId);
+    deleteWebRows<SharePreference>(WEB_SHARE_PREFS_KEY, (row) => row.groupId === groupId);
+    return;
+  }
+
+  await ensureGroupTables();
+  const db = await getDb();
+  await db.runAsync('DELETE FROM share_preferences WHERE group_id = ?', groupId);
+  await db.runAsync('DELETE FROM group_memberships WHERE group_id = ?', groupId);
+  await db.runAsync('DELETE FROM groups WHERE id = ?', groupId);
+};
+
 export const deleteGroupsForUser = async (userId: number): Promise<void> => {
   const groups = await listGroups();
   const ownedGroupIds = groups.filter((group) => group.createdByUserId === userId).map((group) => group.id);

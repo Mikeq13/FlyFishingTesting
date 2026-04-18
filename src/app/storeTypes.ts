@@ -27,7 +27,7 @@ import {
 import { TopFlyRecord } from '@/engine/topFlyEngine';
 import { NotificationPermissionStatus, SharedDataStatus } from '@/types/appState';
 
-export type UserDataCleanupCategory = 'drafts' | 'experiments' | 'sessions' | 'flies' | 'formulas' | 'rig_presets' | 'rivers' | 'all';
+export type UserDataCleanupCategory = 'drafts' | 'experiments' | 'sessions' | 'flies' | 'formulas' | 'rig_presets' | 'rivers' | 'groups' | 'all';
 
 export interface AppStore {
   sessions: Session[];
@@ -100,6 +100,8 @@ export interface AppStore {
   addSavedRiver: (name: string) => Promise<number>;
   createGroup: (name: string) => Promise<Group>;
   joinGroup: (joinCode: string) => Promise<GroupMembership>;
+  leaveGroup: (groupId: number) => Promise<{ membershipId: number; groupId: number; deletedGroup: boolean }>;
+  deleteGroup: (groupId: number) => Promise<void>;
   updateSharePreference: (groupId: number, updates: Omit<SharePreference, 'id' | 'userId' | 'groupId' | 'updatedAt'>) => Promise<void>;
   createCompetition: (payload: {
     name: string;

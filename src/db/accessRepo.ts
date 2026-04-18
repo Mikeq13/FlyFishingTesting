@@ -198,3 +198,15 @@ export const deleteAccessRecordsForUser = async (userId: number): Promise<void> 
   await db.runAsync('DELETE FROM invites WHERE inviter_user_id = ? OR accepted_by_user_id = ?', userId, userId);
   await db.runAsync('DELETE FROM sponsored_access WHERE sponsor_user_id = ? OR sponsored_user_id = ?', userId, userId);
 };
+
+export const deleteAccessRecordsForGroup = async (groupId: number): Promise<void> => {
+  if (isWeb) {
+    deleteWebRows<Invite>(WEB_INVITES_KEY, (row) => row.targetGroupId === groupId);
+    deleteWebRows<SponsoredAccess>(WEB_SPONSORED_ACCESS_KEY, (row) => row.targetGroupId === groupId);
+    return;
+  }
+
+  const db = await getDb();
+  await db.runAsync('DELETE FROM invites WHERE target_group_id = ?', groupId);
+  await db.runAsync('DELETE FROM sponsored_access WHERE target_group_id = ?', groupId);
+};

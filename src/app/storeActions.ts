@@ -15,11 +15,14 @@ import {
   clearLocalFishingDataForUser,
   clearLocalUserDataCategories,
   createLocalCompetitionWithParticipant,
+  clearLocalGroupsForUser,
   createLocalGroupWithDefaults,
   createLocalInvite,
+  deleteLocalGroup,
   deleteLocalAnglerData,
   joinLocalCompetitionByCode,
   joinLocalGroupByCode,
+  leaveLocalGroup,
   loadLocalAppData,
   revokeLocalSponsoredAccess,
   saveLocalCompetitionAssignment,
@@ -133,6 +136,8 @@ export const createStoreActions = ({
   | 'addSavedRiver'
   | 'createGroup'
   | 'joinGroup'
+  | 'leaveGroup'
+  | 'deleteGroup'
   | 'updateSharePreference'
   | 'createCompetition'
   | 'joinCompetition'
@@ -450,6 +455,24 @@ export const createStoreActions = ({
     await refresh(activeUserId);
     return membership;
   },
+  leaveGroup: async (groupId) => {
+    assertActiveUser();
+    if (!activeUserId) throw new Error('No active user selected.');
+    const result = await leaveLocalGroup(activeUserId, groupId);
+    await trackSyncChange('group_membership', 'delete', result.membershipId, result);
+    if (result.deletedGroup) {
+      await trackSyncChange('group', 'delete', groupId, { groupId });
+    }
+    await refresh(activeUserId);
+    return result;
+  },
+  deleteGroup: async (groupId) => {
+    assertActiveUser();
+    if (!activeUserId) throw new Error('No active user selected.');
+    await deleteLocalGroup(activeUserId, groupId);
+    await trackSyncChange('group', 'delete', groupId, { groupId });
+    await refresh(activeUserId);
+  },
   updateSharePreference: async (groupId, updates) => {
     assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
@@ -595,7 +618,10 @@ export const createStoreActions = ({
     await refresh(activeUserId);
   },
   clearUserDataCategories: async (userId, categories) => {
-    await clearLocalUserDataCategories(userId, categories);
+    if (categories.includes('groups')) {
+      await clearLocalGroupsForUser(userId);
+    }
+    await clearLocalUserDataCategories(userId, categories.filter((category) => category !== 'groups'));
     await refresh(activeUserId);
   },
   deleteAngler: async (userId) => {
