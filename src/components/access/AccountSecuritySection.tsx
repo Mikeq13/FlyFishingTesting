@@ -12,8 +12,11 @@ import { hasSupabaseConfig } from '@/services/supabaseClient';
 
 export const AccountSecuritySection = ({
   currentUserName,
+  currentEntitlementLabel,
+  currentHasPremiumAccess,
   ownerLinked,
   isAuthenticatedOwner,
+  showOwnerIdentityTools,
   remoteSession,
   authStatus,
   pendingTotpEnrollment,
@@ -32,7 +35,6 @@ export const AccountSecuritySection = ({
   onSaveName,
   onUpdateEmail,
   onSendPasswordReset,
-  onSendMagicLink,
   onLinkOwnerIdentity,
   onEnrollTotp,
   onVerifyTotp,
@@ -41,8 +43,11 @@ export const AccountSecuritySection = ({
   onSignOut
 }: {
   currentUserName: string;
+  currentEntitlementLabel: string;
+  currentHasPremiumAccess: boolean;
   ownerLinked: boolean;
   isAuthenticatedOwner: boolean;
+  showOwnerIdentityTools: boolean;
   remoteSession: RemoteSessionSnapshot | null;
   authStatus: AuthStatus;
   pendingTotpEnrollment: PendingTotpEnrollment | null;
@@ -61,7 +66,6 @@ export const AccountSecuritySection = ({
   onSaveName: () => Promise<void>;
   onUpdateEmail: () => Promise<void>;
   onSendPasswordReset: () => Promise<void>;
-  onSendMagicLink: () => Promise<void>;
   onLinkOwnerIdentity: () => Promise<void>;
   onEnrollTotp: () => Promise<void>;
   onVerifyTotp: () => Promise<void>;
@@ -71,6 +75,7 @@ export const AccountSecuritySection = ({
 }) => {
   const { theme } = useTheme();
   const formInputStyle = getFormInputStyle();
+  const [showSecurityTools, setShowSecurityTools] = React.useState(false);
 
   const runAction = async (action: () => Promise<void>, successTitle: string, successMessage: string) => {
     try {
@@ -82,7 +87,7 @@ export const AccountSecuritySection = ({
   };
 
   return (
-    <SectionCard title="Account & Security" subtitle="Your identity, recovery options, and owner verification all live here." tone="light">
+    <SectionCard title="Account & Security" subtitle="Your account details stay simple here, and security tools stay tucked away until you need them." tone="light">
       <View
         style={{
           gap: 8,
@@ -95,6 +100,8 @@ export const AccountSecuritySection = ({
       >
         <InlineSummaryRow label="Angler Profile" value={currentUserName} tone="light" />
         <InlineSummaryRow label="Signed In Email" value={remoteSession?.email ?? 'Not signed in'} valueMuted={!remoteSession?.email} tone="light" />
+        <InlineSummaryRow label="Current Access" value={currentEntitlementLabel} tone="light" />
+        <InlineSummaryRow label="Premium Features" value={currentHasPremiumAccess ? 'Enabled' : 'Locked'} valueMuted={!currentHasPremiumAccess} tone="light" />
         <InlineSummaryRow
           label="Email Verification"
           value={remoteSession?.emailVerifiedAt ? 'Verified' : authStatus === 'pending_verification' ? 'Pending' : 'Not verified'}
@@ -103,29 +110,28 @@ export const AccountSecuritySection = ({
         />
         <InlineSummaryRow label="MFA" value={mfaFactors.length ? `${mfaFactors.length} factor${mfaFactors.length === 1 ? '' : 's'}` : 'Not enrolled'} valueMuted={!mfaFactors.length} tone="light" />
         <InlineSummaryRow label="MFA Level" value={mfaAssuranceLevel.toUpperCase()} valueMuted={mfaAssuranceLevel === 'unknown'} tone="light" />
-        <InlineSummaryRow
-          label="Owner Identity"
-          value={
-            isAuthenticatedOwner
-              ? 'Verified owner session'
-              : ownerLinked
-                ? 'Linked, but this session is not the owner'
-                : 'Owner identity not linked yet'
-          }
-          valueMuted={!isAuthenticatedOwner}
-          tone="light"
-        />
+        {showOwnerIdentityTools ? (
+          <InlineSummaryRow
+            label="Owner Identity"
+            value={
+              isAuthenticatedOwner
+                ? 'Verified owner session'
+                : ownerLinked
+                  ? 'Linked, but this session is not the owner'
+                  : 'Owner identity not linked yet'
+            }
+            valueMuted={!isAuthenticatedOwner}
+            tone="light"
+          />
+        ) : null}
       </View>
 
       {!remoteSession ? (
-        <StatusBanner tone="warning" text={hasSupabaseConfig ? 'Sign in before using shared sync, invites, competitions, or owner verification tools.' : 'This device is missing the Supabase values required for account access, email recovery, and shared sync.'} />
+        <StatusBanner tone="warning" text={hasSupabaseConfig ? 'Sign in before using shared sync, competitions, or account recovery tools.' : 'This device is missing the Supabase values required for account access, email recovery, and shared sync.'} />
       ) : null}
       {authStatus === 'pending_verification' ? (
         <StatusBanner tone="info" text="Check your inbox and finish the verification step. Some account changes stay pending until that email step completes." />
       ) : null}
-      <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-        Signing in proves identity for shared sync. It does not automatically grant owner powers or sponsored tester access.
-      </Text>
 
       <FormField label="Account Name" tone="light">
         <TextInput value={accountName} onChangeText={onAccountNameChange} placeholder="Your name" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
@@ -143,107 +149,123 @@ export const AccountSecuritySection = ({
           style={formInputStyle}
         />
       </FormField>
-      <ActionGroup>
-        <AppButton label="Update Email" onPress={() => runAction(onUpdateEmail, 'Verification needed', 'Check your inbox to confirm the email change.')} surfaceTone="light" />
-        <AppButton label="Send Magic Link" onPress={() => runAction(onSendMagicLink, 'Magic link sent', 'Open the link from this email on this device to finish signing in.')} variant="secondary" surfaceTone="light" />
-      </ActionGroup>
+      <AppButton label="Update Email" onPress={() => runAction(onUpdateEmail, 'Verification needed', 'Check your inbox to confirm the email change.')} surfaceTone="light" />
 
-      <FormField label="Password Recovery Email" tone="light">
-        <TextInput
-          value={passwordResetEmail}
-          onChangeText={onPasswordResetEmailChange}
-          placeholder="angler@email.com"
-          placeholderTextColor={theme.colors.inputPlaceholder}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          style={formInputStyle}
+      <View style={{ gap: 8 }}>
+        <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 16 }}>Security</Text>
+        <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+          Password recovery and MFA stay available here, but hidden until you actually need them.
+        </Text>
+        <AppButton
+          label={showSecurityTools ? 'Hide Security Tools' : 'Open Security Tools'}
+          onPress={() => setShowSecurityTools((current) => !current)}
+          variant="ghost"
+          surfaceTone="light"
         />
-      </FormField>
-      <AppButton label="Send Password Reset" onPress={() => runAction(onSendPasswordReset, 'Reset email sent', 'Open the recovery email to set a new password.')} variant="tertiary" surfaceTone="light" />
+      </View>
 
-      {remoteSession ? (
+      {showSecurityTools ? (
         <>
-          <View style={{ gap: 8 }}>
-            <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 16 }}>Owner Verification</Text>
-            <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-              Link the owner profile to your signed-in email once, then owner tools only unlock when this same account is signed in.
-            </Text>
-            <AppButton
-              label={ownerLinked ? (isAuthenticatedOwner ? 'Owner Identity Linked' : 'Refresh Owner Link') : 'Link Owner Identity'}
-              onPress={() =>
-                runAction(
-                  onLinkOwnerIdentity,
-                  'Owner identity linked',
-                  'This signed-in account is now the one that unlocks owner controls for the owner profile.'
-                )
-              }
-              disabled={isAuthenticatedOwner}
-              surfaceTone="light"
+          <FormField label="Password Recovery Email" tone="light">
+            <TextInput
+              value={passwordResetEmail}
+              onChangeText={onPasswordResetEmailChange}
+              placeholder="angler@email.com"
+              placeholderTextColor={theme.colors.inputPlaceholder}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              style={formInputStyle}
             />
-          </View>
+          </FormField>
+          <AppButton label="Send Password Reset" onPress={() => runAction(onSendPasswordReset, 'Reset email sent', 'Open the recovery email to set a new password.')} variant="tertiary" surfaceTone="light" />
 
-          <View style={{ gap: 8 }}>
-            <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 16 }}>Multi-Factor Authentication</Text>
-            <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-              Add a TOTP authenticator factor if your Supabase project supports MFA. This strengthens owner and tester account security.
-            </Text>
-            <FormField label="Authenticator Label" tone="light">
-              <TextInput value={mfaFriendlyName} onChangeText={onMfaFriendlyNameChange} placeholder="Fishing Lab Authenticator" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
-            </FormField>
-            <ActionGroup>
-              <AppButton label="Start TOTP Setup" onPress={() => runAction(onEnrollTotp, 'MFA setup started', 'Use the secret or QR data below in your authenticator app, then verify the code.')} surfaceTone="light" />
-              <AppButton label="Refresh MFA Status" onPress={() => runAction(onRefreshMfaState, 'MFA refreshed', 'Account security factors were refreshed from Supabase.')} variant="secondary" surfaceTone="light" />
-            </ActionGroup>
-            {pendingTotpEnrollment ? (
-              <View
-                style={{
-                  gap: 8,
-                  backgroundColor: theme.colors.nestedSurface,
-                  borderRadius: 12,
-                  padding: 12,
-                  borderWidth: 1,
-                  borderColor: theme.colors.nestedSurfaceBorder
-                }}
-              >
-                <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>Finish TOTP Setup</Text>
-                {pendingTotpEnrollment.secret ? <Text style={{ color: theme.colors.textDarkSoft }}>Secret: {pendingTotpEnrollment.secret}</Text> : null}
-                {pendingTotpEnrollment.uri ? <Text style={{ color: theme.colors.textDarkSoft }}>URI: {pendingTotpEnrollment.uri}</Text> : null}
-                <FormField label="Authenticator Code" tone="light">
-                  <TextInput value={mfaCode} onChangeText={onMfaCodeChange} keyboardType="number-pad" placeholder="123456" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
+          {remoteSession ? (
+            <>
+              {showOwnerIdentityTools ? (
+                <View style={{ gap: 8 }}>
+                  <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 16 }}>Owner Verification</Text>
+                  <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+                    Link the owner profile to your signed-in email once, then owner tools only unlock when this same account is signed in.
+                  </Text>
+                  <AppButton
+                    label={ownerLinked ? (isAuthenticatedOwner ? 'Owner Identity Linked' : 'Refresh Owner Link') : 'Link Owner Identity'}
+                    onPress={() =>
+                      runAction(
+                        onLinkOwnerIdentity,
+                        'Owner identity linked',
+                        'This signed-in account is now the one that unlocks owner controls for the owner profile.'
+                      )
+                    }
+                    disabled={isAuthenticatedOwner}
+                    surfaceTone="light"
+                  />
+                </View>
+              ) : null}
+
+              <View style={{ gap: 8 }}>
+                <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 16 }}>Multi-Factor Authentication</Text>
+                <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+                  Add a TOTP authenticator factor if your Supabase project supports MFA. This strengthens owner and tester account security.
+                </Text>
+                <FormField label="Authenticator Label" tone="light">
+                  <TextInput value={mfaFriendlyName} onChangeText={onMfaFriendlyNameChange} placeholder="Fishing Lab Authenticator" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
                 </FormField>
-                <AppButton label="Verify TOTP" onPress={() => runAction(onVerifyTotp, 'MFA enabled', 'Your authenticator is now linked to this account.')} surfaceTone="light" />
+                <ActionGroup>
+                  <AppButton label="Start TOTP Setup" onPress={() => runAction(onEnrollTotp, 'MFA setup started', 'Use the secret or QR data below in your authenticator app, then verify the code.')} surfaceTone="light" />
+                  <AppButton label="Refresh MFA Status" onPress={() => runAction(onRefreshMfaState, 'MFA refreshed', 'Account security factors were refreshed from Supabase.')} variant="secondary" surfaceTone="light" />
+                </ActionGroup>
+                {pendingTotpEnrollment ? (
+                  <View
+                    style={{
+                      gap: 8,
+                      backgroundColor: theme.colors.nestedSurface,
+                      borderRadius: 12,
+                      padding: 12,
+                      borderWidth: 1,
+                      borderColor: theme.colors.nestedSurfaceBorder
+                    }}
+                  >
+                    <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>Finish TOTP Setup</Text>
+                    {pendingTotpEnrollment.secret ? <Text style={{ color: theme.colors.textDarkSoft }}>Secret: {pendingTotpEnrollment.secret}</Text> : null}
+                    {pendingTotpEnrollment.uri ? <Text style={{ color: theme.colors.textDarkSoft }}>URI: {pendingTotpEnrollment.uri}</Text> : null}
+                    <FormField label="Authenticator Code" tone="light">
+                      <TextInput value={mfaCode} onChangeText={onMfaCodeChange} keyboardType="number-pad" placeholder="123456" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
+                    </FormField>
+                    <AppButton label="Verify TOTP" onPress={() => runAction(onVerifyTotp, 'MFA enabled', 'Your authenticator is now linked to this account.')} surfaceTone="light" />
+                  </View>
+                ) : null}
+                {mfaFactors.map((factor) => (
+                  <View
+                    key={factor.id}
+                    style={{
+                      gap: 6,
+                      backgroundColor: theme.colors.nestedSurface,
+                      borderRadius: 12,
+                      padding: 12,
+                      borderWidth: 1,
+                      borderColor: theme.colors.nestedSurfaceBorder
+                    }}
+                  >
+                    <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>{factor.friendlyName ?? 'Authenticator App'}</Text>
+                    <Text style={{ color: theme.colors.textDarkSoft }}>Status: {factor.status}</Text>
+                    <AppButton
+                      label="Remove Factor"
+                      onPress={() => runAction(() => onRemoveMfaFactor(factor.id), 'MFA removed', 'The factor was removed from this account.')}
+                      variant="danger"
+                      surfaceTone="light"
+                    />
+                  </View>
+                ))}
               </View>
-            ) : null}
-            {mfaFactors.map((factor) => (
-              <View
-                key={factor.id}
-                style={{
-                  gap: 6,
-                  backgroundColor: theme.colors.nestedSurface,
-                  borderRadius: 12,
-                  padding: 12,
-                  borderWidth: 1,
-                  borderColor: theme.colors.nestedSurfaceBorder
-                }}
-              >
-                <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>{factor.friendlyName ?? 'Authenticator App'}</Text>
-                <Text style={{ color: theme.colors.textDarkSoft }}>Status: {factor.status}</Text>
-                <AppButton
-                  label="Remove Factor"
-                  onPress={() => runAction(() => onRemoveMfaFactor(factor.id), 'MFA removed', 'The factor was removed from this account.')}
-                  variant="danger"
-                  surfaceTone="light"
-                />
-              </View>
-            ))}
-          </View>
 
-          <AppButton
-            label="Sign Out"
-            onPress={() => runAction(onSignOut, 'Signed out', 'This device is no longer authenticated for shared sync.')}
-            variant="danger"
-            surfaceTone="light"
-          />
+              <AppButton
+                label="Sign Out"
+                onPress={() => runAction(onSignOut, 'Signed out', 'This device is no longer authenticated for shared sync.')}
+                variant="danger"
+                surfaceTone="light"
+              />
+            </>
+          ) : null}
         </>
       ) : null}
     </SectionCard>

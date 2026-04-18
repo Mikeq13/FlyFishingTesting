@@ -7,18 +7,20 @@ import { CompetitionSessionRole } from '@/types/group';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { ActionGroup } from '@/components/ui/ActionGroup';
 import { AppButton } from '@/components/ui/AppButton';
-import { AccessStatusSection } from '@/components/access/AccessStatusSection';
 import { AccountSecuritySection } from '@/components/access/AccountSecuritySection';
 import { LocalDataSection } from '@/components/access/LocalDataSection';
 import { GroupsSharingSection } from '@/components/access/GroupsSharingSection';
-import { InvitesSponsorshipSection } from '@/components/access/InvitesSponsorshipSection';
 import { CompetitionsSection } from '@/components/access/CompetitionsSection';
 import { OwnerControlsSection } from '@/components/access/OwnerControlsSection';
-import { BetaReadinessSection } from '@/components/access/BetaReadinessSection';
 import { SectionCard } from '@/components/ui/SectionCard';
+import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
+import { StatusBanner } from '@/components/ui/StatusBanner';
 import { OptionChips } from '@/components/OptionChips';
 import { useResponsiveLayout } from '@/design/layout';
 import { useTheme } from '@/design/theme';
+import { hasSupabaseConfig } from '@/services/supabaseClient';
+
+type AccessDestination = 'hub' | 'account' | 'groups' | 'subscription' | 'appearance' | 'competitions' | 'myData' | 'ownerTools';
 
 export const AccessScreen = () => {
   const layout = useResponsiveLayout();
@@ -29,7 +31,6 @@ export const AccessScreen = () => {
     currentUser,
     currentEntitlementLabel,
     currentHasPremiumAccess,
-    canManageAccess,
     syncStatus,
     sharedDataStatus,
     notificationPermissionStatus,
@@ -44,7 +45,6 @@ export const AccessScreen = () => {
     isSyncEnabled,
     invites,
     sponsoredAccess,
-    signInWithMagicLink,
     sendPasswordResetEmail,
     updateAccountEmail,
     updateCurrentUserName,
@@ -93,8 +93,7 @@ export const AccessScreen = () => {
   const [passwordResetEmail, setPasswordResetEmail] = React.useState(currentUser?.email ?? remoteSession?.email ?? '');
   const [mfaFriendlyName, setMfaFriendlyName] = React.useState('Fishing Lab Authenticator');
   const [mfaCode, setMfaCode] = React.useState('');
-  const [showMyData, setShowMyData] = React.useState(false);
-  const [showGroupSettings, setShowGroupSettings] = React.useState(false);
+  const [activeDestination, setActiveDestination] = React.useState<AccessDestination>('hub');
   const [competitionSchedule, setCompetitionSchedule] = React.useState([
     { sessionNumber: 1, startTime: '08:00', endTime: '11:00' },
     { sessionNumber: 2, startTime: '13:00', endTime: '16:00' },
@@ -189,6 +188,12 @@ export const AccessScreen = () => {
     setAccountEmail(resolvedEmail);
     setPasswordResetEmail(resolvedEmail);
   }, [currentUser?.email, remoteSession?.email]);
+
+  React.useEffect(() => {
+    if (activeDestination === 'ownerTools' && !isAuthenticatedOwner) {
+      setActiveDestination('hub');
+    }
+  }, [activeDestination, isAuthenticatedOwner]);
 
   if (!currentUser) {
     return (
@@ -408,186 +413,272 @@ export const AccessScreen = () => {
     );
   };
 
-  return (
-    <ScreenBackground>
-      <ScrollView
-        contentContainerStyle={layout.buildScrollContentStyle({ gap: 12, bottomPadding: 40 })}
-        keyboardShouldPersistTaps="handled"
+  const destinationMeta: Record<Exclude<AccessDestination, 'hub'>, { title: string; subtitle: string }> = {
+    account: {
+      title: 'Account & Security',
+      subtitle: 'Manage your account details, password recovery, and MFA without digging through admin tools.'
+    },
+    groups: {
+      title: 'Groups',
+      subtitle: 'Create or join shared groups, manage sharing, and handle owner-managed power-user invites.'
+    },
+    subscription: {
+      title: 'Subscription',
+      subtitle: 'Review current access, sync readiness, and the parts of the app that are unlocked for this account.'
+    },
+    appearance: {
+      title: 'Appearance',
+      subtitle: 'Pick the reading experience that works best on the water, on the web, or while reviewing data indoors.'
+    },
+    competitions: {
+      title: 'Competitions',
+      subtitle: 'Create competitions, join by code, and manage assignments without competing for space with account settings.'
+    },
+    myData: {
+      title: 'My Data',
+      subtitle: 'Clean up or reset local fishing data for this angler profile without touching shared access settings.'
+    },
+    ownerTools: {
+      title: 'Owner Tools',
+      subtitle: 'Owner-only tester access and administrative controls stay isolated here.'
+    }
+  };
+
+  const hubDestinations: Array<{ key: Exclude<AccessDestination, 'hub'>; label: string; description: string }> = [
+    { key: 'account', label: 'Account & Security', description: 'Name, email, password recovery, MFA, and sign-out.' },
+    { key: 'groups', label: 'Groups', description: 'Join crews, manage sharing, and accept or send power-user invites.' },
+    { key: 'subscription', label: 'Subscription', description: 'Current access, premium features, sync status, and account readiness.' },
+    { key: 'appearance', label: 'Appearance', description: 'Theme and readability choices for native testing and day-to-day use.' },
+    { key: 'competitions', label: 'Competitions', description: 'Competition setup, joining, and assignment review.' },
+    { key: 'myData', label: 'My Data', description: 'Local cleanup tools for this angler profile.' },
+    ...(isAuthenticatedOwner
+      ? [{ key: 'ownerTools' as const, label: 'Owner Tools', description: 'Tester access, sponsorship, and owner-only admin actions.' }]
+      : [])
+  ];
+
+  const renderHub = () => (
+    <>
+      <SectionCard title="Current Account" subtitle="A quick snapshot without forcing every access detail onto one screen." tone="light">
+        <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 22 }}>{currentUser.name}</Text>
+        <View
+          style={{
+            gap: 8,
+            backgroundColor: theme.colors.nestedSurface,
+            borderRadius: 12,
+            padding: 12,
+            borderWidth: 1,
+            borderColor: theme.colors.nestedSurfaceBorder
+          }}
+        >
+          <InlineSummaryRow label="Access" value={currentEntitlementLabel} tone="light" />
+          <InlineSummaryRow label="Premium" value={currentHasPremiumAccess ? 'Enabled' : 'Locked'} valueMuted={!currentHasPremiumAccess} tone="light" />
+          <InlineSummaryRow label="Signed In" value={remoteSession?.email ?? 'Not signed in'} valueMuted={!remoteSession?.email} tone="light" />
+          <InlineSummaryRow label="Shared Sync" value={isSyncEnabled ? 'Enabled' : hasSupabaseConfig ? 'Waiting for sign-in' : 'Cloud setup missing'} valueMuted={!isSyncEnabled} tone="light" />
+        </View>
+        {authStatus === 'pending_verification' ? (
+          <StatusBanner tone="info" text="Your account is waiting on an email step. Finish that first, then come back here." />
+        ) : null}
+        {syncStatus.lastError ? <StatusBanner tone="error" text={`Last sync issue: ${syncStatus.lastError}`} /> : null}
+      </SectionCard>
+
+      <SectionCard title="Settings" subtitle="Pick the area you want to manage instead of scrolling through one large utility dashboard." tone="light">
+        <View style={{ gap: 12 }}>
+          {hubDestinations.map((destination) => (
+            <View
+              key={destination.key}
+              style={{
+                gap: 8,
+                backgroundColor: theme.colors.nestedSurface,
+                borderRadius: 12,
+                padding: 12,
+                borderWidth: 1,
+                borderColor: theme.colors.nestedSurfaceBorder
+              }}
+            >
+              <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 16 }}>{destination.label}</Text>
+              <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>{destination.description}</Text>
+              <AppButton label={`Open ${destination.label}`} onPress={() => setActiveDestination(destination.key)} variant="ghost" surfaceTone="light" />
+            </View>
+          ))}
+        </View>
+      </SectionCard>
+    </>
+  );
+
+  const renderSubscription = () => (
+    <SectionCard title="Subscription" subtitle="Current access and beta readiness stay here instead of competing with everyday account actions." tone="light">
+      <View
+        style={{
+          gap: 8,
+          backgroundColor: theme.colors.nestedSurface,
+          borderRadius: 12,
+          padding: 12,
+          borderWidth: 1,
+          borderColor: theme.colors.nestedSurfaceBorder
+        }}
       >
-        <ScreenHeader
-          title="Access & Billing"
-          subtitle="Manage shared beta sync, premium access, friend groups, and competitions from one place."
-          eyebrow="Utility Center"
+        <InlineSummaryRow label="Current Access" value={currentEntitlementLabel} tone="light" />
+        <InlineSummaryRow label="Premium Features" value={currentHasPremiumAccess ? 'Enabled' : 'Locked'} valueMuted={!currentHasPremiumAccess} tone="light" />
+        <InlineSummaryRow label="Shared Data" value={sharedDataStatus} valueMuted={sharedDataStatus !== 'ready'} tone="light" />
+        <InlineSummaryRow label="Sync Queue" value={`${syncStatus.pendingCount} pending, ${syncStatus.syncedCount} synced`} tone="light" />
+        <InlineSummaryRow label="Sync State" value={syncStatus.state} tone="light" />
+        <InlineSummaryRow label="Notifications" value={notificationPermissionStatus} valueMuted={notificationPermissionStatus !== 'granted' && notificationPermissionStatus !== 'provisional'} tone="light" />
+        <InlineSummaryRow label="Last Sync" value={syncStatus.lastSyncedAt ? new Date(syncStatus.lastSyncedAt).toLocaleString() : 'Not synced yet'} valueMuted={!syncStatus.lastSyncedAt} tone="light" />
+      </View>
+      {sharedDataStatus === 'error' ? (
+        <StatusBanner
+          tone="error"
+          text={
+            syncStatus.lastError
+              ? `Shared data hit a beta sync issue: ${syncStatus.lastError}`
+              : 'Shared data could not load. Retry sync before assuming invites, assignments, or shared practice data are current.'
+          }
         />
-        <AccessStatusSection
-          currentUserName={currentUser.name}
-          currentEntitlementLabel={currentEntitlementLabel}
-          currentHasPremiumAccess={currentHasPremiumAccess}
-          syncStatus={syncStatus}
-          sharedDataStatus={sharedDataStatus}
-          notificationPermissionStatus={notificationPermissionStatus}
-          remoteSession={remoteSession}
-          isSyncEnabled={isSyncEnabled}
-          authStatus={authStatus}
-          currentUserRole={currentUser.role}
-          ownerIdentityLinked={ownerIdentityLinked}
-          isAuthenticatedOwner={isAuthenticatedOwner}
-        />
+      ) : null}
+      {notificationPermissionStatus === 'denied' ? (
+        <StatusBanner tone="warning" text="Notifications are blocked on this device. Session reminders will stay in-app until phone notification access is re-enabled." />
+      ) : null}
+      <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+        Subscription shows what this account can do right now. Group settings, account recovery, and owner workflows live in their own spaces.
+      </Text>
+    </SectionCard>
+  );
 
-        <AccountSecuritySection
-          currentUserName={currentUser.name}
-          ownerLinked={ownerIdentityLinked}
-          isAuthenticatedOwner={isAuthenticatedOwner}
-          remoteSession={remoteSession}
-          authStatus={authStatus}
-          pendingTotpEnrollment={pendingTotpEnrollment}
-          mfaFactors={mfaFactors}
-          mfaAssuranceLevel={mfaAssuranceLevel}
-          accountName={accountName}
-          onAccountNameChange={setAccountName}
-          accountEmail={accountEmail}
-          onAccountEmailChange={setAccountEmail}
-          passwordResetEmail={passwordResetEmail}
-          onPasswordResetEmailChange={setPasswordResetEmail}
-          mfaFriendlyName={mfaFriendlyName}
-          onMfaFriendlyNameChange={setMfaFriendlyName}
-          mfaCode={mfaCode}
-          onMfaCodeChange={setMfaCode}
-          onSaveName={() => updateCurrentUserName(accountName)}
-          onUpdateEmail={() => updateAccountEmail(accountEmail)}
-          onSendPasswordReset={() => sendPasswordResetEmail(passwordResetEmail)}
-          onSendMagicLink={() => signInWithMagicLink(accountEmail)}
-          onLinkOwnerIdentity={linkOwnerIdentity}
-          onEnrollTotp={() => enrollTotpMfa(mfaFriendlyName)}
-          onVerifyTotp={() => verifyTotpMfa(mfaCode)}
-          onRemoveMfaFactor={removeMfaFactor}
-          onRefreshMfaState={refreshMfaState}
-          onSignOut={signOutRemote}
-        />
+  const renderAppearance = () => (
+    <SectionCard title="Appearance" subtitle="Choose the look that is easiest to read on the water or on the web." tone="light">
+      <OptionChips
+        label="App Theme"
+        options={themeOptions.map((themeOption) => themeOption.label)}
+        value={themeOptions.find((themeOption) => themeOption.id === themeId)?.label ?? themeOptions[0]?.label}
+        tone="light"
+        onChange={(value) => {
+          const selectedTheme = themeOptions.find((themeOption) => themeOption.label === value);
+          if (selectedTheme) {
+            setThemeId(selectedTheme.id);
+          }
+        }}
+      />
+      <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+        `Default Professional` stays balanced, `High Contrast` is best outside, and `Daylight Light` is easiest to review on web or desktop.
+      </Text>
+    </SectionCard>
+  );
 
-        <BetaReadinessSection
-          authStatus={authStatus}
-          remoteSession={remoteSession}
-          sharedDataStatus={sharedDataStatus}
-          syncStatus={syncStatus}
-          notificationPermissionStatus={notificationPermissionStatus}
-        />
-
-        <SectionCard title="Appearance" subtitle="Choose the look that is easiest for you to read on the water or on the web." tone="light">
-          <OptionChips
-            label="App Theme"
-            options={themeOptions.map((theme) => theme.label)}
-            value={themeOptions.find((theme) => theme.id === themeId)?.label ?? themeOptions[0]?.label}
-            tone="light"
-            onChange={(value) => {
-              const selectedTheme = themeOptions.find((theme) => theme.label === value);
-              if (selectedTheme) {
-                setThemeId(selectedTheme.id);
-              }
-            }}
+  const renderActiveDestination = () => {
+    switch (activeDestination) {
+      case 'hub':
+        return renderHub();
+      case 'account':
+        return (
+          <AccountSecuritySection
+            currentUserName={currentUser.name}
+            currentEntitlementLabel={currentEntitlementLabel}
+            currentHasPremiumAccess={currentHasPremiumAccess}
+            ownerLinked={ownerIdentityLinked}
+            isAuthenticatedOwner={isAuthenticatedOwner}
+            showOwnerIdentityTools={currentUser.role === 'owner'}
+            remoteSession={remoteSession}
+            authStatus={authStatus}
+            pendingTotpEnrollment={pendingTotpEnrollment}
+            mfaFactors={mfaFactors}
+            mfaAssuranceLevel={mfaAssuranceLevel}
+            accountName={accountName}
+            onAccountNameChange={setAccountName}
+            accountEmail={accountEmail}
+            onAccountEmailChange={setAccountEmail}
+            passwordResetEmail={passwordResetEmail}
+            onPasswordResetEmailChange={setPasswordResetEmail}
+            mfaFriendlyName={mfaFriendlyName}
+            onMfaFriendlyNameChange={setMfaFriendlyName}
+            mfaCode={mfaCode}
+            onMfaCodeChange={setMfaCode}
+            onSaveName={() => updateCurrentUserName(accountName)}
+            onUpdateEmail={() => updateAccountEmail(accountEmail)}
+            onSendPasswordReset={() => sendPasswordResetEmail(passwordResetEmail)}
+            onLinkOwnerIdentity={linkOwnerIdentity}
+            onEnrollTotp={() => enrollTotpMfa(mfaFriendlyName)}
+            onVerifyTotp={() => verifyTotpMfa(mfaCode)}
+            onRemoveMfaFactor={removeMfaFactor}
+            onRefreshMfaState={refreshMfaState}
+            onSignOut={signOutRemote}
           />
-          <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-            `Default Professional` stays balanced, `High Contrast` is best outside, and `Daylight Light` is easiest to review on web or desktop.
-          </Text>
-        </SectionCard>
-
-        <SectionCard title="My Data" subtitle="Keep local data cleanup available without leaving it expanded all the time." tone="light">
-          <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-            Review or clean up the active angler profile only when you need it.
-          </Text>
-          <AppButton
-            label={showMyData ? 'Hide My Data' : 'Open My Data'}
-            onPress={() => setShowMyData((current) => !current)}
-            surfaceTone="light"
+        );
+      case 'groups':
+        return (
+          <GroupsSharingSection
+            currentUserId={currentUser.id}
+            joinedGroups={joinedGroups}
+            joinedMemberships={joinedMemberships}
+            groups={groups}
+            organizerGroups={organizerGroups}
+            sharePreferences={sharePreferences}
+            isAuthenticatedOwner={isAuthenticatedOwner}
+            newGroupName={newGroupName}
+            onNewGroupNameChange={setNewGroupName}
+            joinGroupCode={joinGroupCode}
+            onJoinGroupCodeChange={setJoinGroupCode}
+            inviteTargetGroupId={inviteTargetGroupId}
+            onInviteTargetGroupChange={setInviteTargetGroupId}
+            inviteTargetName={inviteTargetName}
+            onInviteTargetNameChange={setInviteTargetName}
+            inviteAcceptCode={inviteAcceptCode}
+            onInviteAcceptCodeChange={setInviteAcceptCode}
+            invites={invites}
+            sponsoredAccess={sponsoredAccess}
+            users={users}
+            onCreateGroup={saveGroup}
+            onJoinGroup={handleJoinGroup}
+            onUpdateSharePreference={updateSharePreference}
+            onCreateInvite={sendInvite}
+            onAcceptInvite={handleAcceptInvite}
+            onRevokeSponsoredAccess={revokeSponsoredAccess}
           />
-        </SectionCard>
-
-        {showMyData ? (
+        );
+      case 'subscription':
+        return renderSubscription();
+      case 'appearance':
+        return renderAppearance();
+      case 'competitions':
+        return (
+          <CompetitionsSection
+            currentUser={currentUser}
+            users={users}
+            competitionGroups={competitionGroups}
+            competitionSessions={competitionSessions}
+            competitionParticipants={competitionParticipants}
+            competitionAssignments={competitionAssignments}
+            newCompetitionName={newCompetitionName}
+            onNewCompetitionNameChange={setNewCompetitionName}
+            competitionGroupCount={competitionGroupCount}
+            onCompetitionGroupCountChange={setCompetitionGroupCount}
+            competitionSessionCount={competitionSessionCount}
+            onCompetitionSessionCountChange={setCompetitionSessionCount}
+            competitionSchedule={competitionSchedule}
+            onCompetitionScheduleChange={(index, next) =>
+              setCompetitionSchedule((current) =>
+                current.map((entry, entryIndex) => (entryIndex === index ? { ...entry, ...next } : entry))
+              )
+            }
+            competitionJoinCode={competitionJoinCode}
+            onCompetitionJoinCodeChange={setCompetitionJoinCode}
+            joinedCompetitionList={joinedCompetitionList}
+            getDraftForAssignment={getDraftForAssignment}
+            onUpdateAssignmentDraft={updateAssignmentDraft}
+            onCreateCompetition={saveCompetition}
+            onJoinCompetition={handleJoinCompetition}
+            onSaveAssignment={saveAssignment}
+          />
+        );
+      case 'myData':
+        return (
           <LocalDataSection
             isOwner={currentUser.role === 'owner'}
             cleanupActions={renderCleanupActions(currentUser.id, currentUser.name)}
             onDeleteProfile={deleteCurrentProfile}
           />
-        ) : null}
-
-        <SectionCard title="Group Settings" subtitle="Groups and sharing stay available, but out of the way during day-to-day beta use." tone="light">
-          <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-            {joinedGroups.length
-              ? `This angler is in ${joinedGroups.length} group${joinedGroups.length === 1 ? '' : 's'}. Open settings to adjust sharing, create a group, or join another one.`
-              : 'Open settings to create a group, join one, or manage what this angler shares with the crew.'}
-          </Text>
-          <AppButton
-            label={showGroupSettings ? 'Hide Group Settings' : 'Open Group Settings'}
-            onPress={() => setShowGroupSettings((current) => !current)}
-            surfaceTone="light"
-          />
-        </SectionCard>
-
-        {showGroupSettings ? (
-          <GroupsSharingSection
-            currentUserId={currentUser.id}
-            joinedGroups={joinedGroups}
-            joinedMemberships={joinedMemberships}
-            sharePreferences={sharePreferences}
-            newGroupName={newGroupName}
-            onNewGroupNameChange={setNewGroupName}
-            joinGroupCode={joinGroupCode}
-            onJoinGroupCodeChange={setJoinGroupCode}
-            onCreateGroup={saveGroup}
-            onJoinGroup={handleJoinGroup}
-            onUpdateSharePreference={updateSharePreference}
-          />
-        ) : null}
-
-        <InvitesSponsorshipSection
-          currentUserId={currentUser.id}
-          joinedGroups={joinedGroups}
-          organizerGroups={organizerGroups}
-          inviteTargetGroupId={inviteTargetGroupId}
-          onInviteTargetGroupChange={setInviteTargetGroupId}
-          inviteTargetName={inviteTargetName}
-          onInviteTargetNameChange={setInviteTargetName}
-          inviteAcceptCode={inviteAcceptCode}
-          onInviteAcceptCodeChange={setInviteAcceptCode}
-          invites={invites}
-          sponsoredAccess={sponsoredAccess}
-          groups={groups}
-          users={users}
-          onCreateInvite={sendInvite}
-          onAcceptInvite={handleAcceptInvite}
-          onRevokeSponsoredAccess={revokeSponsoredAccess}
-        />
-
-        <CompetitionsSection
-          currentUser={currentUser}
-          users={users}
-          competitionGroups={competitionGroups}
-          competitionSessions={competitionSessions}
-          competitionParticipants={competitionParticipants}
-          competitionAssignments={competitionAssignments}
-          newCompetitionName={newCompetitionName}
-          onNewCompetitionNameChange={setNewCompetitionName}
-          competitionGroupCount={competitionGroupCount}
-          onCompetitionGroupCountChange={setCompetitionGroupCount}
-          competitionSessionCount={competitionSessionCount}
-          onCompetitionSessionCountChange={setCompetitionSessionCount}
-          competitionSchedule={competitionSchedule}
-          onCompetitionScheduleChange={(index, next) =>
-            setCompetitionSchedule((current) =>
-              current.map((entry, entryIndex) => (entryIndex === index ? { ...entry, ...next } : entry))
-            )
-          }
-          competitionJoinCode={competitionJoinCode}
-          onCompetitionJoinCodeChange={setCompetitionJoinCode}
-          joinedCompetitionList={joinedCompetitionList}
-          getDraftForAssignment={getDraftForAssignment}
-          onUpdateAssignmentDraft={updateAssignmentDraft}
-          onCreateCompetition={saveCompetition}
-          onJoinCompetition={handleJoinCompetition}
-          onSaveAssignment={saveAssignment}
-        />
-
-        {canManageAccess ? (
+        );
+      case 'ownerTools':
+        return isAuthenticatedOwner ? (
           <OwnerControlsSection
             ownerUser={ownerUser}
             users={users}
@@ -606,7 +697,38 @@ export const AccessScreen = () => {
               )
             }
           />
+        ) : null;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <ScreenBackground>
+      <ScrollView
+        contentContainerStyle={layout.buildScrollContentStyle({ gap: 12, bottomPadding: 40 })}
+        keyboardShouldPersistTaps="handled"
+      >
+        <ScreenHeader
+          title={activeDestination === 'hub' ? 'Access & Billing' : destinationMeta[activeDestination].title}
+          subtitle={
+            activeDestination === 'hub'
+              ? 'Manage your account, groups, access, and competitions from a calmer settings-style hub.'
+              : destinationMeta[activeDestination].subtitle
+          }
+          eyebrow={activeDestination === 'hub' ? 'Utility Center' : 'Access Hub'}
+        />
+        {activeDestination !== 'hub' ? (
+          <ActionGroup>
+            <AppButton
+              label="Back to Access Hub"
+              onPress={() => setActiveDestination('hub')}
+              variant="ghost"
+              surfaceTone="light"
+            />
+          </ActionGroup>
         ) : null}
+        {renderActiveDestination()}
       </ScrollView>
     </ScreenBackground>
   );
