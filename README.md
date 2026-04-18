@@ -65,6 +65,29 @@ npx eas build --platform ios --profile development
 npx eas build --platform android --profile development
 ```
 
+### Apple login troubleshooting for `eas build`
+
+If `eas build --platform ios --profile development` exits when you try to sign in to Apple Developer:
+
+1. Use your normal Apple ID email and password for the Apple Developer account.
+   Do not use an app-specific password for the iOS build-signing login step.
+2. Make sure the Apple account has permission to manage certificates, identifiers, and provisioning profiles.
+   On personal accounts this is typically the Account Holder. On organization accounts this is typically Account Holder or Admin.
+3. If your Apple Developer account is federated through enterprise SSO, EAS CLI may not be able to use it for credential updates.
+4. Run credentials management before retrying the build:
+
+```bash
+npx eas credentials --platform ios
+```
+
+5. If credentials already exist on EAS, reuse the Expo-managed remote credentials and then retry the build:
+
+```bash
+npx eas build --platform ios --profile development
+```
+
+This project is configured with `"credentialsSource": "remote"` in `eas.json` so EAS will prefer Expo-managed credentials instead of expecting local `credentials.json` files.
+
 ### Internal beta/tester builds
 
 Use these after your own device validation passes:
@@ -90,3 +113,73 @@ This repo now assumes these native app identifiers:
 - Android package: `com.fishinglab.app`
 
 If you already reserved different production identifiers in Apple Developer or Play Console, update `app.json` before publishing tester builds.
+
+## Supabase Schema Apply
+
+This app expects the friend-beta remote schema in:
+
+```text
+supabase/friend_beta_schema.sql
+```
+
+If the app logs errors like:
+
+```text
+PGRST205: Could not find the table 'public.profiles' in the schema cache
+```
+
+your active Supabase project does not have the required schema yet.
+
+### Before you apply it
+
+1. Confirm `.env.local` points to the intended Supabase project.
+2. Open that same project in the Supabase dashboard.
+3. Go to `SQL Editor`.
+4. Run a quick check first:
+
+```sql
+select table_name
+from information_schema.tables
+where table_schema = 'public'
+  and table_name in (
+    'profiles',
+    'groups',
+    'group_memberships',
+    'share_preferences',
+    'invites',
+    'sponsored_access',
+    'competitions',
+    'competition_groups',
+    'competition_sessions',
+    'competition_participants',
+    'competition_session_assignments',
+    'sessions',
+    'session_segments',
+    'catch_events',
+    'experiments',
+    'saved_flies',
+    'saved_leader_formulas',
+    'saved_rig_presets',
+    'saved_rivers'
+  )
+order by table_name;
+```
+
+If `profiles` is missing, apply the repo schema.
+
+### Apply the repo schema
+
+1. Open [supabase/friend_beta_schema.sql](C:\Users\13jmm\OneDrive\Documents\GitHub\FlyFishingTesting\supabase\friend_beta_schema.sql).
+2. Copy the full file into the Supabase `SQL Editor`.
+3. Run it against the same project used by `.env.local`.
+4. Re-run the verification query above and confirm `profiles` and the related tables now exist.
+
+### After schema apply
+
+Restart the native dev-client bundler:
+
+```bash
+npx expo start --dev-client -c
+```
+
+Then reopen the installed development build and sign in again. The repeated `public.profiles` errors should stop once the schema is live in the active project.
