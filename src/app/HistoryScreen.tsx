@@ -11,13 +11,13 @@ import { SectionCard } from '@/components/ui/SectionCard';
 import { AppButton } from '@/components/ui/AppButton';
 import { StatusBanner } from '@/components/ui/StatusBanner';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
-import { appTheme, useTheme } from '@/design/theme';
+import { useTheme } from '@/design/theme';
 import { useResponsiveLayout } from '@/design/layout';
 import { getFormInputStyle } from '@/components/ui/FormField';
 import { buildSessionDeleteMessage, getSessionDeleteConsequences } from '@/utils/sessionDeleteConsequences';
 
 export const HistoryScreen = ({ navigation, route }: any) => {
-  useTheme();
+  const { theme } = useTheme();
   const layout = useResponsiveLayout();
   const { sessions, experiments, catchEvents, sessionSegments, users, activeUserId, archiveExperiment, deleteExperiment, deleteSessionRecord, cleanupExperimentsForCurrentUser, cleanupSyncStatus, getSyncRecordState, getExperimentIntegrity, getSessionIntegrity } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
@@ -33,7 +33,9 @@ export const HistoryScreen = ({ navigation, route }: any) => {
   const [cleanupTo, setCleanupTo] = useState('');
   const [cleanupOutcome, setCleanupOutcome] = useState<'all' | 'decisive' | 'tie' | 'inconclusive'>('inconclusive');
   const [cleanupAction, setCleanupAction] = useState<'archive' | 'delete'>('archive');
-  const inputStyle = getFormInputStyle();
+  const inputStyle = getFormInputStyle(theme);
+  const modeSummaryLabel = (mode: 'practice' | 'experiment' | 'competition') =>
+    mode === 'practice' ? 'Practice scouting' : mode === 'experiment' ? 'Experiment comparison' : 'Competition scorekeeping';
 
   const normalizedFilters = {
     river: riverFilter.trim().toLowerCase(),
@@ -195,9 +197,9 @@ export const HistoryScreen = ({ navigation, route }: any) => {
             <>
               <AppButton label={showRiverChoices ? 'Hide Rivers' : 'Choose River'} onPress={() => setShowRiverChoices((current) => !current)} variant="secondary" />
               {showRiverChoices && (
-                <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: appTheme.colors.borderStrong, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.surfaceLight }}>
-                  <Pressable onPress={() => { setRiverFilter(''); setShowRiverChoices(false); }} style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}>
-                    <Text style={{ color: appTheme.colors.textDark, fontWeight: '700' }}>All rivers</Text>
+                <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: theme.colors.borderStrong, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceLight }}>
+                  <Pressable onPress={() => { setRiverFilter(''); setShowRiverChoices(false); }} style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.borderLight }}>
+                    <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>All rivers</Text>
                   </Pressable>
                   {riverOptions.map((river) => (
                     <Pressable
@@ -206,9 +208,9 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                         setRiverFilter(river);
                         setShowRiverChoices(false);
                       }}
-                      style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
+                      style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.borderLight }}
                     >
-                      <Text style={{ color: appTheme.colors.textDark, fontWeight: '600' }}>{river}</Text>
+                      <Text style={{ color: theme.colors.textDark, fontWeight: '600' }}>{river}</Text>
                     </Pressable>
                   ))}
                 </ScrollView>
@@ -232,8 +234,8 @@ export const HistoryScreen = ({ navigation, route }: any) => {
           {cleanupSyncStatus.failedDeleteCount ? (
             <StatusBanner tone="warning" text={`${cleanupSyncStatus.failedDeleteCount} cleanup action${cleanupSyncStatus.failedDeleteCount === 1 ? ' needs' : 's need'} another retry. ${cleanupSyncStatus.lastFailedDeleteMessage ?? ''}`.trim()} />
           ) : null}
-          <TextInput value={cleanupFrom} onChangeText={setCleanupFrom} placeholder="From date (YYYY-MM-DD)" placeholderTextColor="#5a6c78" style={inputStyle} />
-          <TextInput value={cleanupTo} onChangeText={setCleanupTo} placeholder="To date (YYYY-MM-DD)" placeholderTextColor="#5a6c78" style={inputStyle} />
+          <TextInput value={cleanupFrom} onChangeText={setCleanupFrom} placeholder="From date (YYYY-MM-DD)" placeholderTextColor={theme.colors.inputPlaceholder} style={inputStyle} />
+          <TextInput value={cleanupTo} onChangeText={setCleanupTo} placeholder="To date (YYYY-MM-DD)" placeholderTextColor={theme.colors.inputPlaceholder} style={inputStyle} />
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {(['inconclusive', 'tie', 'decisive', 'all'] as const).map((outcome) => (
               <Pressable
@@ -256,7 +258,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
               </Pressable>
             ))}
           </View>
-          <Text style={{ color: appTheme.colors.textDarkSoft }}>Matching experiments: {cleanupCount}</Text>
+          <Text style={{ color: theme.colors.textDarkSoft }}>Matching experiments: {cleanupCount}</Text>
           <AppButton label={cleanupAction === 'archive' ? 'Archive Filtered Experiments' : 'Delete Filtered Experiments'} onPress={runCleanup} disabled={!cleanupCount} variant="danger" />
         </SectionCard>
 
@@ -276,7 +278,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
 
         return (
           <SectionCard key={session.id} title={new Date(session.date).toLocaleString()} subtitle={`${session.waterType} water • ${session.depthRange}`} tone="light">
-            <InlineSummaryRow label="Mode" value={session.mode} tone="light" />
+            <InlineSummaryRow label="Mode" value={modeSummaryLabel(session.mode)} tone="light" />
             <InlineSummaryRow label="Month" value={new Date(session.date).toLocaleString('en-US', { month: 'long' })} tone="light" />
             {session.riverName ? <InlineSummaryRow label="River" value={session.riverName} tone="light" /> : null}
             {session.startingTechnique ? <InlineSummaryRow label="Technique" value={session.startingTechnique} tone="light" /> : null}
@@ -286,7 +288,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
 
             {!!sessionExperiments.length && (
               <View style={{ marginTop: 4, gap: 4 }}>
-                <Text style={{ fontWeight: '700', color: appTheme.colors.textDark }}>Experiment history</Text>
+                <Text style={{ fontWeight: '700', color: theme.colors.textDark }}>Experiment history</Text>
                 {sessionExperiments.map((experiment) => {
                   const cleanupState = getSyncRecordState('experiment', experiment.id);
                   const isCleanupPending = cleanupState === 'pending_delete';
@@ -300,12 +302,12 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                     <View
                       key={experiment.id}
                       style={{
-                        backgroundColor: 'rgba(255,255,255,0.72)',
-                        borderRadius: appTheme.radius.md,
+                        backgroundColor: theme.colors.nestedSurface,
+                        borderRadius: theme.radius.md,
                         padding: 10,
                         gap: 4,
                         borderWidth: 1,
-                        borderColor: 'rgba(16,42,67,0.08)'
+                        borderColor: theme.colors.nestedSurfaceBorder
                       }}
                     >
                       <InlineSummaryRow label="Hypothesis" value={experiment.hypothesis} tone="light" />
@@ -316,10 +318,10 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                       {isCleanupFailed ? <InlineSummaryRow label="Cleanup" value="Delete needs retry" tone="light" /> : null}
                       <InlineSummaryRow label="Outcome" value={experiment.outcome} tone="light" />
                       <InlineSummaryRow label="Winner" value={experiment.winner} tone="light" />
-                      <Text style={{ color: appTheme.colors.textDarkSoft }}>Flies: {entries.map((entry) => `${entry.fly.name || entry.label} (#${entry.fly.hookSize}, ${entry.fly.beadColor}, ${entry.fly.beadSizeMm})`).join(', ')}</Text>
-                      <Text style={{ color: appTheme.colors.textDarkSoft }}>Catch rate: {experimentRate.toFixed(1)}%</Text>
+                      <Text style={{ color: theme.colors.textDarkSoft }}>Flies: {entries.map((entry) => `${entry.fly.name || entry.label} (#${entry.fly.hookSize}, ${entry.fly.beadColor}, ${entry.fly.beadSizeMm})`).join(', ')}</Text>
+                      <Text style={{ color: theme.colors.textDarkSoft }}>Catch rate: {experimentRate.toFixed(1)}%</Text>
                       {entries.some((entry) => entry.fishSizesInches.length) ? (
-                        <Text style={{ color: appTheme.colors.textDarkSoft }}>
+                        <Text style={{ color: theme.colors.textDarkSoft }}>
                           Fish log: {entries
                             .flatMap((entry) =>
                               entry.fishSizesInches.map(
@@ -343,7 +345,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                         </View>
                       </View>
                       {experiment.status === 'draft' ? (
-                        <Text style={{ color: appTheme.colors.textDarkSoft, marginTop: 6 }}>
+                        <Text style={{ color: theme.colors.textDarkSoft, marginTop: 6 }}>
                           Incomplete entries can be edited if you remember the missing details, or removed if they are no longer useful.
                         </Text>
                       ) : null}
@@ -371,19 +373,19 @@ export const HistoryScreen = ({ navigation, route }: any) => {
               <View
                 key={`orphan-${experiment.id}`}
                 style={{
-                  backgroundColor: 'rgba(255,255,255,0.72)',
-                  borderRadius: appTheme.radius.md,
+                  backgroundColor: theme.colors.nestedSurface,
+                  borderRadius: theme.radius.md,
                   padding: 10,
                   gap: 4,
                   borderWidth: 1,
-                  borderColor: 'rgba(16,42,67,0.08)'
+                  borderColor: theme.colors.nestedSurfaceBorder
                 }}
               >
                 <InlineSummaryRow label="Hypothesis" value={experiment.hypothesis || 'No saved hypothesis'} tone="light" />
                 <InlineSummaryRow label="Technique" value={experiment.technique ?? 'Technique not set'} tone="light" />
                 <InlineSummaryRow label="Status" value={integrity.label} tone="light" />
-                {integrity.reason ? <Text style={{ color: appTheme.colors.textDarkSoft }}>{integrity.reason}</Text> : null}
-                <Text style={{ color: appTheme.colors.textDarkSoft }}>
+                {integrity.reason ? <Text style={{ color: theme.colors.textDarkSoft }}>{integrity.reason}</Text> : null}
+                <Text style={{ color: theme.colors.textDarkSoft }}>
                   Flies: {entries.map((entry) => entry.fly.name || entry.label).join(', ')}
                 </Text>
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
@@ -419,18 +421,18 @@ export const HistoryScreen = ({ navigation, route }: any) => {
             <View
               key={`problem-session-${session.id}`}
               style={{
-                backgroundColor: 'rgba(255,255,255,0.72)',
-                borderRadius: appTheme.radius.md,
+                backgroundColor: theme.colors.nestedSurface,
+                borderRadius: theme.radius.md,
                 padding: 10,
                 gap: 4,
                 borderWidth: 1,
-                borderColor: 'rgba(16,42,67,0.08)'
+                borderColor: theme.colors.nestedSurfaceBorder
               }}
             >
               <InlineSummaryRow label="Session" value={new Date(session.date).toLocaleString()} tone="light" />
               <InlineSummaryRow label="Status" value={getSessionIntegrity(session.id).label} tone="light" />
               {getSessionIntegrity(session.id).reason ? (
-                <Text style={{ color: appTheme.colors.textDarkSoft }}>{getSessionIntegrity(session.id).reason}</Text>
+                <Text style={{ color: theme.colors.textDarkSoft }}>{getSessionIntegrity(session.id).reason}</Text>
               ) : null}
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
                 <View style={{ flex: 1 }}>

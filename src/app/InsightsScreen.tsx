@@ -9,7 +9,6 @@ import { AppButton } from '@/components/ui/AppButton';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { StatusBanner } from '@/components/ui/StatusBanner';
-import { appTheme } from '@/design/theme';
 import { buildAggregates } from '@/engine/aggregationEngine';
 import { generateAnglerComparisons } from '@/engine/anglerComparisonEngine';
 import { generateInsights } from '@/engine/insightEngine';
@@ -27,20 +26,8 @@ import {
   getVisibleFriendOptions
 } from '@/services/remoteInsightsService';
 
-const renderChartRow = (label: string, value: number, max: number, color: string) => (
-  <View key={label} style={{ gap: 4 }}>
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-      <Text style={{ color: '#f7fdff', fontWeight: '700' }}>{label}</Text>
-      <Text style={{ color: '#d7f3ff' }}>{value}</Text>
-    </View>
-    <View style={{ height: 10, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.12)', overflow: 'hidden' }}>
-      <View style={{ width: `${max ? (value / max) * 100 : 0}%`, height: '100%', backgroundColor: color }} />
-    </View>
-  </View>
-);
-
 export const InsightsScreen = ({ navigation }: any) => {
-  useTheme();
+  const { theme } = useTheme();
   const layout = useResponsiveLayout();
   const {
     sessions,
@@ -76,6 +63,8 @@ export const InsightsScreen = ({ navigation }: any) => {
   const [showRiverChoices, setShowRiverChoices] = useState(false);
   const [showFlyChoices, setShowFlyChoices] = useState(false);
   const [showHypothesisChoices, setShowHypothesisChoices] = useState(false);
+  const modeSummaryLabel = (mode: 'practice' | 'experiment' | 'competition') =>
+    mode === 'practice' ? 'Practice scouting' : mode === 'experiment' ? 'Experiment comparison' : 'Competition scorekeeping';
   const sharedDataSettling = !!remoteSession && sharedDataStatus === 'loading';
   const joinedGroups = useMemo(
     () => (sharedDataSettling ? [] : getJoinedGroupsForUser(currentUser?.id, groups, groupMemberships)),
@@ -322,6 +311,18 @@ export const InsightsScreen = ({ navigation }: any) => {
     return generateAnglerComparisons(relevantUsers, filteredSessions, filteredExperiments);
   }, [currentUser?.id, filteredExperiments, filteredSessions, groupMemberships, insightsContext, selectedFriendUserId, selectedGroupId, users]);
 
+  const renderChartRow = (label: string, value: number, max: number, color: string) => (
+    <View key={label} style={{ gap: 4 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{label}</Text>
+        <Text style={{ color: theme.colors.textSoft }}>{value}</Text>
+      </View>
+      <View style={{ height: 10, borderRadius: 999, backgroundColor: theme.colors.surfaceMuted, overflow: 'hidden' }}>
+        <View style={{ width: `${max ? (value / max) * 100 : 0}%`, height: '100%', backgroundColor: color }} />
+      </View>
+    </View>
+  );
+
   return (
     <ScreenBackground>
       <ScrollView contentContainerStyle={layout.buildScrollContentStyle({ gap: 10, bottomPadding: 40 })}>
@@ -435,23 +436,23 @@ export const InsightsScreen = ({ navigation }: any) => {
             />
 
             <SectionCard title="Catch Analytics" subtitle="See what is actually surfacing in the selected context right now.">
-              <Text style={{ color: '#d7f3ff' }}>
+              <Text style={{ color: theme.colors.textSoft }}>
                 Sessions in view: {filteredSessions.length} | Catch records in view: {filteredCatchEvents.length}
               </Text>
               {(excludedSessionCount > 0 || excludedExperimentCount > 0) ? (
-                <Text style={{ color: '#bde6f6' }}>
+                <Text style={{ color: theme.colors.textSoft }}>
                   Integrity filter excluded {excludedSessionCount} session{excludedSessionCount === 1 ? '' : 's'} and {excludedExperimentCount} experiment{excludedExperimentCount === 1 ? '' : 's'} that are legacy, incomplete, orphaned, archived, or pending cleanup.
                 </Text>
               ) : null}
               {!!filteredSessions.length && (
                 <View style={{ gap: 6 }}>
-                  <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Shared Sessions</Text>
+                  <Text style={{ color: theme.colors.text, fontWeight: '700' }}>Shared Sessions</Text>
                   {filteredSessions.slice(0, 5).map((session) => {
                     const owner = users.find((user) => user.id === session.userId);
                     const sessionCatchCount = filteredCatchEvents.filter((event) => event.sessionId === session.id).length;
                     return (
-                      <Text key={session.id} style={{ color: '#bde6f6' }}>
-                        {(owner?.name ?? 'Angler')} | {session.mode} | {session.startingTechnique ?? 'Technique not set'} | {session.riverName ?? 'Unknown river'} | {sessionCatchCount} catches
+                      <Text key={session.id} style={{ color: theme.colors.textSoft }}>
+                        {(owner?.name ?? 'Angler')} | {modeSummaryLabel(session.mode)} | {session.startingTechnique ?? 'Technique not set'} | {session.riverName ?? 'Unknown river'} | {sessionCatchCount} catches
                       </Text>
                     );
                   })}
@@ -459,7 +460,7 @@ export const InsightsScreen = ({ navigation }: any) => {
               )}
               {!!analytics.topSpecies.length ? (
                 <View style={{ gap: 8 }}>
-                  <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>All species breakdown</Text>
+                  <Text style={{ color: theme.colors.text, fontWeight: '700' }}>All species breakdown</Text>
                   {analytics.topSpecies.slice(0, 6).map(([species, count]) =>
                     renderChartRow(
                       `${species} (${analytics.totalSpeciesCount ? ((count / analytics.totalSpeciesCount) * 100).toFixed(0) : 0}%)`,
@@ -470,12 +471,12 @@ export const InsightsScreen = ({ navigation }: any) => {
                   )}
                 </View>
               ) : (
-                <Text style={{ color: '#d7f3ff' }}>No clean catch data matches the current filters yet.</Text>
+                <Text style={{ color: theme.colors.textSoft }}>No clean catch data matches the current filters yet.</Text>
               )}
 
               {!!analytics.sizeBands.length && (
                 <View style={{ gap: 8 }}>
-                  <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Fish size bands</Text>
+                  <Text style={{ color: theme.colors.text, fontWeight: '700' }}>Fish size bands</Text>
                   {analytics.sizeBands.map(([band, count]) => renderChartRow(band, count, analytics.maxSizeBandCount, '#4ea8de'))}
                 </View>
               )}
@@ -487,7 +488,7 @@ export const InsightsScreen = ({ navigation }: any) => {
 
             {!!filteredTopFlyInsights.length && (
               <>
-                <Text style={{ fontSize: 20, fontWeight: '800', marginTop: 4, marginBottom: 2, color: '#f7fdff' }}>Top Flies</Text>
+                <Text style={{ fontSize: 20, fontWeight: '800', marginTop: 4, marginBottom: 2, color: theme.colors.text }}>Top Flies</Text>
                 {filteredTopFlyInsights.map((insight, idx) => (
                   <InsightCard key={`top-fly-${idx}`} insight={insight} />
                 ))}
@@ -510,30 +511,30 @@ export const InsightsScreen = ({ navigation }: any) => {
                       return (
                         <View
                           key={`${record.name}-${record.hookSize}-${record.beadSizeMm}`}
-                          style={{ backgroundColor: appTheme.colors.surface, borderRadius: appTheme.radius.md, padding: 12, borderWidth: 1, borderColor: appTheme.colors.border }}
+                          style={{ backgroundColor: theme.colors.surface, borderRadius: theme.radius.md, padding: 12, borderWidth: 1, borderColor: theme.colors.border }}
                         >
-                          <Text style={{ color: '#f7fdff', fontWeight: '700', fontSize: 16 }}>{record.name}</Text>
-                          <Text style={{ color: '#d7f3ff' }}>
+                          <Text style={{ color: theme.colors.text, fontWeight: '700', fontSize: 16 }}>{record.name}</Text>
+                          <Text style={{ color: theme.colors.textSoft }}>
                             #{record.hookSize} | {record.beadColor} bead {record.beadSizeMm} | {(record.rate * 100).toFixed(1)}% catch rate
                           </Text>
-                          <Text style={{ color: '#bde6f6', fontSize: 12 }}>{record.casts} casts logged</Text>
+                          <Text style={{ color: theme.colors.textSoft, fontSize: 12 }}>{record.casts} casts logged</Text>
                           {record.averageSizeInches ? (
-                            <Text style={{ color: '#bde6f6', fontSize: 12 }}>
+                            <Text style={{ color: theme.colors.textSoft, fontSize: 12 }}>
                               Avg fish size: {record.averageSizeInches}"{record.largestFishInches ? ` | Largest: ${record.largestFishInches}"` : ''}
                             </Text>
                           ) : null}
                           {!!record.topSpecies.length && !normalizedFilters.species && (
-                            <Text style={{ color: '#bde6f6', fontSize: 12 }}>
+                            <Text style={{ color: theme.colors.textSoft, fontSize: 12 }}>
                               Common species: {record.topSpecies.join(', ')}
                             </Text>
                           )}
                           {!!record.speciesBreakdown.length && !normalizedFilters.species && (
-                            <Text style={{ color: '#bde6f6', fontSize: 12 }}>
+                            <Text style={{ color: theme.colors.textSoft, fontSize: 12 }}>
                               Species breakdown: {record.speciesBreakdown.map((item) => `${item.species} ${(item.percent * 100).toFixed(0)}%`).join(' | ')}
                             </Text>
                           )}
                           {!!normalizedFilters.species && (
-                            <Text style={{ color: '#bde6f6', fontSize: 12 }}>
+                            <Text style={{ color: theme.colors.textSoft, fontSize: 12 }}>
                               {selectedSpeciesCount} {speciesFilter} caught | {selectedSpeciesPercent.toFixed(0)}% of filtered {speciesFilter} catches
                             </Text>
                           )}
@@ -547,7 +548,7 @@ export const InsightsScreen = ({ navigation }: any) => {
 
             {!!contextComparisons.length && (
               <>
-                <Text style={{ fontSize: 20, fontWeight: '800', marginTop: 4, marginBottom: 2, color: '#f7fdff' }}>Across Anglers</Text>
+                <Text style={{ fontSize: 20, fontWeight: '800', marginTop: 4, marginBottom: 2, color: theme.colors.text }}>Across Anglers</Text>
                 {contextComparisons.map((insight, idx) => (
                   <InsightCard key={`comparison-${idx}`} insight={insight} />
                 ))}

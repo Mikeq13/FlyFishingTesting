@@ -1,15 +1,19 @@
 import React from 'react';
 import { Text, TextStyle, View, ViewStyle } from 'react-native';
-import { appTheme, useTheme } from '@/design/theme';
+import { AppTheme, appTheme, useTheme } from '@/design/theme';
 
-export const getFormInputStyle = (): ViewStyle & TextStyle => ({
+export const getFormInputStyle = (themeOverride?: AppTheme): ViewStyle & TextStyle => {
+  const resolvedTheme = themeOverride ?? appTheme;
+
+  return {
   borderWidth: 1,
-  borderColor: appTheme.colors.borderStrong,
-  padding: appTheme.spacing.md,
-  borderRadius: appTheme.radius.md,
-  backgroundColor: appTheme.colors.inputBg,
-  color: appTheme.colors.inputText
-});
+  borderColor: resolvedTheme.colors.borderStrong,
+  padding: resolvedTheme.spacing.md,
+  borderRadius: resolvedTheme.radius.md,
+  backgroundColor: resolvedTheme.colors.inputBg,
+  color: resolvedTheme.colors.inputText
+  };
+};
 
 export const FormField = ({
   label,
