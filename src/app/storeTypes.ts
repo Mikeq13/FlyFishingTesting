@@ -1,5 +1,5 @@
 import { Experiment, Insight } from '@/types/experiment';
-import { SavedRiver, Session } from '@/types/session';
+import { SavedRiver, Session, SessionGroupShare } from '@/types/session';
 import { UserProfile, AccessLevel, SubscriptionStatus } from '@/types/user';
 import { FlySetup, SavedFly } from '@/types/fly';
 import { CatchEvent, SessionSegment } from '@/types/activity';
@@ -47,6 +47,7 @@ export type UserDataCleanupCategory =
 export interface AppStore {
   sessions: Session[];
   allSessions: Session[];
+  sessionGroupShares: SessionGroupShare[];
   sessionSegments: SessionSegment[];
   catchEvents: CatchEvent[];
   allCatchEvents: CatchEvent[];

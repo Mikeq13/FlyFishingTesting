@@ -12,7 +12,7 @@ import {
 } from '@/types/group';
 import { Invite, RemoteEntityMaps, SponsoredAccess } from '@/types/remote';
 import { LeaderFormula, RigPreset } from '@/types/rig';
-import { SavedRiver, Session } from '@/types/session';
+import { SavedRiver, Session, SessionGroupShare } from '@/types/session';
 import { UserProfile } from '@/types/user';
 import { SavedFly } from '@/types/fly';
 
@@ -226,6 +226,19 @@ export const mapRemoteSession = (row: any, currentAuthUserId: string, maps: Remo
 
 export const createSessionMaps = (sessions: any[], currentAuthUserId: string) =>
   new Map(sessions.map((row) => [row.id as string, toPreferredId(row, currentAuthUserId, 'session')]));
+
+export const mapRemoteSessionGroupShare = (
+  row: any,
+  currentAuthUserId: string,
+  maps: RemoteEntityMaps,
+  sessionIdByRemoteId: Map<string, number>
+): SessionGroupShare => ({
+  id: toPreferredId(row, currentAuthUserId, 'session_group_share'),
+  userId: maps.userIdByAuthId.get(row.owner_auth_user_id) ?? mapRemoteProfileId(row.owner_auth_user_id, currentAuthUserId, null),
+  sessionId: sessionIdByRemoteId.get(row.session_id) ?? syntheticId(`session:${row.session_id}`),
+  groupId: maps.groupIdByRemoteId.get(row.group_id) ?? syntheticId(`group:${row.group_id}`),
+  createdAt: row.created_at ?? new Date().toISOString()
+});
 
 export const createSegmentMaps = (segments: any[], currentAuthUserId: string) =>
   new Map(segments.map((row) => [row.id as string, toPreferredId(row, currentAuthUserId, 'session_segment')]));

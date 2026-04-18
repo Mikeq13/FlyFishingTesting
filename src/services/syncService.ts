@@ -12,7 +12,7 @@ import {
 } from '@/types/group';
 import { SyncEntityType, SyncMetadataEntry, SyncQueueEntry } from '@/types/remote';
 import { LeaderFormula, RigPreset } from '@/types/rig';
-import { Session, SavedRiver } from '@/types/session';
+import { Session, SavedRiver, SessionGroupShare } from '@/types/session';
 import { UserProfile } from '@/types/user';
 import { supabase } from './supabaseClient';
 import { LoadedLocalAppData } from './localAppDataService';
@@ -328,6 +328,21 @@ const syncSession = async (context: SyncContext, session: Session) => {
   return remoteId;
 };
 
+const syncSessionGroupShare = async (context: SyncContext, share: SessionGroupShare) => {
+  const remoteSessionId = await findRemoteId('session', share.sessionId);
+  const remoteGroupId = await findRemoteId('group', share.groupId);
+  if (!remoteSessionId || !remoteGroupId) {
+    throw new Error('Session sharing depends on synced sessions and groups.');
+  }
+  const remoteId = await upsertOwnedRow('session_group_shares', context.remoteAuthUserId, share.id, {
+    session_id: remoteSessionId,
+    group_id: remoteGroupId,
+    created_at: share.createdAt
+  });
+  await recordSyncSuccess('session_group_share', share.id, remoteId);
+  return remoteId;
+};
+
 const syncSessionSegment = async (context: SyncContext, segment: SessionSegment) => {
   const remoteSessionId = await findRemoteId('session', segment.sessionId);
   if (!remoteSessionId) throw new Error('Session segment depends on a synced session.');
@@ -528,6 +543,15 @@ const deleteRemoteEntity = async (context: SyncContext, entry: SyncQueueEntry) =
       await deleteOwnedRow('sessions', context.remoteAuthUserId, entry.recordId!, await findRemoteId('session', entry.recordId!));
       await clearSyncMetadata('session', entry.recordId!);
       return;
+    case 'session_group_share':
+      await deleteOwnedRow(
+        'session_group_shares',
+        context.remoteAuthUserId,
+        entry.recordId!,
+        await findRemoteId('session_group_share', entry.recordId!)
+      );
+      await clearSyncMetadata('session_group_share', entry.recordId!);
+      return;
     case 'saved_setup':
       await deleteRemoteSavedSetup(context, entry);
       return;
@@ -666,6 +690,12 @@ export const syncQueueToSupabase = async (
           if (entry.recordId) {
             const session = context.loaded.sessions.find((item) => item.id === entry.recordId);
             if (session) await syncSession(context, session);
+          }
+          break;
+        case 'session_group_share':
+          if (entry.recordId) {
+            const share = context.loaded.sessionGroupShares.find((item) => item.id === entry.recordId);
+            if (share) await syncSessionGroupShare(context, share);
           }
           break;
         case 'session_segment':

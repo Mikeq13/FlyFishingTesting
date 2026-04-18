@@ -7,6 +7,7 @@ import { createSavedLeaderFormula, deleteSavedLeaderFormula } from '@/db/savedLe
 import { createSavedRigPreset, deleteSavedRigPreset } from '@/db/savedRigPresetRepo';
 import { createSavedRiver } from '@/db/savedRiverRepo';
 import { createSession, deleteSessions, updateSession } from '@/db/sessionRepo';
+import { deleteSessionGroupSharesForSessions } from '@/db/sessionGroupShareRepo';
 import { createSessionSegment, deleteSessionSegmentsForSessions, updateSessionSegment } from '@/db/sessionSegmentRepo';
 import { createCatchEvent } from '@/db/catchEventRepo';
 import { deleteCatchEventsForSessions } from '@/db/catchEventRepo';
@@ -25,6 +26,7 @@ import {
   joinLocalGroupByCode,
   leaveLocalGroup,
   loadLocalAppData,
+  replaceLocalSessionGroupShares,
   revokeLocalSponsoredAccess,
   saveLocalCompetitionAssignment,
   updateLocalSharePreference
@@ -67,6 +69,7 @@ export const createStoreActions = ({
   invites,
   sponsoredAccess,
   experiments,
+  sessionGroupShares,
   sessionMap,
   remoteSession,
   ownerIdentityLinked,
@@ -100,6 +103,7 @@ export const createStoreActions = ({
   invites: AppStore['invites'];
   sponsoredAccess: AppStore['sponsoredAccess'];
   experiments: AppStore['experiments'];
+  sessionGroupShares: AppStore['sessionGroupShares'];
   sessionMap: Map<number, AppStore['sessions'][number]>;
   remoteSession: AppStore['remoteSession'];
   ownerIdentityLinked: boolean;
@@ -289,6 +293,13 @@ export const createStoreActions = ({
       for (const entry of mergedMemberships.filter((membership) => groupIdSet.has(membership.groupId))) {
         await queueDelete('group_membership', entry.id, { membershipId: entry.id, groupId: entry.groupId });
       }
+      for (const share of sessionGroupShares.filter((entry) => groupIdSet.has(entry.groupId))) {
+        await queueDelete('session_group_share', share.id, {
+          sessionGroupShareId: share.id,
+          sessionId: share.sessionId,
+          groupId: share.groupId
+        });
+      }
       for (const groupId of affectedOwnedGroupIds) {
         await queueDelete('group', groupId, { groupId });
       }
@@ -313,6 +324,13 @@ export const createStoreActions = ({
       }
       for (const session of loaded.sessions.filter((item) => item.userId === userId)) {
         await queueDelete('session', session.id, { sessionId: session.id });
+      }
+      for (const share of loaded.sessionGroupShares.filter((item) => item.userId === userId)) {
+        await queueDelete('session_group_share', share.id, {
+          sessionGroupShareId: share.id,
+          sessionId: share.sessionId,
+          groupId: share.groupId
+        });
       }
       for (const assignment of loaded.competitionAssignments.filter((item) => item.userId === userId || ownedCompetitionIds.includes(item.competitionId))) {
         await queueDelete('competition_assignment', assignment.id, { assignmentId: assignment.id });
@@ -367,6 +385,13 @@ export const createStoreActions = ({
       for (const sessionId of incompleteSessionIds) {
         await queueDelete('session', sessionId, { sessionId });
       }
+      for (const share of loaded.sessionGroupShares.filter((item) => incompleteSessionIds.includes(item.sessionId))) {
+        await queueDelete('session_group_share', share.id, {
+          sessionGroupShareId: share.id,
+          sessionId: share.sessionId,
+          groupId: share.groupId
+        });
+      }
     }
 
     if (normalizedCategories.includes('problem')) {
@@ -393,6 +418,13 @@ export const createStoreActions = ({
       }
       for (const sessionId of problemSessionIds) {
         await queueDelete('session', sessionId, { sessionId });
+      }
+      for (const share of loaded.sessionGroupShares.filter((item) => problemSessionIds.includes(item.sessionId))) {
+        await queueDelete('session_group_share', share.id, {
+          sessionGroupShareId: share.id,
+          sessionId: share.sessionId,
+          groupId: share.groupId
+        });
       }
 
       const problemGroupIds = mergedGroups
@@ -430,6 +462,7 @@ export const createStoreActions = ({
     const loaded = await loadLocalAppData(activeUserId);
     const affectedCatchEvents = loaded.catchEvents.filter((event) => sessionIds.includes(event.sessionId));
     const affectedSegments = loaded.sessionSegments.filter((segment) => sessionIds.includes(segment.sessionId));
+    const affectedSessionGroupShares = loaded.sessionGroupShares.filter((share) => sessionIds.includes(share.sessionId));
     const affectedExperiments = includeLinkedExperiments
       ? experiments.filter((experiment) => sessionIds.includes(experiment.sessionId))
       : [];
@@ -439,6 +472,13 @@ export const createStoreActions = ({
     }
     for (const segment of affectedSegments) {
       await trackSyncChange('session_segment', 'delete', segment.id, { segmentId: segment.id });
+    }
+    for (const share of affectedSessionGroupShares) {
+      await trackSyncChange('session_group_share', 'delete', share.id, {
+        sessionGroupShareId: share.id,
+        sessionId: share.sessionId,
+        groupId: share.groupId
+      });
     }
     for (const experiment of affectedExperiments) {
       await trackSyncChange('experiment', 'delete', experiment.id, { experimentId: experiment.id });
@@ -452,15 +492,22 @@ export const createStoreActions = ({
     if (affectedExperiments.length) {
       await deleteExperiments(affectedExperiments.map((experiment) => experiment.id));
     }
+    if (affectedSessionGroupShares.length) {
+      await deleteSessionGroupSharesForSessions(sessionIds);
+    }
     await deleteSessions(sessionIds);
 
     return {
       sessionsRemoved: sessionIds.length,
       experimentsRemoved: affectedExperiments.length,
+      sessionGroupSharesRemoved: affectedSessionGroupShares.length,
       catchEventsRemoved: affectedCatchEvents.length,
       segmentsRemoved: affectedSegments.length
     };
   };
+
+  const getNormalizedSharedGroupIds = (payload: Pick<AppStore['sessions'][number], 'sharedGroupId' | 'sharedGroupIds'>) =>
+    [...new Set(payload.sharedGroupIds ?? (payload.sharedGroupId ? [payload.sharedGroupId] : []))];
 
   const refreshMfaStateInternal = async () => {
     if (!remoteSession) {
@@ -1011,15 +1058,42 @@ export const createStoreActions = ({
     if (!payload.date || !payload.waterType || !payload.depthRange) {
       throw new Error('Session date, water type, and depth range are required.');
     }
-    const id = await createSession({ ...payload, userId: activeUserId });
-    await trackSyncChange('session', 'create', id, payload);
+    const sharedGroupIds = getNormalizedSharedGroupIds(payload);
+    const normalizedPayload = {
+      ...payload,
+      sharedGroupId: sharedGroupIds[0],
+      sharedGroupIds
+    };
+    const id = await createSession({ ...normalizedPayload, userId: activeUserId });
+    const { createdShares } = await replaceLocalSessionGroupShares(activeUserId, id, sharedGroupIds);
+    await trackSyncChange('session', 'create', id, normalizedPayload);
+    for (const share of createdShares) {
+      await trackSyncChange('session_group_share', 'create', share.id, share);
+    }
     await refresh();
     return id;
   },
   updateSessionEntry: async (sessionId, payload) => {
     assertActiveUser();
-    await updateSession(sessionId, payload);
-    await trackSyncChange('session', 'update', sessionId, payload);
+    const sharedGroupIds = getNormalizedSharedGroupIds(payload);
+    const normalizedPayload = {
+      ...payload,
+      sharedGroupId: sharedGroupIds[0],
+      sharedGroupIds
+    };
+    await updateSession(sessionId, normalizedPayload);
+    const { createdShares, removedShares } = await replaceLocalSessionGroupShares(activeUserId ?? 0, sessionId, sharedGroupIds);
+    await trackSyncChange('session', 'update', sessionId, normalizedPayload);
+    for (const share of createdShares) {
+      await trackSyncChange('session_group_share', 'create', share.id, share);
+    }
+    for (const share of removedShares) {
+      await trackSyncChange('session_group_share', 'delete', share.id, {
+        sessionGroupShareId: share.id,
+        sessionId: share.sessionId,
+        groupId: share.groupId
+      });
+    }
     await refresh(activeUserId);
   },
   addSessionSegment: async (payload) => {

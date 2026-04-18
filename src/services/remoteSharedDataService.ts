@@ -11,8 +11,12 @@ import {
   mapRemoteSavedFly,
   mapRemoteSavedRiver,
   mapRemoteSession,
+  mapRemoteSessionGroupShare,
   mapRemoteSessionSegment
 } from './remoteMappingService';
+import { applySessionShareIds } from '@/utils/sessionSharing';
+
+const dedupeById = <T extends { id: number }>(records: T[]) => [...new Map(records.map((record) => [record.id, record])).values()];
 
 export const fetchRemoteSharedDataSnapshot = async (
   currentAuthUserId: string,
@@ -20,6 +24,7 @@ export const fetchRemoteSharedDataSnapshot = async (
 ): Promise<RemoteSharedDataSnapshot> => {
   const [
     sessionsResponse,
+    sessionGroupSharesResponse,
     segmentsResponse,
     catchesResponse,
     experimentsResponse,
@@ -29,6 +34,7 @@ export const fetchRemoteSharedDataSnapshot = async (
     savedRiversResponse
   ] = await Promise.all([
     supabase.from('sessions').select(REMOTE_SHARED_SELECTS.sessions),
+    supabase.from('session_group_shares').select(REMOTE_SHARED_SELECTS.sessionGroupShares),
     supabase.from('session_segments').select(REMOTE_SHARED_SELECTS.sessionSegments),
     supabase.from('catch_events').select(REMOTE_SHARED_SELECTS.catchEvents),
     supabase.from('experiments').select(REMOTE_SHARED_SELECTS.experiments),
@@ -40,6 +46,7 @@ export const fetchRemoteSharedDataSnapshot = async (
 
   const responses = [
     sessionsResponse,
+    sessionGroupSharesResponse,
     segmentsResponse,
     catchesResponse,
     experimentsResponse,
@@ -52,6 +59,7 @@ export const fetchRemoteSharedDataSnapshot = async (
   if (error) throw error;
 
   const sessionRows = sessionsResponse.data ?? [];
+  const sessionGroupShareRows = sessionGroupSharesResponse.data ?? [];
   const segmentRows = segmentsResponse.data ?? [];
   const catchRows = catchesResponse.data ?? [];
   const experimentRows = experimentsResponse.data ?? [];
@@ -60,6 +68,9 @@ export const fetchRemoteSharedDataSnapshot = async (
 
   const accessibleSessions = sessionRows.map((row) =>
     mapRemoteSession(row, currentAuthUserId, accessSnapshot.entityMaps)
+  );
+  const accessibleSessionGroupShares = sessionGroupShareRows.map((row) =>
+    mapRemoteSessionGroupShare(row, currentAuthUserId, accessSnapshot.entityMaps, sessionIdByRemoteId)
   );
   const accessibleSessionSegments = segmentRows.map((row) =>
     mapRemoteSessionSegment(row, currentAuthUserId, accessSnapshot.entityMaps, sessionIdByRemoteId)
@@ -75,21 +86,43 @@ export const fetchRemoteSharedDataSnapshot = async (
       .filter((membership) => membership.userId === accessSnapshot.entityMaps.userIdByAuthId.get(currentAuthUserId))
       .map((membership) => membership.groupId)
   );
-  const visibleSessions = accessibleSessions.filter(
-    (session) => session.userId === accessSnapshot.entityMaps.userIdByAuthId.get(currentAuthUserId) || (session.sharedGroupId && joinedGroupIds.has(session.sharedGroupId))
+  const currentUserId = accessSnapshot.entityMaps.userIdByAuthId.get(currentAuthUserId);
+  const shareGroupIdsBySessionId = new Map<number, number[]>();
+  accessibleSessionGroupShares.forEach((share) => {
+    const existing = shareGroupIdsBySessionId.get(share.sessionId) ?? [];
+    if (!existing.includes(share.groupId)) {
+      shareGroupIdsBySessionId.set(share.sessionId, [...existing, share.groupId]);
+    }
+  });
+  const visibleSessions = dedupeById(
+    applySessionShareIds(
+      accessibleSessions.filter((session) => {
+        if (session.userId === currentUserId) return true;
+        const sharedGroupIds = [
+          ...(shareGroupIdsBySessionId.get(session.id) ?? []),
+          ...(session.sharedGroupId ? [session.sharedGroupId] : [])
+        ];
+        return sharedGroupIds.some((groupId) => joinedGroupIds.has(groupId));
+      }),
+      accessibleSessionGroupShares
+    )
   );
   const visibleSessionIds = new Set(visibleSessions.map((session) => session.id));
+  const visibleSessionGroupShares = dedupeById(
+    accessibleSessionGroupShares.filter((share) => visibleSessionIds.has(share.sessionId))
+  );
   const visibleSegments = accessibleSessionSegments.filter((segment) => visibleSessionIds.has(segment.sessionId));
   const visibleSegmentIds = new Set(visibleSegments.map((segment) => segment.id));
   const visibleCatchEvents = accessibleCatchEvents.filter(
     (event) => visibleSessionIds.has(event.sessionId) && (!event.segmentId || visibleSegmentIds.has(event.segmentId))
   );
-  const visibleExperiments = accessibleExperiments.filter((experiment) => visibleSessionIds.has(experiment.sessionId));
-  const currentUserId = accessSnapshot.entityMaps.userIdByAuthId.get(currentAuthUserId);
+  const visibleExperiments = dedupeById(accessibleExperiments.filter((experiment) => visibleSessionIds.has(experiment.sessionId)));
 
   return {
     ownedSessions: visibleSessions.filter((session) => session.userId === currentUserId),
     accessibleSessions: visibleSessions,
+    ownedSessionGroupShares: visibleSessionGroupShares.filter((share) => share.userId === currentUserId),
+    accessibleSessionGroupShares: visibleSessionGroupShares,
     ownedSessionSegments: visibleSegments.filter((segment) => segment.userId === currentUserId),
     accessibleSessionSegments: visibleSegments,
     ownedCatchEvents: visibleCatchEvents.filter((event) => event.userId === currentUserId),

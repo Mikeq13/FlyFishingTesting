@@ -51,7 +51,8 @@ export const filterSessionsForInsightsContext = (params: {
     if (params.mode === 'mine') {
       return session.userId === params.currentUserId;
     }
-    if (!params.selectedGroupId || session.sharedGroupId !== params.selectedGroupId) {
+    const sharedGroupIds = session.sharedGroupIds ?? (session.sharedGroupId ? [session.sharedGroupId] : []);
+    if (!params.selectedGroupId || !sharedGroupIds.includes(params.selectedGroupId)) {
       return false;
     }
     if (!canShareCategory(params.sharePreferences, session.userId, params.selectedGroupId, session.mode)) {

@@ -23,6 +23,7 @@ export type SyncEntityType =
   | 'competition_participant'
   | 'competition_assignment'
   | 'session'
+  | 'session_group_share'
   | 'session_segment'
   | 'catch_event'
   | 'experiment'
@@ -146,6 +147,8 @@ export interface RemoteAccessSnapshot {
 export interface RemoteSharedDataSnapshot {
   ownedSessions: import('@/types/session').Session[];
   accessibleSessions: import('@/types/session').Session[];
+  ownedSessionGroupShares: import('@/types/session').SessionGroupShare[];
+  accessibleSessionGroupShares: import('@/types/session').SessionGroupShare[];
   ownedSessionSegments: import('@/types/activity').SessionSegment[];
   accessibleSessionSegments: import('@/types/activity').SessionSegment[];
   ownedCatchEvents: import('@/types/activity').CatchEvent[];

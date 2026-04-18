@@ -29,6 +29,7 @@ export const buildSessionUpdatePayload = (
   waterType: session.waterType,
   depthRange: session.depthRange,
   sharedGroupId: session.sharedGroupId,
+  sharedGroupIds: session.sharedGroupIds,
   practiceMeasurementEnabled: session.practiceMeasurementEnabled,
   practiceLengthUnit: session.practiceLengthUnit,
   competitionId: session.competitionId,

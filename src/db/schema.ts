@@ -129,6 +129,16 @@ export const initDb = async (): Promise<void> => {
       notes TEXT,
       FOREIGN KEY(user_id) REFERENCES users(id)
     )`,
+    `CREATE TABLE IF NOT EXISTS session_group_shares (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      session_id INTEGER NOT NULL,
+      group_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id),
+      FOREIGN KEY(session_id) REFERENCES sessions(id),
+      FOREIGN KEY(group_id) REFERENCES groups(id)
+    )`,
     `CREATE TABLE IF NOT EXISTS groups (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -376,6 +386,18 @@ export const initDb = async (): Promise<void> => {
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE sessions ADD COLUMN shared_group_id INTEGER;`);
+  } catch {}
+  try {
+    await database.execAsync(`CREATE TABLE IF NOT EXISTS session_group_shares (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      session_id INTEGER NOT NULL,
+      group_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id),
+      FOREIGN KEY(session_id) REFERENCES sessions(id),
+      FOREIGN KEY(group_id) REFERENCES groups(id)
+    )`);
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE sessions ADD COLUMN practice_measurement_enabled INTEGER NOT NULL DEFAULT 0;`);

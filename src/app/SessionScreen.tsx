@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, ScrollView, TextInput } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { KeyboardDismissView } from '@/components/KeyboardDismissView';
 import { OptionChips } from '@/components/OptionChips';
 import { DEPTH_RANGES } from '@/constants/options';
@@ -22,6 +22,7 @@ import { PracticeSetupSection } from '@/components/sessionSetup/PracticeSetupSec
 import { ReminderSettingsSection } from '@/components/sessionSetup/ReminderSettingsSection';
 import { useResponsiveLayout } from '@/design/layout';
 import { FlySetup } from '@/types/fly';
+import { describeSessionShareIntent } from '@/utils/sessionSharing';
 
 const MODE_COPY: Record<SessionMode, { title: string; subtitle: string; button: string }> = {
   experiment: {
@@ -66,7 +67,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
   const [customAlertError, setCustomAlertError] = useState('');
   const [competitionRequiresMeasurement, setCompetitionRequiresMeasurement] = useState(true);
   const [competitionLengthUnit, setCompetitionLengthUnit] = useState<CompetitionLengthUnit>('mm');
-  const [selectedSharedGroupId, setSelectedSharedGroupId] = useState<number | null>(null);
+  const [selectedSharedGroupIds, setSelectedSharedGroupIds] = useState<number[]>([]);
   const [practiceMeasurementEnabled, setPracticeMeasurementEnabled] = useState(false);
   const [practiceLengthUnit, setPracticeLengthUnit] = useState<'in' | 'cm' | 'mm'>('in');
   const [selectedCompetitionId, setSelectedCompetitionId] = useState<number | null>(null);
@@ -146,8 +147,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
   }, [selectedCompetitionAssignment, selectedCompetitionGroup, selectedCompetitionSession]);
 
   React.useEffect(() => {
-    if (!joinedGroups.length) return;
-    setSelectedSharedGroupId((current) => (current && joinedGroups.some((group) => group.id === current) ? current : joinedGroups[0].id));
+    setSelectedSharedGroupIds((current) => current.filter((groupId) => joinedGroups.some((group) => group.id === groupId)));
   }, [joinedGroups]);
 
   React.useEffect(() => {
@@ -190,7 +190,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
     setAlertMarkersMinutes(existingSession.alertMarkersMinutes?.length ? existingSession.alertMarkersMinutes : [15]);
     setCompetitionRequiresMeasurement(existingSession.competitionRequiresMeasurement ?? true);
     setCompetitionLengthUnit(existingSession.competitionLengthUnit ?? 'mm');
-    setSelectedSharedGroupId(existingSession.sharedGroupId ?? null);
+    setSelectedSharedGroupIds(existingSession.sharedGroupIds ?? (existingSession.sharedGroupId ? [existingSession.sharedGroupId] : []));
     setPracticeMeasurementEnabled(existingSession.practiceMeasurementEnabled ?? false);
     setPracticeLengthUnit(existingSession.practiceLengthUnit ?? 'in');
     setSelectedCompetitionId(existingSession.competitionId ?? null);
@@ -200,6 +200,12 @@ export const SessionScreen = ({ navigation, route }: any) => {
     setPracticeRigSetup(existingSession.startingRigSetup ?? createDefaultRigSetup([]));
     setExperimentRigSetup(existingSession.startingRigSetup ?? createDefaultRigSetup([]));
   }, [existingSession, mode]);
+
+  const selectedSharedGroups = useMemo(
+    () => joinedGroups.filter((group) => selectedSharedGroupIds.includes(group.id)),
+    [joinedGroups, selectedSharedGroupIds]
+  );
+  const shareIntentSummary = useMemo(() => describeSessionShareIntent(selectedSharedGroups), [selectedSharedGroups]);
 
   const saveRiver = async () => {
     const normalizedRiverName = riverName.trim();
@@ -333,7 +339,8 @@ export const SessionScreen = ({ navigation, route }: any) => {
       endedAt: existingSession?.endedAt,
       waterType,
       depthRange,
-      sharedGroupId: selectedSharedGroupId ?? undefined,
+      sharedGroupId: selectedSharedGroupIds[0] ?? undefined,
+      sharedGroupIds: selectedSharedGroupIds,
       practiceMeasurementEnabled: mode === 'practice' ? practiceMeasurementEnabled : undefined,
       practiceLengthUnit: mode === 'practice' ? practiceLengthUnit : undefined,
       competitionId: mode === 'competition' ? selectedCompetitionId ?? undefined : undefined,
@@ -378,7 +385,8 @@ export const SessionScreen = ({ navigation, route }: any) => {
         endedAt: undefined,
         waterType,
         depthRange,
-        sharedGroupId: selectedSharedGroupId ?? undefined,
+        sharedGroupId: selectedSharedGroupIds[0] ?? undefined,
+        sharedGroupIds: selectedSharedGroupIds,
         practiceMeasurementEnabled: undefined,
         practiceLengthUnit: undefined,
         competitionId: selectedCompetitionId,
@@ -511,15 +519,39 @@ export const SessionScreen = ({ navigation, route }: any) => {
             />
           ) : null}
           {mode !== 'competition' && !!joinedGroups.length ? (
-            <OptionChips
-              label="Share With Group"
-              options={['Private', ...joinedGroups.map((group) => group.name)]}
-              value={selectedSharedGroupId ? joinedGroups.find((group) => group.id === selectedSharedGroupId)?.name ?? 'Private' : 'Private'}
-              onChange={(value) => {
-                const selected = joinedGroups.find((group) => group.name === value);
-                setSelectedSharedGroupId(selected?.id ?? null);
-              }}
-            />
+            <View style={{ gap: 10 }}>
+              <Text style={{ color: theme.colors.text, fontWeight: '800' }}>Share With Groups</Text>
+              <Text style={{ color: theme.colors.textMuted }}>{shareIntentSummary}</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {joinedGroups.map((group) => {
+                  const selected = selectedSharedGroupIds.includes(group.id);
+                  return (
+                    <Pressable
+                      key={group.id}
+                      onPress={() =>
+                        setSelectedSharedGroupIds((current) =>
+                          current.includes(group.id)
+                            ? current.filter((groupId) => groupId !== group.id)
+                            : [...current, group.id]
+                        )
+                      }
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        borderRadius: theme.radius.pill,
+                        borderWidth: 1,
+                        borderColor: selected ? theme.colors.chipSelectedBorder : theme.colors.chipBorder,
+                        backgroundColor: selected ? theme.colors.chipSelectedBg : theme.colors.chipBg
+                      }}
+                    >
+                      <Text style={{ color: selected ? theme.colors.chipSelectedText : theme.colors.chipText, fontWeight: '700' }}>
+                        {group.name}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
           ) : null}
           {mode !== 'experiment' ? (
             <ReminderSettingsSection

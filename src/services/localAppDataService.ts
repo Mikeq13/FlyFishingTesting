@@ -1,5 +1,5 @@
 import { Experiment, Insight } from '@/types/experiment';
-import { SavedRiver, Session } from '@/types/session';
+import { SavedRiver, Session, SessionGroupShare } from '@/types/session';
 import { UserProfile } from '@/types/user';
 import { CatchEvent, SessionSegment } from '@/types/activity';
 import { SavedFly } from '@/types/fly';
@@ -47,6 +47,14 @@ import { deleteSavedLeaderFormulasForUser, listSavedLeaderFormulas } from '@/db/
 import { deleteSavedRigPresetsForUser, listSavedRigPresets } from '@/db/savedRigPresetRepo';
 import { deleteSavedRiversForUser, listSavedRivers } from '@/db/savedRiverRepo';
 import { deleteSessions, deleteSessionsForUser, listSessions } from '@/db/sessionRepo';
+import {
+  createSessionGroupShare,
+  deleteSessionGroupShares,
+  deleteSessionGroupSharesForGroup,
+  deleteSessionGroupSharesForSessions,
+  deleteSessionGroupSharesForUser,
+  listSessionGroupShares
+} from '@/db/sessionGroupShareRepo';
 import { deleteSessionSegmentsForSessions, deleteSessionSegmentsForUser, listSessionSegments } from '@/db/sessionSegmentRepo';
 import { deleteCatchEventsForSessions, deleteCatchEventsForUser, listCatchEvents } from '@/db/catchEventRepo';
 import { getActiveUserId as loadActiveUserId, setActiveUserId as saveActiveUserId } from '@/db/settingsRepo';
@@ -67,12 +75,14 @@ import {
 } from '@/db/accessRepo';
 import { createSyncQueueEntry, deleteSyncQueueEntriesForUserReset, listSyncQueueEntries, markAllPendingSyncEntriesAsSynced } from '@/db/syncRepo';
 import { classifyExperimentIntegrity, classifySessionIntegrity } from '@/services/dataIntegrityService';
+import { applySessionShareIds } from '@/utils/sessionSharing';
 
 export interface LoadedLocalAppData {
   users: UserProfile[];
   activeUserId: number | null;
   sessions: Session[];
   allSessions: Session[];
+  sessionGroupShares: SessionGroupShare[];
   sessionSegments: SessionSegment[];
   catchEvents: CatchEvent[];
   allCatchEvents: CatchEvent[];
@@ -133,6 +143,7 @@ export const loadLocalAppData = async (preferredUserId?: number | null): Promise
       activeUserId: null,
       sessions: [],
       allSessions: [],
+      sessionGroupShares: [],
       sessionSegments: [],
       catchEvents: [],
       allCatchEvents: [],
@@ -158,8 +169,9 @@ export const loadLocalAppData = async (preferredUserId?: number | null): Promise
     };
   }
 
-  const [sessions, sessionSegments, catchEvents, experiments, savedFlies, savedLeaderFormulas, savedRigPresets, savedRivers, groups, groupMemberships, sharePreferences, competitions, competitionGroups, competitionSessions, competitionParticipants, competitionAssignments, invites, sponsoredAccess, syncQueue] = await Promise.all([
+  const [sessions, sessionGroupShares, sessionSegments, catchEvents, experiments, savedFlies, savedLeaderFormulas, savedRigPresets, savedRivers, groups, groupMemberships, sharePreferences, competitions, competitionGroups, competitionSessions, competitionParticipants, competitionAssignments, invites, sponsoredAccess, syncQueue] = await Promise.all([
     listSessions(activeUserId),
+    listSessionGroupShares(),
     listSessionSegments(activeUserId),
     listCatchEvents(activeUserId),
     listExperiments(activeUserId),
@@ -179,6 +191,26 @@ export const loadLocalAppData = async (preferredUserId?: number | null): Promise
     listSponsoredAccess(),
     listSyncQueueEntries()
   ]);
+  const migratedLegacySessions = sessions.filter(
+    (session) =>
+      session.userId === activeUserId &&
+      typeof session.sharedGroupId === 'number' &&
+      !sessionGroupShares.some((share) => share.sessionId === session.id && share.groupId === session.sharedGroupId)
+  );
+  let normalizedSessionGroupShares = sessionGroupShares;
+  if (migratedLegacySessions.length) {
+    const createdShares: SessionGroupShare[] = [];
+    for (const session of migratedLegacySessions) {
+      createdShares.push(
+        await createSessionGroupShare({
+          userId: session.userId,
+          sessionId: session.id,
+          groupId: session.sharedGroupId!
+        })
+      );
+    }
+    normalizedSessionGroupShares = [...sessionGroupShares, ...createdShares];
+  }
   const allSessionLists = await Promise.all(users.map((user) => listSessions(user.id)));
   const allExperimentLists = await Promise.all(users.map((user) => listExperiments(user.id)));
   const allCatchLists = await Promise.all(users.map((user) => listCatchEvents(user.id)));
@@ -186,8 +218,9 @@ export const loadLocalAppData = async (preferredUserId?: number | null): Promise
   return {
     users,
     activeUserId,
-    sessions,
-    allSessions: allSessionLists.flat(),
+    sessions: applySessionShareIds(sessions, normalizedSessionGroupShares),
+    allSessions: applySessionShareIds(allSessionLists.flat(), normalizedSessionGroupShares),
+    sessionGroupShares: normalizedSessionGroupShares,
     sessionSegments,
     catchEvents,
     allCatchEvents: allCatchLists.flat(),
@@ -272,6 +305,12 @@ export const leaveLocalGroup = async (activeUserId: number, groupId: number) => 
   if (membership) {
     await deleteGroupMembership(membership.id);
   }
+  const ownedSessionShareIds = (await listSessionGroupShares())
+    .filter((share) => share.userId === activeUserId && share.groupId === groupId)
+    .map((share) => share.id);
+  if (ownedSessionShareIds.length) {
+    await deleteSessionGroupShares(ownedSessionShareIds);
+  }
   const deletedGroup = await pruneEmptyGroupIfNeeded(groupId);
 
   return {
@@ -290,6 +329,7 @@ export const deleteLocalGroup = async (activeUserId: number, groupId: number) =>
 
   await deleteSharePreferencesForGroup(groupId);
   await deleteAccessRecordsForGroup(groupId);
+  await deleteSessionGroupSharesForGroup(groupId);
   if (targetGroup) {
     await deleteGroup(groupId);
   }
@@ -305,6 +345,11 @@ export const clearLocalGroupsForUser = async (userId: number) => {
   for (const membership of joinedMemberships) {
     await deleteSharePreferencesForUserAndGroup(userId, membership.groupId);
     await deleteGroupMembership(membership.id);
+    await deleteSessionGroupShares(
+      (await listSessionGroupShares())
+        .filter((share) => share.userId === userId && share.groupId === membership.groupId)
+        .map((share) => share.id)
+    );
     removedMemberships += 1;
     const deletedGroup = await pruneEmptyGroupIfNeeded(membership.groupId);
     if (deletedGroup) {
@@ -317,6 +362,7 @@ export const clearLocalGroupsForUser = async (userId: number) => {
     if (!stillExists) continue;
     await deleteSharePreferencesForGroup(group.id);
     await deleteAccessRecordsForGroup(group.id);
+    await deleteSessionGroupSharesForGroup(group.id);
     await deleteGroup(group.id);
     removedGroups += 1;
   }
@@ -490,6 +536,7 @@ export const clearLocalFishingDataForUser = async (
   await deleteCatchEventsForUser(userId);
   await deleteSessionSegmentsForUser(userId);
   await deleteExperimentsForUser(userId);
+  await deleteSessionGroupSharesForUser(userId);
   await deleteSessionsForUser(userId);
   await deleteCompetitionsForUser(userId);
   await clearLocalGroupsForUser(userId);
@@ -541,6 +588,7 @@ export const clearLocalUserDataCategories = async (userId: number, categories: U
         if (linkedProblemExperimentIds.length) {
           await deleteExperiments(linkedProblemExperimentIds);
         }
+        await deleteSessionGroupSharesForSessions(problemSessionIds);
         await deleteSessions(problemSessionIds);
       }
       const orphanedExperimentIds = experiments
@@ -570,6 +618,7 @@ export const clearLocalUserDataCategories = async (userId: number, categories: U
         if (linkedIncompleteExperimentIds.length) {
           await deleteExperiments(linkedIncompleteExperimentIds);
         }
+        await deleteSessionGroupSharesForSessions(incompleteSessionIds);
         await deleteSessions(incompleteSessionIds);
       }
       await deleteDraftExperimentsForUser(userId);
@@ -587,6 +636,7 @@ export const clearLocalUserDataCategories = async (userId: number, categories: U
     await deleteCatchEventsForUser(userId);
     await deleteSessionSegmentsForUser(userId);
     await deleteExperimentsForUser(userId);
+    await deleteSessionGroupSharesForUser(userId);
     await deleteSessionsForUser(userId);
   } else if (targets.includes('experiments')) {
     await deleteExperimentsForUser(userId);
@@ -612,4 +662,37 @@ export const clearLocalUserDataCategories = async (userId: number, categories: U
 export const deleteLocalAnglerData = async (userId: number) => {
   await clearLocalFishingDataForUser(userId);
   await deleteUser(userId);
+};
+
+export const replaceLocalSessionGroupShares = async (
+  userId: number,
+  sessionId: number,
+  groupIds: number[]
+) => {
+  const existingShares = (await listSessionGroupShares()).filter((share) => share.sessionId === sessionId && share.userId === userId);
+  const normalizedGroupIds = [...new Set(groupIds)];
+  const existingGroupIds = new Set(existingShares.map((share) => share.groupId));
+  const nextGroupIds = new Set(normalizedGroupIds);
+
+  const removedShares = existingShares.filter((share) => !nextGroupIds.has(share.groupId));
+  if (removedShares.length) {
+    await deleteSessionGroupShares(removedShares.map((share) => share.id));
+  }
+
+  const createdShares: SessionGroupShare[] = [];
+  for (const groupId of normalizedGroupIds) {
+    if (existingGroupIds.has(groupId)) continue;
+    createdShares.push(
+      await createSessionGroupShare({
+        userId,
+        sessionId,
+        groupId
+      })
+    );
+  }
+
+  return {
+    createdShares,
+    removedShares
+  };
 };

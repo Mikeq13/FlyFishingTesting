@@ -25,6 +25,8 @@ export const REMOTE_ACCESS_SELECTS = {
 export const REMOTE_SHARED_SELECTS = {
   sessions:
     'id, owner_auth_user_id, local_record_id, date, session_mode, planned_duration_minutes, alert_interval_minutes, alert_markers_json, notification_sound_enabled, notification_vibration_enabled, ended_at, start_at, end_at, water_type, depth_range, shared_group_id, practice_measurement_enabled, practice_length_unit, competition_id, competition_assignment_id, competition_group_id, competition_session_id, competition_assigned_group, competition_role, competition_beat, competition_session_number, competition_requires_measurement, competition_length_unit, starting_rig_setup_json, river_name, hypothesis, notes',
+  sessionGroupShares:
+    'id, owner_auth_user_id, local_record_id, session_id, group_id, created_at',
   sessionSegments:
     'id, owner_auth_user_id, local_record_id, session_id, session_mode, river_name, water_type, depth_range, started_at, ended_at, fly_snapshots_json, rig_setup_json, notes',
   catchEvents:

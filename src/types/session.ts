@@ -36,6 +36,7 @@ export interface Session {
   waterType: WaterType;
   depthRange: DepthRange;
   sharedGroupId?: number;
+  sharedGroupIds?: number[];
   practiceMeasurementEnabled?: boolean;
   practiceLengthUnit?: PracticeLengthUnit;
   competitionId?: number;
@@ -53,6 +54,14 @@ export interface Session {
   hypothesis?: string;
   notes?: string;
   legacyContextMissing?: boolean;
+}
+
+export interface SessionGroupShare {
+  id: number;
+  userId: number;
+  sessionId: number;
+  groupId: number;
+  createdAt: string;
 }
 
 export interface SavedRiver {

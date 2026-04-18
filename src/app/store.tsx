@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { Experiment, Insight } from '@/types/experiment';
-import { SavedRiver, Session } from '@/types/session';
+import { SavedRiver, Session, SessionGroupShare } from '@/types/session';
 import { UserProfile } from '@/types/user';
 import { SavedFly } from '@/types/fly';
 import { CatchEvent, SessionSegment } from '@/types/activity';
@@ -42,6 +42,7 @@ import { getNotificationPermissionStatus } from '@/utils/sessionNotifications';
 import { classifyExperimentIntegrity, classifyGroupIntegrity, classifySessionIntegrity } from '@/services/dataIntegrityService';
 import { IntegritySummary } from '@/types/dataIntegrity';
 import { upsertSyncMetadataEntry } from '@/db/syncMetadataRepo';
+import { applySessionShareIds } from '@/utils/sessionSharing';
 
 export type { UserDataCleanupCategory };
 
@@ -73,6 +74,7 @@ const toStructuralBackendMessage = (error: unknown) =>
 export const AppStoreProvider = ({ children }: { children: React.ReactNode }) => {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [allSessions, setAllSessions] = useState<Session[]>([]);
+  const [sessionGroupShares, setSessionGroupShares] = useState<SessionGroupShare[]>([]);
   const [sessionSegments, setSessionSegments] = useState<SessionSegment[]>([]);
   const [catchEvents, setCatchEvents] = useState<CatchEvent[]>([]);
   const [allCatchEvents, setAllCatchEvents] = useState<CatchEvent[]>([]);
@@ -384,6 +386,8 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     let nextUsers = loaded.users;
     let nextSessions = loaded.sessions;
     let nextAllSessions = loaded.allSessions;
+    let nextSessionGroupShares = loaded.sessionGroupShares;
+    let nextAllSessionGroupShares = loaded.sessionGroupShares;
     let nextSessionSegments = loaded.sessionSegments;
     let nextCatchEvents = loaded.catchEvents;
     let nextAllCatchEvents = loaded.allCatchEvents;
@@ -439,8 +443,10 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         nextCompetitionParticipants = mergeById(loaded.competitionParticipants, remoteAccess.competitionParticipants);
         nextCompetitionAssignments = mergeById(loaded.competitionAssignments, remoteAccess.competitionAssignments);
 
-        nextSessions = mergeById(loaded.sessions, remoteShared.ownedSessions);
-        nextAllSessions = mergeById(loaded.allSessions, remoteShared.accessibleSessions);
+        nextSessionGroupShares = mergeById(loaded.sessionGroupShares, remoteShared.ownedSessionGroupShares);
+        nextAllSessionGroupShares = mergeById(loaded.sessionGroupShares, remoteShared.accessibleSessionGroupShares);
+        nextSessions = applySessionShareIds(mergeById(loaded.sessions, remoteShared.ownedSessions), nextSessionGroupShares);
+        nextAllSessions = applySessionShareIds(mergeById(loaded.allSessions, remoteShared.accessibleSessions), nextAllSessionGroupShares);
         nextSessionSegments = mergeById(loaded.sessionSegments, remoteShared.ownedSessionSegments);
         nextCatchEvents = mergeById(loaded.catchEvents, remoteShared.ownedCatchEvents);
         nextAllCatchEvents = mergeById(loaded.allCatchEvents, remoteShared.accessibleCatchEvents);
@@ -481,8 +487,10 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     nextCompetitionSessions = suppressPendingDeletes(nextCompetitionSessions, loaded.syncQueue, ['competition_session']);
     nextCompetitionParticipants = suppressPendingDeletes(nextCompetitionParticipants, loaded.syncQueue, ['competition_participant']);
     nextCompetitionAssignments = suppressPendingDeletes(nextCompetitionAssignments, loaded.syncQueue, ['competition_assignment']);
-    nextSessions = suppressPendingDeletes(nextSessions, loaded.syncQueue, ['session']);
-    nextAllSessions = suppressPendingDeletes(nextAllSessions, loaded.syncQueue, ['session']);
+    nextSessionGroupShares = suppressPendingDeletes(nextSessionGroupShares, loaded.syncQueue, ['session_group_share']);
+    nextAllSessionGroupShares = suppressPendingDeletes(nextAllSessionGroupShares, loaded.syncQueue, ['session_group_share']);
+    nextSessions = applySessionShareIds(suppressPendingDeletes(nextSessions, loaded.syncQueue, ['session']), nextSessionGroupShares);
+    nextAllSessions = applySessionShareIds(suppressPendingDeletes(nextAllSessions, loaded.syncQueue, ['session']), nextAllSessionGroupShares);
     nextSessionSegments = suppressPendingDeletes(nextSessionSegments, loaded.syncQueue, ['session_segment']);
     nextCatchEvents = suppressPendingDeletes(nextCatchEvents, loaded.syncQueue, ['catch_event']);
     nextAllCatchEvents = suppressPendingDeletes(nextAllCatchEvents, loaded.syncQueue, ['catch_event']);
@@ -496,6 +504,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     setUsers(nextUsers);
     setSessions(nextSessions);
     setAllSessions(nextAllSessions);
+    setSessionGroupShares(nextSessionGroupShares);
     setSessionSegments(nextSessionSegments);
     setCatchEvents(nextCatchEvents);
     setAllCatchEvents(nextAllCatchEvents);
@@ -694,6 +703,10 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
 
     for (const session of loaded.sessions) {
       await trackSyncChange('session', 'create', session.id, session);
+    }
+
+    for (const share of loaded.sessionGroupShares.filter((entry) => entry.userId === targetUser.id)) {
+      await trackSyncChange('session_group_share', 'create', share.id, share);
     }
 
     for (const segment of loaded.sessionSegments) {
@@ -1015,6 +1028,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     invites,
     sponsoredAccess,
     experiments,
+    sessionGroupShares,
     sessionMap,
     remoteSession,
     ownerIdentityLinked,
@@ -1039,6 +1053,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       value={{
         sessions,
         allSessions,
+        sessionGroupShares,
         sessionSegments,
         catchEvents,
         allCatchEvents,
