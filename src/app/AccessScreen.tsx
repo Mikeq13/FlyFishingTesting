@@ -40,6 +40,7 @@ const ONBOARDING_NOTE_KEY = 'tester_onboarding.note';
 export const AccessScreen = ({ navigation }: any) => {
   const layout = useResponsiveLayout();
   const { theme, themeId, setThemeId, themeOptions } = useTheme();
+  const scrollViewRef = React.useRef<ScrollView | null>(null);
   const {
     users,
     ownerUser,
@@ -126,7 +127,7 @@ export const AccessScreen = ({ navigation }: any) => {
   const [mfaFriendlyName, setMfaFriendlyName] = React.useState('Fishing Lab Authenticator');
   const [mfaCode, setMfaCode] = React.useState('');
   const [expandedSections, setExpandedSections] = React.useState<Record<UtilitySectionKey, boolean>>({
-    accountInfo: true,
+    accountInfo: false,
     appearance: false,
     billing: false,
     competitions: false,
@@ -146,6 +147,7 @@ export const AccessScreen = ({ navigation }: any) => {
     competitionOrganizer: false,
     userManagement: false
   });
+  const [problemReviewOffsetY, setProblemReviewOffsetY] = React.useState(0);
   const currentUserSessions = React.useMemo(() => sessions.filter((session) => session.userId === currentUser?.id), [currentUser?.id, sessions]);
   const currentUserExperiments = React.useMemo(() => experiments.filter((experiment) => experiment.userId === currentUser?.id), [currentUser?.id, experiments]);
   const incompleteSessions = React.useMemo(
@@ -421,6 +423,24 @@ export const AccessScreen = ({ navigation }: any) => {
     ];
   };
 
+  const openProblemRecordReview = React.useCallback(() => {
+    setExpandedSections((current) => ({ ...current, dataManagement: true }));
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: Math.max(problemReviewOffsetY - 18, 0), animated: true });
+    }, 80);
+  }, [problemReviewOffsetY]);
+
+  const confirmCleanupCategory = (userId: number, userName: string, category: UserDataCleanupCategory) => {
+    const item = simplifiedCleanupConfig.find((entry) => entry.key === category)!;
+    const previewLines = buildCleanupPreview(category);
+    confirmAdminAction(
+      `${item.label}?`,
+      `${item.description}\n\nThis will remove:\n${previewLines.map((line) => `• ${line}`).join('\n')}\n\nJoined shared records owned by other anglers are detached instead of globally deleted.`,
+      () => (item.key === 'all' ? clearFishingDataForUser(userId) : clearUserDataCategories(userId, [item.key])),
+      `${item.label.replace('Clear ', '')} finished for ${userName}. ${previewLines.join(' | ')}`
+    );
+  };
+
   const renderCleanupActions = (userId: number, userName: string) => (
     <ActionGroup>
       {simplifiedCleanupConfig.map((item) => (
@@ -545,8 +565,13 @@ export const AccessScreen = ({ navigation }: any) => {
   };
 
   const handleCleanupCategory = (userId: number, userName: string, category: UserDataCleanupCategory) => {
-    const item = simplifiedCleanupConfig.find((entry) => entry.key === category);
-    if (!item) return;
+    if (category === 'problem') {
+      openProblemRecordReview();
+      return;
+    }
+    confirmCleanupCategory(userId, userName, category);
+    return;
+    const item = simplifiedCleanupConfig.find((entry) => entry.key === category)!;
     const previewLines = buildCleanupPreview(category);
     confirmAdminAction(
       `${item.label}?`,
@@ -721,6 +746,7 @@ export const AccessScreen = ({ navigation }: any) => {
   return (
     <ScreenBackground>
       <ScrollView
+        ref={scrollViewRef}
         contentContainerStyle={layout.buildScrollContentStyle({ gap: 12, bottomPadding: 40 })}
         keyboardShouldPersistTaps="handled"
       >
@@ -762,6 +788,7 @@ export const AccessScreen = ({ navigation }: any) => {
               onAccountEmailChange={setAccountEmail}
               onSaveName={() => updateCurrentUserName(accountName)}
               onUpdateEmail={() => updateAccountEmail(accountEmail)}
+              nestedEditControls
               embedded
             />
           )
@@ -826,6 +853,90 @@ export const AccessScreen = ({ navigation }: any) => {
           summary: <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>Cleanup and local profile maintenance for {currentUser.name}.</Text>,
           children: (
             <View style={{ gap: 10 }}>
+              <View onLayout={(event) => setProblemReviewOffsetY(event.nativeEvent.layout.y)}>
+                <SectionCard
+                  title="Review Problem Records"
+                  subtitle="Inspect incomplete, legacy, or malformed records before removing them, or clear them in one pass."
+                  tone="light"
+                >
+                  <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+                    {problemSessions.length} problem session{problemSessions.length === 1 ? '' : 's'} and {problemExperiments.length} problem experiment{problemExperiments.length === 1 ? '' : 's'} are currently excluded from trusted insights.
+                  </Text>
+                  <AppButton
+                    label="Clear All Problem Records"
+                    onPress={() => confirmCleanupCategory(currentUser.id, currentUser.name, 'problem')}
+                    variant="danger"
+                    surfaceTone="light"
+                  />
+                  <AppButton
+                    label="Repair Old Records"
+                    onPress={() => repairOldRecords().catch((error) => Alert.alert('Unable to repair records', error instanceof Error ? error.message : 'Please try again.'))}
+                    variant="secondary"
+                    surfaceTone="light"
+                  />
+                  {problemSessions.map((session) => (
+                    <View
+                      key={`problem-session-${session.id}`}
+                      style={{
+                        gap: 6,
+                        padding: 10,
+                        borderRadius: theme.radius.md,
+                        backgroundColor: theme.colors.nestedSurface,
+                        borderWidth: 1,
+                        borderColor: theme.colors.nestedSurfaceBorder
+                      }}
+                    >
+                      <InlineSummaryRow label="Session" value={new Date(session.date).toLocaleString()} tone="light" />
+                      <InlineSummaryRow label="Status" value={getSessionIntegrity(session.id).label} tone="light" />
+                      {getSessionIntegrity(session.id).reason ? (
+                        <Text style={{ color: theme.colors.textDarkSoft }}>{getSessionIntegrity(session.id).reason}</Text>
+                      ) : null}
+                      <AppButton label="Delete Session" onPress={() => handleDeleteProblemSession(session.id)} variant="danger" surfaceTone="light" />
+                    </View>
+                  ))}
+                  {problemExperiments.map((experiment) => (
+                    <View
+                      key={`problem-experiment-${experiment.id}`}
+                      style={{
+                        gap: 6,
+                        padding: 10,
+                        borderRadius: theme.radius.md,
+                        backgroundColor: theme.colors.nestedSurface,
+                        borderWidth: 1,
+                        borderColor: theme.colors.nestedSurfaceBorder
+                      }}
+                    >
+                      <InlineSummaryRow label="Experiment" value={experiment.hypothesis || `Experiment #${experiment.id}`} tone="light" />
+                      <InlineSummaryRow label="Status" value={getExperimentIntegrity(experiment.id).label} tone="light" />
+                      {getExperimentIntegrity(experiment.id).reason ? (
+                        <Text style={{ color: theme.colors.textDarkSoft }}>{getExperimentIntegrity(experiment.id).reason}</Text>
+                      ) : null}
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <View style={{ flex: 1 }}>
+                          <AppButton
+                            label="Edit"
+                            onPress={() => navigation.navigate('Experiment', { sessionId: experiment.sessionId, experimentId: experiment.id })}
+                            variant="secondary"
+                            surfaceTone="light"
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <AppButton
+                            label="Delete"
+                            onPress={() =>
+                              runAdminAction(() => deleteExperiment(experiment.id), 'Problem experiment deleted.').catch((error) =>
+                                Alert.alert('Unable to finish action', error instanceof Error ? error.message : 'Please try again.')
+                              )
+                            }
+                            variant="danger"
+                            surfaceTone="light"
+                          />
+                        </View>
+                      </View>
+                    </View>
+                  ))}
+                </SectionCard>
+              </View>
               <LocalDataSection
                 isOwner={currentUser.role === 'owner'}
                 cleanupActions={renderCleanupActions(currentUser.id, currentUser.name)}
@@ -833,88 +944,6 @@ export const AccessScreen = ({ navigation }: any) => {
                 onDeleteProfile={deleteCurrentProfile}
                 embedded
               />
-              <SectionCard
-                title="Review Problem Records"
-                subtitle="Inspect legacy or malformed records before removing them, or clear them in one pass."
-                tone="light"
-              >
-                <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-                  {problemSessions.length} problem session{problemSessions.length === 1 ? '' : 's'} and {problemExperiments.length} problem experiment{problemExperiments.length === 1 ? '' : 's'} are currently excluded from trusted insights.
-                </Text>
-                <AppButton
-                  label="Clear All Problem Records"
-                  onPress={() => handleCleanupCategory(currentUser.id, currentUser.name, 'problem')}
-                  variant="danger"
-                  surfaceTone="light"
-                />
-                <AppButton
-                  label="Repair Old Records"
-                  onPress={() => repairOldRecords().catch((error) => Alert.alert('Unable to repair records', error instanceof Error ? error.message : 'Please try again.'))}
-                  variant="secondary"
-                  surfaceTone="light"
-                />
-                {problemSessions.map((session) => (
-                  <View
-                    key={`problem-session-${session.id}`}
-                    style={{
-                      gap: 6,
-                      padding: 10,
-                      borderRadius: theme.radius.md,
-                      backgroundColor: theme.colors.nestedSurface,
-                      borderWidth: 1,
-                      borderColor: theme.colors.nestedSurfaceBorder
-                    }}
-                  >
-                    <InlineSummaryRow label="Session" value={new Date(session.date).toLocaleString()} tone="light" />
-                    <InlineSummaryRow label="Status" value={getSessionIntegrity(session.id).label} tone="light" />
-                    {getSessionIntegrity(session.id).reason ? (
-                      <Text style={{ color: theme.colors.textDarkSoft }}>{getSessionIntegrity(session.id).reason}</Text>
-                    ) : null}
-                    <AppButton label="Delete Session" onPress={() => handleDeleteProblemSession(session.id)} variant="danger" surfaceTone="light" />
-                  </View>
-                ))}
-                {problemExperiments.map((experiment) => (
-                  <View
-                    key={`problem-experiment-${experiment.id}`}
-                    style={{
-                      gap: 6,
-                      padding: 10,
-                      borderRadius: theme.radius.md,
-                      backgroundColor: theme.colors.nestedSurface,
-                      borderWidth: 1,
-                      borderColor: theme.colors.nestedSurfaceBorder
-                    }}
-                  >
-                    <InlineSummaryRow label="Experiment" value={experiment.hypothesis || `Experiment #${experiment.id}`} tone="light" />
-                    <InlineSummaryRow label="Status" value={getExperimentIntegrity(experiment.id).label} tone="light" />
-                    {getExperimentIntegrity(experiment.id).reason ? (
-                      <Text style={{ color: theme.colors.textDarkSoft }}>{getExperimentIntegrity(experiment.id).reason}</Text>
-                    ) : null}
-                    <View style={{ flexDirection: 'row', gap: 8 }}>
-                      <View style={{ flex: 1 }}>
-                        <AppButton
-                          label="Edit"
-                          onPress={() => navigation.navigate('Experiment', { sessionId: experiment.sessionId, experimentId: experiment.id })}
-                          variant="secondary"
-                          surfaceTone="light"
-                        />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <AppButton
-                          label="Delete"
-                          onPress={() =>
-                            runAdminAction(() => deleteExperiment(experiment.id), 'Problem experiment deleted.').catch((error) =>
-                              Alert.alert('Unable to finish action', error instanceof Error ? error.message : 'Please try again.')
-                            )
-                          }
-                          variant="danger"
-                          surfaceTone="light"
-                        />
-                      </View>
-                    </View>
-                  </View>
-                ))}
-              </SectionCard>
             </View>
           )
         })}

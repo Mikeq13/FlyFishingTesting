@@ -511,12 +511,25 @@ export const clearLocalUserDataCategories = async (userId: number, categories: U
   if (targets.includes('problem') || targets.includes('incomplete') || targets.includes('archived')) {
     const [sessions, experiments] = await Promise.all([listSessions(userId), listExperiments(userId, { includeArchived: true })]);
     const sessionMap = new Map(sessions.map((session) => [session.id, session]));
+    const experimentCountBySessionId = new Map<number, number>();
+    const catchCountBySessionId = new Map<number, number>();
+
+    experiments.forEach((experiment) => {
+      experimentCountBySessionId.set(experiment.sessionId, (experimentCountBySessionId.get(experiment.sessionId) ?? 0) + 1);
+    });
+    const catchEvents = await listCatchEvents(userId);
+    catchEvents.forEach((event) => {
+      catchCountBySessionId.set(event.sessionId, (catchCountBySessionId.get(event.sessionId) ?? 0) + 1);
+    });
 
     if (targets.includes('problem')) {
       const problemSessionIds = sessions
         .filter((session) => {
-          const integrity = classifySessionIntegrity(session);
-          return integrity.state === 'legacy_unreviewed' || integrity.state === 'orphaned';
+          const integrity = classifySessionIntegrity(session, 'active', {
+            experimentCount: experimentCountBySessionId.get(session.id) ?? 0,
+            catchCount: catchCountBySessionId.get(session.id) ?? 0
+          });
+          return integrity.state === 'legacy_unreviewed' || integrity.state === 'orphaned' || integrity.state === 'incomplete';
         })
         .map((session) => session.id);
       if (problemSessionIds.length) {
@@ -540,7 +553,13 @@ export const clearLocalUserDataCategories = async (userId: number, categories: U
 
     if (targets.includes('incomplete')) {
       const incompleteSessionIds = sessions
-        .filter((session) => classifySessionIntegrity(session).state === 'incomplete')
+        .filter(
+          (session) =>
+            classifySessionIntegrity(session, 'active', {
+              experimentCount: experimentCountBySessionId.get(session.id) ?? 0,
+              catchCount: catchCountBySessionId.get(session.id) ?? 0
+            }).state === 'incomplete'
+        )
         .map((session) => session.id);
       if (incompleteSessionIds.length) {
         const linkedIncompleteExperimentIds = experiments

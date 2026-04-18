@@ -233,11 +233,27 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
 
   const sessionIntegrityById = useMemo(() => {
     const map = new Map<number, IntegritySummary>();
+    const experimentCountBySessionId = new Map<number, number>();
+    const catchCountBySessionId = new Map<number, number>();
+
+    experiments.forEach((experiment) => {
+      experimentCountBySessionId.set(experiment.sessionId, (experimentCountBySessionId.get(experiment.sessionId) ?? 0) + 1);
+    });
+    catchEvents.forEach((event) => {
+      catchCountBySessionId.set(event.sessionId, (catchCountBySessionId.get(event.sessionId) ?? 0) + 1);
+    });
+
     sessions.forEach((session) => {
-      map.set(session.id, classifySessionIntegrity(session, getSyncRecordState('session', session.id)));
+      map.set(
+        session.id,
+        classifySessionIntegrity(session, getSyncRecordState('session', session.id), {
+          experimentCount: experimentCountBySessionId.get(session.id) ?? 0,
+          catchCount: catchCountBySessionId.get(session.id) ?? 0
+        })
+      );
     });
     return map;
-  }, [getSyncRecordState, sessions]);
+  }, [catchEvents, experiments, getSyncRecordState, sessions]);
 
   const experimentIntegrityById = useMemo(() => {
     const map = new Map<number, IntegritySummary>();
@@ -287,8 +303,25 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   );
 
   const analyticsEligibleAllSessions = useMemo(
-    () => allSessions.filter((session) => classifySessionIntegrity(session).analyticsEligible),
-    [allSessions]
+    () => {
+      const experimentCountBySessionId = new Map<number, number>();
+      const catchCountBySessionId = new Map<number, number>();
+
+      allExperiments.forEach((experiment) => {
+        experimentCountBySessionId.set(experiment.sessionId, (experimentCountBySessionId.get(experiment.sessionId) ?? 0) + 1);
+      });
+      allCatchEvents.forEach((event) => {
+        catchCountBySessionId.set(event.sessionId, (catchCountBySessionId.get(event.sessionId) ?? 0) + 1);
+      });
+
+      return allSessions.filter((session) =>
+        classifySessionIntegrity(session, 'active', {
+          experimentCount: experimentCountBySessionId.get(session.id) ?? 0,
+          catchCount: catchCountBySessionId.get(session.id) ?? 0
+        }).analyticsEligible
+      );
+    },
+    [allCatchEvents, allExperiments, allSessions]
   );
 
   const analyticsEligibleAllExperiments = useMemo(() => {

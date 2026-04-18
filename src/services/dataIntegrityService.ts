@@ -4,6 +4,11 @@ import { Session } from '@/types/session';
 import { IntegritySummary } from '@/types/dataIntegrity';
 import { SyncCleanupState } from '@/types/remote';
 
+export interface SessionIntegrityActivity {
+  experimentCount?: number;
+  catchCount?: number;
+}
+
 const hasMeaningfulExperimentData = (experiment: Experiment) => {
   const entries = getExperimentEntries(experiment);
   const totalCasts = entries.reduce((sum, entry) => sum + entry.casts, 0);
@@ -18,7 +23,8 @@ export const normalizeLegacyExperimentStatus = (experiment: Experiment): Experim
 
 export const classifySessionIntegrity = (
   session: Session,
-  cleanupState: SyncCleanupState = 'active'
+  cleanupState: SyncCleanupState = 'active',
+  activity: SessionIntegrityActivity = {}
 ): IntegritySummary => {
   if (cleanupState === 'failed_cleanup') {
     return {
@@ -44,6 +50,17 @@ export const classifySessionIntegrity = (
       label: 'Incomplete',
       analyticsEligible: false,
       reason: 'This session is missing core context needed for trusted analytics.'
+    };
+  }
+
+  const experimentCount = activity.experimentCount ?? 0;
+  const catchCount = activity.catchCount ?? 0;
+  if (experimentCount < 1 && catchCount < 1) {
+    return {
+      state: 'incomplete',
+      label: 'Incomplete',
+      analyticsEligible: false,
+      reason: 'This session has setup details, but no catches or experiments were logged yet.'
     };
   }
 
@@ -104,7 +121,7 @@ export const classifyExperimentIntegrity = (
     };
   }
 
-  const sessionIntegrity = classifySessionIntegrity(session);
+  const sessionIntegrity = classifySessionIntegrity(session, 'active', { experimentCount: 1 });
   if (sessionIntegrity.state !== 'valid') {
     return {
       state: sessionIntegrity.state,

@@ -407,7 +407,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
       )}
       {!!problemSessions.length && (
         <SectionCard
-          title="Problem Sessions"
+          title="Incomplete Or Problem Sessions"
           subtitle="These sessions are excluded from trusted analytics, but you can still review or remove them here."
           tone="light"
         >

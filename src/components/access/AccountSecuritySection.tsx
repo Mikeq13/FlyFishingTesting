@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, TextInput, View } from 'react-native';
+import { Alert, Pressable, Text, TextInput, View } from 'react-native';
 import { AppButton } from '@/components/ui/AppButton';
 import { FormField, getFormInputStyle } from '@/components/ui/FormField';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
@@ -20,7 +20,8 @@ export const AccountSecuritySection = ({
   onAccountEmailChange,
   onSaveName,
   onUpdateEmail,
-  embedded = false
+  embedded = false,
+  nestedEditControls = false
 }: {
   currentUserName: string;
   currentEntitlementLabel: string;
@@ -33,9 +34,11 @@ export const AccountSecuritySection = ({
   onSaveName: () => Promise<void>;
   onUpdateEmail: () => Promise<void>;
   embedded?: boolean;
+  nestedEditControls?: boolean;
 }) => {
   const { theme } = useTheme();
   const formInputStyle = getFormInputStyle();
+  const [editExpanded, setEditExpanded] = React.useState(false);
 
   const runAction = async (action: () => Promise<void>, successTitle: string, successMessage: string) => {
     try {
@@ -73,23 +76,72 @@ export const AccountSecuritySection = ({
         <StatusBanner tone="info" text="Check your inbox and finish the verification step. Some account changes stay pending until that email step completes." />
       ) : null}
 
-      <FormField label="Account Name" tone="light">
-        <TextInput value={accountName} onChangeText={onAccountNameChange} placeholder="Your name" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
-      </FormField>
-      <AppButton label="Save Name" onPress={() => runAction(onSaveName, 'Account updated', 'Your account name and angler profile label were updated.')} surfaceTone="light" />
+      {nestedEditControls ? (
+        <View
+          style={{
+            gap: 8,
+            borderRadius: 12,
+            padding: 12,
+            backgroundColor: theme.colors.nestedSurface,
+            borderWidth: 1,
+            borderColor: theme.colors.nestedSurfaceBorder
+          }}
+        >
+          <Pressable
+            onPress={() => setEditExpanded((current) => !current)}
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}
+          >
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={{ color: theme.colors.textDark, fontWeight: '800' }}>Edit Account</Text>
+              <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 18 }}>
+                Update your account name or email without leaving this section open all the time.
+              </Text>
+            </View>
+            <Text style={{ color: theme.colors.textDark, fontSize: 18, fontWeight: '800' }}>{editExpanded ? '-' : '+'}</Text>
+          </Pressable>
+          {editExpanded ? (
+            <>
+              <FormField label="Account Name" tone="light">
+                <TextInput value={accountName} onChangeText={onAccountNameChange} placeholder="Your name" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
+              </FormField>
+              <AppButton label="Save Name" onPress={() => runAction(onSaveName, 'Account updated', 'Your account name and angler profile label were updated.')} surfaceTone="light" />
 
-      <FormField label="Change Email" tone="light">
-        <TextInput
-          value={accountEmail}
-          onChangeText={onAccountEmailChange}
-          placeholder="angler@email.com"
-          placeholderTextColor={theme.colors.inputPlaceholder}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          style={formInputStyle}
-        />
-      </FormField>
-      <AppButton label="Update Email" onPress={() => runAction(onUpdateEmail, 'Verification needed', 'Check your inbox to confirm the email change.')} surfaceTone="light" />
+              <FormField label="Change Email" tone="light">
+                <TextInput
+                  value={accountEmail}
+                  onChangeText={onAccountEmailChange}
+                  placeholder="angler@email.com"
+                  placeholderTextColor={theme.colors.inputPlaceholder}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  style={formInputStyle}
+                />
+              </FormField>
+              <AppButton label="Update Email" onPress={() => runAction(onUpdateEmail, 'Verification needed', 'Check your inbox to confirm the email change.')} surfaceTone="light" />
+            </>
+          ) : null}
+        </View>
+      ) : (
+        <>
+          <FormField label="Account Name" tone="light">
+            <TextInput value={accountName} onChangeText={onAccountNameChange} placeholder="Your name" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
+          </FormField>
+          <AppButton label="Save Name" onPress={() => runAction(onSaveName, 'Account updated', 'Your account name and angler profile label were updated.')} surfaceTone="light" />
+
+          <FormField label="Change Email" tone="light">
+            <TextInput
+              value={accountEmail}
+              onChangeText={onAccountEmailChange}
+              placeholder="angler@email.com"
+              placeholderTextColor={theme.colors.inputPlaceholder}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              style={formInputStyle}
+            />
+          </FormField>
+          <AppButton label="Update Email" onPress={() => runAction(onUpdateEmail, 'Verification needed', 'Check your inbox to confirm the email change.')} surfaceTone="light" />
+        </>
+      )}
     </>
   );
 

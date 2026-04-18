@@ -247,6 +247,15 @@ export const createStoreActions = ({
       ? ['experiments', 'sessions', 'drafts', 'flies', 'formulas', 'rig_presets', 'rivers', 'groups', 'incomplete', 'problem', 'archived'] as const
       : categories;
     const loadedSessionMap = new Map(loaded.sessions.map((session) => [session.id, session]));
+    const loadedExperimentCountBySessionId = new Map<number, number>();
+    const loadedCatchCountBySessionId = new Map<number, number>();
+
+    archivedExperiments.forEach((experiment) => {
+      loadedExperimentCountBySessionId.set(experiment.sessionId, (loadedExperimentCountBySessionId.get(experiment.sessionId) ?? 0) + 1);
+    });
+    loaded.catchEvents.forEach((event) => {
+      loadedCatchCountBySessionId.set(event.sessionId, (loadedCatchCountBySessionId.get(event.sessionId) ?? 0) + 1);
+    });
 
     const queueDelete = async (entityType: SyncEntityType, recordId: number, payload: Record<string, unknown>) => {
       await trackSyncChange(entityType, 'delete', recordId, payload);
@@ -316,7 +325,13 @@ export const createStoreActions = ({
 
     if (normalizedCategories.includes('incomplete')) {
       const incompleteSessionIds = loaded.sessions
-        .filter((session) => classifySessionIntegrity(session).state === 'incomplete')
+        .filter(
+          (session) =>
+            classifySessionIntegrity(session, 'active', {
+              experimentCount: loadedExperimentCountBySessionId.get(session.id) ?? 0,
+              catchCount: loadedCatchCountBySessionId.get(session.id) ?? 0
+            }).state === 'incomplete'
+        )
         .map((session) => session.id);
       for (const event of loaded.catchEvents.filter((event) => incompleteSessionIds.includes(event.sessionId))) {
         await queueDelete('catch_event', event.id, { catchEventId: event.id });
@@ -335,8 +350,11 @@ export const createStoreActions = ({
     if (normalizedCategories.includes('problem')) {
       const problemSessionIds = loaded.sessions
         .filter((session) => {
-          const integrity = classifySessionIntegrity(session);
-          return integrity.state === 'legacy_unreviewed' || integrity.state === 'orphaned';
+          const integrity = classifySessionIntegrity(session, 'active', {
+            experimentCount: loadedExperimentCountBySessionId.get(session.id) ?? 0,
+            catchCount: loadedCatchCountBySessionId.get(session.id) ?? 0
+          });
+          return integrity.state === 'legacy_unreviewed' || integrity.state === 'orphaned' || integrity.state === 'incomplete';
         })
         .map((session) => session.id);
       for (const event of loaded.catchEvents.filter((event) => problemSessionIds.includes(event.sessionId))) {
