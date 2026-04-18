@@ -18,7 +18,7 @@ import { getFormInputStyle } from '@/components/ui/FormField';
 export const HistoryScreen = ({ navigation, route }: any) => {
   useTheme();
   const layout = useResponsiveLayout();
-  const { sessions, experiments, users, activeUserId, archiveExperiment, deleteExperiment, deleteSessionRecord, cleanupExperimentsForCurrentUser, cleanupSyncStatus, getSyncRecordState, getExperimentIntegrity, getSessionIntegrity } = useAppStore();
+  const { sessions, experiments, catchEvents, sessionSegments, users, activeUserId, archiveExperiment, deleteExperiment, deleteSessionRecord, cleanupExperimentsForCurrentUser, cleanupSyncStatus, getSyncRecordState, getExperimentIntegrity, getSessionIntegrity } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
   const initialModeFilter = route?.params?.modeFilter;
   const [riverFilter, setRiverFilter] = useState('');
@@ -147,9 +147,23 @@ export const HistoryScreen = ({ navigation, route }: any) => {
   };
 
   const runProblemSessionCleanup = (sessionId: number) => {
+    const linkedExperimentCount = experiments.filter((experiment) => experiment.sessionId === sessionId).length;
+    const catchLogCount = catchEvents.filter((event) => event.sessionId === sessionId).length;
+    const sessionSegmentCount = sessionSegments.filter((segment) => segment.sessionId === sessionId).length;
+    const consequenceParts = [
+      'this session',
+      linkedExperimentCount ? `${linkedExperimentCount} linked experiment${linkedExperimentCount === 1 ? '' : 's'}` : null,
+      catchLogCount ? `${catchLogCount} catch log${catchLogCount === 1 ? '' : 's'}` : null,
+      sessionSegmentCount ? `${sessionSegmentCount} session segment${sessionSegmentCount === 1 ? '' : 's'}` : null
+    ].filter((value): value is string => !!value);
+    const deleteMessage =
+      consequenceParts.length === 1
+        ? 'This will permanently delete this session.'
+        : `This will permanently delete ${consequenceParts.slice(0, -1).join(', ')}, and ${consequenceParts.at(-1)}.`;
+
     Alert.alert(
       'Delete this problem session?',
-      'You can delete the session by itself or delete the session together with its linked experiments.',
+      deleteMessage,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -157,20 +171,8 @@ export const HistoryScreen = ({ navigation, route }: any) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await deleteSessionRecord(sessionId, { includeLinkedExperiments: false });
-              Alert.alert('Cleanup complete', 'Problem session deleted.');
-            } catch (error) {
-              Alert.alert('Cleanup failed', error instanceof Error ? error.message : 'Please try again.');
-            }
-          }
-        },
-        {
-          text: 'Delete Session + Linked Experiments',
-          style: 'destructive',
-          onPress: async () => {
-            try {
               await deleteSessionRecord(sessionId, { includeLinkedExperiments: true });
-              Alert.alert('Cleanup complete', 'Problem session and linked experiments deleted.');
+              Alert.alert('Cleanup complete', 'Session and related records deleted.');
             } catch (error) {
               Alert.alert('Cleanup failed', error instanceof Error ? error.message : 'Please try again.');
             }
@@ -430,7 +432,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
               ) : null}
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
                 <View style={{ flex: 1 }}>
-                  <AppButton label="Open Session" onPress={() => navigation.navigate('SessionDetail', { sessionId: session.id })} variant="secondary" />
+                  <AppButton label="Resume Session" onPress={() => navigation.navigate('SessionDetail', { sessionId: session.id })} variant="secondary" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <AppButton label="Delete Session" onPress={() => runProblemSessionCleanup(session.id)} variant="danger" />

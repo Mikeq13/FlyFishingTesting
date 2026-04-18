@@ -84,6 +84,8 @@ export const AccessScreen = ({ navigation }: any) => {
     getExperimentIntegrity,
     sessions,
     experiments,
+    catchEvents,
+    sessionSegments,
     savedFlies,
     savedLeaderFormulas,
     savedRigPresets,
@@ -388,7 +390,7 @@ export const AccessScreen = ({ navigation }: any) => {
 
   const simplifiedCleanupConfig: Array<{ key: UserDataCleanupCategory; label: string; description: string; destructive?: boolean }> = [
     { key: 'incomplete', label: 'Clear Incomplete Records', description: 'Removes unfinished draft experiments and incomplete session records that should not count as solid fishing data.' },
-    { key: 'problem', label: 'Clear Problem Records', description: 'Removes legacy or malformed records that are excluded from insights because they are not trustworthy enough to keep.' },
+    { key: 'problem', label: 'Review Problem Records', description: 'Review incomplete, legacy, or malformed records before deciding whether to delete them.' },
     { key: 'archived', label: 'Clear Archived Records', description: 'Permanently deletes archived experiment records that are already hidden from normal history and insights.' },
     { key: 'all', label: 'Clear Everything', description: 'Deletes this profile’s owned sessions, experiments, saved setups, groups, and related synced records.', destructive: true }
   ];
@@ -433,11 +435,21 @@ export const AccessScreen = ({ navigation }: any) => {
   const confirmCleanupCategory = (userId: number, userName: string, category: UserDataCleanupCategory) => {
     const item = simplifiedCleanupConfig.find((entry) => entry.key === category)!;
     const previewLines = buildCleanupPreview(category);
+    const successLabel =
+      category === 'problem'
+        ? `Removed: ${problemSessions.length} session${problemSessions.length === 1 ? '' : 's'} and ${problemExperiments.length} experiment${problemExperiments.length === 1 ? '' : 's'}\nSkipped: 0\nFailed: 0`
+        : `${item.label.replace('Clear ', '')} finished for ${userName}. ${previewLines.join(' | ')}`;
+    const title = category === 'problem' ? 'Delete All Problem Records?' : `${item.label}?`;
+    const description =
+      category === 'problem'
+        ? 'This permanently removes incomplete, legacy, or malformed records that are excluded from trusted insights.'
+        : item.description;
+    item.description = description;
     confirmAdminAction(
-      `${item.label}?`,
+      title,
       `${item.description}\n\nThis will remove:\n${previewLines.map((line) => `• ${line}`).join('\n')}\n\nJoined shared records owned by other anglers are detached instead of globally deleted.`,
       () => (item.key === 'all' ? clearFishingDataForUser(userId) : clearUserDataCategories(userId, [item.key])),
-      `${item.label.replace('Clear ', '')} finished for ${userName}. ${previewLines.join(' | ')}`
+      successLabel
     );
   };
 
@@ -581,27 +593,36 @@ export const AccessScreen = ({ navigation }: any) => {
     );
   };
 
+  const getProblemSessionDeleteMessage = (sessionId: number) => {
+    const linkedExperimentCount = experiments.filter((experiment) => experiment.sessionId === sessionId).length;
+    const catchLogCount = catchEvents.filter((event) => event.sessionId === sessionId).length;
+    const sessionSegmentCount = sessionSegments.filter((segment) => segment.sessionId === sessionId).length;
+    const consequenceParts = [
+      'this session',
+      linkedExperimentCount ? `${linkedExperimentCount} linked experiment${linkedExperimentCount === 1 ? '' : 's'}` : null,
+      catchLogCount ? `${catchLogCount} catch log${catchLogCount === 1 ? '' : 's'}` : null,
+      sessionSegmentCount ? `${sessionSegmentCount} session segment${sessionSegmentCount === 1 ? '' : 's'}` : null
+    ].filter((value): value is string => !!value);
+
+    if (consequenceParts.length === 1) {
+      return 'This will permanently delete this session.';
+    }
+
+    const lastPart = consequenceParts.pop();
+    return `This will permanently delete ${consequenceParts.join(', ')}, and ${lastPart}.`;
+  };
+
   const handleDeleteProblemSession = (sessionId: number) => {
     Alert.alert(
       'Delete this session?',
-      'Choose whether to remove only the session or the session with its linked experiments.',
+      getProblemSessionDeleteMessage(sessionId),
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete Session Only',
+          text: 'Delete Session',
           style: 'destructive',
           onPress: () => {
-            runAdminAction(() => deleteSessionRecord(sessionId, { includeLinkedExperiments: false }), 'Problem session deleted.').catch((error) => {
-              const reason = error instanceof Error ? error.message : 'Please try again.';
-              Alert.alert('Unable to finish action', reason);
-            });
-          }
-        },
-        {
-          text: 'Delete Session + Linked Experiments',
-          style: 'destructive',
-          onPress: () => {
-            runAdminAction(() => deleteSessionRecord(sessionId, { includeLinkedExperiments: true }), 'Problem session and linked experiments deleted.').catch((error) => {
+            runAdminAction(() => deleteSessionRecord(sessionId, { includeLinkedExperiments: true }), 'Session and related records deleted.').catch((error) => {
               const reason = error instanceof Error ? error.message : 'Please try again.';
               Alert.alert('Unable to finish action', reason);
             });
@@ -856,18 +877,26 @@ export const AccessScreen = ({ navigation }: any) => {
               <View onLayout={(event) => setProblemReviewOffsetY(event.nativeEvent.layout.y)}>
                 <SectionCard
                   title="Review Problem Records"
-                  subtitle="Inspect incomplete, legacy, or malformed records before removing them, or clear them in one pass."
+                  subtitle="Inspect incomplete, legacy, or malformed records before removing them, or delete them in one pass."
                   tone="light"
                 >
-                  <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-                    {problemSessions.length} problem session{problemSessions.length === 1 ? '' : 's'} and {problemExperiments.length} problem experiment{problemExperiments.length === 1 ? '' : 's'} are currently excluded from trusted insights.
-                  </Text>
-                  <AppButton
-                    label="Clear All Problem Records"
-                    onPress={() => confirmCleanupCategory(currentUser.id, currentUser.name, 'problem')}
-                    variant="danger"
-                    surfaceTone="light"
-                  />
+                  {problemSessions.length || problemExperiments.length ? (
+                    <>
+                      <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+                        {problemSessions.length} problem session{problemSessions.length === 1 ? '' : 's'} and {problemExperiments.length} problem experiment{problemExperiments.length === 1 ? '' : 's'} are currently excluded from trusted insights.
+                      </Text>
+                      <AppButton
+                        label="Delete All Problem Records"
+                        onPress={() => confirmCleanupCategory(currentUser.id, currentUser.name, 'problem')}
+                        variant="danger"
+                        surfaceTone="light"
+                      />
+                    </>
+                  ) : (
+                    <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+                      No problem records to review.
+                    </Text>
+                  )}
                   <AppButton
                     label="Repair Old Records"
                     onPress={() => repairOldRecords().catch((error) => Alert.alert('Unable to repair records', error instanceof Error ? error.message : 'Please try again.'))}
@@ -891,7 +920,19 @@ export const AccessScreen = ({ navigation }: any) => {
                       {getSessionIntegrity(session.id).reason ? (
                         <Text style={{ color: theme.colors.textDarkSoft }}>{getSessionIntegrity(session.id).reason}</Text>
                       ) : null}
-                      <AppButton label="Delete Session" onPress={() => handleDeleteProblemSession(session.id)} variant="danger" surfaceTone="light" />
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <View style={{ flex: 1 }}>
+                          <AppButton
+                            label="Resume Session"
+                            onPress={() => navigation.navigate('SessionDetail', { sessionId: session.id })}
+                            variant="secondary"
+                            surfaceTone="light"
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <AppButton label="Delete Session" onPress={() => handleDeleteProblemSession(session.id)} variant="danger" surfaceTone="light" />
+                        </View>
+                      </View>
                     </View>
                   ))}
                   {problemExperiments.map((experiment) => (
