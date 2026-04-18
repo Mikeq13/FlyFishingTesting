@@ -6,7 +6,7 @@ export type ExperimentOutcome = 'decisive' | 'tie' | 'inconclusive';
 export type ExperimentStatus = 'draft' | 'complete';
 export type ExperimentFlyRole = 'baseline' | 'test';
 export type TroutSpecies = 'Brook' | 'Brown' | 'Cutthroat' | 'Rainbow' | 'Tiger' | 'Whitefish';
-export type ExperimentControlFocus = 'pattern' | 'fly type' | 'hook size' | 'tail' | 'collar' | 'body type' | 'bead size' | 'bead color';
+export type ExperimentControlFocus = 'pattern' | 'fly type' | 'hook size' | 'tail' | 'collar' | 'body type' | 'bead size' | 'bead color' | 'number of flies';
 
 export interface ExperimentFlyEntry {
   slotId: string;

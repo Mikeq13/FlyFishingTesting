@@ -69,6 +69,20 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     setRigSetup(getExperimentRigSetup(existingExperiment));
   }, [existingExperiment]);
 
+  useEffect(() => {
+    if (existingExperiment || !session?.startingRigSetup) return;
+    const seededAssignments = session.startingRigSetup.assignments.slice(0, 3);
+    const seededFlyCount = getFlyCount(seededAssignments.length || 1);
+    const seededEntries = createEmptyExperimentEntries(seededFlyCount, 0).map((entry, index) => ({
+      ...entry,
+      fly: seededAssignments[index]?.fly ?? entry.fly
+    }));
+    setFlyCount(seededFlyCount);
+    setBaselineIndex(0);
+    setFlyEntries(seededEntries);
+    setRigSetup(session.startingRigSetup);
+  }, [existingExperiment, session?.startingRigSetup]);
+
   const visibleEntries = useMemo(() => flyEntries.slice(0, flyCount), [flyCount, flyEntries]);
   const isDraft = useMemo(() => isDraftExperiment(visibleEntries), [visibleEntries]);
   const lastLoggedSpecies = useMemo<TroutSpecies | null>(() => {
@@ -91,21 +105,25 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
       Alert.alert('Fly name needed', 'Give the fly a name before saving it to the library.');
       return;
     }
-
-    if (savedFlies.some((savedFly) => savedFly.name.trim().toLowerCase() === normalizedName.toLowerCase())) {
-      Alert.alert('Fly already saved', 'That fly name already exists in your library.');
-      return;
+    try {
+      await addSavedFly({ ...fly, name: normalizedName });
+      Alert.alert('Fly saved', `${normalizedName} is now available for future experiments.`);
+    } catch (error) {
+      Alert.alert('Unable to save fly', error instanceof Error ? error.message : 'Please try again.');
     }
-
-    await addSavedFly({ ...fly, name: normalizedName });
-    Alert.alert('Fly saved', `${normalizedName} is now available for future experiments.`);
   };
 
   const resetForNextExperiment = () => {
-    setFlyCount(2);
+    const seededAssignments = session?.startingRigSetup?.assignments.slice(0, 3) ?? [];
+    const seededFlyCount = getFlyCount(seededAssignments.length || 2);
+    const seededEntries = createEmptyExperimentEntries(seededFlyCount, 0).map((entry, index) => ({
+      ...entry,
+      fly: seededAssignments[index]?.fly ?? entry.fly
+    }));
+    setFlyCount(seededFlyCount);
     setBaselineIndex(0);
-    setFlyEntries(createEmptyExperimentEntries(2, 0));
-    setRigSetup(createDefaultRigSetup(createEmptyExperimentEntries(2, 0).map((entry) => entry.fly)));
+    setFlyEntries(seededEntries);
+    setRigSetup(session?.startingRigSetup ?? createDefaultRigSetup(seededEntries.map((entry) => entry.fly)));
     setShowSavedExperimentActions(false);
     setPendingFishEntryIndex(null);
     setPendingFishSize(null);

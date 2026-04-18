@@ -50,6 +50,10 @@ export const createStoreActions = ({
   activeUserId,
   currentUser,
   users,
+  savedFlies,
+  savedLeaderFormulas,
+  savedRigPresets,
+  savedRivers,
   groups,
   groupMemberships,
   sharePreferences,
@@ -77,6 +81,10 @@ export const createStoreActions = ({
   activeUserId: number | null;
   currentUser: AppStore['currentUser'];
   users: AppStore['users'];
+  savedFlies: AppStore['savedFlies'];
+  savedLeaderFormulas: AppStore['savedLeaderFormulas'];
+  savedRigPresets: AppStore['savedRigPresets'];
+  savedRivers: AppStore['savedRivers'];
   groups: AppStore['groups'];
   groupMemberships: AppStore['groupMemberships'];
   sharePreferences: AppStore['sharePreferences'];
@@ -176,6 +184,18 @@ export const createStoreActions = ({
   const actingOwnerUserId =
     (isAuthenticatedOwner ? users.find((user) => user.role === 'owner')?.id : currentUser?.role === 'owner' ? currentUser.id : null) ??
     activeUserId;
+
+  const normalizeSavedName = (value: string) => value.trim().toLowerCase();
+
+  const ensureUniqueSavedName = (entries: Array<{ name: string }>, name: string, label: string) => {
+    const normalizedName = normalizeSavedName(name);
+    if (!normalizedName) {
+      throw new Error(`${label} name is required.`);
+    }
+    if (entries.some((entry) => normalizeSavedName(entry.name) === normalizedName)) {
+      throw new Error(`${label} "${name.trim()}" already exists.`);
+    }
+  };
 
   const refreshMfaStateInternal = async () => {
     if (!remoteSession) {
@@ -365,7 +385,8 @@ export const createStoreActions = ({
   addSavedFly: async (payload) => {
     assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
-    const id = await createSavedFly({ ...payload, userId: activeUserId });
+    ensureUniqueSavedName(savedFlies, payload.name, 'Fly');
+    const id = await createSavedFly({ ...payload, name: payload.name.trim(), userId: activeUserId });
     await trackSyncChange('saved_setup', 'create', id, payload);
     await refresh(activeUserId);
     return id;
@@ -373,7 +394,8 @@ export const createStoreActions = ({
   addSavedLeaderFormula: async (payload) => {
     assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
-    const id = await createSavedLeaderFormula({ ...payload, userId: activeUserId });
+    ensureUniqueSavedName(savedLeaderFormulas, payload.name, 'Leader');
+    const id = await createSavedLeaderFormula({ ...payload, name: payload.name.trim(), userId: activeUserId });
     await trackSyncChange('saved_setup', 'create', id, payload);
     await refresh(activeUserId);
     return id;
@@ -386,7 +408,8 @@ export const createStoreActions = ({
   addSavedRigPreset: async (payload) => {
     assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
-    const id = await createSavedRigPreset({ ...payload, userId: activeUserId });
+    ensureUniqueSavedName(savedRigPresets, payload.name, 'Rig preset');
+    const id = await createSavedRigPreset({ ...payload, name: payload.name.trim(), userId: activeUserId });
     await trackSyncChange('saved_setup', 'create', id, payload);
     await refresh(activeUserId);
     return id;
@@ -399,7 +422,8 @@ export const createStoreActions = ({
   addSavedRiver: async (name) => {
     assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
-    const id = await createSavedRiver({ userId: activeUserId, name });
+    ensureUniqueSavedName(savedRivers, name, 'River');
+    const id = await createSavedRiver({ userId: activeUserId, name: name.trim() });
     await trackSyncChange('saved_setup', 'create', id, { name });
     await refresh(activeUserId);
     return id;

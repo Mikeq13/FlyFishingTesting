@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, TextInput } from 'react-native';
+import { Alert, ScrollView, TextInput } from 'react-native';
 import { KeyboardDismissView } from '@/components/KeyboardDismissView';
 import { OptionChips } from '@/components/OptionChips';
 import { DEPTH_RANGES } from '@/constants/options';
@@ -21,6 +21,7 @@ import { SessionEnvironmentSection } from '@/components/sessionSetup/SessionEnvi
 import { PracticeSetupSection } from '@/components/sessionSetup/PracticeSetupSection';
 import { ReminderSettingsSection } from '@/components/sessionSetup/ReminderSettingsSection';
 import { useResponsiveLayout } from '@/design/layout';
+import { FlySetup } from '@/types/fly';
 
 const MODE_COPY: Record<SessionMode, { title: string; subtitle: string; button: string }> = {
   experiment: {
@@ -67,6 +68,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
   const [notificationSoundEnabled, setNotificationSoundEnabled] = useState(true);
   const [notificationVibrationEnabled, setNotificationVibrationEnabled] = useState(true);
   const [practiceRigSetup, setPracticeRigSetup] = useState(() => createDefaultRigSetup([]));
+  const [experimentRigSetup, setExperimentRigSetup] = useState(() => createDefaultRigSetup([]));
   const [showSavedRiverList, setShowSavedRiverList] = useState(false);
   const [showSavedHypothesisList, setShowSavedHypothesisList] = useState(false);
   const sortedSavedRivers = useMemo(() => [...savedRivers].sort((a, b) => a.name.localeCompare(b.name)), [savedRivers]);
@@ -163,6 +165,33 @@ export const SessionScreen = ({ navigation, route }: any) => {
     if (!normalizedRiverName) return;
     if (savedRivers.some((river) => river.name.trim().toLowerCase() === normalizedRiverName.toLowerCase())) return;
     await addSavedRiver(normalizedRiverName);
+  };
+
+  const saveFlyToLibrary = async (fly: FlySetup) => {
+    const normalizedFly = { ...fly, name: fly.name.trim() };
+    if (!normalizedFly.name) return;
+    await addSavedFly(normalizedFly);
+  };
+
+  const saveLeaderFormula = async (payload: { name: string; sections: { order: number; materialLabel: string; lengthFeet: number }[] }) => {
+    const id = await addSavedLeaderFormula(payload);
+    return {
+      id,
+      userId: activeUserId ?? 0,
+      name: payload.name,
+      sections: payload.sections,
+      createdAt: new Date().toISOString()
+    };
+  };
+
+  const saveRigPreset = async (payload: Parameters<typeof addSavedRigPreset>[0]) => {
+    const id = await addSavedRigPreset(payload);
+    return {
+      id,
+      userId: activeUserId ?? 0,
+      ...payload,
+      createdAt: new Date().toISOString()
+    };
   };
 
   const plannedDurationMinutes = useMemo(() => {
@@ -274,7 +303,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
       competitionSessionNumber: mode === 'competition' ? selectedCompetitionSession?.sessionNumber : undefined,
       competitionRequiresMeasurement: mode === 'competition' ? competitionRequiresMeasurement : undefined,
       competitionLengthUnit: mode === 'competition' ? competitionLengthUnit : undefined,
-      startingRigSetup: mode === 'practice' ? practiceRigSetup : undefined,
+      startingRigSetup: mode === 'practice' ? practiceRigSetup : mode === 'experiment' ? experimentRigSetup : undefined,
       riverName: normalizedRiverName || undefined,
       hypothesis: hypothesis.trim() || undefined,
       notes
@@ -398,48 +427,31 @@ export const SessionScreen = ({ navigation, route }: any) => {
                 : 'Capture the hypothesis and notes you want to test today.'
           }
         >
-          {mode === 'practice' ? (
+          {mode === 'practice' || mode === 'experiment' ? (
             <PracticeSetupSection
-              rigSetup={practiceRigSetup}
+              title={mode === 'experiment' ? 'Starting Rig Setup' : 'Starting Rig Setup'}
+              rigSetup={mode === 'experiment' ? experimentRigSetup : practiceRigSetup}
               savedFlies={savedFlies}
               savedLeaderFormulas={savedLeaderFormulas}
               savedRigPresets={savedRigPresets}
               practiceMeasurementEnabled={practiceMeasurementEnabled}
               practiceLengthUnit={practiceLengthUnit}
-              onRigSetupChange={setPracticeRigSetup}
+              showMeasurementControls={mode === 'practice'}
+              onRigSetupChange={mode === 'experiment' ? setExperimentRigSetup : setPracticeRigSetup}
               onFlyCountChange={(nextCount) =>
-                setPracticeRigSetup((current) =>
+                (mode === 'experiment' ? setExperimentRigSetup : setPracticeRigSetup)((current) =>
                   setRigFlyCount(current, nextCount, {
                     clearPointFly: nextCount === 1 && current.assignments.length > 1
                   })
                 )
               }
-              onCreateFly={async (fly) => {
-                const normalizedFly = { ...fly, name: fly.name.trim() };
-                if (!normalizedFly.name) return;
-                await addSavedFly(normalizedFly);
-              }}
-              onCreateLeaderFormula={async (payload) => {
-                const id = await addSavedLeaderFormula(payload);
-                return {
-                  id,
-                  userId: activeUserId ?? 0,
-                  name: payload.name,
-                  sections: payload.sections,
-                  createdAt: new Date().toISOString()
-                };
-              }}
-              onCreateRigPreset={async (payload) => {
-                const id = await addSavedRigPreset(payload);
-                return {
-                  id,
-                  userId: activeUserId ?? 0,
-                  ...payload,
-                  createdAt: new Date().toISOString()
-                };
-              }}
+              onCreateFly={saveFlyToLibrary}
+              onCreateLeaderFormula={saveLeaderFormula}
+              onCreateRigPreset={saveRigPreset}
               onApplyRigPreset={(preset) => {
-                setPracticeRigSetup((current) => applyRigPresetToRig(current, preset, { clearSinglePointFly: preset.flyCount === 1 }));
+                (mode === 'experiment' ? setExperimentRigSetup : setPracticeRigSetup)((current) =>
+                  applyRigPresetToRig(current, preset, { clearSinglePointFly: preset.flyCount === 1 })
+                );
               }}
               onDeleteLeaderFormula={deleteSavedLeaderFormula}
               onDeleteRigPreset={deleteSavedRigPreset}

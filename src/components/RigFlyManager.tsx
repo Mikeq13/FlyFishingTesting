@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { FlySetup, SavedFly } from '@/types/fly';
 import { FlySelector } from './FlySelector';
 import { RigFlyAssignment, RigSetup } from '@/types/rig';
@@ -141,13 +141,17 @@ export const RigFlyManager = ({ title, rigSetup, savedFlies, onChange, onCreateF
           savedFlies={[]}
           onChange={setDraftFly}
           onSave={async () => {
-            await onCreateFly(draftFly);
-            if (targetAssignmentIndex !== null) {
-              assignFlyAtIndex(targetAssignmentIndex, draftFly);
+            try {
+              await onCreateFly(draftFly);
+              if (targetAssignmentIndex !== null) {
+                assignFlyAtIndex(targetAssignmentIndex, draftFly);
+              }
+              setShowAddFly(false);
+              setDraftFly(createEmptyFly());
+              setShowFlyManager(false);
+            } catch (error) {
+              Alert.alert('Unable to save fly', error instanceof Error ? error.message : 'Please try again.');
             }
-            setShowAddFly(false);
-            setDraftFly(createEmptyFly());
-            setShowFlyManager(false);
           }}
         />
       ) : null}

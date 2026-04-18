@@ -1,8 +1,10 @@
 import { ExperimentFlyEntry, ExperimentOutcome, ExperimentWinner } from '@/types/experiment';
 import { catchRate, rateDiff } from '@/utils/calculations';
 
-const MIN_DECISIVE_CASTS = 20;
+const MIN_DECISIVE_CASTS = 40;
 const MIN_DECISIVE_RATE_DIFF = 0.08;
+
+const deriveConfidenceScore = (totalCasts: number) => Math.min(1, totalCasts / (MIN_DECISIVE_CASTS * 2));
 
 export interface ExperimentStatusResult {
   winner: ExperimentWinner;
@@ -34,7 +36,7 @@ export const deriveExperimentStatus = (entries: ExperimentFlyEntry[]): Experimen
     return {
       winner: totalCasts >= MIN_DECISIVE_CASTS ? leader.role === 'baseline' ? 'baseline' : leader.label : 'inconclusive',
       outcome: totalCasts >= MIN_DECISIVE_CASTS ? 'decisive' : 'inconclusive',
-      confidenceScore: Math.min(1, totalCasts / 100)
+      confidenceScore: deriveConfidenceScore(totalCasts)
     };
   }
 
@@ -42,7 +44,7 @@ export const deriveExperimentStatus = (entries: ExperimentFlyEntry[]): Experimen
     return {
       winner: totalCasts >= MIN_DECISIVE_CASTS ? 'tie' : 'inconclusive',
       outcome: totalCasts >= MIN_DECISIVE_CASTS ? 'tie' : 'inconclusive',
-      confidenceScore: Math.min(1, totalCasts / 100)
+      confidenceScore: deriveConfidenceScore(totalCasts)
     };
   }
 
@@ -51,6 +53,6 @@ export const deriveExperimentStatus = (entries: ExperimentFlyEntry[]): Experimen
   return {
     winner: outcome === 'decisive' ? (leader.role === 'baseline' ? 'baseline' : leader.label) : 'inconclusive',
     outcome,
-    confidenceScore: Math.min(1, totalCasts / 100)
+    confidenceScore: deriveConfidenceScore(totalCasts)
   };
 };

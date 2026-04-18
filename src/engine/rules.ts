@@ -15,7 +15,8 @@ const focusMap: Record<ExperimentControlFocus, string> = {
   collar: 'collar',
   'body type': 'body_type',
   'bead size': 'bead_size_mm',
-  'bead color': 'bead_color'
+  'bead color': 'bead_color',
+  'number of flies': 'fly_count'
 };
 
 export const validateExperimentPair = (baselineFly: FlySetup, testFly: FlySetup, controlFocus: ExperimentControlFocus = 'pattern'): ExperimentRuleCheck => {

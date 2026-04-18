@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { OptionChips } from './OptionChips';
 import { AddedTippetSection, LeaderFormula, RigPreset, RigSetup, TippetSize } from '@/types/rig';
 import { applyLeaderFormulaToRig, createRigPresetPayload } from '@/utils/rigSetup';
@@ -51,7 +51,7 @@ export const RigSetupPanel = ({
   const sortedPresets = useMemo(() => [...savedRigPresets].sort((left, right) => left.name.localeCompare(right.name)), [savedRigPresets]);
   const hasConfiguredLeader = !!rigSetup.leaderFormulaName || rigSetup.leaderFormulaSectionsSnapshot.length > 0;
   const hasMeaningfulRigConfig = hasConfiguredLeader || rigSetup.assignments.length > 1 || rigSetup.addedTippetSections.some((section) => typeof section.lengthFeet === 'number' && section.lengthFeet > 0);
-  const rigSummary = `${rigSetup.assignments.length} fly${rigSetup.assignments.length === 1 ? '' : 'ies'} | ${rigSetup.assignments.map((assignment) => assignment.position).join(' | ')}`;
+  const rigSummary = `${rigSetup.assignments.length} ${rigSetup.assignments.length === 1 ? 'fly' : 'flies'} | ${rigSetup.assignments.map((assignment) => assignment.position).join(' | ')}`;
 
   useEffect(() => {
     if (hasMeaningfulRigConfig) {
@@ -161,9 +161,13 @@ export const RigSetupPanel = ({
               {showFormulaEditor ? (
                 <LeaderFormulaEditor
                   onSave={async (payload) => {
-                    const saved = await onCreateLeaderFormula(payload);
-                    onChange(applyLeaderFormulaToRig(rigSetup, saved));
-                    closeSetupEditor();
+                    try {
+                      const saved = await onCreateLeaderFormula(payload);
+                      onChange(applyLeaderFormulaToRig(rigSetup, saved));
+                      closeSetupEditor();
+                    } catch (error) {
+                      Alert.alert('Unable to save leader', error instanceof Error ? error.message : 'Please try again.');
+                    }
                   }}
                 />
               ) : null}
@@ -177,8 +181,12 @@ export const RigSetupPanel = ({
               {showPresetEditor ? (
                 <RigPresetEditor
                   onSave={async (name) => {
-                    await onCreateRigPreset(createRigPresetPayload(rigSetup, name));
-                    setShowPresetEditor(false);
+                    try {
+                      await onCreateRigPreset(createRigPresetPayload(rigSetup, name));
+                      setShowPresetEditor(false);
+                    } catch (error) {
+                      Alert.alert('Unable to save rig preset', error instanceof Error ? error.message : 'Please try again.');
+                    }
                   }}
                 />
               ) : null}

@@ -7,7 +7,7 @@ import { AppButton } from '@/components/ui/AppButton';
 import { useTheme } from '@/design/theme';
 
 const FLY_COUNT_OPTIONS = [1, 2, 3] as const;
-const CONTROL_FOCUS_OPTIONS: ExperimentControlFocus[] = ['bead color', 'bead size', 'body type', 'collar', 'fly type', 'hook size', 'pattern', 'tail'];
+const CONTROL_FOCUS_OPTIONS: ExperimentControlFocus[] = ['bead color', 'bead size', 'body type', 'collar', 'fly type', 'hook size', 'number of flies', 'pattern', 'tail'];
 
 interface ExperimentSetupPanelProps {
   flyCount: 1 | 2 | 3;

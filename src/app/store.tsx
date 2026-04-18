@@ -727,10 +727,14 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   };
 
   const actions = createStoreActions({
-    activeUserId,
-    currentUser,
-    users,
-    groups,
+      activeUserId,
+      currentUser,
+      users,
+      savedFlies,
+      savedLeaderFormulas,
+      savedRigPresets,
+      savedRivers,
+      groups,
     groupMemberships,
     sharePreferences,
     competitions,

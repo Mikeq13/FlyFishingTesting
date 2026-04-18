@@ -96,6 +96,33 @@ export const PracticeScreen = ({ route }: any) => {
 
   const currentRigSetup = activeSegment?.rigSetup ?? createDefaultRigSetup(activeSegment?.flySnapshots ?? []);
 
+  const saveFlyToLibrary = async (fly: FlySetup) => {
+    const normalizedFly = { ...fly, name: fly.name.trim() };
+    if (!normalizedFly.name) return;
+    await addSavedFly(normalizedFly);
+  };
+
+  const saveLeaderFormula = async (payload: { name: string; sections: { order: number; materialLabel: string; lengthFeet: number }[] }) => {
+    const id = await addSavedLeaderFormula(payload);
+    return {
+      id,
+      userId: activeUserId ?? 0,
+      name: payload.name,
+      sections: payload.sections,
+      createdAt: new Date().toISOString()
+    };
+  };
+
+  const saveRigPreset = async (payload: Parameters<typeof addSavedRigPreset>[0]) => {
+    const id = await addSavedRigPreset(payload);
+    return {
+      id,
+      userId: activeUserId ?? 0,
+      ...payload,
+      createdAt: new Date().toISOString()
+    };
+  };
+
   if (!session) {
     return (
       <ScreenBackground>
@@ -225,25 +252,8 @@ export const PracticeScreen = ({ route }: any) => {
           onChange={(nextRigSetup) => {
             updateActiveSegment(nextRigSetup).catch(console.error);
           }}
-          onCreateLeaderFormula={async (payload) => {
-            const id = await addSavedLeaderFormula(payload);
-            return {
-              id,
-              userId: activeUserId ?? 0,
-              name: payload.name,
-              sections: payload.sections,
-              createdAt: new Date().toISOString()
-            };
-          }}
-          onCreateRigPreset={async (payload) => {
-            const id = await addSavedRigPreset(payload);
-            return {
-              id,
-              userId: activeUserId ?? 0,
-              ...payload,
-              createdAt: new Date().toISOString()
-            };
-          }}
+          onCreateLeaderFormula={saveLeaderFormula}
+          onCreateRigPreset={saveRigPreset}
           onApplyRigPreset={(preset) => {
             updateActiveSegment(applyRigPresetToRig(currentRigSetup, preset, { clearSinglePointFly: preset.flyCount === 1 })).catch(console.error);
           }}
@@ -258,11 +268,7 @@ export const PracticeScreen = ({ route }: any) => {
           onChange={(nextRigSetup) => {
             updateActiveSegment(nextRigSetup).catch(console.error);
           }}
-          onCreateFly={async (fly) => {
-            const normalizedFly = { ...fly, name: fly.name.trim() };
-            if (!normalizedFly.name) return;
-            await addSavedFly(normalizedFly);
-          }}
+          onCreateFly={saveFlyToLibrary}
         />
 
         <SectionCard title="Log Catches" subtitle="Quick tap logging stays front and center while you practice.">
