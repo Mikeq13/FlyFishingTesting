@@ -63,44 +63,91 @@ export const fetchRemoteAccessSnapshot = async (
 
   const profiles = profilesResponse.data ?? [];
   const groups = groupsResponse.data ?? [];
+  const allMembershipRows = groupMembershipsResponse.data ?? [];
+  const allInviteRows = invitesResponse.data ?? [];
+  const allSponsoredAccessRows = sponsoredAccessResponse.data ?? [];
   const competitions = competitionsResponse.data ?? [];
   const competitionGroups = competitionGroupsResponse.data ?? [];
   const competitionSessions = competitionSessionsResponse.data ?? [];
   const competitionAssignments = competitionAssignmentsResponse.data ?? [];
 
+  const accessibleGroupIds = new Set<string>([
+    ...groups.filter((row) => row.owner_auth_user_id === currentAuthUserId).map((row) => row.id as string),
+    ...allMembershipRows.filter((row) => row.member_auth_user_id === currentAuthUserId).map((row) => row.group_id as string),
+    ...allInviteRows
+      .filter((row) => row.inviter_auth_user_id === currentAuthUserId || row.accepted_by_auth_user_id === currentAuthUserId)
+      .map((row) => row.target_group_id as string),
+    ...allSponsoredAccessRows
+      .filter((row) => row.sponsor_auth_user_id === currentAuthUserId || row.sponsored_auth_user_id === currentAuthUserId)
+      .map((row) => row.target_group_id as string)
+  ]);
+  const filteredGroups = groups.filter((row) => accessibleGroupIds.has(row.id as string));
+
+  const allParticipantRows = competitionParticipantsResponse.data ?? [];
+  const accessibleCompetitionIds = new Set<string>([
+    ...competitions.filter((row) => row.organizer_auth_user_id === currentAuthUserId).map((row) => row.id as string),
+    ...allParticipantRows
+      .filter((row) => row.participant_auth_user_id === currentAuthUserId)
+      .map((row) => row.competition_id as string)
+  ]);
+  const filteredCompetitions = competitions.filter((row) => accessibleCompetitionIds.has(row.id as string));
+  const filteredCompetitionGroups = competitionGroups.filter((row) => accessibleCompetitionIds.has(row.competition_id as string));
+  const filteredCompetitionSessions = competitionSessions.filter((row) => accessibleCompetitionIds.has(row.competition_id as string));
+  const filteredCompetitionAssignments = competitionAssignments.filter((row) =>
+    accessibleCompetitionIds.has(row.competition_id as string)
+  );
+
   const entityMaps = createRemoteEntityMaps(currentAuthUserId, {
     profiles,
-    groups,
-    competitions,
-    competitionGroups,
-    competitionSessions,
-    competitionAssignments
+    groups: filteredGroups,
+    competitions: filteredCompetitions,
+    competitionGroups: filteredCompetitionGroups,
+    competitionSessions: filteredCompetitionSessions,
+    competitionAssignments: filteredCompetitionAssignments
   });
 
   return {
     users: profiles.map((row) => mapRemoteUser(row, currentAuthUserId)),
-    groups: groups.map((row) => mapRemoteGroup(row, currentAuthUserId)),
-    groupMemberships: (groupMembershipsResponse.data ?? []).map((row) =>
+    groups: filteredGroups.map((row) => mapRemoteGroup(row, currentAuthUserId)),
+    groupMemberships: allMembershipRows
+      .filter((row) => accessibleGroupIds.has(row.group_id as string))
+      .map((row) =>
       mapRemoteGroupMembership(row, currentAuthUserId, entityMaps)
     ),
-    sharePreferences: (sharePreferencesResponse.data ?? []).map((row) =>
+    sharePreferences: (sharePreferencesResponse.data ?? [])
+      .filter((row) => accessibleGroupIds.has(row.group_id as string))
+      .map((row) =>
       mapRemoteSharePreference(row, currentAuthUserId, entityMaps)
     ),
-    invites: (invitesResponse.data ?? []).map((row) => mapRemoteInvite(row, currentAuthUserId, entityMaps)),
-    sponsoredAccess: (sponsoredAccessResponse.data ?? []).map((row) =>
+    invites: allInviteRows
+      .filter(
+        (row) =>
+          accessibleGroupIds.has(row.target_group_id as string) &&
+          (row.inviter_auth_user_id === currentAuthUserId || row.accepted_by_auth_user_id === currentAuthUserId)
+      )
+      .map((row) => mapRemoteInvite(row, currentAuthUserId, entityMaps)),
+    sponsoredAccess: allSponsoredAccessRows
+      .filter(
+        (row) =>
+          accessibleGroupIds.has(row.target_group_id as string) &&
+          (row.sponsor_auth_user_id === currentAuthUserId || row.sponsored_auth_user_id === currentAuthUserId)
+      )
+      .map((row) =>
       mapRemoteSponsoredAccess(row, currentAuthUserId, entityMaps)
     ),
-    competitions: competitions.map((row) => mapRemoteCompetition(row, currentAuthUserId)),
-    competitionGroups: competitionGroups.map((row) =>
+    competitions: filteredCompetitions.map((row) => mapRemoteCompetition(row, currentAuthUserId)),
+    competitionGroups: filteredCompetitionGroups.map((row) =>
       mapRemoteCompetitionGroup(row, currentAuthUserId, entityMaps)
     ),
-    competitionSessions: competitionSessions.map((row) =>
+    competitionSessions: filteredCompetitionSessions.map((row) =>
       mapRemoteCompetitionSession(row, currentAuthUserId, entityMaps)
     ),
-    competitionParticipants: (competitionParticipantsResponse.data ?? []).map((row) =>
+    competitionParticipants: allParticipantRows
+      .filter((row) => accessibleCompetitionIds.has(row.competition_id as string))
+      .map((row) =>
       mapRemoteCompetitionParticipant(row, currentAuthUserId, entityMaps)
     ),
-    competitionAssignments: competitionAssignments.map((row) =>
+    competitionAssignments: filteredCompetitionAssignments.map((row) =>
       mapRemoteCompetitionAssignment(row, currentAuthUserId, entityMaps)
     ),
     entityMaps

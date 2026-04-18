@@ -70,21 +70,45 @@ export const fetchRemoteSharedDataSnapshot = async (
   const accessibleExperiments = experimentRows.map((row) =>
     mapRemoteExperiment(row, currentAuthUserId, accessSnapshot.entityMaps, sessionIdByRemoteId)
   ).filter((experiment) => !experiment.archivedAt);
+  const joinedGroupIds = new Set(
+    accessSnapshot.groupMemberships
+      .filter((membership) => membership.userId === accessSnapshot.entityMaps.userIdByAuthId.get(currentAuthUserId))
+      .map((membership) => membership.groupId)
+  );
+  const visibleSessions = accessibleSessions.filter(
+    (session) => session.userId === accessSnapshot.entityMaps.userIdByAuthId.get(currentAuthUserId) || (session.sharedGroupId && joinedGroupIds.has(session.sharedGroupId))
+  );
+  const visibleSessionIds = new Set(visibleSessions.map((session) => session.id));
+  const visibleSegments = accessibleSessionSegments.filter((segment) => visibleSessionIds.has(segment.sessionId));
+  const visibleSegmentIds = new Set(visibleSegments.map((segment) => segment.id));
+  const visibleCatchEvents = accessibleCatchEvents.filter(
+    (event) => visibleSessionIds.has(event.sessionId) && (!event.segmentId || visibleSegmentIds.has(event.segmentId))
+  );
+  const visibleExperiments = accessibleExperiments.filter((experiment) => visibleSessionIds.has(experiment.sessionId));
+  const currentUserId = accessSnapshot.entityMaps.userIdByAuthId.get(currentAuthUserId);
 
   return {
-    ownedSessions: accessibleSessions.filter((session) => session.userId === accessSnapshot.entityMaps.userIdByAuthId.get(currentAuthUserId)),
-    accessibleSessions,
-    ownedSessionSegments: accessibleSessionSegments.filter((segment) => segment.userId === accessSnapshot.entityMaps.userIdByAuthId.get(currentAuthUserId)),
-    accessibleSessionSegments,
-    ownedCatchEvents: accessibleCatchEvents.filter((event) => event.userId === accessSnapshot.entityMaps.userIdByAuthId.get(currentAuthUserId)),
-    accessibleCatchEvents,
-    ownedExperiments: accessibleExperiments.filter((experiment) => experiment.userId === accessSnapshot.entityMaps.userIdByAuthId.get(currentAuthUserId)),
-    accessibleExperiments,
-    savedFlies: (savedFliesResponse.data ?? []).map((row) => mapRemoteSavedFly(row, currentAuthUserId)),
-    savedLeaderFormulas: (savedLeaderFormulasResponse.data ?? []).map((row) =>
+    ownedSessions: visibleSessions.filter((session) => session.userId === currentUserId),
+    accessibleSessions: visibleSessions,
+    ownedSessionSegments: visibleSegments.filter((segment) => segment.userId === currentUserId),
+    accessibleSessionSegments: visibleSegments,
+    ownedCatchEvents: visibleCatchEvents.filter((event) => event.userId === currentUserId),
+    accessibleCatchEvents: visibleCatchEvents,
+    ownedExperiments: visibleExperiments.filter((experiment) => experiment.userId === currentUserId),
+    accessibleExperiments: visibleExperiments,
+    savedFlies: (savedFliesResponse.data ?? [])
+      .filter((row) => row.owner_auth_user_id === currentAuthUserId)
+      .map((row) => mapRemoteSavedFly(row, currentAuthUserId)),
+    savedLeaderFormulas: (savedLeaderFormulasResponse.data ?? [])
+      .filter((row) => row.owner_auth_user_id === currentAuthUserId)
+      .map((row) =>
       mapRemoteLeaderFormula(row, currentAuthUserId)
     ),
-    savedRigPresets: (savedRigPresetsResponse.data ?? []).map((row) => mapRemoteRigPreset(row, currentAuthUserId)),
-    savedRivers: (savedRiversResponse.data ?? []).map((row) => mapRemoteSavedRiver(row, currentAuthUserId))
+    savedRigPresets: (savedRigPresetsResponse.data ?? [])
+      .filter((row) => row.owner_auth_user_id === currentAuthUserId)
+      .map((row) => mapRemoteRigPreset(row, currentAuthUserId)),
+    savedRivers: (savedRiversResponse.data ?? [])
+      .filter((row) => row.owner_auth_user_id === currentAuthUserId)
+      .map((row) => mapRemoteSavedRiver(row, currentAuthUserId))
   };
 };

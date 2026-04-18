@@ -157,6 +157,56 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     return [...map.values()];
   };
 
+  const suppressPendingDeletes = <T extends { id: number }>(
+    records: T[],
+    syncQueue: SyncQueueEntry[],
+    entityTypes: SyncQueueEntry['entityType'][]
+  ) => {
+    const pendingDeleteIds = new Set(
+      syncQueue
+        .filter(
+          (entry) =>
+            entityTypes.includes(entry.entityType) &&
+            entry.operation === 'delete' &&
+            (entry.status === 'pending' || entry.status === 'failed') &&
+            typeof entry.recordId === 'number'
+        )
+        .map((entry) => entry.recordId as number)
+    );
+
+    if (!pendingDeleteIds.size) return records;
+    return records.filter((record) => !pendingDeleteIds.has(record.id));
+  };
+
+  const suppressPendingSavedSetupDeletes = <T extends { id: number }>(
+    records: T[],
+    syncQueue: SyncQueueEntry[],
+    savedType: 'fly' | 'leader_formula' | 'rig_preset' | 'river'
+  ) => {
+    const pendingDeleteIds = new Set(
+      syncQueue
+        .filter(
+          (entry) =>
+            entry.entityType === 'saved_setup' &&
+            entry.operation === 'delete' &&
+            (entry.status === 'pending' || entry.status === 'failed') &&
+            typeof entry.recordId === 'number'
+        )
+        .filter((entry) => {
+          try {
+            const payload = JSON.parse(entry.payloadJson || '{}') as { savedType?: string };
+            return payload.savedType === savedType;
+          } catch {
+            return false;
+          }
+        })
+        .map((entry) => entry.recordId as number)
+    );
+
+    if (!pendingDeleteIds.size) return records;
+    return records.filter((record) => !pendingDeleteIds.has(record.id));
+  };
+
   const refresh = async (targetUserId?: number | null, options?: { includeRemote?: boolean }) => {
     const loaded = await loadLocalAppData(targetUserId ?? activeUserId);
     let nextUsers = loaded.users;
@@ -237,6 +287,28 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         setRemoteBootstrapState('idle');
       }
     }
+
+    nextGroups = suppressPendingDeletes(nextGroups, loaded.syncQueue, ['group']);
+    nextGroupMemberships = suppressPendingDeletes(nextGroupMemberships, loaded.syncQueue, ['group_membership']);
+    nextSharePreferences = suppressPendingDeletes(nextSharePreferences, loaded.syncQueue, ['share_preference']);
+    nextInvites = suppressPendingDeletes(nextInvites, loaded.syncQueue, ['invite']);
+    nextSponsoredAccess = suppressPendingDeletes(nextSponsoredAccess, loaded.syncQueue, ['sponsored_access']);
+    nextCompetitions = suppressPendingDeletes(nextCompetitions, loaded.syncQueue, ['competition']);
+    nextCompetitionGroups = suppressPendingDeletes(nextCompetitionGroups, loaded.syncQueue, ['competition_group']);
+    nextCompetitionSessions = suppressPendingDeletes(nextCompetitionSessions, loaded.syncQueue, ['competition_session']);
+    nextCompetitionParticipants = suppressPendingDeletes(nextCompetitionParticipants, loaded.syncQueue, ['competition_participant']);
+    nextCompetitionAssignments = suppressPendingDeletes(nextCompetitionAssignments, loaded.syncQueue, ['competition_assignment']);
+    nextSessions = suppressPendingDeletes(nextSessions, loaded.syncQueue, ['session']);
+    nextAllSessions = suppressPendingDeletes(nextAllSessions, loaded.syncQueue, ['session']);
+    nextSessionSegments = suppressPendingDeletes(nextSessionSegments, loaded.syncQueue, ['session_segment']);
+    nextCatchEvents = suppressPendingDeletes(nextCatchEvents, loaded.syncQueue, ['catch_event']);
+    nextAllCatchEvents = suppressPendingDeletes(nextAllCatchEvents, loaded.syncQueue, ['catch_event']);
+    nextExperiments = suppressPendingDeletes(nextExperiments, loaded.syncQueue, ['experiment']);
+    nextAllExperiments = suppressPendingDeletes(nextAllExperiments, loaded.syncQueue, ['experiment']);
+    nextSavedFlies = suppressPendingSavedSetupDeletes(nextSavedFlies, loaded.syncQueue, 'fly');
+    nextSavedLeaderFormulas = suppressPendingSavedSetupDeletes(nextSavedLeaderFormulas, loaded.syncQueue, 'leader_formula');
+    nextSavedRigPresets = suppressPendingSavedSetupDeletes(nextSavedRigPresets, loaded.syncQueue, 'rig_preset');
+    nextSavedRivers = suppressPendingSavedSetupDeletes(nextSavedRivers, loaded.syncQueue, 'river');
 
     setUsers(nextUsers);
     setSessions(nextSessions);
