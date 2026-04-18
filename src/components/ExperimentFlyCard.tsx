@@ -41,11 +41,8 @@ export const ExperimentFlyCard = ({
   useEffect(() => {
     if (!hasSelectedFly) {
       setShowFlyEditor(true);
-      return;
     }
-
-    setShowFlyEditor(false);
-  }, [hasSelectedFly, entry.fly.name]);
+  }, [hasSelectedFly]);
 
   return (
   <SectionCard tone="dark">
@@ -55,6 +52,7 @@ export const ExperimentFlyCard = ({
         value={entry.fly}
         savedFlies={savedFlies}
         onChange={(fly) => onChangeFly({ ...entry, fly })}
+        onConfirm={() => setShowFlyEditor(false)}
         onSave={onSaveFly}
       />
     ) : (

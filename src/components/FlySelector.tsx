@@ -12,6 +12,8 @@ interface FlySelectorProps {
   savedFlies: SavedFly[];
   onChange: (v: FlySetup) => void;
   onSave: () => void;
+  onConfirm?: () => void;
+  confirmLabel?: string;
 }
 
 interface ChipGroupProps<T extends string | number> {
@@ -45,10 +47,11 @@ const ChipGroup = <T extends string | number>({ label, options, selected, onSele
   </View>
 );
 
-export const FlySelector = ({ title, value, savedFlies, onChange, onSave }: FlySelectorProps) => {
+export const FlySelector = ({ title, value, savedFlies, onChange, onSave, onConfirm, confirmLabel = 'Use This Fly' }: FlySelectorProps) => {
   const [showSavedFlyList, setShowSavedFlyList] = useState(false);
   const sortedSavedFlies = useMemo(() => [...savedFlies].sort((a, b) => a.name.localeCompare(b.name)), [savedFlies]);
   const availableStages = INSECT_STAGES_BY_TYPE[value.bugFamily];
+  const hasNamedFly = !!value.name.trim();
 
   return (
     <SectionCard title={title} subtitle="Choose a saved fly or build one quickly without leaving the current flow.">
@@ -75,6 +78,7 @@ export const FlySelector = ({ title, value, savedFlies, onChange, onSave }: FlyS
                       collar: fly.collar
                     });
                     setShowSavedFlyList(false);
+                    onConfirm?.();
                   }}
                   style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb' }}
                 >
@@ -106,6 +110,7 @@ export const FlySelector = ({ title, value, savedFlies, onChange, onSave }: FlyS
       <ChipGroup label="Tail" options={TAIL_TYPES} selected={value.tail} onSelect={(tail) => onChange({ ...value, tail })} />
       <ChipGroup label="Collar" options={COLLAR_TYPES} selected={value.collar} onSelect={(collar) => onChange({ ...value, collar })} />
 
+      {onConfirm ? <AppButton label={confirmLabel} onPress={onConfirm} disabled={!hasNamedFly} /> : null}
       <AppButton label="Save To Fly Library" onPress={onSave} />
     </SectionCard>
   );
