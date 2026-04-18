@@ -11,12 +11,13 @@ import { StatusBanner } from '@/components/ui/StatusBanner';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 
 export const SessionDetailScreen = ({ route, navigation }: any) => {
-  const { sessions, experiments, users, activeUserId, archiveExperiment, deleteExperiment, cleanupSyncStatus, getSyncRecordState, getExperimentIntegrity } = useAppStore();
+  const { sessions, experiments, users, activeUserId, archiveExperiment, deleteExperiment, cleanupSyncStatus, getSyncRecordState, getExperimentIntegrity, getSessionIntegrity } = useAppStore();
   const sessionId = route?.params?.sessionId as number;
   const activeUser = users.find((user) => user.id === activeUserId);
 
   const session = sessions.find((s) => s.id === sessionId);
   const sessionExperiments = experiments.filter((e) => e.sessionId === sessionId);
+  const sessionIntegrity = session ? getSessionIntegrity(session.id) : null;
 
   const totalCasts = sessionExperiments.reduce(
     (sum, experiment) => sum + getExperimentEntries(experiment).reduce((entrySum, entry) => entrySum + entry.casts, 0),
@@ -69,11 +70,25 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
             <InlineSummaryRow label="Water" value={session.waterType} tone="light" />
             <InlineSummaryRow label="Depth" value={session.depthRange} tone="light" />
             {session.hypothesis ? <InlineSummaryRow label="Hypothesis" value={session.hypothesis} tone="light" /> : null}
+            {sessionIntegrity ? <InlineSummaryRow label="Status" value={sessionIntegrity.label} tone="light" /> : null}
             <InlineSummaryRow label="Catch Rate" value={`${(catchRate(totalCatches, totalCasts) * 100).toFixed(1)}%`} tone="light" />
           </SectionCard>
         ) : (
           <StatusBanner tone="error" text="Session not found." />
         )}
+        {session && sessionIntegrity && sessionIntegrity.state !== 'valid' ? (
+          <SectionCard title="Resume Session" subtitle="This session is still incomplete or otherwise excluded from trusted analytics." tone="light">
+            {sessionIntegrity.reason ? <Text style={{ color: '#486581' }}>{sessionIntegrity.reason}</Text> : null}
+            <AppButton
+              label="Resume Session"
+              onPress={() => {
+                console.info('[problem-records] resume tapped from session detail', { sessionId: session.id });
+                navigation.navigate('Session', { sessionId: session.id, resumeSource: 'detail' });
+              }}
+              variant="secondary"
+            />
+          </SectionCard>
+        ) : null}
 
         <SectionCard title={`Experiments In This Session: ${sessionExperiments.length}`} subtitle="Review each experiment cleanly before editing, archiving, or deleting." tone="light">
         {cleanupSyncStatus.pendingDeleteCount ? (

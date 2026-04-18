@@ -14,6 +14,7 @@ import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { appTheme, useTheme } from '@/design/theme';
 import { useResponsiveLayout } from '@/design/layout';
 import { getFormInputStyle } from '@/components/ui/FormField';
+import { buildSessionDeleteMessage, getSessionDeleteConsequences } from '@/utils/sessionDeleteConsequences';
 
 export const HistoryScreen = ({ navigation, route }: any) => {
   useTheme();
@@ -147,19 +148,9 @@ export const HistoryScreen = ({ navigation, route }: any) => {
   };
 
   const runProblemSessionCleanup = (sessionId: number) => {
-    const linkedExperimentCount = experiments.filter((experiment) => experiment.sessionId === sessionId).length;
-    const catchLogCount = catchEvents.filter((event) => event.sessionId === sessionId).length;
-    const sessionSegmentCount = sessionSegments.filter((segment) => segment.sessionId === sessionId).length;
-    const consequenceParts = [
-      'this session',
-      linkedExperimentCount ? `${linkedExperimentCount} linked experiment${linkedExperimentCount === 1 ? '' : 's'}` : null,
-      catchLogCount ? `${catchLogCount} catch log${catchLogCount === 1 ? '' : 's'}` : null,
-      sessionSegmentCount ? `${sessionSegmentCount} session segment${sessionSegmentCount === 1 ? '' : 's'}` : null
-    ].filter((value): value is string => !!value);
-    const deleteMessage =
-      consequenceParts.length === 1
-        ? 'This will permanently delete this session.'
-        : `This will permanently delete ${consequenceParts.slice(0, -1).join(', ')}, and ${consequenceParts.at(-1)}.`;
+    const deleteMessage = buildSessionDeleteMessage(
+      getSessionDeleteConsequences(sessionId, experiments, catchEvents, sessionSegments)
+    );
 
     Alert.alert(
       'Delete this problem session?',
@@ -170,6 +161,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
           text: 'Delete Session',
           style: 'destructive',
           onPress: async () => {
+            console.info('[problem-records] delete confirmed from history', { sessionId });
             try {
               await deleteSessionRecord(sessionId, { includeLinkedExperiments: true });
               Alert.alert('Cleanup complete', 'Session and related records deleted.');
@@ -432,7 +424,14 @@ export const HistoryScreen = ({ navigation, route }: any) => {
               ) : null}
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
                 <View style={{ flex: 1 }}>
-                  <AppButton label="Resume Session" onPress={() => navigation.navigate('SessionDetail', { sessionId: session.id })} variant="secondary" />
+                  <AppButton
+                    label="Resume Session"
+                    onPress={() => {
+                      console.info('[problem-records] resume tapped from history', { sessionId: session.id });
+                      navigation.navigate('Session', { sessionId: session.id, resumeSource: 'history' });
+                    }}
+                    variant="secondary"
+                  />
                 </View>
                 <View style={{ flex: 1 }}>
                   <AppButton label="Delete Session" onPress={() => runProblemSessionCleanup(session.id)} variant="danger" />

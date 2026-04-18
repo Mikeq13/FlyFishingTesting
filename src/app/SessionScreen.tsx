@@ -45,8 +45,14 @@ export const SessionScreen = ({ navigation, route }: any) => {
   const { theme } = useTheme();
   const layout = useResponsiveLayout();
   const { addSession, updateSessionEntry, addSavedFly, addSavedLeaderFormula, deleteSavedLeaderFormula, addSavedRigPreset, deleteSavedRigPreset, addSavedRiver, savedFlies, savedLeaderFormulas, savedRigPresets, savedRivers, users, activeUserId, sessions, experiments, groups, groupMemberships, competitions, competitionGroups, competitionSessions, competitionParticipants, competitionAssignments, upsertCompetitionAssignment, sharedDataStatus, syncStatus, notificationPermissionStatus, authStatus, remoteSession } = useAppStore();
-  const mode = (route?.params?.mode ?? 'experiment') as SessionMode;
+  const sessionId = route?.params?.sessionId as number | undefined;
+  const existingSession = useMemo(
+    () => (sessionId ? sessions.find((session) => session.id === sessionId) ?? null : null),
+    [sessionId, sessions]
+  );
+  const mode = (existingSession?.mode ?? route?.params?.mode ?? 'experiment') as SessionMode;
   const modeCopy = MODE_COPY[mode] ?? MODE_COPY.experiment;
+  const isEditingExistingSession = !!existingSession;
   const activeUser = users.find((user) => user.id === activeUserId);
   const [waterType, setWaterType] = useState<WaterType>('run');
   const [depthRange, setDepthRange] = useState<typeof DEPTH_RANGES[number]>('1.5-3 ft');
@@ -159,6 +165,40 @@ export const SessionScreen = ({ navigation, route }: any) => {
         : selectedCompetitionAssignments[0].id
     );
   }, [selectedCompetitionAssignments]);
+
+  React.useEffect(() => {
+    if (!existingSession) return;
+
+    setWaterType(existingSession.waterType);
+    setDepthRange(existingSession.depthRange);
+    setRiverName(existingSession.riverName ?? '');
+    setHypothesis(existingSession.hypothesis ?? '');
+    setNotes(existingSession.notes ?? '');
+    setDurationHours(
+      existingSession.plannedDurationMinutes
+        ? String(Math.floor(existingSession.plannedDurationMinutes / 60))
+        : mode === 'competition'
+          ? '3'
+          : '2'
+    );
+    setDurationMinutes(
+      existingSession.plannedDurationMinutes
+        ? String(existingSession.plannedDurationMinutes % 60)
+        : '0'
+    );
+    setAlertMarkersMinutes(existingSession.alertMarkersMinutes?.length ? existingSession.alertMarkersMinutes : [15]);
+    setCompetitionRequiresMeasurement(existingSession.competitionRequiresMeasurement ?? true);
+    setCompetitionLengthUnit(existingSession.competitionLengthUnit ?? 'mm');
+    setSelectedSharedGroupId(existingSession.sharedGroupId ?? null);
+    setPracticeMeasurementEnabled(existingSession.practiceMeasurementEnabled ?? false);
+    setPracticeLengthUnit(existingSession.practiceLengthUnit ?? 'in');
+    setSelectedCompetitionId(existingSession.competitionId ?? null);
+    setSelectedCompetitionAssignmentId(existingSession.competitionAssignmentId ?? null);
+    setNotificationSoundEnabled(existingSession.notificationSoundEnabled ?? true);
+    setNotificationVibrationEnabled(existingSession.notificationVibrationEnabled ?? true);
+    setPracticeRigSetup(existingSession.startingRigSetup ?? createDefaultRigSetup([]));
+    setExperimentRigSetup(existingSession.startingRigSetup ?? createDefaultRigSetup([]));
+  }, [existingSession, mode]);
 
   const saveRiver = async () => {
     const normalizedRiverName = riverName.trim();
@@ -279,22 +319,24 @@ export const SessionScreen = ({ navigation, route }: any) => {
       await saveRiver();
     }
 
-    const id = await addSession({
-      date: mode === 'competition' ? competitionStartAt! : new Date().toISOString(),
+    const sessionPayload = {
+      date: mode === 'competition' ? competitionStartAt! : existingSession?.date ?? new Date().toISOString(),
       mode,
       plannedDurationMinutes,
       alertIntervalMinutes,
       alertMarkersMinutes,
       notificationSoundEnabled: mode === 'experiment' ? undefined : notificationSoundEnabled,
       notificationVibrationEnabled: mode === 'experiment' ? undefined : notificationVibrationEnabled,
-      startAt: mode === 'competition' ? competitionStartAt! : undefined,
-      endAt: mode === 'competition' ? competitionEndAt! : undefined,
+      startAt: mode === 'competition' ? competitionStartAt! : existingSession?.startAt,
+      endAt: mode === 'competition' ? competitionEndAt! : existingSession?.endAt,
+      endedAt: existingSession?.endedAt,
       waterType,
       depthRange,
       sharedGroupId: selectedSharedGroupId ?? undefined,
       practiceMeasurementEnabled: mode === 'practice' ? practiceMeasurementEnabled : undefined,
       practiceLengthUnit: mode === 'practice' ? practiceLengthUnit : undefined,
       competitionId: mode === 'competition' ? selectedCompetitionId ?? undefined : undefined,
+      competitionAssignmentId: existingSession?.competitionAssignmentId,
       competitionGroupId: mode === 'competition' ? selectedCompetitionGroup?.id : undefined,
       competitionSessionId: mode === 'competition' ? selectedCompetitionSession?.id : undefined,
       competitionAssignedGroup: mode === 'competition' ? selectedCompetitionGroup?.label : undefined,
@@ -307,7 +349,12 @@ export const SessionScreen = ({ navigation, route }: any) => {
       riverName: normalizedRiverName || undefined,
       hypothesis: hypothesis.trim() || undefined,
       notes
-    });
+    };
+    const id = existingSession ? existingSession.id : await addSession(sessionPayload);
+    if (existingSession) {
+      await updateSessionEntry(existingSession.id, sessionPayload);
+      console.info('[problem-records] session resumed and saved', { sessionId: existingSession.id, mode });
+    }
     if (mode === 'competition' && selectedCompetitionId) {
       const assignment = await upsertCompetitionAssignment({
         competitionId: selectedCompetitionId,
@@ -361,10 +408,13 @@ export const SessionScreen = ({ navigation, route }: any) => {
         keyboardDismissMode="on-drag"
       >
         <ScreenHeader
-          title={modeCopy.title}
-          subtitle={modeCopy.subtitle}
+          title={isEditingExistingSession ? `Resume ${modeCopy.title}` : modeCopy.title}
+          subtitle={isEditingExistingSession ? 'Finish the missing session details, then continue back into the fishing flow.' : modeCopy.subtitle}
           eyebrow={`Angler: ${activeUser?.name ?? 'Loading...'}`}
         />
+        {isEditingExistingSession ? (
+          <StatusBanner tone="info" text="You are resuming a saved session. Update the missing details here, then continue into the active fishing flow." />
+        ) : null}
         <SessionEnvironmentSection
           mode={mode}
           riverName={riverName}
@@ -525,7 +575,19 @@ export const SessionScreen = ({ navigation, route }: any) => {
             <TextInput value={notes} onChangeText={setNotes} placeholder="Session notes" placeholderTextColor={theme.colors.inputPlaceholder} multiline style={{ ...formInputStyle, minHeight: 96, textAlignVertical: 'top' }} />
           </FormField>
         </SectionCard>
-        <AppButton label={modeCopy.button} onPress={onStart} disabled={invalidReminderMarkers.length > 0} />
+        <AppButton
+          label={
+            isEditingExistingSession
+              ? mode === 'experiment'
+                ? 'Resume Journal Entry'
+                : mode === 'practice'
+                  ? 'Resume Practice Session'
+                  : 'Resume Competition Session'
+              : modeCopy.button
+          }
+          onPress={onStart}
+          disabled={invalidReminderMarkers.length > 0}
+        />
       </ScrollView>
       </KeyboardDismissView>
     </ScreenBackground>

@@ -628,7 +628,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           )
         })}
 
-        <SectionCard title="Results" subtitle="Record casts and catches without reopening the fly builder each time." tone="dark">
+        <SectionCard title="Results" subtitle="Record casts and catches without reopening the fly builder each time." tone="light">
           <View style={{ gap: 10 }}>
             {visibleEntries.map((entry, index) => (
               <View
@@ -637,13 +637,15 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                   gap: 10,
                   borderRadius: theme.radius.md,
                   padding: 12,
-                  backgroundColor: theme.colors.surfaceMuted
+                  backgroundColor: theme.colors.nestedSurface,
+                  borderWidth: 1,
+                  borderColor: theme.colors.nestedSurfaceBorder
                 }}
               >
-                <Text style={{ color: theme.colors.text, fontWeight: '800' }}>
+                <Text style={{ color: theme.colors.textDark, fontWeight: '800' }}>
                   {entry.label} {index === baselineIndex ? '(Baseline)' : '(Test)'}
                 </Text>
-                <Text style={{ color: theme.colors.textSoft }}>
+                <Text style={{ color: theme.colors.textDarkSoft }}>
                   {entry.fly.name.trim()
                     ? `${entry.fly.name} #${entry.fly.hookSize} | ${entry.fly.beadColor} | ${entry.fly.beadSizeMm.toFixed(1)} mm`
                     : 'No fly selected yet'}
@@ -668,7 +670,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                   />
                 </View>
                 {!!entry.fishSizesInches.length ? (
-                  <Text style={{ color: theme.colors.textSoft, fontSize: 12 }}>
+                  <Text style={{ color: theme.colors.textDarkSoft, fontSize: 12 }}>
                     Fish log: {entry.fishSizesInches.map((size, fishIndex) => `${size}" ${entry.fishSpecies[fishIndex] ?? 'Trout'}`).join(', ')}
                   </Text>
                 ) : null}

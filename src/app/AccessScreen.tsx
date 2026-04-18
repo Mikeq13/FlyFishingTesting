@@ -22,6 +22,7 @@ import { OptionChips } from '@/components/OptionChips';
 import { useResponsiveLayout } from '@/design/layout';
 import { useTheme } from '@/design/theme';
 import { getAppSetting, setAppSetting } from '@/db/settingsRepo';
+import { buildSessionDeleteMessage, getSessionDeleteConsequences } from '@/utils/sessionDeleteConsequences';
 
 type UtilitySectionKey = 'accountInfo' | 'appearance' | 'billing' | 'competitions' | 'dataManagement' | 'groups' | 'security' | 'powerTools' | 'ownerTools';
 
@@ -40,7 +41,6 @@ const ONBOARDING_NOTE_KEY = 'tester_onboarding.note';
 export const AccessScreen = ({ navigation }: any) => {
   const layout = useResponsiveLayout();
   const { theme, themeId, setThemeId, themeOptions } = useTheme();
-  const scrollViewRef = React.useRef<ScrollView | null>(null);
   const {
     users,
     ownerUser,
@@ -149,7 +149,6 @@ export const AccessScreen = ({ navigation }: any) => {
     competitionOrganizer: false,
     userManagement: false
   });
-  const [problemReviewOffsetY, setProblemReviewOffsetY] = React.useState(0);
   const currentUserSessions = React.useMemo(() => sessions.filter((session) => session.userId === currentUser?.id), [currentUser?.id, sessions]);
   const currentUserExperiments = React.useMemo(() => experiments.filter((experiment) => experiment.userId === currentUser?.id), [currentUser?.id, experiments]);
   const incompleteSessions = React.useMemo(
@@ -390,7 +389,7 @@ export const AccessScreen = ({ navigation }: any) => {
 
   const simplifiedCleanupConfig: Array<{ key: UserDataCleanupCategory; label: string; description: string; destructive?: boolean }> = [
     { key: 'incomplete', label: 'Clear Incomplete Records', description: 'Removes unfinished draft experiments and incomplete session records that should not count as solid fishing data.' },
-    { key: 'problem', label: 'Review Problem Records', description: 'Review incomplete, legacy, or malformed records before deciding whether to delete them.' },
+    { key: 'problem', label: 'Review Problem Records', description: 'This permanently removes incomplete, legacy, or malformed records that are excluded from trusted insights.' },
     { key: 'archived', label: 'Clear Archived Records', description: 'Permanently deletes archived experiment records that are already hidden from normal history and insights.' },
     { key: 'all', label: 'Clear Everything', description: 'Deletes this profile’s owned sessions, experiments, saved setups, groups, and related synced records.', destructive: true }
   ];
@@ -426,11 +425,9 @@ export const AccessScreen = ({ navigation }: any) => {
   };
 
   const openProblemRecordReview = React.useCallback(() => {
+    console.info('[problem-records] review opened from access');
     setExpandedSections((current) => ({ ...current, dataManagement: true }));
-    setTimeout(() => {
-      scrollViewRef.current?.scrollTo({ y: Math.max(problemReviewOffsetY - 18, 0), animated: true });
-    }, 80);
-  }, [problemReviewOffsetY]);
+  }, []);
 
   const confirmCleanupCategory = (userId: number, userName: string, category: UserDataCleanupCategory) => {
     const item = simplifiedCleanupConfig.find((entry) => entry.key === category)!;
@@ -444,10 +441,9 @@ export const AccessScreen = ({ navigation }: any) => {
       category === 'problem'
         ? 'This permanently removes incomplete, legacy, or malformed records that are excluded from trusted insights.'
         : item.description;
-    item.description = description;
     confirmAdminAction(
       title,
-      `${item.description}\n\nThis will remove:\n${previewLines.map((line) => `• ${line}`).join('\n')}\n\nJoined shared records owned by other anglers are detached instead of globally deleted.`,
+      `${description}\n\nThis will remove:\n${previewLines.map((line) => `- ${line}`).join('\n')}\n\nJoined shared records owned by other anglers are detached instead of globally deleted.`,
       () => (item.key === 'all' ? clearFishingDataForUser(userId) : clearUserDataCategories(userId, [item.key])),
       successLabel
     );
@@ -455,7 +451,7 @@ export const AccessScreen = ({ navigation }: any) => {
 
   const renderCleanupActions = (userId: number, userName: string) => (
     <ActionGroup>
-      {simplifiedCleanupConfig.map((item) => (
+      {simplifiedCleanupConfig.filter((item) => item.key !== 'problem').map((item) => (
         <AppButton
           key={`${userId}-${item.key}`}
           label={item.label}
@@ -582,34 +578,12 @@ export const AccessScreen = ({ navigation }: any) => {
       return;
     }
     confirmCleanupCategory(userId, userName, category);
-    return;
-    const item = simplifiedCleanupConfig.find((entry) => entry.key === category)!;
-    const previewLines = buildCleanupPreview(category);
-    confirmAdminAction(
-      `${item.label}?`,
-      `${item.description}\n\nThis will remove:\n${previewLines.map((line) => `• ${line}`).join('\n')}\n\nJoined shared records owned by other anglers are detached instead of globally deleted.`,
-      () => (item.key === 'all' ? clearFishingDataForUser(userId) : clearUserDataCategories(userId, [item.key])),
-      `${item.label.replace('Clear ', '')} finished for ${userName}. ${previewLines.join(' | ')}`
-    );
   };
 
   const getProblemSessionDeleteMessage = (sessionId: number) => {
-    const linkedExperimentCount = experiments.filter((experiment) => experiment.sessionId === sessionId).length;
-    const catchLogCount = catchEvents.filter((event) => event.sessionId === sessionId).length;
-    const sessionSegmentCount = sessionSegments.filter((segment) => segment.sessionId === sessionId).length;
-    const consequenceParts = [
-      'this session',
-      linkedExperimentCount ? `${linkedExperimentCount} linked experiment${linkedExperimentCount === 1 ? '' : 's'}` : null,
-      catchLogCount ? `${catchLogCount} catch log${catchLogCount === 1 ? '' : 's'}` : null,
-      sessionSegmentCount ? `${sessionSegmentCount} session segment${sessionSegmentCount === 1 ? '' : 's'}` : null
-    ].filter((value): value is string => !!value);
-
-    if (consequenceParts.length === 1) {
-      return 'This will permanently delete this session.';
-    }
-
-    const lastPart = consequenceParts.pop();
-    return `This will permanently delete ${consequenceParts.join(', ')}, and ${lastPart}.`;
+    return buildSessionDeleteMessage(
+      getSessionDeleteConsequences(sessionId, experiments, catchEvents, sessionSegments)
+    );
   };
 
   const handleDeleteProblemSession = (sessionId: number) => {
@@ -622,6 +596,7 @@ export const AccessScreen = ({ navigation }: any) => {
           text: 'Delete Session',
           style: 'destructive',
           onPress: () => {
+            console.info('[problem-records] delete confirmed from access', { sessionId });
             runAdminAction(() => deleteSessionRecord(sessionId, { includeLinkedExperiments: true }), 'Session and related records deleted.').catch((error) => {
               const reason = error instanceof Error ? error.message : 'Please try again.';
               Alert.alert('Unable to finish action', reason);
@@ -766,11 +741,7 @@ export const AccessScreen = ({ navigation }: any) => {
 
   return (
     <ScreenBackground>
-      <ScrollView
-        ref={scrollViewRef}
-        contentContainerStyle={layout.buildScrollContentStyle({ gap: 12, bottomPadding: 40 })}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={layout.buildScrollContentStyle({ gap: 12, bottomPadding: 40 })} keyboardShouldPersistTaps="handled">
         <ScreenHeader
           title="Settings"
           subtitle="Keep account, billing, groups, and fishing preferences in one calmer place without repeating the same details everywhere."
@@ -794,7 +765,7 @@ export const AccessScreen = ({ navigation }: any) => {
           subtitle: 'Identity, signed-in email, and access type live here once so the rest of Settings can stay quieter.',
           summary: (
             <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-              {currentUser.name} • {remoteSession?.email ?? 'Not signed in'} • {currentEntitlementLabel}
+              {currentUser.name} - {remoteSession?.email ?? 'Not signed in'} - {currentEntitlementLabel}
             </Text>
           ),
           children: (
@@ -835,7 +806,7 @@ export const AccessScreen = ({ navigation }: any) => {
           subtitle: 'Plan details stay here instead of repeating across account and admin tools.',
           summary: (
             <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-              {currentEntitlementLabel} • {currentHasPremiumAccess ? 'Premium features enabled' : 'Free access active'}
+              {currentEntitlementLabel} - {currentHasPremiumAccess ? 'Premium features enabled' : 'Free access active'}
             </Text>
           ),
           children: renderBilling()
@@ -874,10 +845,15 @@ export const AccessScreen = ({ navigation }: any) => {
           summary: <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>Cleanup and local profile maintenance for {currentUser.name}.</Text>,
           children: (
             <View style={{ gap: 10 }}>
-              <View onLayout={(event) => setProblemReviewOffsetY(event.nativeEvent.layout.y)}>
-                <SectionCard
+              <AppButton
+                label="Review Problem Records"
+                onPress={openProblemRecordReview}
+                variant="secondary"
+                surfaceTone="light"
+              />
+              <SectionCard
                   title="Review Problem Records"
-                  subtitle="Inspect incomplete, legacy, or malformed records before removing them, or delete them in one pass."
+                  subtitle="Inspect incomplete, legacy, or malformed records before removing them, or resume a session that still needs work."
                   tone="light"
                 >
                   {problemSessions.length || problemExperiments.length ? (
@@ -924,7 +900,10 @@ export const AccessScreen = ({ navigation }: any) => {
                         <View style={{ flex: 1 }}>
                           <AppButton
                             label="Resume Session"
-                            onPress={() => navigation.navigate('SessionDetail', { sessionId: session.id })}
+                            onPress={() => {
+                              console.info('[problem-records] resume tapped from access', { sessionId: session.id });
+                              navigation.navigate('Session', { sessionId: session.id, resumeSource: 'access' });
+                            }}
                             variant="secondary"
                             surfaceTone="light"
                           />
@@ -977,7 +956,6 @@ export const AccessScreen = ({ navigation }: any) => {
                     </View>
                   ))}
                 </SectionCard>
-              </View>
               <LocalDataSection
                 isOwner={currentUser.role === 'owner'}
                 cleanupActions={renderCleanupActions(currentUser.id, currentUser.name)}
@@ -995,7 +973,7 @@ export const AccessScreen = ({ navigation }: any) => {
           subtitle: 'Normal group joining stays here, while owner-managed power-user invites stay clearly separated.',
           summary: (
             <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-              {joinedGroups.length} groups • {organizerGroups.length} organized by you • {isAuthenticatedOwner ? 'owner invites here' : 'owner-only invites'}
+              {joinedGroups.length} groups - {organizerGroups.length} organized by you - {isAuthenticatedOwner ? 'owner invites here' : 'owner-only invites'}
             </Text>
           ),
           children: (
@@ -1040,7 +1018,7 @@ export const AccessScreen = ({ navigation }: any) => {
           subtitle: 'Recovery, MFA, sign-out, and owner verification live here instead of inside account details.',
           summary: (
             <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-              {remoteSession?.emailVerifiedAt ? 'Verified email' : authStatus === 'pending_verification' ? 'Email verification pending' : 'Email not verified'} • {mfaFactors.length ? `${mfaFactors.length} MFA factor${mfaFactors.length === 1 ? '' : 's'}` : 'No MFA yet'}
+              {remoteSession?.emailVerifiedAt ? 'Verified email' : authStatus === 'pending_verification' ? 'Email verification pending' : 'Email not verified'} - {mfaFactors.length ? `${mfaFactors.length} MFA factor${mfaFactors.length === 1 ? '' : 's'}` : 'No MFA yet'}
             </Text>
           ),
           children: (
@@ -1157,3 +1135,7 @@ export const AccessScreen = ({ navigation }: any) => {
     </ScreenBackground>
   );
 };
+
+
+
+
