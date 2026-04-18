@@ -219,6 +219,7 @@ export const mapRemoteSession = (row: any, currentAuthUserId: string, maps: Remo
   competitionRequiresMeasurement: row.competition_requires_measurement ?? true,
   competitionLengthUnit: row.competition_length_unit ?? 'mm',
   startingRigSetup: row.starting_rig_setup_json ?? undefined,
+  startingTechnique: row.starting_technique ?? undefined,
   riverName: row.river_name ?? undefined,
   hypothesis: row.hypothesis ?? undefined,
   notes: row.notes ?? undefined
@@ -260,6 +261,7 @@ export const mapRemoteSessionSegment = (
   endedAt: row.ended_at ?? undefined,
   flySnapshots: row.fly_snapshots_json ?? [],
   rigSetup: row.rig_setup_json ?? undefined,
+  technique: row.technique ?? undefined,
   notes: row.notes ?? undefined
 });
 
@@ -295,6 +297,7 @@ export const mapRemoteExperiment = (
   sessionId: sessionIdByRemoteId.get(row.session_id) ?? syntheticId(`session:${row.session_id}`),
   hypothesis: row.hypothesis,
   controlFocus: row.control_focus,
+  technique: row.technique ?? undefined,
   rigSetup: row.rig_setup_json ?? undefined,
   flyEntries: row.fly_entries_json ?? [],
   controlFly: row.control_fly_json,

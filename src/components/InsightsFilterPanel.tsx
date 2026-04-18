@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { OptionChips } from '@/components/OptionChips';
-import { DEPTH_RANGES, MONTHS, WATER_TYPES } from '@/constants/options';
+import { DEPTH_RANGES, MONTHS, TECHNIQUES, WATER_TYPES } from '@/constants/options';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { AppButton } from '@/components/ui/AppButton';
 import { appTheme } from '@/design/theme';
@@ -35,6 +35,8 @@ interface InsightsFilterPanelProps {
   onWaterChange: (value: string) => void;
   depthFilter: string;
   onDepthChange: (value: string) => void;
+  techniqueFilter: string;
+  onTechniqueChange: (value: string) => void;
   flyFilterMode: 'pattern' | 'exact';
   onFlyFilterModeChange: (value: 'pattern' | 'exact') => void;
   flyOptions: string[];
@@ -73,6 +75,8 @@ export const InsightsFilterPanel = ({
   onWaterChange,
   depthFilter,
   onDepthChange,
+  techniqueFilter,
+  onTechniqueChange,
   flyFilterMode,
   onFlyFilterModeChange,
   flyOptions,
@@ -156,6 +160,12 @@ export const InsightsFilterPanel = ({
       options={['All', ...DEPTH_RANGES] as string[]}
       value={depthFilter || 'All'}
       onChange={(value) => onDepthChange(value === 'All' ? '' : value)}
+    />
+    <OptionChips
+      label="Technique"
+      options={['All', ...TECHNIQUES] as string[]}
+      value={techniqueFilter || 'All'}
+      onChange={(value) => onTechniqueChange(value === 'All' ? '' : value)}
     />
     <OptionChips
       label="Fly View"

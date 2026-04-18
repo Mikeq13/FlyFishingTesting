@@ -33,3 +33,13 @@ from pg_policies
 where schemaname = 'public'
   and position('public.group_memberships' in coalesce(qual, '')) > 0
   and tablename = 'group_memberships';
+
+select table_name, column_name
+from information_schema.columns
+where table_schema = 'public'
+  and (
+    (table_name = 'sessions' and column_name = 'starting_technique')
+    or (table_name = 'session_segments' and column_name = 'technique')
+    or (table_name = 'experiments' and column_name = 'technique')
+  )
+order by table_name, column_name;

@@ -6,12 +6,13 @@ import { DepthSelector } from '@/components/DepthSelector';
 import { PracticeCatchModal } from '@/components/PracticeCatchModal';
 import { RigFlyManager } from '@/components/RigFlyManager';
 import { RigSetupPanel } from '@/components/RigSetupPanel';
-import { WATER_TYPES } from '@/constants/options';
+import { TECHNIQUES, WATER_TYPES } from '@/constants/options';
 import { useAppStore } from './store';
 import { useSessionTimer } from '@/hooks/useSessionTimer';
 import { FlySetup } from '@/types/fly';
 import { TroutSpecies } from '@/types/experiment';
 import { RigSetup } from '@/types/rig';
+import { Technique } from '@/types/session';
 import { applyRigPresetToRig, createDefaultRigSetup, setRigFlyCount } from '@/utils/rigSetup';
 import { buildSessionSegmentUpdatePayload, buildSessionUpdatePayload, getSessionPlannedDurationMinutes } from '@/utils/sessionState';
 import { useSessionAlerts } from '@/hooks/useSessionAlerts';
@@ -22,7 +23,7 @@ import { AppButton } from '@/components/ui/AppButton';
 import { BottomSheetSurface } from '@/components/ui/BottomSheetSurface';
 import { useTheme } from '@/design/theme';
 
-type SetupSheetKey = 'leader' | 'rigging' | 'flies' | null;
+type SetupSheetKey = 'technique' | 'leader' | 'rigging' | 'flies' | null;
 
 export const PracticeScreen = ({ route }: any) => {
   const { theme } = useTheme();
@@ -66,6 +67,12 @@ export const PracticeScreen = ({ route }: any) => {
     () => catchEvents.filter((event) => event.sessionId === sessionId).slice(0, 12),
     [catchEvents, sessionId]
   );
+  const lastLoggedSpecies = useMemo<TroutSpecies | null>(() => {
+    const species = catchEvents
+      .filter((event) => event.sessionId === sessionId && !!event.species)
+      .sort((left, right) => new Date(right.caughtAt).getTime() - new Date(left.caughtAt).getTime())[0]?.species;
+    return (species as TroutSpecies | undefined) ?? null;
+  }, [catchEvents, sessionId]);
   const timer = useSessionTimer({
     startedAt: session?.startAt ?? session?.date ?? new Date().toISOString(),
     endedAt: session?.endedAt,
@@ -88,6 +95,7 @@ export const PracticeScreen = ({ route }: any) => {
       startedAt: new Date().toISOString(),
       rigSetup: seededRigSetup,
       flySnapshots: seededRigSetup.assignments.map((assignment) => assignment.fly),
+      technique: session.startingTechnique,
       notes: session.notes
     }).finally(() => setIsBootstrappingSegment(false));
   }, [activeSegment, addSessionSegment, isBootstrappingSegment, session]);
@@ -99,6 +107,7 @@ export const PracticeScreen = ({ route }: any) => {
   }, [activeSegment]);
 
   const currentRigSetup = activeSegment?.rigSetup ?? createDefaultRigSetup(activeSegment?.flySnapshots ?? []);
+  const activeTechnique = activeSegment?.technique ?? session?.startingTechnique;
   const leaderSummary = currentRigSetup.leaderFormulaName ?? (currentRigSetup.leaderFormulaSectionsSnapshot.length ? 'Custom leader' : 'Not chosen');
   const rigSummary = `${currentRigSetup.assignments.length} ${currentRigSetup.assignments.length === 1 ? 'fly' : 'flies'} | ${currentRigSetup.assignments.map((assignment) => assignment.position).join(' | ')}`;
   const flySummary = currentRigSetup.assignments.length
@@ -157,6 +166,7 @@ export const PracticeScreen = ({ route }: any) => {
       startedAt: endedAt,
       rigSetup: currentRigSetup,
       flySnapshots: currentRigSetup.assignments.map((assignment) => assignment.fly),
+      technique: activeTechnique,
       notes: activeSegment.notes
     });
     Alert.alert('Water updated', `Started a new practice segment in ${nextWaterType}.`);
@@ -166,6 +176,11 @@ export const PracticeScreen = ({ route }: any) => {
     if (!activeSegment) return;
     const nextFlies = nextRigSetup.assignments.map((assignment) => assignment.fly);
     await updateSessionSegmentEntry(activeSegment.id, buildSessionSegmentUpdatePayload(activeSegment, { rigSetup: nextRigSetup, flySnapshots: nextFlies }));
+  };
+
+  const updateActiveTechnique = async (nextTechnique: Technique) => {
+    if (!activeSegment) return;
+    await updateSessionSegmentEntry(activeSegment.id, buildSessionSegmentUpdatePayload(activeSegment, { technique: nextTechnique }));
   };
 
   const confirmPracticeCatch = async () => {
@@ -281,6 +296,15 @@ export const PracticeScreen = ({ route }: any) => {
         </SectionCard>
 
         {renderSetupSummaryCard({
+          title: 'Technique',
+          subtitle: 'Change approach quickly as you cover different water levels in the same session.',
+          summaryTitle: 'Current Technique',
+          summaryText: activeTechnique ?? 'Not chosen',
+          buttonLabel: 'Change Technique',
+          sheetKey: 'technique'
+        })}
+
+        {renderSetupSummaryCard({
           title: 'Leader',
           subtitle: 'Adjust the current leader quickly without burying the practice flow under setup controls.',
           summaryTitle: 'Current Leader',
@@ -323,7 +347,7 @@ export const PracticeScreen = ({ route }: any) => {
                   label="Log Catch"
                   onPress={() => {
                     setPendingCatchFly(assignment.fly);
-                    setPendingCatchSpecies(null);
+                    setPendingCatchSpecies(lastLoggedSpecies);
                     setPendingCatchLength('');
                   }}
                   disabled={timer.hasEnded}
@@ -349,14 +373,18 @@ export const PracticeScreen = ({ route }: any) => {
       <Modal visible={activeSetupSheet !== null} transparent animationType="slide" onRequestClose={() => setActiveSetupSheet(null)}>
         <BottomSheetSurface
           title={
-            activeSetupSheet === 'leader'
+            activeSetupSheet === 'technique'
+              ? 'Change Technique'
+              : activeSetupSheet === 'leader'
               ? 'Change Leader'
               : activeSetupSheet === 'rigging'
                 ? 'Change Rigging'
                 : 'Change Flies'
           }
           subtitle={
-            activeSetupSheet === 'leader'
+            activeSetupSheet === 'technique'
+              ? 'Switch methods quickly without slowing down the active practice session.'
+              : activeSetupSheet === 'leader'
               ? 'Update the active segment leader in the foreground, then return right to practice.'
               : activeSetupSheet === 'rigging'
                 ? 'Adjust rig count, preset, and tippet details without interrupting catch logging.'
@@ -365,6 +393,19 @@ export const PracticeScreen = ({ route }: any) => {
           onClose={() => setActiveSetupSheet(null)}
         >
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 12 }}>
+            {activeSetupSheet === 'technique' ? (
+              <SectionCard title="Technique" subtitle="Use the same active session and switch methods without leaving the water flow." tone="light">
+                <OptionChips
+                  label="Technique"
+                  options={TECHNIQUES}
+                  value={activeTechnique ?? null}
+                  onChange={(value) => {
+                    updateActiveTechnique(value as Technique).catch(console.error);
+                  }}
+                  tone="light"
+                />
+              </SectionCard>
+            ) : null}
             {activeSetupSheet === 'leader' ? (
               <RigSetupPanel
                 title="Leader"

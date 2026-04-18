@@ -1,5 +1,6 @@
 import { FlySetup } from './fly';
 import { RigSetup } from './rig';
+import { Technique } from './session';
 
 export type ExperimentWinner = string;
 export type ExperimentOutcome = 'decisive' | 'tie' | 'inconclusive';
@@ -26,6 +27,7 @@ export interface Experiment {
   sessionId: number;
   hypothesis: string;
   controlFocus: ExperimentControlFocus;
+  technique?: Technique;
   rigSetup?: RigSetup;
   flyEntries: ExperimentFlyEntry[];
   controlFly: FlySetup;

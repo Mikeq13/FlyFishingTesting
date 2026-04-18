@@ -6,7 +6,7 @@ import { AppButton } from '@/components/ui/AppButton';
 import { FormField, getFormInputStyle } from '@/components/ui/FormField';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { SelectableListPanel } from '@/components/ui/SelectableListPanel';
-import { appTheme } from '@/design/theme';
+import { useTheme } from '@/design/theme';
 import { CompetitionLengthUnit, SessionMode, WaterType } from '@/types/session';
 import { Competition, CompetitionSessionRole } from '@/types/group';
 import { DEPTH_RANGES, WATER_TYPES } from '@/constants/options';
@@ -66,13 +66,14 @@ export const SessionEnvironmentSection = ({
   competitionLengthUnit,
   onCompetitionLengthUnitChange
 }: SessionEnvironmentSectionProps) => {
+  const { theme } = useTheme();
   const formInputStyle = getFormInputStyle();
 
   return (
-  <View style={{ gap: 12, backgroundColor: appTheme.colors.surfaceAlt, padding: 14, borderRadius: 18, borderWidth: 1, borderColor: appTheme.colors.border }}>
+  <View style={{ gap: 12, backgroundColor: theme.colors.surfaceAlt, padding: 14, borderRadius: 18, borderWidth: 1, borderColor: theme.colors.border }}>
     {mode !== 'competition' ? (
       <>
-        <Text style={{ color: appTheme.colors.text, fontWeight: '700', fontSize: 16 }}>River</Text>
+        <Text style={{ color: theme.colors.text, fontWeight: '700', fontSize: 16 }}>River</Text>
         {!!savedRivers.length && (
           <View style={{ gap: 8 }}>
             <AppButton label={showSavedRiverList ? 'Hide Saved Rivers' : 'Choose Saved River'} onPress={onToggleSavedRiverList} variant="secondary" />
@@ -88,7 +89,7 @@ export const SessionEnvironmentSection = ({
           </View>
         )}
         <FormField label="River Name">
-          <TextInput value={riverName} onChangeText={onRiverNameChange} placeholder="River name" placeholderTextColor="#5a6c78" style={formInputStyle} />
+              <TextInput value={riverName} onChangeText={onRiverNameChange} placeholder="River name" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
         </FormField>
         <OptionChips label="Water Type" options={WATER_TYPES} value={waterType} onChange={(value) => onWaterTypeChange(value as WaterType)} />
         <FormField label="Water Depth">
@@ -97,8 +98,8 @@ export const SessionEnvironmentSection = ({
       </>
     ) : (
       <>
-        <Text style={{ color: appTheme.colors.text, fontWeight: '700', fontSize: 16 }}>Competition Context</Text>
-        <Text style={{ color: appTheme.colors.textSoft, lineHeight: 20 }}>
+        <Text style={{ color: theme.colors.text, fontWeight: '700', fontSize: 16 }}>Competition Context</Text>
+        <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
           Competition sessions are beat-based. Track the beat you drew, the session number, and whether fish will be measured or counted only.
         </Text>
         {!!joinedCompetitions.length ? (
@@ -112,7 +113,7 @@ export const SessionEnvironmentSection = ({
             }}
           />
         ) : (
-          <Text style={{ color: appTheme.colors.textSoft }}>Join or create a competition in Settings before starting a comp session.</Text>
+          <Text style={{ color: theme.colors.textSoft }}>Join or create a competition in Settings before starting a comp session.</Text>
         )}
         {!!competitionAssignmentOptions.length ? (
           <OptionChips
@@ -125,9 +126,9 @@ export const SessionEnvironmentSection = ({
             }}
           />
         ) : (
-          <Text style={{ color: appTheme.colors.textSoft }}>No saved assignment yet. Enter your group, beat, and role in Settings first.</Text>
+          <Text style={{ color: theme.colors.textSoft }}>No saved assignment yet. Enter your group, beat, and role in Settings first.</Text>
         )}
-        <View style={{ gap: 8, backgroundColor: appTheme.colors.surfaceMuted, borderRadius: appTheme.radius.md, padding: 12 }}>
+        <View style={{ gap: 8, backgroundColor: theme.colors.surfaceMuted, borderRadius: theme.radius.md, padding: 12 }}>
           <InlineSummaryRow label="Assigned Group" value={competitionAssignedGroupLabel || 'Not selected'} valueMuted={!competitionAssignedGroupLabel} />
           <InlineSummaryRow label="Beat / Section" value={competitionBeat || 'Not selected'} valueMuted={!competitionBeat} />
           <InlineSummaryRow label="Session" value={competitionSessionLabel || 'Not selected'} valueMuted={!competitionSessionLabel} />
@@ -137,7 +138,7 @@ export const SessionEnvironmentSection = ({
         {competitionRequiresMeasurement ? (
           <>
             <OptionChips label="Competition Length Unit" options={['mm', 'cm'] as const} value={competitionLengthUnit} onChange={(value) => onCompetitionLengthUnitChange(value as CompetitionLengthUnit)} />
-            <Text style={{ color: appTheme.colors.textSoft, lineHeight: 20 }}>
+            <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
               Length unit stays locked for this session and auto-populates each time you log a fish.
               {competitionLengthUnit === 'cm' ? ' Minimum measurable fish size is 20 cm.' : ' If your comp uses the standard minimum, fish under 200 mm should not count.'}
             </Text>

@@ -319,6 +319,7 @@ const syncSession = async (context: SyncContext, session: Session) => {
     competition_requires_measurement: session.competitionRequiresMeasurement ?? true,
     competition_length_unit: session.competitionLengthUnit ?? 'mm',
     starting_rig_setup_json: session.startingRigSetup ?? null,
+    starting_technique: session.startingTechnique ?? null,
     river_name: session.riverName ?? null,
     hypothesis: session.hypothesis ?? null,
     notes: session.notes ?? null,
@@ -356,6 +357,7 @@ const syncSessionSegment = async (context: SyncContext, segment: SessionSegment)
     ended_at: segment.endedAt ?? null,
     rig_setup_json: segment.rigSetup ?? null,
     fly_snapshots_json: segment.flySnapshots,
+    technique: segment.technique ?? null,
     notes: segment.notes ?? null
   });
   await recordSyncSuccess('session_segment', segment.id, remoteId);
@@ -387,6 +389,7 @@ const syncExperiment = async (context: SyncContext, experiment: Experiment) => {
     session_id: remoteSessionId,
     hypothesis: experiment.hypothesis,
     control_focus: experiment.controlFocus,
+    technique: experiment.technique ?? null,
     rig_setup_json: experiment.rigSetup ?? null,
     fly_entries_json: experiment.flyEntries,
     control_fly_json: experiment.controlFly,

@@ -121,6 +121,7 @@ export const initDb = async (): Promise<void> => {
       competition_requires_measurement INTEGER NOT NULL DEFAULT 1,
       competition_length_unit TEXT NOT NULL DEFAULT 'mm',
       starting_rig_setup_json TEXT,
+      starting_technique TEXT,
       river_name TEXT,
       hypothesis TEXT,
       insect_type TEXT NOT NULL,
@@ -224,6 +225,7 @@ export const initDb = async (): Promise<void> => {
       session_id INTEGER NOT NULL,
       hypothesis TEXT NOT NULL,
       control_focus TEXT NOT NULL DEFAULT 'pattern',
+      technique TEXT,
       rig_setup_json TEXT,
       fly_entries_json TEXT,
       control_fly_json TEXT NOT NULL,
@@ -252,6 +254,7 @@ export const initDb = async (): Promise<void> => {
       ended_at TEXT,
       rig_setup_json TEXT,
       fly_snapshots_json TEXT NOT NULL,
+      technique TEXT,
       notes TEXT,
       FOREIGN KEY(user_id) REFERENCES users(id),
       FOREIGN KEY(session_id) REFERENCES sessions(id)
@@ -439,6 +442,9 @@ export const initDb = async (): Promise<void> => {
     await database.execAsync(`ALTER TABLE sessions ADD COLUMN starting_rig_setup_json TEXT;`);
   } catch {}
   try {
+    await database.execAsync(`ALTER TABLE sessions ADD COLUMN starting_technique TEXT;`);
+  } catch {}
+  try {
     await database.execAsync(`ALTER TABLE experiments ADD COLUMN outcome TEXT NOT NULL DEFAULT 'inconclusive';`);
   } catch {}
   try {
@@ -449,6 +455,9 @@ export const initDb = async (): Promise<void> => {
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE experiments ADD COLUMN rig_setup_json TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE experiments ADD COLUMN technique TEXT;`);
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE experiments ADD COLUMN archived_at TEXT;`);
@@ -476,6 +485,9 @@ export const initDb = async (): Promise<void> => {
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE session_segments ADD COLUMN rig_setup_json TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE session_segments ADD COLUMN technique TEXT;`);
   } catch {}
   try {
     await database.execAsync(`CREATE TABLE IF NOT EXISTS invites (

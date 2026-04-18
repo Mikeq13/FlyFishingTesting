@@ -1,7 +1,7 @@
 import { TroutSpecies } from './experiment';
 import { FlySetup } from './fly';
 import { RigSetup } from './rig';
-import { DepthRange, SessionMode, WaterType } from './session';
+import { DepthRange, SessionMode, Technique, WaterType } from './session';
 
 export type CatchLengthUnit = 'in' | 'mm' | 'cm';
 
@@ -17,6 +17,7 @@ export interface SessionSegment {
   endedAt?: string;
   flySnapshots: FlySetup[];
   rigSetup?: RigSetup;
+  technique?: Technique;
   notes?: string;
 }
 

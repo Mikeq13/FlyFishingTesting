@@ -67,6 +67,7 @@ export const InsightsScreen = ({ navigation }: any) => {
   const [monthFilter, setMonthFilter] = useState('');
   const [waterFilter, setWaterFilter] = useState('');
   const [depthFilter, setDepthFilter] = useState('');
+  const [techniqueFilter, setTechniqueFilter] = useState('');
   const [speciesFilter, setSpeciesFilter] = useState('');
   const [flyFilter, setFlyFilter] = useState('');
   const [flyFilterMode, setFlyFilterMode] = useState<'pattern' | 'exact'>('pattern');
@@ -106,6 +107,7 @@ export const InsightsScreen = ({ navigation }: any) => {
     month: monthFilter.trim().toLowerCase(),
     water: waterFilter.trim().toLowerCase(),
     depth: depthFilter.trim().toLowerCase(),
+    technique: techniqueFilter.trim().toLowerCase(),
     species: speciesFilter.trim().toLowerCase(),
     fly: flyFilter.trim().toLowerCase(),
     hypothesis: hypothesisFilter.trim().toLowerCase(),
@@ -145,15 +147,17 @@ export const InsightsScreen = ({ navigation }: any) => {
         const month = new Date(session.date).toLocaleString('en-US', { month: 'long' }).toLowerCase();
         const water = session.waterType.toLowerCase();
         const depth = session.depthRange.toLowerCase();
+        const technique = session.startingTechnique?.toLowerCase() ?? '';
 
         return (
           (!normalizedFilters.river || river.includes(normalizedFilters.river)) &&
           (!normalizedFilters.month || month.includes(normalizedFilters.month)) &&
           (!normalizedFilters.water || water.includes(normalizedFilters.water)) &&
-          (!normalizedFilters.depth || depth.includes(normalizedFilters.depth))
+          (!normalizedFilters.depth || depth.includes(normalizedFilters.depth)) &&
+          (!normalizedFilters.technique || technique === normalizedFilters.technique)
         );
       }),
-    [contextSessions, normalizedFilters.depth, normalizedFilters.month, normalizedFilters.river, normalizedFilters.water]
+    [contextSessions, normalizedFilters.depth, normalizedFilters.month, normalizedFilters.river, normalizedFilters.technique, normalizedFilters.water]
   );
 
   const filteredSessionIds = useMemo(() => new Set(filteredSessions.map((session) => session.id)), [filteredSessions]);
@@ -237,10 +241,15 @@ export const InsightsScreen = ({ navigation }: any) => {
         const matchesHypothesis =
           !normalizedFilters.hypothesis ||
           experiment.hypothesis.trim().toLowerCase() === normalizedFilters.hypothesis;
+        const matchesTechnique =
+          !normalizedFilters.technique ||
+          (experiment.technique ?? contextSessions.find((session) => session.id === experiment.sessionId)?.startingTechnique ?? '')
+            .trim()
+            .toLowerCase() === normalizedFilters.technique;
 
-        return matchesFly && matchesSpecies && matchesSize && matchesHypothesis;
+        return matchesFly && matchesSpecies && matchesSize && matchesHypothesis && matchesTechnique;
       }),
-    [contextualExperiments, filteredSessionIds, flyFilterMode, normalizedFilters.fly, normalizedFilters.hypothesis, normalizedFilters.minimumSize, normalizedFilters.species]
+    [contextSessions, contextualExperiments, filteredSessionIds, flyFilterMode, normalizedFilters.fly, normalizedFilters.hypothesis, normalizedFilters.minimumSize, normalizedFilters.species, normalizedFilters.technique]
   );
 
   const filteredCatchEvents = useMemo(
@@ -395,6 +404,8 @@ export const InsightsScreen = ({ navigation }: any) => {
               onWaterChange={setWaterFilter}
               depthFilter={depthFilter}
               onDepthChange={setDepthFilter}
+              techniqueFilter={techniqueFilter}
+              onTechniqueChange={setTechniqueFilter}
               flyFilterMode={flyFilterMode}
               onFlyFilterModeChange={(value) => {
                 setFlyFilterMode(value);
@@ -440,7 +451,7 @@ export const InsightsScreen = ({ navigation }: any) => {
                     const sessionCatchCount = filteredCatchEvents.filter((event) => event.sessionId === session.id).length;
                     return (
                       <Text key={session.id} style={{ color: '#bde6f6' }}>
-                        {(owner?.name ?? 'Angler')} | {session.mode} | {session.riverName ?? 'Unknown river'} | {sessionCatchCount} catches
+                        {(owner?.name ?? 'Angler')} | {session.mode} | {session.startingTechnique ?? 'Technique not set'} | {session.riverName ?? 'Unknown river'} | {sessionCatchCount} catches
                       </Text>
                     );
                   })}

@@ -22,8 +22,8 @@ import { SectionCard } from '@/components/ui/SectionCard';
 import { useTheme } from '@/design/theme';
 import { CastCounter } from '@/components/CastCounter';
 import { CatchCounter } from '@/components/CatchCounter';
-import { WATER_TYPES } from '@/constants/options';
-import { WaterType } from '@/types/session';
+import { TECHNIQUES, WATER_TYPES } from '@/constants/options';
+import { Technique, WaterType } from '@/types/session';
 import { BottomSheetSurface } from '@/components/ui/BottomSheetSurface';
 
 const isDraftExperiment = (entries: ExperimentFlyEntry[]) =>
@@ -43,7 +43,7 @@ const CONTROL_FOCUS_OPTIONS: ExperimentControlFocus[] = [
 
 type ExperimentSectionKey = 'hypothesis' | 'waterType' | 'leaders' | 'rigging' | 'flies';
 type DraftSaveState = 'dirty' | 'saving' | 'save_failed' | 'saved';
-type SetupSheetKey = 'leader' | 'rigging' | 'flies' | null;
+type SetupSheetKey = 'technique' | 'leader' | 'rigging' | 'flies' | null;
 
 export const ExperimentScreen = ({ route, navigation }: any) => {
   const { theme } = useTheme();
@@ -68,15 +68,15 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
   const sessionId: number = route.params.sessionId;
-  const experimentId: number | undefined = route.params?.experimentId;
+  const [currentRouteExperimentId, setCurrentRouteExperimentId] = useState<number | undefined>(route.params?.experimentId);
   const session = useMemo(() => sessions.find((candidate) => candidate.id === sessionId) ?? null, [sessionId, sessions]);
   const routeExperiment = useMemo(
-    () => experiments.find((experiment) => experiment.id === experimentId) ?? null,
-    [experimentId, experiments]
+    () => experiments.find((experiment) => experiment.id === currentRouteExperimentId) ?? null,
+    [currentRouteExperimentId, experiments]
   );
   const autosavedDraft = useMemo(
-    () => (experimentId ? null : experiments.find((experiment) => experiment.sessionId === sessionId && experiment.status === 'draft') ?? null),
-    [experimentId, experiments, sessionId]
+    () => (currentRouteExperimentId ? null : experiments.find((experiment) => experiment.sessionId === sessionId && experiment.status === 'draft') ?? null),
+    [currentRouteExperimentId, experiments, sessionId]
   );
   const existingExperiment = routeExperiment ?? autosavedDraft;
   const [flyCount, setFlyCount] = useState<1 | 2 | 3>(2);
@@ -85,6 +85,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   const [flyEntries, setFlyEntries] = useState<ExperimentFlyEntry[]>(() => createEmptyExperimentEntries(2, 0));
   const [rigSetup, setRigSetup] = useState<RigSetup>(() => createDefaultRigSetup(createEmptyExperimentEntries(2, 0).map((entry) => entry.fly)));
   const [currentWaterType, setCurrentWaterType] = useState<WaterType>('run');
+  const [currentTechnique, setCurrentTechnique] = useState<Technique | undefined>(undefined);
   const [castStep, setCastStep] = useState<5 | 10>(5);
   const [isSaving, setIsSaving] = useState(false);
   const [showSavedExperimentActions, setShowSavedExperimentActions] = useState(false);
@@ -108,6 +109,10 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   const hydratedSourceKeyRef = useRef<string | null>(null);
   const draftRevisionRef = useRef(0);
   const latestSaveTokenRef = useRef(0);
+
+  useEffect(() => {
+    setCurrentRouteExperimentId(route.params?.experimentId);
+  }, [route.params?.experimentId]);
 
   const markDraftDirty = () => {
     if (routeExperiment?.status === 'complete') return;
@@ -144,6 +149,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     setFlyEntries(existingEntries);
     setRigSetup(getExperimentRigSetup(experiment));
     setCurrentWaterType(session?.waterType ?? 'run');
+    setCurrentTechnique(experiment.technique ?? session?.startingTechnique);
     setDraftExperimentId(experiment.status === 'draft' ? experiment.id : null);
     resetDraftTracking('saved');
     hydratedSourceKeyRef.current = sourceKey;
@@ -178,6 +184,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     setFlyEntries(seededEntries);
     setRigSetup(session.startingRigSetup);
     setCurrentWaterType(session.waterType);
+    setCurrentTechnique(session.startingTechnique);
     setDraftExperimentId(null);
     resetDraftTracking('saved');
     hydratedSourceKeyRef.current = sourceKey;
@@ -187,6 +194,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   useEffect(() => {
     if (!routeExperiment && !autosavedDraft && !session?.startingRigSetup && !hydratedRef.current) {
       setCurrentWaterType(session?.waterType ?? 'run');
+      setCurrentTechnique(session?.startingTechnique);
       resetDraftTracking('saved');
       hydratedSourceKeyRef.current = `empty:${sessionId}`;
       hydratedRef.current = true;
@@ -195,6 +203,10 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
 
   const visibleEntries = useMemo(() => flyEntries.slice(0, flyCount), [flyCount, flyEntries]);
   const isDraft = useMemo(() => isDraftExperiment(visibleEntries), [visibleEntries]);
+  const hasMeaningfulLogging = useMemo(
+    () => visibleEntries.some((entry) => entry.casts > 0 || entry.catches > 0 || entry.catchTimestamps.length > 0),
+    [visibleEntries]
+  );
   const activeExperimentId = routeExperiment?.id ?? draftExperimentId;
   const lastLoggedSpecies = useMemo<TroutSpecies | null>(() => {
     const allSpecies = visibleEntries.flatMap((entry) => entry.fishSpecies);
@@ -212,6 +224,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
       sessionId,
       hypothesis: session?.hypothesis || existingExperiment?.hypothesis || 'No hypothesis provided',
       controlFocus,
+      technique: currentTechnique,
       rigSetup: syncRigSetupFromFlies(rigSetup, visibleEntries.map((entry) => entry.fly)),
       flyEntries: visibleEntries,
       ...legacy,
@@ -291,7 +304,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     }
   };
 
-  const resetForNextExperiment = () => {
+  const resetForNextExperiment = (overrides?: { waterType?: WaterType; technique?: Technique }) => {
     const seededAssignments = session?.startingRigSetup?.assignments.slice(0, 3) ?? [];
     const seededFlyCount = getFlyCount(seededAssignments.length || 2);
     const seededEntries = createEmptyExperimentEntries(seededFlyCount, 0).map((entry, index) => ({
@@ -302,12 +315,14 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     setBaselineIndex(0);
     setFlyEntries(seededEntries);
     setRigSetup(session?.startingRigSetup ?? createDefaultRigSetup(seededEntries.map((entry) => entry.fly)));
-    setCurrentWaterType(session?.waterType ?? 'run');
+    setCurrentWaterType(overrides?.waterType ?? session?.waterType ?? 'run');
+    setCurrentTechnique(overrides?.technique ?? session?.startingTechnique);
     setShowSavedExperimentActions(false);
     setPendingFishEntryIndex(null);
     setPendingFishSize(null);
     setPendingFishSpecies(null);
     setDraftExperimentId(null);
+    setCurrentRouteExperimentId(undefined);
     resetDraftTracking('saved');
   };
 
@@ -433,16 +448,95 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
               ? 'Draft changes autosave in the background while you keep fishing.'
               : 'The first meaningful change will create a draft automatically.';
 
-  const updateWaterType = async (nextWaterType: WaterType) => {
+  const persistSessionWaterType = async (nextWaterType: WaterType) => {
     setCurrentWaterType(nextWaterType);
     if (!session) return;
+    await updateSessionEntry(session.id, {
+      ...session,
+      waterType: nextWaterType
+    });
+  };
+
+  const persistSessionTechnique = async (nextTechnique: Technique) => {
+    setCurrentTechnique(nextTechnique);
+    if (!session) return;
+    await updateSessionEntry(session.id, {
+      ...session,
+      startingTechnique: nextTechnique
+    });
+  };
+
+  const saveCurrentAndStartFresh = async (changes: { waterType?: WaterType; technique?: Technique }) => {
+    if (visibleEntries.some((entry) => entry.catches > entry.casts)) {
+      Alert.alert('Invalid catch count', 'Catches cannot be greater than casts.');
+      return;
+    }
+    setIsSaving(true);
     try {
-      await updateSessionEntry(session.id, {
-        ...session,
-        waterType: nextWaterType
+      const payload = buildExperimentPayload();
+      if (activeExperimentId) {
+        await updateExperimentEntry(activeExperimentId, payload);
+      } else {
+        await addExperiment(payload);
+      }
+      if (changes.waterType) {
+        await persistSessionWaterType(changes.waterType);
+      }
+      if (changes.technique) {
+        await persistSessionTechnique(changes.technique);
+      }
+      resetForNextExperiment({
+        waterType: changes.waterType ?? currentWaterType,
+        technique: changes.technique ?? currentTechnique
       });
+      setActiveSetupSheet(null);
+      Alert.alert('Started a fresh experiment', 'The current experiment was saved and a fresh comparison is ready with the new context.');
+    } catch (error) {
+      Alert.alert('Unable to change context', error instanceof Error ? error.message : 'Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const requestFreshContext = (changes: { waterType?: WaterType; technique?: Technique }) => {
+    Alert.alert(
+      'Start a fresh experiment?',
+      'Water type or technique changed after logging began. Save this experiment and start a new one with the updated context so the comparison stays clean.',
+      [
+        { text: 'Keep Current Context', style: 'cancel' },
+        {
+          text: 'Save And Start Fresh',
+          style: 'destructive',
+          onPress: () => {
+            saveCurrentAndStartFresh(changes).catch(console.error);
+          }
+        }
+      ]
+    );
+  };
+
+  const updateWaterType = async (nextWaterType: WaterType) => {
+    if (hasMeaningfulLogging && nextWaterType !== currentWaterType) {
+      requestFreshContext({ waterType: nextWaterType });
+      return;
+    }
+    try {
+      await persistSessionWaterType(nextWaterType);
     } catch (error) {
       Alert.alert('Unable to update water type', error instanceof Error ? error.message : 'Please try again.');
+    }
+  };
+
+  const updateTechnique = async (nextTechnique: Technique) => {
+    if (hasMeaningfulLogging && nextTechnique !== currentTechnique) {
+      requestFreshContext({ technique: nextTechnique });
+      return;
+    }
+    try {
+      await persistSessionTechnique(nextTechnique);
+      setActiveSetupSheet(null);
+    } catch (error) {
+      Alert.alert('Unable to update technique', error instanceof Error ? error.message : 'Please try again.');
     }
   };
 
@@ -613,6 +707,15 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         </SectionCard>
 
         {renderSetupSummaryCard({
+          title: 'Technique',
+          subtitle: 'Keep the current method visible and lightweight to change without blurring the experiment context.',
+          summaryTitle: 'Current Technique',
+          summaryText: currentTechnique ?? 'Not chosen',
+          buttonLabel: 'Change Technique',
+          sheetKey: 'technique'
+        })}
+
+        {renderSetupSummaryCard({
           title: 'Leader',
           subtitle: 'Leader setup persists from Session and can be changed here without leaving the experiment.',
           summaryTitle: 'Current Leader',
@@ -734,14 +837,18 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
       <Modal visible={activeSetupSheet !== null} transparent animationType="slide" onRequestClose={() => setActiveSetupSheet(null)}>
         <BottomSheetSurface
           title={
-            activeSetupSheet === 'leader'
+            activeSetupSheet === 'technique'
+              ? 'Change Technique'
+              : activeSetupSheet === 'leader'
               ? 'Change Leader'
               : activeSetupSheet === 'rigging'
                 ? 'Change Rigging'
                 : 'Change Flies'
           }
           subtitle={
-            activeSetupSheet === 'leader'
+            activeSetupSheet === 'technique'
+              ? 'Keep the method quick to change while protecting experiment integrity once logging has started.'
+              : activeSetupSheet === 'leader'
               ? 'Keep the current experiment visible while you swap leader setup.'
               : activeSetupSheet === 'rigging'
                 ? 'Adjust rig count, preset, and tippet details without losing your place in Results.'
@@ -750,6 +857,19 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           onClose={() => setActiveSetupSheet(null)}
         >
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 12 }}>
+            {activeSetupSheet === 'technique' ? (
+              <SectionCard title="Technique" subtitle="Switch methods without losing your place in the experiment." tone="light">
+                <OptionChips
+                  label="Technique"
+                  options={TECHNIQUES}
+                  value={currentTechnique ?? null}
+                  onChange={(value) => {
+                    updateTechnique(value as Technique).catch(console.error);
+                  }}
+                  tone="light"
+                />
+              </SectionCard>
+            ) : null}
             {activeSetupSheet === 'leader' ? (
               <RigSetupPanel
                 title="Leader"

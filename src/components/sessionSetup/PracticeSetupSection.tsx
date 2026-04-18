@@ -6,12 +6,13 @@ import { RigSetupPanel } from '@/components/RigSetupPanel';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { AppButton } from '@/components/ui/AppButton';
 import { BottomSheetSurface } from '@/components/ui/BottomSheetSurface';
-import { PracticeLengthUnit } from '@/types/session';
+import { PracticeLengthUnit, Technique } from '@/types/session';
 import { RigSetup, LeaderFormula, RigPreset } from '@/types/rig';
 import { FlySetup, SavedFly } from '@/types/fly';
 import { useTheme } from '@/design/theme';
+import { TECHNIQUES } from '@/constants/options';
 
-type SetupSheetKey = 'leader' | 'rigging' | 'flies' | null;
+type SetupSheetKey = 'technique' | 'leader' | 'rigging' | 'flies' | null;
 
 interface PracticeSetupSectionProps {
   title?: string;
@@ -22,7 +23,9 @@ interface PracticeSetupSectionProps {
   practiceMeasurementEnabled?: boolean;
   practiceLengthUnit?: PracticeLengthUnit;
   showMeasurementControls?: boolean;
+  technique?: Technique;
   onRigSetupChange: (next: RigSetup) => void;
+  onTechniqueChange: (next: Technique) => void;
   onFlyCountChange: (nextCount: 1 | 2 | 3) => void;
   onCreateFly: (fly: FlySetup) => Promise<void>;
   onCreateLeaderFormula: (payload: { name: string; sections: LeaderFormula['sections'] }) => Promise<LeaderFormula>;
@@ -44,7 +47,9 @@ export const PracticeSetupSection = ({
   practiceMeasurementEnabled = false,
   practiceLengthUnit = 'in',
   showMeasurementControls = true,
+  technique,
   onRigSetupChange,
+  onTechniqueChange,
   onFlyCountChange,
   onCreateFly,
   onCreateLeaderFormula,
@@ -135,6 +140,12 @@ export const PracticeSetupSection = ({
   return (
     <>
       {renderSummaryCard({
+        heading: 'Technique',
+        summary: technique ?? 'Not chosen',
+        buttonLabel: 'Change Technique',
+        sheetKey: 'technique'
+      })}
+      {renderSummaryCard({
         heading: 'Leader',
         summary: leaderSummary,
         buttonLabel: 'Change Leader',
@@ -179,6 +190,17 @@ export const PracticeSetupSection = ({
           onClose={() => setActiveSetupSheet(null)}
         >
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 12 }}>
+            {activeSetupSheet === 'technique' ? (
+              <SectionCard title="Technique" subtitle="Keep approach changes fast and obvious before you adjust the rest of the setup." tone="light">
+                <OptionChips
+                  label="Technique"
+                  options={TECHNIQUES}
+                  value={technique ?? null}
+                  onChange={(value) => onTechniqueChange(value as Technique)}
+                  tone="light"
+                />
+              </SectionCard>
+            ) : null}
             {activeSetupSheet === 'leader' ? (
               <RigSetupPanel
                 title="Leader"

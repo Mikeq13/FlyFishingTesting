@@ -4,6 +4,7 @@ import { CompetitionSessionRole } from './group';
 export type WaterType = 'riffle' | 'run' | 'glide' | 'pool' | 'pocket water' | 'lake';
 export type DepthRange = '<1.5 ft' | '1.5-3 ft' | '3-5 ft' | '>5 ft';
 export type SessionMode = 'experiment' | 'practice' | 'competition';
+export type Technique = 'Dry Fly' | 'Dry Dropper' | 'Euro Nymphing';
 export type CompetitionLengthUnit = 'mm' | 'cm';
 export type PracticeLengthUnit = 'in' | 'mm' | 'cm';
 export type InsectType =
@@ -50,6 +51,7 @@ export interface Session {
   competitionRequiresMeasurement?: boolean;
   competitionLengthUnit?: CompetitionLengthUnit;
   startingRigSetup?: RigSetup;
+  startingTechnique?: Technique;
   riverName?: string;
   hypothesis?: string;
   notes?: string;

@@ -12,8 +12,8 @@ export const createSession = async (payload: Omit<Session, 'id'>): Promise<numbe
 
   const db = await getDb();
   const result = await db.runAsync(
-    `INSERT INTO sessions (user_id, date, session_mode, planned_duration_minutes, alert_interval_minutes, alert_markers_json, notification_sound_enabled, notification_vibration_enabled, ended_at, start_at, end_at, water_type, depth_range, shared_group_id, practice_measurement_enabled, practice_length_unit, competition_id, competition_assignment_id, competition_group_id, competition_session_id, competition_assigned_group, competition_role, competition_beat, competition_session_number, competition_requires_measurement, competition_length_unit, starting_rig_setup_json, river_name, hypothesis, insect_type, insect_stage, insect_confidence, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO sessions (user_id, date, session_mode, planned_duration_minutes, alert_interval_minutes, alert_markers_json, notification_sound_enabled, notification_vibration_enabled, ended_at, start_at, end_at, water_type, depth_range, shared_group_id, practice_measurement_enabled, practice_length_unit, competition_id, competition_assignment_id, competition_group_id, competition_session_id, competition_assigned_group, competition_role, competition_beat, competition_session_number, competition_requires_measurement, competition_length_unit, starting_rig_setup_json, starting_technique, river_name, hypothesis, insect_type, insect_stage, insect_confidence, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     payload.userId,
     payload.date,
     payload.mode,
@@ -41,6 +41,7 @@ export const createSession = async (payload: Omit<Session, 'id'>): Promise<numbe
     payload.competitionRequiresMeasurement === undefined ? 1 : payload.competitionRequiresMeasurement ? 1 : 0,
     payload.competitionLengthUnit ?? 'mm',
     payload.startingRigSetup ? JSON.stringify(payload.startingRigSetup) : null,
+    payload.startingTechnique ?? null,
     payload.riverName ?? null,
     payload.hypothesis ?? null,
     'mayfly',
@@ -62,7 +63,7 @@ export const updateSession = async (sessionId: number, payload: Omit<Session, 'i
   const db = await getDb();
   await db.runAsync(
     `UPDATE sessions
-     SET date = ?, session_mode = ?, planned_duration_minutes = ?, alert_interval_minutes = ?, alert_markers_json = ?, notification_sound_enabled = ?, notification_vibration_enabled = ?, ended_at = ?, start_at = ?, end_at = ?, water_type = ?, depth_range = ?, shared_group_id = ?, practice_measurement_enabled = ?, practice_length_unit = ?, competition_id = ?, competition_assignment_id = ?, competition_group_id = ?, competition_session_id = ?, competition_assigned_group = ?, competition_role = ?, competition_beat = ?, competition_session_number = ?, competition_requires_measurement = ?, competition_length_unit = ?, starting_rig_setup_json = ?, river_name = ?, hypothesis = ?, notes = ?
+     SET date = ?, session_mode = ?, planned_duration_minutes = ?, alert_interval_minutes = ?, alert_markers_json = ?, notification_sound_enabled = ?, notification_vibration_enabled = ?, ended_at = ?, start_at = ?, end_at = ?, water_type = ?, depth_range = ?, shared_group_id = ?, practice_measurement_enabled = ?, practice_length_unit = ?, competition_id = ?, competition_assignment_id = ?, competition_group_id = ?, competition_session_id = ?, competition_assigned_group = ?, competition_role = ?, competition_beat = ?, competition_session_number = ?, competition_requires_measurement = ?, competition_length_unit = ?, starting_rig_setup_json = ?, starting_technique = ?, river_name = ?, hypothesis = ?, notes = ?
      WHERE id = ?`,
     payload.date,
     payload.mode,
@@ -90,6 +91,7 @@ export const updateSession = async (sessionId: number, payload: Omit<Session, 'i
     payload.competitionRequiresMeasurement === undefined ? 1 : payload.competitionRequiresMeasurement ? 1 : 0,
     payload.competitionLengthUnit ?? 'mm',
     payload.startingRigSetup ? JSON.stringify(payload.startingRigSetup) : null,
+    payload.startingTechnique ?? null,
     payload.riverName ?? null,
     payload.hypothesis ?? null,
     payload.notes ?? null,
@@ -126,6 +128,7 @@ export const listSessions = async (userId: number): Promise<Session[]> => {
         competitionRequiresMeasurement: session.competitionRequiresMeasurement ?? true,
         competitionLengthUnit: session.competitionLengthUnit ?? 'mm',
         startingRigSetup: session.startingRigSetup ?? undefined,
+        startingTechnique: session.startingTechnique ?? undefined,
         legacyContextMissing: !session.riverName?.trim()
       }));
   }
@@ -163,6 +166,7 @@ export const listSessions = async (userId: number): Promise<Session[]> => {
     competitionRequiresMeasurement: r.competition_requires_measurement === undefined ? true : !!r.competition_requires_measurement,
     competitionLengthUnit: r.competition_length_unit ?? 'mm',
     startingRigSetup: r.starting_rig_setup_json ? JSON.parse(r.starting_rig_setup_json) : undefined,
+    startingTechnique: r.starting_technique ?? undefined,
     waterType: r.water_type,
     depthRange: r.depth_range,
     riverName: r.river_name ?? undefined,

@@ -43,6 +43,7 @@ export const buildSessionUpdatePayload = (
   competitionRequiresMeasurement: session.competitionRequiresMeasurement,
   competitionLengthUnit: session.competitionLengthUnit,
   startingRigSetup: session.startingRigSetup,
+  startingTechnique: session.startingTechnique,
   riverName: session.riverName,
   hypothesis: session.hypothesis,
   notes: session.notes,
@@ -62,6 +63,7 @@ export const buildSessionSegmentUpdatePayload = (
   endedAt: segment.endedAt,
   flySnapshots: segment.flySnapshots,
   rigSetup: segment.rigSetup,
+  technique: segment.technique,
   notes: segment.notes,
   ...overrides
 });

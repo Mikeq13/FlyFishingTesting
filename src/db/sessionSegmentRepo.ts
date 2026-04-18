@@ -12,8 +12,8 @@ export const createSessionSegment = async (payload: Omit<SessionSegment, 'id'>):
 
   const db = await getDb();
   const result = await db.runAsync(
-    `INSERT INTO session_segments (user_id, session_id, session_mode, river_name, water_type, depth_range, started_at, ended_at, rig_setup_json, fly_snapshots_json, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO session_segments (user_id, session_id, session_mode, river_name, water_type, depth_range, started_at, ended_at, rig_setup_json, fly_snapshots_json, technique, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     payload.userId,
     payload.sessionId,
     payload.mode,
@@ -24,6 +24,7 @@ export const createSessionSegment = async (payload: Omit<SessionSegment, 'id'>):
     payload.endedAt ?? null,
     payload.rigSetup ? JSON.stringify(payload.rigSetup) : null,
     JSON.stringify(payload.flySnapshots),
+    payload.technique ?? null,
     payload.notes ?? null
   );
   return result.lastInsertRowId;
@@ -40,7 +41,7 @@ export const updateSessionSegment = async (segmentId: number, payload: Omit<Sess
   const db = await getDb();
   await db.runAsync(
     `UPDATE session_segments
-     SET session_id = ?, session_mode = ?, river_name = ?, water_type = ?, depth_range = ?, started_at = ?, ended_at = ?, rig_setup_json = ?, fly_snapshots_json = ?, notes = ?
+     SET session_id = ?, session_mode = ?, river_name = ?, water_type = ?, depth_range = ?, started_at = ?, ended_at = ?, rig_setup_json = ?, fly_snapshots_json = ?, technique = ?, notes = ?
      WHERE id = ?`,
     payload.sessionId,
     payload.mode,
@@ -51,6 +52,7 @@ export const updateSessionSegment = async (segmentId: number, payload: Omit<Sess
     payload.endedAt ?? null,
     payload.rigSetup ? JSON.stringify(payload.rigSetup) : null,
     JSON.stringify(payload.flySnapshots),
+    payload.technique ?? null,
     payload.notes ?? null,
     segmentId
   );
@@ -75,6 +77,7 @@ export const listSessionSegments = async (userId: number): Promise<SessionSegmen
     endedAt: row.ended_at ?? undefined,
     rigSetup: row.rig_setup_json ? JSON.parse(row.rig_setup_json) : undefined,
     flySnapshots: row.fly_snapshots_json ? JSON.parse(row.fly_snapshots_json) : [],
+    technique: row.technique ?? undefined,
     notes: row.notes ?? undefined
   }));
 };

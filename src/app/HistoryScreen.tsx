@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { OptionChips } from '@/components/OptionChips';
-import { DEPTH_RANGES, MONTHS, WATER_TYPES } from '@/constants/options';
+import { DEPTH_RANGES, MONTHS, TECHNIQUES, WATER_TYPES } from '@/constants/options';
 import { useAppStore } from './store';
 import { isWithinDateRange } from '@/utils/dateRange';
 import { getExperimentEntries } from '@/utils/experimentEntries';
@@ -26,6 +26,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
   const [monthFilter, setMonthFilter] = useState('');
   const [waterFilter, setWaterFilter] = useState('');
   const [depthFilter, setDepthFilter] = useState('');
+  const [techniqueFilter, setTechniqueFilter] = useState('');
   const [modeFilter, setModeFilter] = useState<'all' | 'competition'>(initialModeFilter === 'competition' ? 'competition' : 'all');
   const [showRiverChoices, setShowRiverChoices] = useState(false);
   const [cleanupFrom, setCleanupFrom] = useState('');
@@ -38,7 +39,8 @@ export const HistoryScreen = ({ navigation, route }: any) => {
     river: riverFilter.trim().toLowerCase(),
     month: monthFilter.trim().toLowerCase(),
     water: waterFilter.trim().toLowerCase(),
-    depth: depthFilter.trim().toLowerCase()
+    depth: depthFilter.trim().toLowerCase(),
+    technique: techniqueFilter.trim().toLowerCase()
   };
 
   const sessionMap = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
@@ -57,16 +59,18 @@ export const HistoryScreen = ({ navigation, route }: any) => {
         const month = new Date(session.date).toLocaleString('en-US', { month: 'long' }).toLowerCase();
         const water = session.waterType.toLowerCase();
         const depth = session.depthRange.toLowerCase();
+        const technique = session.startingTechnique?.toLowerCase() ?? '';
 
         return (
           (modeFilter === 'all' || session.mode === modeFilter) &&
           (!normalizedFilters.river || river.includes(normalizedFilters.river)) &&
           (!normalizedFilters.month || month.includes(normalizedFilters.month)) &&
           (!normalizedFilters.water || water.includes(normalizedFilters.water)) &&
-          (!normalizedFilters.depth || depth.includes(normalizedFilters.depth))
+          (!normalizedFilters.depth || depth.includes(normalizedFilters.depth)) &&
+          (!normalizedFilters.technique || technique === normalizedFilters.technique)
         );
       }),
-    [getSessionIntegrity, modeFilter, sessions, normalizedFilters.river, normalizedFilters.month, normalizedFilters.water, normalizedFilters.depth]
+    [getSessionIntegrity, modeFilter, sessions, normalizedFilters.depth, normalizedFilters.month, normalizedFilters.river, normalizedFilters.technique, normalizedFilters.water]
   );
   const problemSessions = useMemo(
     () =>
@@ -217,6 +221,8 @@ export const HistoryScreen = ({ navigation, route }: any) => {
           <AppButton label="Clear Water Filter" onPress={() => setWaterFilter('')} variant="ghost" />
           <OptionChips label="Depth Range" options={DEPTH_RANGES} value={depthFilter || null} onChange={setDepthFilter} />
           <AppButton label="Clear Depth Filter" onPress={() => setDepthFilter('')} variant="ghost" />
+          <OptionChips label="Technique" options={TECHNIQUES} value={techniqueFilter || null} onChange={setTechniqueFilter} />
+          <AppButton label="Clear Technique Filter" onPress={() => setTechniqueFilter('')} variant="ghost" />
         </SectionCard>
 
         <SectionCard title="Cleanup Experiments" subtitle="Archive or delete old results without making the rest of history harder to scan." tone="light">
@@ -270,8 +276,10 @@ export const HistoryScreen = ({ navigation, route }: any) => {
 
         return (
           <SectionCard key={session.id} title={new Date(session.date).toLocaleString()} subtitle={`${session.waterType} water • ${session.depthRange}`} tone="light">
+            <InlineSummaryRow label="Mode" value={session.mode} tone="light" />
             <InlineSummaryRow label="Month" value={new Date(session.date).toLocaleString('en-US', { month: 'long' })} tone="light" />
             {session.riverName ? <InlineSummaryRow label="River" value={session.riverName} tone="light" /> : null}
+            {session.startingTechnique ? <InlineSummaryRow label="Technique" value={session.startingTechnique} tone="light" /> : null}
             {session.hypothesis ? <InlineSummaryRow label="Session Hypothesis" value={session.hypothesis} tone="light" /> : null}
             <InlineSummaryRow label="Session Catch Rate" value={`${(rate * 100).toFixed(1)}%`} tone="light" />
             <InlineSummaryRow label="Experiments Logged" value={`${sessionExperiments.length}`} tone="light" />
@@ -302,6 +310,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                     >
                       <InlineSummaryRow label="Hypothesis" value={experiment.hypothesis} tone="light" />
                       <InlineSummaryRow label="Control Focus" value={experiment.controlFocus} tone="light" />
+                      <InlineSummaryRow label="Technique" value={experiment.technique ?? session.startingTechnique ?? 'Technique not set'} tone="light" />
                       <InlineSummaryRow label="Status" value={getExperimentIntegrity(experiment.id).label} tone="light" />
                       {isCleanupPending ? <InlineSummaryRow label="Cleanup" value="Pending delete" tone="light" /> : null}
                       {isCleanupFailed ? <InlineSummaryRow label="Cleanup" value="Delete needs retry" tone="light" /> : null}
@@ -371,6 +380,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                 }}
               >
                 <InlineSummaryRow label="Hypothesis" value={experiment.hypothesis || 'No saved hypothesis'} tone="light" />
+                <InlineSummaryRow label="Technique" value={experiment.technique ?? 'Technique not set'} tone="light" />
                 <InlineSummaryRow label="Status" value={integrity.label} tone="light" />
                 {integrity.reason ? <Text style={{ color: appTheme.colors.textDarkSoft }}>{integrity.reason}</Text> : null}
                 <Text style={{ color: appTheme.colors.textDarkSoft }}>

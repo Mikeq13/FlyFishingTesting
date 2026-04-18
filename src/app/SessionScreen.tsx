@@ -4,7 +4,7 @@ import { KeyboardDismissView } from '@/components/KeyboardDismissView';
 import { OptionChips } from '@/components/OptionChips';
 import { DEPTH_RANGES } from '@/constants/options';
 import { useAppStore } from './store';
-import { CompetitionLengthUnit, SessionMode, WaterType } from '@/types/session';
+import { CompetitionLengthUnit, SessionMode, Technique, WaterType } from '@/types/session';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { AppButton } from '@/components/ui/AppButton';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
@@ -68,6 +68,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
   const [competitionRequiresMeasurement, setCompetitionRequiresMeasurement] = useState(true);
   const [competitionLengthUnit, setCompetitionLengthUnit] = useState<CompetitionLengthUnit>('mm');
   const [selectedSharedGroupIds, setSelectedSharedGroupIds] = useState<number[]>([]);
+  const [startingTechnique, setStartingTechnique] = useState<Technique | undefined>(undefined);
   const [practiceMeasurementEnabled, setPracticeMeasurementEnabled] = useState(false);
   const [practiceLengthUnit, setPracticeLengthUnit] = useState<'in' | 'cm' | 'mm'>('in');
   const [selectedCompetitionId, setSelectedCompetitionId] = useState<number | null>(null);
@@ -191,6 +192,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
     setCompetitionRequiresMeasurement(existingSession.competitionRequiresMeasurement ?? true);
     setCompetitionLengthUnit(existingSession.competitionLengthUnit ?? 'mm');
     setSelectedSharedGroupIds(existingSession.sharedGroupIds ?? (existingSession.sharedGroupId ? [existingSession.sharedGroupId] : []));
+    setStartingTechnique(existingSession.startingTechnique);
     setPracticeMeasurementEnabled(existingSession.practiceMeasurementEnabled ?? false);
     setPracticeLengthUnit(existingSession.practiceLengthUnit ?? 'in');
     setSelectedCompetitionId(existingSession.competitionId ?? null);
@@ -354,6 +356,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
       competitionRequiresMeasurement: mode === 'competition' ? competitionRequiresMeasurement : undefined,
       competitionLengthUnit: mode === 'competition' ? competitionLengthUnit : undefined,
       startingRigSetup: mode === 'practice' ? practiceRigSetup : mode === 'experiment' ? experimentRigSetup : undefined,
+      startingTechnique: mode === 'practice' || mode === 'experiment' ? startingTechnique : undefined,
       riverName: normalizedRiverName || undefined,
       hypothesis: hypothesis.trim() || undefined,
       notes
@@ -400,6 +403,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
         competitionRequiresMeasurement,
         competitionLengthUnit,
         startingRigSetup: undefined,
+        startingTechnique: undefined,
         riverName: normalizedRiverName || undefined,
         hypothesis: hypothesis.trim() || undefined,
         notes
@@ -493,10 +497,12 @@ export const SessionScreen = ({ navigation, route }: any) => {
               savedFlies={savedFlies}
               savedLeaderFormulas={savedLeaderFormulas}
               savedRigPresets={savedRigPresets}
+              technique={startingTechnique}
               practiceMeasurementEnabled={practiceMeasurementEnabled}
               practiceLengthUnit={practiceLengthUnit}
               showMeasurementControls={mode === 'practice'}
               onRigSetupChange={mode === 'experiment' ? setExperimentRigSetup : setPracticeRigSetup}
+              onTechniqueChange={setStartingTechnique}
               onFlyCountChange={(nextCount) =>
                 (mode === 'experiment' ? setExperimentRigSetup : setPracticeRigSetup)((current) =>
                   setRigFlyCount(current, nextCount, {
