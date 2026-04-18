@@ -27,7 +27,7 @@ import {
   listCompetitionSessions,
   upsertCompetitionAssignment
 } from '@/db/competitionRepo';
-import { deleteDraftExperimentsForUser, deleteExperimentsForUser, listExperiments } from '@/db/experimentRepo';
+import { deleteDraftExperimentsForUser, deleteExperiments, deleteExperimentsForUser, listExperiments } from '@/db/experimentRepo';
 import {
   createGroup,
   createGroupMembership,
@@ -47,9 +47,9 @@ import { deleteSavedFliesForUser, listSavedFlies } from '@/db/savedFlyRepo';
 import { deleteSavedLeaderFormulasForUser, listSavedLeaderFormulas } from '@/db/savedLeaderFormulaRepo';
 import { deleteSavedRigPresetsForUser, listSavedRigPresets } from '@/db/savedRigPresetRepo';
 import { deleteSavedRiversForUser, listSavedRivers } from '@/db/savedRiverRepo';
-import { deleteSessionsForUser, listSessions } from '@/db/sessionRepo';
-import { deleteSessionSegmentsForUser, listSessionSegments } from '@/db/sessionSegmentRepo';
-import { deleteCatchEventsForUser, listCatchEvents } from '@/db/catchEventRepo';
+import { deleteSessions, deleteSessionsForUser, listSessions } from '@/db/sessionRepo';
+import { deleteSessionSegmentsForSessions, deleteSessionSegmentsForUser, listSessionSegments } from '@/db/sessionSegmentRepo';
+import { deleteCatchEventsForSessions, deleteCatchEventsForUser, listCatchEvents } from '@/db/catchEventRepo';
 import { getActiveUserId as loadActiveUserId, setActiveUserId as saveActiveUserId } from '@/db/settingsRepo';
 import { initDb } from '@/db/schema';
 import { generateAnglerComparisons } from '@/engine/anglerComparisonEngine';
@@ -67,6 +67,7 @@ import {
   updateSponsoredAccess
 } from '@/db/accessRepo';
 import { createSyncQueueEntry, deleteSyncQueueEntriesForUserReset, listSyncQueueEntries, markAllPendingSyncEntriesAsSynced } from '@/db/syncRepo';
+import { classifyExperimentIntegrity, classifySessionIntegrity } from '@/services/dataIntegrityService';
 
 export interface LoadedLocalAppData {
   users: UserProfile[];
@@ -506,6 +507,62 @@ export const clearLocalUserDataCategories = async (userId: number, categories: U
   const targets = categories.includes('all')
     ? ['experiments', 'sessions', 'flies', 'formulas', 'rig_presets', 'rivers', 'groups']
     : categories;
+
+  if (targets.includes('problem') || targets.includes('incomplete') || targets.includes('archived')) {
+    const [sessions, experiments] = await Promise.all([listSessions(userId), listExperiments(userId, { includeArchived: true })]);
+    const sessionMap = new Map(sessions.map((session) => [session.id, session]));
+
+    if (targets.includes('problem')) {
+      const problemSessionIds = sessions
+        .filter((session) => {
+          const integrity = classifySessionIntegrity(session);
+          return integrity.state === 'legacy_unreviewed' || integrity.state === 'orphaned';
+        })
+        .map((session) => session.id);
+      if (problemSessionIds.length) {
+        const linkedProblemExperimentIds = experiments
+          .filter((experiment) => problemSessionIds.includes(experiment.sessionId))
+          .map((experiment) => experiment.id);
+        await deleteCatchEventsForSessions(problemSessionIds);
+        await deleteSessionSegmentsForSessions(problemSessionIds);
+        if (linkedProblemExperimentIds.length) {
+          await deleteExperiments(linkedProblemExperimentIds);
+        }
+        await deleteSessions(problemSessionIds);
+      }
+      const orphanedExperimentIds = experiments
+        .filter((experiment) => classifyExperimentIntegrity(experiment, sessionMap.get(experiment.sessionId)).state === 'orphaned')
+        .map((experiment) => experiment.id);
+      if (orphanedExperimentIds.length) {
+        await deleteExperiments(orphanedExperimentIds);
+      }
+    }
+
+    if (targets.includes('incomplete')) {
+      const incompleteSessionIds = sessions
+        .filter((session) => classifySessionIntegrity(session).state === 'incomplete')
+        .map((session) => session.id);
+      if (incompleteSessionIds.length) {
+        const linkedIncompleteExperimentIds = experiments
+          .filter((experiment) => incompleteSessionIds.includes(experiment.sessionId))
+          .map((experiment) => experiment.id);
+        await deleteCatchEventsForSessions(incompleteSessionIds);
+        await deleteSessionSegmentsForSessions(incompleteSessionIds);
+        if (linkedIncompleteExperimentIds.length) {
+          await deleteExperiments(linkedIncompleteExperimentIds);
+        }
+        await deleteSessions(incompleteSessionIds);
+      }
+      await deleteDraftExperimentsForUser(userId);
+    }
+
+    if (targets.includes('archived')) {
+      const archivedIds = experiments.filter((experiment) => !!experiment.archivedAt).map((experiment) => experiment.id);
+      if (archivedIds.length) {
+        await deleteExperiments(archivedIds);
+      }
+    }
+  }
 
   if (targets.includes('sessions')) {
     await deleteCatchEventsForUser(userId);

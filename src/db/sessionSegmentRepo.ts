@@ -88,3 +88,16 @@ export const deleteSessionSegmentsForUser = async (userId: number): Promise<void
   const db = await getDb();
   await db.runAsync('DELETE FROM session_segments WHERE user_id = ?', userId);
 };
+
+export const deleteSessionSegmentsForSessions = async (sessionIds: number[]): Promise<void> => {
+  if (!sessionIds.length) return;
+
+  if (isWeb) {
+    deleteWebRows<SessionSegment>(WEB_SEGMENTS_KEY, (row) => sessionIds.includes(row.sessionId));
+    return;
+  }
+
+  const db = await getDb();
+  const placeholders = sessionIds.map(() => '?').join(', ');
+  await db.runAsync(`DELETE FROM session_segments WHERE session_id IN (${placeholders})`, ...sessionIds);
+};

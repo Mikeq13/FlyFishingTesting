@@ -61,3 +61,16 @@ export const deleteCatchEventsForUser = async (userId: number): Promise<void> =>
   const db = await getDb();
   await db.runAsync('DELETE FROM catch_events WHERE user_id = ?', userId);
 };
+
+export const deleteCatchEventsForSessions = async (sessionIds: number[]): Promise<void> => {
+  if (!sessionIds.length) return;
+
+  if (isWeb) {
+    deleteWebRows<CatchEvent>(WEB_CATCH_EVENTS_KEY, (row) => sessionIds.includes(row.sessionId));
+    return;
+  }
+
+  const db = await getDb();
+  const placeholders = sessionIds.map(() => '?').join(', ');
+  await db.runAsync(`DELETE FROM catch_events WHERE session_id IN (${placeholders})`, ...sessionIds);
+};

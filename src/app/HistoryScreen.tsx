@@ -18,7 +18,7 @@ import { getFormInputStyle } from '@/components/ui/FormField';
 export const HistoryScreen = ({ navigation, route }: any) => {
   useTheme();
   const layout = useResponsiveLayout();
-  const { sessions, experiments, users, activeUserId, archiveExperiment, deleteExperiment, cleanupExperimentsForCurrentUser, cleanupSyncStatus, getSyncRecordState, getExperimentIntegrity } = useAppStore();
+  const { sessions, experiments, users, activeUserId, archiveExperiment, deleteExperiment, deleteSessionRecord, cleanupExperimentsForCurrentUser, cleanupSyncStatus, getSyncRecordState, getExperimentIntegrity, getSessionIntegrity } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
   const initialModeFilter = route?.params?.modeFilter;
   const [riverFilter, setRiverFilter] = useState('');
@@ -51,6 +51,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
   const filteredSessions = useMemo(
     () =>
       sessions.filter((session) => {
+        if (getSessionIntegrity(session.id).state !== 'valid') return false;
         const river = session.riverName?.toLowerCase() ?? '';
         const month = new Date(session.date).toLocaleString('en-US', { month: 'long' }).toLowerCase();
         const water = session.waterType.toLowerCase();
@@ -64,7 +65,15 @@ export const HistoryScreen = ({ navigation, route }: any) => {
           (!normalizedFilters.depth || depth.includes(normalizedFilters.depth))
         );
       }),
-    [modeFilter, sessions, normalizedFilters.river, normalizedFilters.month, normalizedFilters.water, normalizedFilters.depth]
+    [getSessionIntegrity, modeFilter, sessions, normalizedFilters.river, normalizedFilters.month, normalizedFilters.water, normalizedFilters.depth]
+  );
+  const problemSessions = useMemo(
+    () =>
+      sessions.filter((session) => {
+        const state = getSessionIntegrity(session.id).state;
+        return state === 'legacy_unreviewed' || state === 'incomplete';
+      }),
+    [getSessionIntegrity, sessions]
   );
 
   const cleanupCount = useMemo(
@@ -128,6 +137,40 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                 await deleteExperiment(experimentId);
               }
               Alert.alert('Cleanup complete', `Experiment ${action === 'archive' ? 'archived' : 'deleted'}.`);
+            } catch (error) {
+              Alert.alert('Cleanup failed', error instanceof Error ? error.message : 'Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const runProblemSessionCleanup = (sessionId: number) => {
+    Alert.alert(
+      'Delete this problem session?',
+      'You can delete the session by itself or delete the session together with its linked experiments.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Session',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteSessionRecord(sessionId, { includeLinkedExperiments: false });
+              Alert.alert('Cleanup complete', 'Problem session deleted.');
+            } catch (error) {
+              Alert.alert('Cleanup failed', error instanceof Error ? error.message : 'Please try again.');
+            }
+          }
+        },
+        {
+          text: 'Delete Session + Linked Experiments',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteSessionRecord(sessionId, { includeLinkedExperiments: true });
+              Alert.alert('Cleanup complete', 'Problem session and linked experiments deleted.');
             } catch (error) {
               Alert.alert('Cleanup failed', error instanceof Error ? error.message : 'Please try again.');
             }
@@ -360,6 +403,41 @@ export const HistoryScreen = ({ navigation, route }: any) => {
               </View>
             );
           })}
+        </SectionCard>
+      )}
+      {!!problemSessions.length && (
+        <SectionCard
+          title="Problem Sessions"
+          subtitle="These sessions are excluded from trusted analytics, but you can still review or remove them here."
+          tone="light"
+        >
+          {problemSessions.map((session) => (
+            <View
+              key={`problem-session-${session.id}`}
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.72)',
+                borderRadius: appTheme.radius.md,
+                padding: 10,
+                gap: 4,
+                borderWidth: 1,
+                borderColor: 'rgba(16,42,67,0.08)'
+              }}
+            >
+              <InlineSummaryRow label="Session" value={new Date(session.date).toLocaleString()} tone="light" />
+              <InlineSummaryRow label="Status" value={getSessionIntegrity(session.id).label} tone="light" />
+              {getSessionIntegrity(session.id).reason ? (
+                <Text style={{ color: appTheme.colors.textDarkSoft }}>{getSessionIntegrity(session.id).reason}</Text>
+              ) : null}
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+                <View style={{ flex: 1 }}>
+                  <AppButton label="Open Session" onPress={() => navigation.navigate('SessionDetail', { sessionId: session.id })} variant="secondary" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <AppButton label="Delete Session" onPress={() => runProblemSessionCleanup(session.id)} variant="danger" />
+                </View>
+              </View>
+            </View>
+          ))}
         </SectionCard>
       )}
       </ScrollView>

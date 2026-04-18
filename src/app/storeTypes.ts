@@ -30,7 +30,19 @@ import { TopFlyRecord } from '@/engine/topFlyEngine';
 import { NotificationPermissionStatus, SharedDataStatus } from '@/types/appState';
 import { IntegritySummary } from '@/types/dataIntegrity';
 
-export type UserDataCleanupCategory = 'drafts' | 'experiments' | 'sessions' | 'flies' | 'formulas' | 'rig_presets' | 'rivers' | 'groups' | 'all';
+export type UserDataCleanupCategory =
+  | 'drafts'
+  | 'experiments'
+  | 'sessions'
+  | 'flies'
+  | 'formulas'
+  | 'rig_presets'
+  | 'rivers'
+  | 'groups'
+  | 'incomplete'
+  | 'problem'
+  | 'archived'
+  | 'all';
 
 export interface AppStore {
   sessions: Session[];
@@ -136,6 +148,7 @@ export interface AppStore {
   deleteAngler: (userId: number) => Promise<void>;
   archiveExperiment: (experimentId: number) => Promise<void>;
   deleteExperiment: (experimentId: number) => Promise<void>;
+  deleteSessionRecord: (sessionId: number, options?: { includeLinkedExperiments?: boolean }) => Promise<void>;
   cleanupExperimentsForCurrentUser: (filters: { from?: string; to?: string; outcome?: Experiment['outcome'] | 'all'; action: 'archive' | 'delete'; }) => Promise<number>;
   refresh: (targetUserId?: number | null) => Promise<void>;
   addSession: (payload: Omit<Session, 'id' | 'userId'>) => Promise<number>;

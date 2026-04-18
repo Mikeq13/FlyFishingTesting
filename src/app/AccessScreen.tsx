@@ -75,7 +75,18 @@ export const AccessScreen = ({ navigation }: any) => {
     clearFishingDataForUser,
     clearUserDataCategories,
     deleteAngler,
+    deleteExperiment,
+    deleteSessionRecord,
+    refresh,
     getSyncRecordState,
+    getSessionIntegrity,
+    getExperimentIntegrity,
+    sessions,
+    experiments,
+    savedFlies,
+    savedLeaderFormulas,
+    savedRigPresets,
+    savedRivers,
     groups,
     groupMemberships,
     sharePreferences,
@@ -135,6 +146,32 @@ export const AccessScreen = ({ navigation }: any) => {
     competitionOrganizer: false,
     userManagement: false
   });
+  const currentUserSessions = React.useMemo(() => sessions.filter((session) => session.userId === currentUser?.id), [currentUser?.id, sessions]);
+  const currentUserExperiments = React.useMemo(() => experiments.filter((experiment) => experiment.userId === currentUser?.id), [currentUser?.id, experiments]);
+  const incompleteSessions = React.useMemo(
+    () => currentUserSessions.filter((session) => getSessionIntegrity(session.id).state === 'incomplete'),
+    [currentUserSessions, getSessionIntegrity]
+  );
+  const incompleteExperiments = React.useMemo(
+    () => currentUserExperiments.filter((experiment) => experiment.status === 'draft'),
+    [currentUserExperiments]
+  );
+  const problemSessions = React.useMemo(
+    () =>
+      currentUserSessions.filter((session) => {
+        const state = getSessionIntegrity(session.id).state;
+        return state === 'legacy_unreviewed' || state === 'incomplete';
+      }),
+    [currentUserSessions, getSessionIntegrity]
+  );
+  const problemExperiments = React.useMemo(
+    () =>
+      currentUserExperiments.filter((experiment) => {
+        const state = getExperimentIntegrity(experiment.id).state;
+        return state === 'orphaned' || state === 'legacy_unreviewed';
+      }),
+    [currentUserExperiments, getExperimentIntegrity]
+  );
 
   const joinedMemberships = React.useMemo(
     () => groupMemberships.filter((membership) => membership.userId === currentUser?.id),
@@ -347,9 +384,46 @@ export const AccessScreen = ({ navigation }: any) => {
     { key: 'all', label: 'Clear Everything', description: 'Deletes this profile’s owned sessions, experiments, saved setups, groups, and related synced records.', destructive: true }
   ];
 
+  const simplifiedCleanupConfig: Array<{ key: UserDataCleanupCategory; label: string; description: string; destructive?: boolean }> = [
+    { key: 'incomplete', label: 'Clear Incomplete Records', description: 'Removes unfinished draft experiments and incomplete session records that should not count as solid fishing data.' },
+    { key: 'problem', label: 'Clear Problem Records', description: 'Removes legacy or malformed records that are excluded from insights because they are not trustworthy enough to keep.' },
+    { key: 'archived', label: 'Clear Archived Records', description: 'Permanently deletes archived experiment records that are already hidden from normal history and insights.' },
+    { key: 'all', label: 'Clear Everything', description: 'Deletes this profile’s owned sessions, experiments, saved setups, groups, and related synced records.', destructive: true }
+  ];
+
+  const buildCleanupPreview = (category: UserDataCleanupCategory) => {
+    if (category === 'incomplete') {
+      return [
+        `${incompleteSessions.length} incomplete session${incompleteSessions.length === 1 ? '' : 's'}`,
+        `${incompleteExperiments.length} draft experiment${incompleteExperiments.length === 1 ? '' : 's'}`
+      ];
+    }
+
+    if (category === 'problem') {
+      return [
+        `${problemSessions.length} problem session${problemSessions.length === 1 ? '' : 's'}`,
+        `${problemExperiments.length} problem experiment${problemExperiments.length === 1 ? '' : 's'}`
+      ];
+    }
+
+    if (category === 'archived') {
+      return ['Archived experiment records stored off the normal history view will be permanently removed.'];
+    }
+
+    return [
+      `${currentUserSessions.length} session${currentUserSessions.length === 1 ? '' : 's'}`,
+      `${currentUserExperiments.length} experiment${currentUserExperiments.length === 1 ? '' : 's'}`,
+      `${savedFlies.length} saved fl${savedFlies.length === 1 ? 'y' : 'ies'}`,
+      `${savedLeaderFormulas.length} saved leader formula${savedLeaderFormulas.length === 1 ? '' : 's'}`,
+      `${savedRigPresets.length} saved rig preset${savedRigPresets.length === 1 ? '' : 's'}`,
+      `${savedRivers.length} saved river${savedRivers.length === 1 ? '' : 's'}`,
+      `${groups.filter((group) => group.createdByUserId === currentUser.id).length} owned group${groups.filter((group) => group.createdByUserId === currentUser.id).length === 1 ? '' : 's'}`
+    ];
+  };
+
   const renderCleanupActions = (userId: number, userName: string) => (
     <ActionGroup>
-      {cleanupConfig.map((item) => (
+      {simplifiedCleanupConfig.map((item) => (
         <AppButton
           key={`${userId}-${item.key}`}
           label={item.label}
@@ -471,46 +545,50 @@ export const AccessScreen = ({ navigation }: any) => {
   };
 
   const handleCleanupCategory = (userId: number, userName: string, category: UserDataCleanupCategory) => {
-    const item = cleanupConfig.find((entry) => entry.key === category);
+    const item = simplifiedCleanupConfig.find((entry) => entry.key === category);
     if (!item) return;
-
-    if (item.key === 'experiments') {
-      Alert.alert(
-        'Clear experiments',
-        `Choose whether to delete only incomplete draft experiments or remove all experiments for ${userName}. Drafts are unfinished entries you may not need anymore. All experiments removes both draft and completed experiment history.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete Drafts Only',
-            style: 'destructive',
-            onPress: () => {
-              runAdminAction(() => clearUserDataCategories(userId, ['drafts']), `Draft experiments deleted for ${userName}.`).catch((error) => {
-                const reason = error instanceof Error ? error.message : 'Please try again.';
-                Alert.alert('Unable to finish action', reason);
-              });
-            }
-          },
-          {
-            text: 'Delete All Experiments',
-            style: 'destructive',
-            onPress: () => {
-              runAdminAction(() => clearUserDataCategories(userId, ['experiments']), `All experiments deleted for ${userName}.`).catch((error) => {
-                const reason = error instanceof Error ? error.message : 'Please try again.';
-                Alert.alert('Unable to finish action', reason);
-              });
-            }
-          }
-        ]
-      );
-      return;
-    }
-
+    const previewLines = buildCleanupPreview(category);
     confirmAdminAction(
       `${item.label}?`,
-      `${item.description} Joined shared records owned by other anglers are detached instead of globally deleted.`,
+      `${item.description}\n\nThis will remove:\n${previewLines.map((line) => `• ${line}`).join('\n')}\n\nJoined shared records owned by other anglers are detached instead of globally deleted.`,
       () => (item.key === 'all' ? clearFishingDataForUser(userId) : clearUserDataCategories(userId, [item.key])),
-      `${item.label.replace('Clear ', '')} finished for ${userName}.`
+      `${item.label.replace('Clear ', '')} finished for ${userName}. ${previewLines.join(' | ')}`
     );
+  };
+
+  const handleDeleteProblemSession = (sessionId: number) => {
+    Alert.alert(
+      'Delete this session?',
+      'Choose whether to remove only the session or the session with its linked experiments.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Session Only',
+          style: 'destructive',
+          onPress: () => {
+            runAdminAction(() => deleteSessionRecord(sessionId, { includeLinkedExperiments: false }), 'Problem session deleted.').catch((error) => {
+              const reason = error instanceof Error ? error.message : 'Please try again.';
+              Alert.alert('Unable to finish action', reason);
+            });
+          }
+        },
+        {
+          text: 'Delete Session + Linked Experiments',
+          style: 'destructive',
+          onPress: () => {
+            runAdminAction(() => deleteSessionRecord(sessionId, { includeLinkedExperiments: true }), 'Problem session and linked experiments deleted.').catch((error) => {
+              const reason = error instanceof Error ? error.message : 'Please try again.';
+              Alert.alert('Unable to finish action', reason);
+            });
+          }
+        }
+      ]
+    );
+  };
+
+  const repairOldRecords = async () => {
+    await refresh(currentUser.id);
+    Alert.alert('Repair complete', 'Older records were reloaded and reclassified using the latest integrity rules.');
   };
 
   const renderBilling = () => (
@@ -747,13 +825,97 @@ export const AccessScreen = ({ navigation }: any) => {
           subtitle: 'Keep cleanup and profile maintenance tools nearby without leaving them open all the time.',
           summary: <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>Cleanup and local profile maintenance for {currentUser.name}.</Text>,
           children: (
-            <LocalDataSection
-              isOwner={currentUser.role === 'owner'}
-              cleanupActions={renderCleanupActions(currentUser.id, currentUser.name)}
-              cleanupStatus={cleanupSyncStatus}
-              onDeleteProfile={deleteCurrentProfile}
-              embedded
-            />
+            <View style={{ gap: 10 }}>
+              <LocalDataSection
+                isOwner={currentUser.role === 'owner'}
+                cleanupActions={renderCleanupActions(currentUser.id, currentUser.name)}
+                cleanupStatus={cleanupSyncStatus}
+                onDeleteProfile={deleteCurrentProfile}
+                embedded
+              />
+              <SectionCard
+                title="Review Problem Records"
+                subtitle="Inspect legacy or malformed records before removing them, or clear them in one pass."
+                tone="light"
+              >
+                <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+                  {problemSessions.length} problem session{problemSessions.length === 1 ? '' : 's'} and {problemExperiments.length} problem experiment{problemExperiments.length === 1 ? '' : 's'} are currently excluded from trusted insights.
+                </Text>
+                <AppButton
+                  label="Clear All Problem Records"
+                  onPress={() => handleCleanupCategory(currentUser.id, currentUser.name, 'problem')}
+                  variant="danger"
+                  surfaceTone="light"
+                />
+                <AppButton
+                  label="Repair Old Records"
+                  onPress={() => repairOldRecords().catch((error) => Alert.alert('Unable to repair records', error instanceof Error ? error.message : 'Please try again.'))}
+                  variant="secondary"
+                  surfaceTone="light"
+                />
+                {problemSessions.map((session) => (
+                  <View
+                    key={`problem-session-${session.id}`}
+                    style={{
+                      gap: 6,
+                      padding: 10,
+                      borderRadius: theme.radius.md,
+                      backgroundColor: theme.colors.nestedSurface,
+                      borderWidth: 1,
+                      borderColor: theme.colors.nestedSurfaceBorder
+                    }}
+                  >
+                    <InlineSummaryRow label="Session" value={new Date(session.date).toLocaleString()} tone="light" />
+                    <InlineSummaryRow label="Status" value={getSessionIntegrity(session.id).label} tone="light" />
+                    {getSessionIntegrity(session.id).reason ? (
+                      <Text style={{ color: theme.colors.textDarkSoft }}>{getSessionIntegrity(session.id).reason}</Text>
+                    ) : null}
+                    <AppButton label="Delete Session" onPress={() => handleDeleteProblemSession(session.id)} variant="danger" surfaceTone="light" />
+                  </View>
+                ))}
+                {problemExperiments.map((experiment) => (
+                  <View
+                    key={`problem-experiment-${experiment.id}`}
+                    style={{
+                      gap: 6,
+                      padding: 10,
+                      borderRadius: theme.radius.md,
+                      backgroundColor: theme.colors.nestedSurface,
+                      borderWidth: 1,
+                      borderColor: theme.colors.nestedSurfaceBorder
+                    }}
+                  >
+                    <InlineSummaryRow label="Experiment" value={experiment.hypothesis || `Experiment #${experiment.id}`} tone="light" />
+                    <InlineSummaryRow label="Status" value={getExperimentIntegrity(experiment.id).label} tone="light" />
+                    {getExperimentIntegrity(experiment.id).reason ? (
+                      <Text style={{ color: theme.colors.textDarkSoft }}>{getExperimentIntegrity(experiment.id).reason}</Text>
+                    ) : null}
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <View style={{ flex: 1 }}>
+                        <AppButton
+                          label="Edit"
+                          onPress={() => navigation.navigate('Experiment', { sessionId: experiment.sessionId, experimentId: experiment.id })}
+                          variant="secondary"
+                          surfaceTone="light"
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <AppButton
+                          label="Delete"
+                          onPress={() =>
+                            runAdminAction(() => deleteExperiment(experiment.id), 'Problem experiment deleted.').catch((error) =>
+                              Alert.alert('Unable to finish action', error instanceof Error ? error.message : 'Please try again.')
+                            )
+                          }
+                          variant="danger"
+                          surfaceTone="light"
+                        />
+                      </View>
+                    </View>
+                  </View>
+                ))}
+              </SectionCard>
+            </View>
           )
         })}
 

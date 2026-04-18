@@ -181,3 +181,16 @@ export const deleteSessionsForUser = async (userId: number): Promise<void> => {
   const db = await getDb();
   await db.runAsync('DELETE FROM sessions WHERE user_id = ?', userId);
 };
+
+export const deleteSessions = async (sessionIds: number[]): Promise<void> => {
+  if (!sessionIds.length) return;
+
+  if (isWeb) {
+    deleteWebRows<Session>(WEB_SESSIONS_KEY, (row) => sessionIds.includes(row.id));
+    return;
+  }
+
+  const db = await getDb();
+  const placeholders = sessionIds.map(() => '?').join(', ');
+  await db.runAsync(`DELETE FROM sessions WHERE id IN (${placeholders})`, ...sessionIds);
+};

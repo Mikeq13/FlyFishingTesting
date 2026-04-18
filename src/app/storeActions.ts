@@ -6,9 +6,10 @@ import { createSavedFly } from '@/db/savedFlyRepo';
 import { createSavedLeaderFormula, deleteSavedLeaderFormula } from '@/db/savedLeaderFormulaRepo';
 import { createSavedRigPreset, deleteSavedRigPreset } from '@/db/savedRigPresetRepo';
 import { createSavedRiver } from '@/db/savedRiverRepo';
-import { createSession, updateSession } from '@/db/sessionRepo';
-import { createSessionSegment, updateSessionSegment } from '@/db/sessionSegmentRepo';
+import { createSession, deleteSessions, updateSession } from '@/db/sessionRepo';
+import { createSessionSegment, deleteSessionSegmentsForSessions, updateSessionSegment } from '@/db/sessionSegmentRepo';
 import { createCatchEvent } from '@/db/catchEventRepo';
+import { deleteCatchEventsForSessions } from '@/db/catchEventRepo';
 import { setActiveUserId as saveActiveUserId } from '@/db/settingsRepo';
 import {
   acceptLocalInvite,
@@ -45,6 +46,7 @@ import {
   verifyTotpFactor
 } from '@/services/authService';
 import { AppStore } from '@/app/storeTypes';
+import { classifyExperimentIntegrity, classifySessionIntegrity, normalizeLegacyExperimentStatus } from '@/services/dataIntegrityService';
 
 type SyncEntityType = AppStore['syncQueue'][number]['entityType'];
 type SyncOperation = AppStore['syncQueue'][number]['operation'];
@@ -157,6 +159,7 @@ export const createStoreActions = ({
   | 'deleteAngler'
   | 'archiveExperiment'
   | 'deleteExperiment'
+  | 'deleteSessionRecord'
   | 'cleanupExperimentsForCurrentUser'
   | 'refresh'
   | 'addSession'
@@ -241,8 +244,9 @@ export const createStoreActions = ({
       .map((competition) => competition.id);
 
     const normalizedCategories = categories.includes('all')
-      ? ['experiments', 'sessions', 'drafts', 'flies', 'formulas', 'rig_presets', 'rivers', 'groups'] as const
+      ? ['experiments', 'sessions', 'drafts', 'flies', 'formulas', 'rig_presets', 'rivers', 'groups', 'incomplete', 'problem', 'archived'] as const
       : categories;
+    const loadedSessionMap = new Map(loaded.sessions.map((session) => [session.id, session]));
 
     const queueDelete = async (entityType: SyncEntityType, recordId: number, payload: Record<string, unknown>) => {
       await trackSyncChange(entityType, 'delete', recordId, payload);
@@ -304,6 +308,54 @@ export const createStoreActions = ({
       }
     }
 
+    if (normalizedCategories.includes('archived')) {
+      for (const experiment of archivedExperiments.filter((item) => item.userId === userId && !!item.archivedAt)) {
+        await queueDelete('experiment', experiment.id, { experimentId: experiment.id });
+      }
+    }
+
+    if (normalizedCategories.includes('incomplete')) {
+      const incompleteSessionIds = loaded.sessions
+        .filter((session) => classifySessionIntegrity(session).state === 'incomplete')
+        .map((session) => session.id);
+      for (const event of loaded.catchEvents.filter((event) => incompleteSessionIds.includes(event.sessionId))) {
+        await queueDelete('catch_event', event.id, { catchEventId: event.id });
+      }
+      for (const segment of loaded.sessionSegments.filter((segment) => incompleteSessionIds.includes(segment.sessionId))) {
+        await queueDelete('session_segment', segment.id, { segmentId: segment.id });
+      }
+      for (const experiment of archivedExperiments.filter((item) => item.userId === userId && (item.status === 'draft' || incompleteSessionIds.includes(item.sessionId)))) {
+        await queueDelete('experiment', experiment.id, { experimentId: experiment.id });
+      }
+      for (const sessionId of incompleteSessionIds) {
+        await queueDelete('session', sessionId, { sessionId });
+      }
+    }
+
+    if (normalizedCategories.includes('problem')) {
+      const problemSessionIds = loaded.sessions
+        .filter((session) => {
+          const integrity = classifySessionIntegrity(session);
+          return integrity.state === 'legacy_unreviewed' || integrity.state === 'orphaned';
+        })
+        .map((session) => session.id);
+      for (const event of loaded.catchEvents.filter((event) => problemSessionIds.includes(event.sessionId))) {
+        await queueDelete('catch_event', event.id, { catchEventId: event.id });
+      }
+      for (const segment of loaded.sessionSegments.filter((segment) => problemSessionIds.includes(segment.sessionId))) {
+        await queueDelete('session_segment', segment.id, { segmentId: segment.id });
+      }
+      for (const experiment of archivedExperiments.filter((item) => {
+        const integrity = classifyExperimentIntegrity(item, loadedSessionMap.get(item.sessionId));
+        return integrity.state === 'orphaned' || problemSessionIds.includes(item.sessionId);
+      })) {
+        await queueDelete('experiment', experiment.id, { experimentId: experiment.id });
+      }
+      for (const sessionId of problemSessionIds) {
+        await queueDelete('session', sessionId, { sessionId });
+      }
+    }
+
     if (normalizedCategories.includes('flies')) {
       for (const fly of loaded.savedFlies.filter((item) => item.userId === userId)) {
         await queueDelete('saved_setup', fly.id, { savedType: 'fly', savedFlyId: fly.id });
@@ -326,6 +378,43 @@ export const createStoreActions = ({
     }
 
     return startedAt;
+  };
+
+  const queueSessionDeleteBundle = async (sessionIds: number[], options?: { includeLinkedExperiments?: boolean }) => {
+    const includeLinkedExperiments = options?.includeLinkedExperiments ?? true;
+    const loaded = await loadLocalAppData(activeUserId);
+    const affectedCatchEvents = loaded.catchEvents.filter((event) => sessionIds.includes(event.sessionId));
+    const affectedSegments = loaded.sessionSegments.filter((segment) => sessionIds.includes(segment.sessionId));
+    const affectedExperiments = includeLinkedExperiments
+      ? experiments.filter((experiment) => sessionIds.includes(experiment.sessionId))
+      : [];
+
+    for (const event of affectedCatchEvents) {
+      await trackSyncChange('catch_event', 'delete', event.id, { catchEventId: event.id });
+    }
+    for (const segment of affectedSegments) {
+      await trackSyncChange('session_segment', 'delete', segment.id, { segmentId: segment.id });
+    }
+    for (const experiment of affectedExperiments) {
+      await trackSyncChange('experiment', 'delete', experiment.id, { experimentId: experiment.id });
+    }
+    for (const sessionId of sessionIds) {
+      await trackSyncChange('session', 'delete', sessionId, { sessionId });
+    }
+
+    await deleteCatchEventsForSessions(sessionIds);
+    await deleteSessionSegmentsForSessions(sessionIds);
+    if (affectedExperiments.length) {
+      await deleteExperiments(affectedExperiments.map((experiment) => experiment.id));
+    }
+    await deleteSessions(sessionIds);
+
+    return {
+      sessionsRemoved: sessionIds.length,
+      experimentsRemoved: affectedExperiments.length,
+      catchEventsRemoved: affectedCatchEvents.length,
+      segmentsRemoved: affectedSegments.length
+    };
   };
 
   const refreshMfaStateInternal = async () => {
@@ -791,6 +880,12 @@ export const createStoreActions = ({
     await flushSyncChangesOrThrow(startedAt, 'Unable to delete this experiment from shared history right now.');
     await refresh(activeUserId);
   },
+  deleteSessionRecord: async (sessionId, options) => {
+    const startedAt = new Date().toISOString();
+    await queueSessionDeleteBundle([sessionId], options);
+    await flushSyncChangesOrThrow(startedAt, 'Unable to delete this session from shared history right now.');
+    await refresh(activeUserId);
+  },
   cleanupExperimentsForCurrentUser: async ({ from, to, outcome = 'all', action }) => {
     const experimentIds = experiments
       .filter((experiment) => {
@@ -824,6 +919,9 @@ export const createStoreActions = ({
   addSession: async (payload) => {
     assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
+    if (!payload.date || !payload.waterType || !payload.depthRange) {
+      throw new Error('Session date, water type, and depth range are required.');
+    }
     const id = await createSession({ ...payload, userId: activeUserId });
     await trackSyncChange('session', 'create', id, payload);
     await refresh();
@@ -860,15 +958,35 @@ export const createStoreActions = ({
   addExperiment: async (payload) => {
     assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
-    const id = await createExperiment({ ...payload, userId: activeUserId });
-    await trackSyncChange('experiment', 'create', id, payload);
+    if (!sessionMap.has(payload.sessionId)) {
+      throw new Error('Choose a valid session before saving an experiment.');
+    }
+    const normalizedPayload = {
+      ...payload,
+      status:
+        payload.status === 'complete'
+          ? normalizeLegacyExperimentStatus({ ...(payload as any), id: 0, userId: activeUserId, archivedAt: undefined, legacyStatusMissing: false })
+          : payload.status
+    };
+    const id = await createExperiment({ ...normalizedPayload, userId: activeUserId });
+    await trackSyncChange('experiment', 'create', id, normalizedPayload);
     await refresh();
     return id;
   },
   updateExperimentEntry: async (experimentId, payload) => {
     assertActiveUser();
-    await updateExperiment(experimentId, payload);
-    await trackSyncChange('experiment', 'update', experimentId, payload);
+    if (!sessionMap.has(payload.sessionId)) {
+      throw new Error('This experiment needs a valid parent session before it can be saved.');
+    }
+    const normalizedPayload = {
+      ...payload,
+      status:
+        payload.status === 'complete'
+          ? normalizeLegacyExperimentStatus({ ...(payload as any), id: experimentId, userId: activeUserId ?? 0, archivedAt: undefined, legacyStatusMissing: false })
+          : payload.status
+    };
+    await updateExperiment(experimentId, normalizedPayload);
+    await trackSyncChange('experiment', 'update', experimentId, normalizedPayload);
     await refresh(activeUserId);
   },
   archiveInconclusiveExperiments: async ({ from, to }) => {
