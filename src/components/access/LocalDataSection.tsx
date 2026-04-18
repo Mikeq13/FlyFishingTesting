@@ -27,7 +27,7 @@ export const LocalDataSection = ({
   const content = (
   <>
     <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-      Clean up local and synced owned fishing data for the active profile. Joined shared records are detached instead of globally deleted.
+      Clean up local and synced fishing data for the active profile. Joined shared records are detached instead of globally deleted, so Clear Everything behaves like a fresh start for this angler.
     </Text>
     <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
       Draft, legacy, archived, and pending-delete records are handled differently so the app can stay trustworthy while cleanup sync finishes.

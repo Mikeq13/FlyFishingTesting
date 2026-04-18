@@ -74,7 +74,7 @@ const deleteOwnedRow = async (
 ) => {
   let query = supabase.from(table).delete();
   if (remoteRecordId) {
-    query = query.eq('id', remoteRecordId);
+    query = query.eq('id', remoteRecordId).eq('owner_auth_user_id', ownerAuthUserId);
   } else {
     query = query.eq('owner_auth_user_id', ownerAuthUserId).eq('local_record_id', localRecordId);
   }

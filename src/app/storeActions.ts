@@ -65,6 +65,7 @@ export const createStoreActions = ({
   competitions,
   competitionParticipants,
   invites,
+  sponsoredAccess,
   experiments,
   sessionMap,
   remoteSession,
@@ -81,7 +82,8 @@ export const createStoreActions = ({
   refresh,
   trackSyncChange,
   flushSyncQueueInternal,
-  updateUserAccess
+  updateUserAccess,
+  getGroupIntegrity
 }: {
   activeUserId: number | null;
   currentUser: AppStore['currentUser'];
@@ -96,6 +98,7 @@ export const createStoreActions = ({
   competitions: AppStore['competitions'];
   competitionParticipants: AppStore['competitionParticipants'];
   invites: AppStore['invites'];
+  sponsoredAccess: AppStore['sponsoredAccess'];
   experiments: AppStore['experiments'];
   sessionMap: Map<number, AppStore['sessions'][number]>;
   remoteSession: AppStore['remoteSession'];
@@ -113,6 +116,7 @@ export const createStoreActions = ({
   trackSyncChange: (entityType: SyncEntityType, operation: SyncOperation, recordId: number | null, payload: unknown) => Promise<void>;
   flushSyncQueueInternal: () => Promise<void>;
   updateUserAccess: AppStore['updateUserAccess'];
+  getGroupIntegrity: AppStore['getGroupIntegrity'];
 }): Pick<
   AppStore,
   | 'setActiveUserId'
@@ -238,8 +242,15 @@ export const createStoreActions = ({
     }
     const loaded = await loadLocalAppData(userId);
     const archivedExperiments = await listExperiments(userId, { includeArchived: true });
-    const ownedGroupIds = loaded.groups.filter((group) => group.createdByUserId === userId).map((group) => group.id);
-    const ownedCompetitionIds = loaded.competitions
+    const mergedGroups = groups;
+    const mergedMemberships = groupMemberships.filter((membership) => membership.userId === userId);
+    const mergedSharePreferences = sharePreferences.filter((preference) => preference.userId === userId);
+    const mergedInvites = invites.filter(
+      (invite) => invite.inviterUserId === userId || invite.acceptedByUserId === userId
+    );
+    const mergedCompetitions = competitions;
+    const ownedGroupIds = mergedGroups.filter((group) => group.createdByUserId === userId).map((group) => group.id);
+    const ownedCompetitionIds = mergedCompetitions
       .filter((competition) => competition.organizerUserId === userId)
       .map((competition) => competition.id);
 
@@ -261,21 +272,32 @@ export const createStoreActions = ({
       await trackSyncChange(entityType, 'delete', recordId, payload);
     };
 
-    if (normalizedCategories.includes('groups')) {
-      for (const entry of loaded.sharePreferences.filter((preference) => preference.userId === userId || ownedGroupIds.includes(preference.groupId))) {
+    const queueGroupCleanupDeletes = async (targetGroupIds: number[]) => {
+      if (!targetGroupIds.length) return;
+      const groupIdSet = new Set(targetGroupIds);
+      const affectedOwnedGroupIds = ownedGroupIds.filter((groupId) => groupIdSet.has(groupId));
+
+      for (const entry of mergedSharePreferences.filter((preference) => groupIdSet.has(preference.groupId))) {
         await queueDelete('share_preference', entry.id, { groupId: entry.groupId });
       }
-      for (const entry of loaded.invites.filter((invite) => invite.inviterUserId === userId || ownedGroupIds.includes(invite.targetGroupId) || invite.acceptedByUserId === userId)) {
+      for (const entry of mergedInvites.filter((invite) => groupIdSet.has(invite.targetGroupId))) {
         await queueDelete('invite', entry.id, { inviteId: entry.id });
       }
-      for (const entry of loaded.sponsoredAccess.filter((access) => access.sponsorUserId === userId || access.sponsoredUserId === userId || ownedGroupIds.includes(access.targetGroupId))) {
+      for (const entry of sponsoredAccess.filter((access) => groupIdSet.has(access.targetGroupId))) {
         await queueDelete('sponsored_access', entry.id, { sponsoredAccessId: entry.id });
       }
-      for (const entry of loaded.groupMemberships.filter((membership) => membership.userId === userId || ownedGroupIds.includes(membership.groupId))) {
+      for (const entry of mergedMemberships.filter((membership) => groupIdSet.has(membership.groupId))) {
         await queueDelete('group_membership', entry.id, { membershipId: entry.id, groupId: entry.groupId });
       }
-      for (const groupId of ownedGroupIds) {
+      for (const groupId of affectedOwnedGroupIds) {
         await queueDelete('group', groupId, { groupId });
+      }
+    };
+
+    if (normalizedCategories.includes('groups')) {
+      await queueGroupCleanupDeletes([...new Set([...ownedGroupIds, ...mergedMemberships.map((membership) => membership.groupId)])]);
+      for (const entry of sponsoredAccess.filter((access) => access.sponsorUserId === userId || access.sponsoredUserId === userId || ownedGroupIds.includes(access.targetGroupId))) {
+        await queueDelete('sponsored_access', entry.id, { sponsoredAccessId: entry.id });
       }
     }
 
@@ -372,6 +394,11 @@ export const createStoreActions = ({
       for (const sessionId of problemSessionIds) {
         await queueDelete('session', sessionId, { sessionId });
       }
+
+      const problemGroupIds = mergedGroups
+        .filter((group) => getGroupIntegrity(group.id).state !== 'valid')
+        .map((group) => group.id);
+      await queueGroupCleanupDeletes(problemGroupIds);
     }
 
     if (normalizedCategories.includes('flies')) {
@@ -695,19 +722,52 @@ export const createStoreActions = ({
   leaveGroup: async (groupId) => {
     assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
+    const membership = groupMemberships.find((entry) => entry.userId === activeUserId && entry.groupId === groupId) ?? null;
+    const preference = sharePreferences.find((entry) => entry.userId === activeUserId && entry.groupId === groupId) ?? null;
+    const startedAt = new Date().toISOString();
     const result = await leaveLocalGroup(activeUserId, groupId);
-    await trackSyncChange('group_membership', 'delete', result.membershipId, result);
+    if (preference) {
+      await trackSyncChange('share_preference', 'delete', preference.id, { groupId });
+    }
+    if (membership) {
+      await trackSyncChange('group_membership', 'delete', membership.id, {
+        membershipId: membership.id,
+        groupId
+      });
+    }
     if (result.deletedGroup) {
       await trackSyncChange('group', 'delete', groupId, { groupId });
     }
+    await flushSyncChangesOrThrow(startedAt, 'Unable to fully detach this group from shared data right now.');
     await refresh(activeUserId);
     return result;
   },
   deleteGroup: async (groupId) => {
     assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
+    const relatedMemberships = groupMemberships.filter((entry) => entry.groupId === groupId);
+    const relatedPreferences = sharePreferences.filter((entry) => entry.groupId === groupId);
+    const relatedInvites = invites.filter((entry) => entry.targetGroupId === groupId);
+    const relatedSponsoredAccess = sponsoredAccess.filter((entry) => entry.targetGroupId === groupId);
+    const startedAt = new Date().toISOString();
     await deleteLocalGroup(activeUserId, groupId);
+    for (const preference of relatedPreferences) {
+      await trackSyncChange('share_preference', 'delete', preference.id, { groupId });
+    }
+    for (const membership of relatedMemberships) {
+      await trackSyncChange('group_membership', 'delete', membership.id, {
+        membershipId: membership.id,
+        groupId
+      });
+    }
+    for (const invite of relatedInvites) {
+      await trackSyncChange('invite', 'delete', invite.id, { inviteId: invite.id });
+    }
+    for (const access of relatedSponsoredAccess) {
+      await trackSyncChange('sponsored_access', 'delete', access.id, { sponsoredAccessId: access.id });
+    }
     await trackSyncChange('group', 'delete', groupId, { groupId });
+    await flushSyncChangesOrThrow(startedAt, 'Unable to fully delete this group from shared data right now.');
     await refresh(activeUserId);
   },
   updateSharePreference: async (groupId, updates) => {
@@ -861,6 +921,17 @@ export const createStoreActions = ({
     await flushSyncChangesOrThrow(startedAt, 'Some shared records could not be removed, so cleanup stopped before local data was cleared.');
     if (categories.includes('groups') || categories.includes('all')) {
       await clearLocalGroupsForUser(userId);
+    }
+    if (categories.includes('problem')) {
+      const problemGroups = groups.filter((group) => getGroupIntegrity(group.id).state !== 'valid');
+      for (const group of problemGroups) {
+        const membership = groupMemberships.find((entry) => entry.userId === userId && entry.groupId === group.id);
+        if (group.createdByUserId === userId || membership?.role === 'organizer') {
+          await deleteLocalGroup(userId, group.id);
+        } else {
+          await leaveLocalGroup(userId, group.id);
+        }
+      }
     }
     await clearLocalUserDataCategories(userId, categories.filter((category) => category !== 'groups'));
     await refresh(activeUserId);

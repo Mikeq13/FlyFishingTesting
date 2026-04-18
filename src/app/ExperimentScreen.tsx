@@ -386,9 +386,9 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     summary: string;
     children: React.ReactNode;
   }) => (
-    <SectionCard title={title} subtitle={subtitle} tone="light">
+    <SectionCard title={title} subtitle={subtitle}>
       {!expandedSections[sectionKey] ? (
-        <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>{summary}</Text>
+        <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>{summary}</Text>
       ) : null}
       <Pressable
         onPress={() => toggleSection(sectionKey)}
@@ -399,10 +399,10 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           paddingVertical: 6
         }}
       >
-        <Text style={{ color: theme.colors.textDarkSoft, fontWeight: '700' }}>
+        <Text style={{ color: theme.colors.textSoft, fontWeight: '700' }}>
           {expandedSections[sectionKey] ? 'Hide details' : 'Show details'}
         </Text>
-        <Text style={{ color: theme.colors.textDark, fontSize: 18, fontWeight: '800' }}>
+        <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '800' }}>
           {expandedSections[sectionKey] ? '-' : '+'}
         </Text>
       </Pressable>
@@ -434,7 +434,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           summary: `${session?.hypothesis?.trim() || 'No hypothesis provided'} | Control focus: ${controlFocus} | Cast step: ${castStep}`,
           children: (
             <View style={{ gap: 10 }}>
-              <Text style={{ color: theme.colors.textDark, lineHeight: 22 }}>
+              <Text style={{ color: theme.colors.text, lineHeight: 22 }}>
                 {session?.hypothesis?.trim() || 'No hypothesis was saved on the session screen.'}
               </Text>
               <OptionChips
@@ -468,7 +468,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           summary: `Current water type: ${currentWaterType}`,
           children: (
             <View style={{ gap: 10 }}>
-              <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+              <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
                 This persists from the session setup, and changing it here updates the current session so the experiment stays aligned with the water you are actually fishing.
               </Text>
               <OptionChips
@@ -628,7 +628,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           )
         })}
 
-        <SectionCard title="Results" subtitle="Record casts and catches without reopening the fly builder each time." tone="light">
+        <SectionCard title="Results" subtitle="Record casts and catches without reopening the fly builder each time.">
           <View style={{ gap: 10 }}>
             {visibleEntries.map((entry, index) => (
               <View
@@ -637,15 +637,15 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                   gap: 10,
                   borderRadius: theme.radius.md,
                   padding: 12,
-                  backgroundColor: theme.colors.nestedSurface,
+                  backgroundColor: theme.colors.surfaceAlt,
                   borderWidth: 1,
-                  borderColor: theme.colors.nestedSurfaceBorder
+                  borderColor: theme.colors.border
                 }}
               >
-                <Text style={{ color: theme.colors.textDark, fontWeight: '800' }}>
+                <Text style={{ color: theme.colors.text, fontWeight: '800' }}>
                   {entry.label} {index === baselineIndex ? '(Baseline)' : '(Test)'}
                 </Text>
-                <Text style={{ color: theme.colors.textDarkSoft }}>
+                <Text style={{ color: theme.colors.textSoft }}>
                   {entry.fly.name.trim()
                     ? `${entry.fly.name} #${entry.fly.hookSize} | ${entry.fly.beadColor} | ${entry.fly.beadSizeMm.toFixed(1)} mm`
                     : 'No fly selected yet'}
@@ -670,7 +670,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                   />
                 </View>
                 {!!entry.fishSizesInches.length ? (
-                  <Text style={{ color: theme.colors.textDarkSoft, fontSize: 12 }}>
+                  <Text style={{ color: theme.colors.textSoft, fontSize: 12 }}>
                     Fish log: {entry.fishSizesInches.map((size, fishIndex) => `${size}" ${entry.fishSpecies[fishIndex] ?? 'Trout'}`).join(', ')}
                   </Text>
                 ) : null}
@@ -679,8 +679,8 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           </View>
         </SectionCard>
 
-        <SectionCard title="Save Progress" subtitle="This is the primary action for this screen." tone="light">
-          <Text style={{ color: theme.colors.textDarkSoft }}>
+        <SectionCard title="Save Progress" subtitle="This is the primary action for this screen.">
+          <Text style={{ color: theme.colors.textSoft }}>
             {activeExperimentId
               ? 'Saving here updates the experiment you already started.'
               : isDraft
@@ -688,7 +688,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                 : 'Save the finished experiment once the comparison looks right.'}
           </Text>
           {routeExperiment?.status !== 'complete' ? (
-            <Text style={{ color: theme.colors.textDarkSoft }}>
+            <Text style={{ color: theme.colors.textSoft }}>
               {hasDraftChanges ? 'Draft changes are waiting to autosave.' : activeExperimentId ? 'Draft changes autosave in the background while you keep fishing.' : 'The first meaningful change will create a draft automatically.'}
             </Text>
           ) : null}

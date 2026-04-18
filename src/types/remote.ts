@@ -75,6 +75,12 @@ export interface SyncMetadataEntry {
   pendingImport: boolean;
 }
 
+export interface SyncMetadataHint {
+  entityType: SyncEntityType;
+  localRecordId: number;
+  remoteRecordId: string;
+}
+
 export interface RemoteSessionSnapshot {
   authUserId: string;
   email?: string | null;
@@ -134,6 +140,7 @@ export interface RemoteAccessSnapshot {
   competitionParticipants: import('@/types/group').CompetitionParticipant[];
   competitionAssignments: import('@/types/group').CompetitionSessionAssignment[];
   entityMaps: RemoteEntityMaps;
+  syncMetadataHints: SyncMetadataHint[];
 }
 
 export interface RemoteSharedDataSnapshot {

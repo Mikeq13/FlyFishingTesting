@@ -44,7 +44,7 @@ const MODE_COPY: Record<SessionMode, { title: string; subtitle: string; button: 
 export const SessionScreen = ({ navigation, route }: any) => {
   const { theme } = useTheme();
   const layout = useResponsiveLayout();
-  const { addSession, updateSessionEntry, addSavedFly, addSavedLeaderFormula, deleteSavedLeaderFormula, addSavedRigPreset, deleteSavedRigPreset, addSavedRiver, savedFlies, savedLeaderFormulas, savedRigPresets, savedRivers, users, activeUserId, sessions, experiments, groups, groupMemberships, competitions, competitionGroups, competitionSessions, competitionParticipants, competitionAssignments, upsertCompetitionAssignment, sharedDataStatus, syncStatus, notificationPermissionStatus, authStatus, remoteSession } = useAppStore();
+  const { addSession, updateSessionEntry, addSavedFly, addSavedLeaderFormula, deleteSavedLeaderFormula, addSavedRigPreset, deleteSavedRigPreset, addSavedRiver, savedFlies, savedLeaderFormulas, savedRigPresets, savedRivers, users, activeUserId, sessions, experiments, groups, groupMemberships, competitions, competitionGroups, competitionSessions, competitionParticipants, competitionAssignments, upsertCompetitionAssignment, sharedDataStatus, syncStatus, notificationPermissionStatus, authStatus, remoteSession, getGroupIntegrity } = useAppStore();
   const sessionId = route?.params?.sessionId as number | undefined;
   const existingSession = useMemo(
     () => (sessionId ? sessions.find((session) => session.id === sessionId) ?? null : null),
@@ -99,8 +99,9 @@ export const SessionScreen = ({ navigation, route }: any) => {
     () =>
       joinedGroupMemberships
         .map((membership) => groups.find((group) => group.id === membership.groupId))
-        .filter((group): group is Group => !!group),
-    [groups, joinedGroupMemberships]
+        .filter((group): group is Group => !!group)
+        .filter((group) => getGroupIntegrity(group.id).state === 'valid'),
+    [getGroupIntegrity, groups, joinedGroupMemberships]
   );
   const joinedCompetitions = useMemo(
     () =>

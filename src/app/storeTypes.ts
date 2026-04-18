@@ -116,7 +116,7 @@ export interface AppStore {
   addSavedRiver: (name: string) => Promise<number>;
   createGroup: (name: string) => Promise<Group>;
   joinGroup: (joinCode: string) => Promise<GroupMembership>;
-  leaveGroup: (groupId: number) => Promise<{ membershipId: number; groupId: number; deletedGroup: boolean }>;
+  leaveGroup: (groupId: number) => Promise<{ membershipId: number | null; groupId: number; deletedGroup: boolean }>;
   deleteGroup: (groupId: number) => Promise<void>;
   updateSharePreference: (groupId: number, updates: Omit<SharePreference, 'id' | 'userId' | 'groupId' | 'updatedAt'>) => Promise<void>;
   createCompetition: (payload: {
@@ -145,6 +145,7 @@ export interface AppStore {
   ) => SyncCleanupState;
   getSessionIntegrity: (sessionId: number) => IntegritySummary;
   getExperimentIntegrity: (experimentId: number) => IntegritySummary;
+  getGroupIntegrity: (groupId: number) => IntegritySummary;
   deleteAngler: (userId: number) => Promise<void>;
   archiveExperiment: (experimentId: number) => Promise<void>;
   deleteExperiment: (experimentId: number) => Promise<void>;

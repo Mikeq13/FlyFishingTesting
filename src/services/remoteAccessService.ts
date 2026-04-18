@@ -106,50 +106,106 @@ export const fetchRemoteAccessSnapshot = async (
     competitionAssignments: filteredCompetitionAssignments
   });
 
+  const mappedGroups = filteredGroups.map((row) => mapRemoteGroup(row, currentAuthUserId));
+  const mappedGroupMemberships = allMembershipRows
+    .filter((row) => accessibleGroupIds.has(row.group_id as string))
+    .map((row) => mapRemoteGroupMembership(row, currentAuthUserId, entityMaps));
+  const mappedSharePreferences = (sharePreferencesResponse.data ?? [])
+    .filter((row) => accessibleGroupIds.has(row.group_id as string))
+    .map((row) => mapRemoteSharePreference(row, currentAuthUserId, entityMaps));
+  const mappedInvites = allInviteRows
+    .filter(
+      (row) =>
+        accessibleGroupIds.has(row.target_group_id as string) &&
+        (row.inviter_auth_user_id === currentAuthUserId || row.accepted_by_auth_user_id === currentAuthUserId)
+    )
+    .map((row) => mapRemoteInvite(row, currentAuthUserId, entityMaps));
+  const mappedSponsoredAccess = allSponsoredAccessRows
+    .filter(
+      (row) =>
+        accessibleGroupIds.has(row.target_group_id as string) &&
+        (row.sponsor_auth_user_id === currentAuthUserId || row.sponsored_auth_user_id === currentAuthUserId)
+    )
+    .map((row) => mapRemoteSponsoredAccess(row, currentAuthUserId, entityMaps));
+  const mappedCompetitions = filteredCompetitions.map((row) => mapRemoteCompetition(row, currentAuthUserId));
+  const mappedCompetitionGroups = filteredCompetitionGroups.map((row) =>
+    mapRemoteCompetitionGroup(row, currentAuthUserId, entityMaps)
+  );
+  const mappedCompetitionSessions = filteredCompetitionSessions.map((row) =>
+    mapRemoteCompetitionSession(row, currentAuthUserId, entityMaps)
+  );
+  const mappedCompetitionParticipants = allParticipantRows
+    .filter((row) => accessibleCompetitionIds.has(row.competition_id as string))
+    .map((row) => mapRemoteCompetitionParticipant(row, currentAuthUserId, entityMaps));
+  const mappedCompetitionAssignments = filteredCompetitionAssignments.map((row) =>
+    mapRemoteCompetitionAssignment(row, currentAuthUserId, entityMaps)
+  );
+
   return {
     users: profiles.map((row) => mapRemoteUser(row, currentAuthUserId)),
-    groups: filteredGroups.map((row) => mapRemoteGroup(row, currentAuthUserId)),
-    groupMemberships: allMembershipRows
-      .filter((row) => accessibleGroupIds.has(row.group_id as string))
-      .map((row) =>
-      mapRemoteGroupMembership(row, currentAuthUserId, entityMaps)
-    ),
-    sharePreferences: (sharePreferencesResponse.data ?? [])
-      .filter((row) => accessibleGroupIds.has(row.group_id as string))
-      .map((row) =>
-      mapRemoteSharePreference(row, currentAuthUserId, entityMaps)
-    ),
-    invites: allInviteRows
-      .filter(
-        (row) =>
-          accessibleGroupIds.has(row.target_group_id as string) &&
-          (row.inviter_auth_user_id === currentAuthUserId || row.accepted_by_auth_user_id === currentAuthUserId)
-      )
-      .map((row) => mapRemoteInvite(row, currentAuthUserId, entityMaps)),
-    sponsoredAccess: allSponsoredAccessRows
-      .filter(
-        (row) =>
-          accessibleGroupIds.has(row.target_group_id as string) &&
-          (row.sponsor_auth_user_id === currentAuthUserId || row.sponsored_auth_user_id === currentAuthUserId)
-      )
-      .map((row) =>
-      mapRemoteSponsoredAccess(row, currentAuthUserId, entityMaps)
-    ),
-    competitions: filteredCompetitions.map((row) => mapRemoteCompetition(row, currentAuthUserId)),
-    competitionGroups: filteredCompetitionGroups.map((row) =>
-      mapRemoteCompetitionGroup(row, currentAuthUserId, entityMaps)
-    ),
-    competitionSessions: filteredCompetitionSessions.map((row) =>
-      mapRemoteCompetitionSession(row, currentAuthUserId, entityMaps)
-    ),
-    competitionParticipants: allParticipantRows
-      .filter((row) => accessibleCompetitionIds.has(row.competition_id as string))
-      .map((row) =>
-      mapRemoteCompetitionParticipant(row, currentAuthUserId, entityMaps)
-    ),
-    competitionAssignments: filteredCompetitionAssignments.map((row) =>
-      mapRemoteCompetitionAssignment(row, currentAuthUserId, entityMaps)
-    ),
-    entityMaps
+    groups: mappedGroups,
+    groupMemberships: mappedGroupMemberships,
+    sharePreferences: mappedSharePreferences,
+    invites: mappedInvites,
+    sponsoredAccess: mappedSponsoredAccess,
+    competitions: mappedCompetitions,
+    competitionGroups: mappedCompetitionGroups,
+    competitionSessions: mappedCompetitionSessions,
+    competitionParticipants: mappedCompetitionParticipants,
+    competitionAssignments: mappedCompetitionAssignments,
+    entityMaps,
+    syncMetadataHints: [
+      ...filteredGroups
+        .filter((row) => row.owner_auth_user_id === currentAuthUserId)
+        .map((row, index) => ({
+          entityType: 'group' as const,
+          localRecordId: mappedGroups[index].id,
+          remoteRecordId: row.id as string
+        })),
+      ...allMembershipRows
+        .filter((row) => accessibleGroupIds.has(row.group_id as string))
+        .map((row, index) => ({ row, membership: mappedGroupMemberships[index] }))
+        .filter(({ row }) => row.owner_auth_user_id === currentAuthUserId)
+        .map(({ row, membership }) => ({
+          entityType: 'group_membership' as const,
+          localRecordId: membership.id,
+          remoteRecordId: row.id as string
+        })),
+      ...((sharePreferencesResponse.data ?? [])
+        .filter((row) => accessibleGroupIds.has(row.group_id as string))
+        .map((row, index) => ({ row, preference: mappedSharePreferences[index] }))
+        .filter(({ row }) => row.owner_auth_user_id === currentAuthUserId)
+        .map(({ row, preference }) => ({
+          entityType: 'share_preference' as const,
+          localRecordId: preference.id,
+          remoteRecordId: row.id as string
+        }))),
+      ...allInviteRows
+        .filter(
+          (row) =>
+            accessibleGroupIds.has(row.target_group_id as string) &&
+            (row.inviter_auth_user_id === currentAuthUserId || row.accepted_by_auth_user_id === currentAuthUserId)
+        )
+        .map((row, index) => ({ row, invite: mappedInvites[index] }))
+        .filter(({ row }) => row.owner_auth_user_id === currentAuthUserId)
+        .map(({ row, invite }) => ({
+          entityType: 'invite' as const,
+          localRecordId: invite.id,
+          remoteRecordId: row.id as string
+        })),
+      ...allSponsoredAccessRows
+        .filter(
+          (row) =>
+            accessibleGroupIds.has(row.target_group_id as string) &&
+            (row.sponsor_auth_user_id === currentAuthUserId || row.sponsored_auth_user_id === currentAuthUserId)
+        )
+        .map((row, index) => ({ row, access: mappedSponsoredAccess[index] }))
+        .filter(({ row }) => row.owner_auth_user_id === currentAuthUserId)
+        .map(({ row, access }) => ({
+          entityType: 'sponsored_access' as const,
+          localRecordId: access.id,
+          remoteRecordId: row.id as string
+        }))
+    ]
   };
 };

@@ -82,6 +82,7 @@ export const AccessScreen = ({ navigation }: any) => {
     getSyncRecordState,
     getSessionIntegrity,
     getExperimentIntegrity,
+    getGroupIntegrity,
     sessions,
     experiments,
     catchEvents,
@@ -180,20 +181,29 @@ export const AccessScreen = ({ navigation }: any) => {
     () => groupMemberships.filter((membership) => membership.userId === currentUser?.id),
     [currentUser?.id, groupMemberships]
   );
-  const joinedGroups = React.useMemo(
+  const allVisibleGroups = React.useMemo(
     () =>
       joinedMemberships
         .map((membership) => groups.find((group) => group.id === membership.groupId))
         .filter((group): group is (typeof groups)[number] => !!group),
     [groups, joinedMemberships]
   );
+  const problemGroups = React.useMemo(
+    () => allVisibleGroups.filter((group) => getGroupIntegrity(group.id).state !== 'valid'),
+    [allVisibleGroups, getGroupIntegrity]
+  );
+  const joinedGroups = React.useMemo(
+    () => allVisibleGroups.filter((group) => getGroupIntegrity(group.id).state === 'valid'),
+    [allVisibleGroups, getGroupIntegrity]
+  );
   const organizerGroups = React.useMemo(
     () =>
       joinedMemberships
         .filter((membership) => membership.role === 'organizer')
         .map((membership) => groups.find((group) => group.id === membership.groupId))
-        .filter((group): group is (typeof groups)[number] => !!group),
-    [groups, joinedMemberships]
+        .filter((group): group is (typeof groups)[number] => !!group)
+        .filter((group) => getGroupIntegrity(group.id).state === 'valid'),
+    [getGroupIntegrity, groups, joinedMemberships]
   );
   const joinedCompetitionList = React.useMemo(
     () =>
@@ -389,7 +399,7 @@ export const AccessScreen = ({ navigation }: any) => {
 
   const simplifiedCleanupConfig: Array<{ key: UserDataCleanupCategory; label: string; description: string; destructive?: boolean }> = [
     { key: 'incomplete', label: 'Clear Incomplete Records', description: 'Removes unfinished draft experiments and incomplete session records that should not count as solid fishing data.' },
-    { key: 'problem', label: 'Review Problem Records', description: 'This permanently removes incomplete, legacy, or malformed records that are excluded from trusted insights.' },
+    { key: 'problem', label: 'Review Problem Records', description: 'Inspect stale or malformed records that are excluded from trusted insights before deleting them.' },
     { key: 'archived', label: 'Clear Archived Records', description: 'Permanently deletes archived experiment records that are already hidden from normal history and insights.' },
     { key: 'all', label: 'Clear Everything', description: 'Deletes this profile’s owned sessions, experiments, saved setups, groups, and related synced records.', destructive: true }
   ];
@@ -405,7 +415,8 @@ export const AccessScreen = ({ navigation }: any) => {
     if (category === 'problem') {
       return [
         `${problemSessions.length} problem session${problemSessions.length === 1 ? '' : 's'}`,
-        `${problemExperiments.length} problem experiment${problemExperiments.length === 1 ? '' : 's'}`
+        `${problemExperiments.length} problem experiment${problemExperiments.length === 1 ? '' : 's'}`,
+        `${problemGroups.length} problem group${problemGroups.length === 1 ? '' : 's'}`
       ];
     }
 
@@ -420,7 +431,9 @@ export const AccessScreen = ({ navigation }: any) => {
       `${savedLeaderFormulas.length} saved leader formula${savedLeaderFormulas.length === 1 ? '' : 's'}`,
       `${savedRigPresets.length} saved rig preset${savedRigPresets.length === 1 ? '' : 's'}`,
       `${savedRivers.length} saved river${savedRivers.length === 1 ? '' : 's'}`,
-      `${groups.filter((group) => group.createdByUserId === currentUser.id).length} owned group${groups.filter((group) => group.createdByUserId === currentUser.id).length === 1 ? '' : 's'}`
+      `${allVisibleGroups.length} group connection${allVisibleGroups.length === 1 ? '' : 's'}`,
+      `${invites.length} invite${invites.length === 1 ? '' : 's'}`,
+      `${sponsoredAccess.length} sponsored access record${sponsoredAccess.length === 1 ? '' : 's'}`
     ];
   };
 
@@ -434,13 +447,15 @@ export const AccessScreen = ({ navigation }: any) => {
     const previewLines = buildCleanupPreview(category);
     const successLabel =
       category === 'problem'
-        ? `Removed: ${problemSessions.length} session${problemSessions.length === 1 ? '' : 's'} and ${problemExperiments.length} experiment${problemExperiments.length === 1 ? '' : 's'}\nSkipped: 0\nFailed: 0`
+        ? `Removed: ${problemSessions.length} session${problemSessions.length === 1 ? '' : 's'}, ${problemExperiments.length} experiment${problemExperiments.length === 1 ? '' : 's'}, and ${problemGroups.length} group${problemGroups.length === 1 ? '' : 's'}\nSkipped: 0\nFailed: 0`
         : `${item.label.replace('Clear ', '')} finished for ${userName}. ${previewLines.join(' | ')}`;
     const title = category === 'problem' ? 'Delete All Problem Records?' : `${item.label}?`;
     const description =
       category === 'problem'
         ? 'This permanently removes incomplete, legacy, or malformed records that are excluded from trusted insights.'
-        : item.description;
+        : category === 'all'
+          ? 'Fresh-start reset for this angler. Your signed-in account stays in place, but fishing records, saved setups, groups, invites, and shared access links tied to this angler are removed.'
+          : item.description;
     confirmAdminAction(
       title,
       `${description}\n\nThis will remove:\n${previewLines.map((line) => `- ${line}`).join('\n')}\n\nJoined shared records owned by other anglers are detached instead of globally deleted.`,
@@ -605,6 +620,31 @@ export const AccessScreen = ({ navigation }: any) => {
         }
       ]
     );
+  };
+
+  const handleDeleteProblemGroup = (groupId: number) => {
+    const group = groups.find((entry) => entry.id === groupId);
+    const membership = joinedMemberships.find((entry) => entry.groupId === groupId);
+    const isOwnedGroup = group?.createdByUserId === currentUser.id || membership?.role === 'organizer';
+    const title = isOwnedGroup ? 'Delete this group?' : 'Leave this group?';
+    const message = isOwnedGroup
+      ? `${group?.name ?? 'This group'} and its related sharing records will be permanently removed for this angler.`
+      : `You will detach ${group?.name ?? 'this group'} from your shared access, and stale sharing records tied to it will be removed.`;
+
+    Alert.alert(title, message, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: isOwnedGroup ? 'Delete Group' : 'Leave Group',
+        style: 'destructive',
+        onPress: () => {
+          const action = isOwnedGroup ? () => deleteGroup(groupId) : () => leaveGroup(groupId).then(() => undefined);
+          runAdminAction(action, isOwnedGroup ? 'Problem group deleted.' : 'Problem group detached.').catch((error) => {
+            const reason = error instanceof Error ? error.message : 'Please try again.';
+            Alert.alert('Unable to finish action', reason);
+          });
+        }
+      }
+    ]);
   };
 
   const repairOldRecords = async () => {
@@ -853,13 +893,13 @@ export const AccessScreen = ({ navigation }: any) => {
               />
               <SectionCard
                   title="Review Problem Records"
-                  subtitle="Inspect incomplete, legacy, or malformed records before removing them, or resume a session that still needs work."
+                  subtitle="Inspect incomplete sessions, orphaned experiments, and stale groups before removing them, or resume work that still needs attention."
                   tone="light"
                 >
-                  {problemSessions.length || problemExperiments.length ? (
+                  {problemSessions.length || problemExperiments.length || problemGroups.length ? (
                     <>
                       <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-                        {problemSessions.length} problem session{problemSessions.length === 1 ? '' : 's'} and {problemExperiments.length} problem experiment{problemExperiments.length === 1 ? '' : 's'} are currently excluded from trusted insights.
+                        {problemSessions.length} problem session{problemSessions.length === 1 ? '' : 's'}, {problemExperiments.length} problem experiment{problemExperiments.length === 1 ? '' : 's'}, and {problemGroups.length} problem group{problemGroups.length === 1 ? '' : 's'} are currently excluded from trusted insights.
                       </Text>
                       <AppButton
                         label="Delete All Problem Records"
@@ -955,6 +995,35 @@ export const AccessScreen = ({ navigation }: any) => {
                       </View>
                     </View>
                   ))}
+                  {problemGroups.map((group) => (
+                    <View
+                      key={`problem-group-${group.id}`}
+                      style={{
+                        gap: 6,
+                        padding: 10,
+                        borderRadius: theme.radius.md,
+                        backgroundColor: theme.colors.nestedSurface,
+                        borderWidth: 1,
+                        borderColor: theme.colors.nestedSurfaceBorder
+                      }}
+                    >
+                      <InlineSummaryRow label="Group" value={group.name || `Group #${group.id}`} tone="light" />
+                      <InlineSummaryRow label="Status" value={getGroupIntegrity(group.id).label} tone="light" />
+                      {getGroupIntegrity(group.id).reason ? (
+                        <Text style={{ color: theme.colors.textDarkSoft }}>{getGroupIntegrity(group.id).reason}</Text>
+                      ) : null}
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <View style={{ flex: 1 }}>
+                          <AppButton
+                            label={group.createdByUserId === currentUser.id ? 'Delete Group' : 'Leave Group'}
+                            onPress={() => handleDeleteProblemGroup(group.id)}
+                            variant="danger"
+                            surfaceTone="light"
+                          />
+                        </View>
+                      </View>
+                    </View>
+                  ))}
                 </SectionCard>
               <LocalDataSection
                 isOwner={currentUser.role === 'owner'}
@@ -973,14 +1042,14 @@ export const AccessScreen = ({ navigation }: any) => {
           subtitle: 'Normal group joining stays here, while owner-managed power-user invites stay clearly separated.',
           summary: (
             <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-              {joinedGroups.length} groups - {organizerGroups.length} organized by you - {isAuthenticatedOwner ? 'owner invites here' : 'owner-only invites'}
+              {joinedGroups.length} active groups - {problemGroups.length} problem group{problemGroups.length === 1 ? '' : 's'} - {isAuthenticatedOwner ? 'owner invites here' : 'owner-only invites'}
             </Text>
           ),
           children: (
             <GroupsSharingSection
               currentUserId={currentUser.id}
               joinedGroups={joinedGroups}
-              joinedMemberships={joinedMemberships}
+              joinedMemberships={joinedMemberships.filter((membership) => joinedGroups.some((group) => group.id === membership.groupId))}
               groups={groups}
               organizerGroups={organizerGroups}
               sharePreferences={sharePreferences}

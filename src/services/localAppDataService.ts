@@ -34,7 +34,6 @@ import {
   createSharePreference,
   deleteGroup,
   deleteGroupMembership,
-  deleteGroupsForUser,
   deleteSharePreferencesForGroup,
   deleteSharePreferencesForUserAndGroup,
   listGroupMemberships,
@@ -269,14 +268,14 @@ const pruneEmptyGroupIfNeeded = async (groupId: number) => {
 export const leaveLocalGroup = async (activeUserId: number, groupId: number) => {
   const memberships = await listGroupMemberships();
   const membership = memberships.find((entry) => entry.userId === activeUserId && entry.groupId === groupId);
-  if (!membership) throw new Error('Group membership not found.');
-
   await deleteSharePreferencesForUserAndGroup(activeUserId, groupId);
-  await deleteGroupMembership(membership.id);
+  if (membership) {
+    await deleteGroupMembership(membership.id);
+  }
   const deletedGroup = await pruneEmptyGroupIfNeeded(groupId);
 
   return {
-    membershipId: membership.id,
+    membershipId: membership?.id ?? null,
     groupId,
     deletedGroup
   };
@@ -285,14 +284,15 @@ export const leaveLocalGroup = async (activeUserId: number, groupId: number) => 
 export const deleteLocalGroup = async (activeUserId: number, groupId: number) => {
   const groups = await listGroups();
   const targetGroup = groups.find((entry) => entry.id === groupId);
-  if (!targetGroup) throw new Error('Group not found.');
-  if (targetGroup.createdByUserId !== activeUserId) {
+  if (targetGroup && targetGroup.createdByUserId !== activeUserId) {
     throw new Error('Only the organizer can delete this group.');
   }
 
   await deleteSharePreferencesForGroup(groupId);
   await deleteAccessRecordsForGroup(groupId);
-  await deleteGroup(groupId);
+  if (targetGroup) {
+    await deleteGroup(groupId);
+  }
 };
 
 export const clearLocalGroupsForUser = async (userId: number) => {
@@ -492,7 +492,7 @@ export const clearLocalFishingDataForUser = async (
   await deleteExperimentsForUser(userId);
   await deleteSessionsForUser(userId);
   await deleteCompetitionsForUser(userId);
-  await deleteGroupsForUser(userId);
+  await clearLocalGroupsForUser(userId);
   await deleteSavedFliesForUser(userId);
   await deleteSavedLeaderFormulasForUser(userId);
   await deleteSavedRigPresetsForUser(userId);

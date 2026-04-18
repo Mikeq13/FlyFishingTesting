@@ -39,8 +39,9 @@ import { createStoreActions } from '@/app/storeActions';
 import { AppStore, UserDataCleanupCategory } from '@/app/storeTypes';
 import { NotificationPermissionStatus, SharedDataStatus } from '@/types/appState';
 import { getNotificationPermissionStatus } from '@/utils/sessionNotifications';
-import { classifyExperimentIntegrity, classifySessionIntegrity } from '@/services/dataIntegrityService';
+import { classifyExperimentIntegrity, classifyGroupIntegrity, classifySessionIntegrity } from '@/services/dataIntegrityService';
 import { IntegritySummary } from '@/types/dataIntegrity';
+import { upsertSyncMetadataEntry } from '@/db/syncMetadataRepo';
 
 export type { UserDataCleanupCategory };
 
@@ -270,6 +271,42 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     return map;
   }, [experiments, getSyncRecordState, sessionMap]);
 
+  const groupIntegrityById = useMemo(() => {
+    const map = new Map<number, IntegritySummary>();
+    const membershipsByGroupId = new Map<number, GroupMembership>();
+    const preferencesByGroupId = new Map<number, SharePreference>();
+
+    groupMemberships
+      .filter((membership) => membership.userId === activeUserId)
+      .forEach((membership) => {
+        membershipsByGroupId.set(membership.groupId, membership);
+      });
+    sharePreferences
+      .filter((preference) => preference.userId === activeUserId)
+      .forEach((preference) => {
+        preferencesByGroupId.set(preference.groupId, preference);
+      });
+
+    groups.forEach((group) => {
+      const membership = membershipsByGroupId.get(group.id);
+      const groupCleanupState = getSyncRecordState('group', group.id);
+      const membershipCleanupState = membership ? getSyncRecordState('group_membership', membership.id) : 'active';
+      const cleanupState = groupCleanupState !== 'active' ? groupCleanupState : membershipCleanupState;
+      map.set(
+        group.id,
+        classifyGroupIntegrity({
+          group,
+          membership,
+          sharePreference: preferencesByGroupId.get(group.id),
+          currentUserId: activeUserId ?? -1,
+          cleanupState
+        })
+      );
+    });
+
+    return map;
+  }, [activeUserId, getSyncRecordState, groupMemberships, groups, sharePreferences]);
+
   const getSessionIntegrity = React.useCallback<AppStore['getSessionIntegrity']>(
     (sessionId) =>
       sessionIntegrityById.get(sessionId) ?? {
@@ -290,6 +327,17 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         reason: 'This experiment could not be found.'
       },
     [experimentIntegrityById]
+  );
+
+  const getGroupIntegrity = React.useCallback<AppStore['getGroupIntegrity']>(
+    (groupId) =>
+      groupIntegrityById.get(groupId) ?? {
+        state: 'orphaned',
+        label: 'Missing',
+        analyticsEligible: false,
+        reason: 'This group could not be found.'
+      },
+    [groupIntegrityById]
   );
 
   const analyticsEligibleSessions = useMemo(
@@ -364,6 +412,17 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       try {
         const remoteAccess = await fetchRemoteAccessSnapshot(remoteSession.authUserId);
         const remoteShared = await fetchRemoteSharedDataSnapshot(remoteSession.authUserId, remoteAccess);
+        await Promise.all(
+          remoteAccess.syncMetadataHints.map((hint) =>
+            upsertSyncMetadataEntry({
+              entityType: hint.entityType,
+              localRecordId: hint.localRecordId,
+              remoteRecordId: hint.remoteRecordId,
+              lastSyncedAt: new Date().toISOString(),
+              pendingImport: false
+            })
+          )
+        );
         setLastSyncError(null);
         setSharedDataStatus('ready');
         setRemoteBootstrapState('ready');
@@ -942,11 +1001,11 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
 
   const actions = createStoreActions({
       activeUserId,
-      currentUser,
-      users,
-      savedFlies,
-      savedLeaderFormulas,
-      savedRigPresets,
+    currentUser,
+    users,
+    savedFlies,
+    savedLeaderFormulas,
+    savedRigPresets,
       savedRivers,
       groups,
     groupMemberships,
@@ -954,6 +1013,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     competitions,
     competitionParticipants,
     invites,
+    sponsoredAccess,
     experiments,
     sessionMap,
     remoteSession,
@@ -970,7 +1030,8 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     refresh,
     trackSyncChange,
     flushSyncQueueInternal: flushSyncQueue,
-    updateUserAccess
+    updateUserAccess,
+    getGroupIntegrity
   });
 
   return (
@@ -1027,6 +1088,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         getSyncRecordState,
         getSessionIntegrity,
         getExperimentIntegrity,
+        getGroupIntegrity,
         ...actions
       }}
     >

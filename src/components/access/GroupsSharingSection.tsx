@@ -68,7 +68,7 @@ export const GroupsSharingSection = ({
   onCreateInvite: () => Promise<void>;
   onAcceptInvite: () => Promise<void>;
   onRevokeSponsoredAccess: (id: number) => Promise<void>;
-  onLeaveGroup: (groupId: number) => Promise<{ membershipId: number; groupId: number; deletedGroup: boolean }>;
+  onLeaveGroup: (groupId: number) => Promise<{ membershipId: number | null; groupId: number; deletedGroup: boolean }>;
   onDeleteGroup: (groupId: number) => Promise<void>;
   getSyncRecordState: (
     entityType: 'group' | 'group_membership' | 'saved_setup' | 'session' | 'experiment',

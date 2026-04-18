@@ -1,5 +1,6 @@
 import { getExperimentEntries } from '@/utils/experimentEntries';
 import { Experiment, ExperimentStatus } from '@/types/experiment';
+import { Group, GroupMembership, SharePreference } from '@/types/group';
 import { Session } from '@/types/session';
 import { IntegritySummary } from '@/types/dataIntegrity';
 import { SyncCleanupState } from '@/types/remote';
@@ -152,6 +153,80 @@ export const classifyExperimentIntegrity = (
   return {
     state: 'valid',
     label: 'Complete',
+    analyticsEligible: true
+  };
+};
+
+export const classifyGroupIntegrity = ({
+  group,
+  membership,
+  sharePreference,
+  currentUserId,
+  cleanupState = 'active'
+}: {
+  group?: Group;
+  membership?: GroupMembership;
+  sharePreference?: SharePreference;
+  currentUserId: number;
+  cleanupState?: SyncCleanupState;
+}): IntegritySummary => {
+  if (cleanupState === 'failed_cleanup') {
+    return {
+      state: 'failed_cleanup',
+      label: 'Cleanup Failed',
+      analyticsEligible: false,
+      reason: 'This group is hidden while shared cleanup retries.'
+    };
+  }
+
+  if (cleanupState === 'pending_delete') {
+    return {
+      state: 'pending_delete',
+      label: 'Pending Delete',
+      analyticsEligible: false,
+      reason: 'This group is hidden while delete sync finishes.'
+    };
+  }
+
+  if (!group && !membership && !sharePreference) {
+    return {
+      state: 'orphaned',
+      label: 'Missing',
+      analyticsEligible: false,
+      reason: 'This group record could not be found.'
+    };
+  }
+
+  if (!group) {
+    return {
+      state: 'orphaned',
+      label: 'Problem',
+      analyticsEligible: false,
+      reason: 'This group lost its backing group record, so it stays out of normal shared views.'
+    };
+  }
+
+  if (group.createdByUserId === currentUserId && group.id < 0) {
+    return {
+      state: 'legacy_unreviewed',
+      label: 'Problem',
+      analyticsEligible: false,
+      reason: 'This older group is missing its local backing record, so it should be reviewed before use.'
+    };
+  }
+
+  if (membership?.userId === currentUserId && membership.id < 0) {
+    return {
+      state: 'legacy_unreviewed',
+      label: 'Problem',
+      analyticsEligible: false,
+      reason: 'This shared-group access record is stale and should be detached or deleted.'
+    };
+  }
+
+  return {
+    state: 'valid',
+    label: membership?.role === 'organizer' ? 'Organizer' : 'Member',
     analyticsEligible: true
   };
 };
