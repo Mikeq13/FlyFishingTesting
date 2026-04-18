@@ -2,13 +2,14 @@ import React, { useMemo, useState } from 'react';
 import { TextInput } from 'react-native';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { AppButton } from '@/components/ui/AppButton';
-import { appTheme } from '@/design/theme';
+import { useTheme } from '@/design/theme';
 
 interface RigPresetEditorProps {
   onSave: (name: string) => Promise<void>;
 }
 
 export const RigPresetEditor = ({ onSave }: RigPresetEditorProps) => {
+  const { theme } = useTheme();
   const [name, setName] = useState('');
   const canSave = useMemo(() => !!name.trim(), [name]);
 
@@ -18,10 +19,10 @@ export const RigPresetEditor = ({ onSave }: RigPresetEditorProps) => {
         value={name}
         onChangeText={setName}
         placeholder="Preset name"
-        placeholderTextColor="#5a6c78"
-        style={{ borderWidth: 1, borderColor: appTheme.colors.borderStrong, padding: 12, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.inputBg, color: appTheme.colors.textDark }}
+        placeholderTextColor={theme.colors.inputPlaceholder}
+        style={{ borderWidth: 1, borderColor: theme.colors.borderStrong, padding: 12, borderRadius: theme.radius.md, backgroundColor: theme.colors.inputBg, color: theme.colors.textDark }}
       />
-      <AppButton label="Save Rig Preset" onPress={() => onSave(name.trim())} disabled={!canSave} />
+      <AppButton label="Save Rig Preset" onPress={() => onSave(name.trim())} disabled={!canSave} surfaceTone="light" />
     </SectionCard>
   );
 };

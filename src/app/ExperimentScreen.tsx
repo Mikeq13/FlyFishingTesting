@@ -596,6 +596,22 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           )
         })}
 
+        <SectionCard title="Baseline Fly" subtitle="Keep the control fly obvious on the main screen while you test changes below.">
+          <OptionChips
+            label="Baseline Fly"
+            options={visibleEntries.map((entry) => entry.label) as [string, ...string[]]}
+            value={visibleEntries[baselineIndex]?.label}
+            onChange={(value) => {
+              const nextIndex = visibleEntries.findIndex((entry) => entry.label === value);
+              if (nextIndex >= 0) {
+                setBaselineIndex(nextIndex);
+                markDraftDirty();
+              }
+            }}
+            tone="light"
+          />
+        </SectionCard>
+
         {renderSetupSummaryCard({
           title: 'Leader',
           subtitle: 'Leader setup persists from Session and can be changed here without leaving the experiment.',
@@ -742,6 +758,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                 editMode="leader"
                 forceEditorOpen
                 tone="light"
+                foregroundQuickAdd
                 savedLeaderFormulas={savedLeaderFormulas}
                 savedRigPresets={savedRigPresets}
                 onChange={(next) => {
@@ -784,6 +801,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                 editMode="rig"
                 forceEditorOpen
                 tone="light"
+                foregroundQuickAdd
                 savedLeaderFormulas={savedLeaderFormulas}
                 savedRigPresets={savedRigPresets}
                 onChange={(next) => {
@@ -819,46 +837,30 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
               />
             ) : null}
             {activeSetupSheet === 'flies' ? (
-              <View style={{ gap: 12 }}>
-                <SectionCard title="Baseline Fly" subtitle="Keep the control obvious while you change flies.">
-                  <OptionChips
-                    label="Baseline Fly"
-                    options={visibleEntries.map((entry) => entry.label) as [string, ...string[]]}
-                    value={visibleEntries[baselineIndex]?.label}
-                    onChange={(value) => {
-                      const nextIndex = visibleEntries.findIndex((entry) => entry.label === value);
-                      if (nextIndex >= 0) {
-                        setBaselineIndex(nextIndex);
-                        markDraftDirty();
-                      }
-                    }}
-                    tone="light"
-                  />
-                </SectionCard>
-                <RigFlyManager
-                  title="Flies"
-                  rigSetup={rigSetup}
-                  savedFlies={savedFlies}
-                  tone="light"
-                  editorOnly
-                  onChange={(nextRigSetup) => {
-                    setRigSetup(nextRigSetup);
-                    setFlyEntries((current) =>
-                      alignExperimentEntries(
-                        current.map((entry, index) => ({
-                          ...entry,
-                          fly: nextRigSetup.assignments[index]?.fly ?? entry.fly
-                        })),
-                        nextRigSetup.assignments.length as 1 | 2 | 3,
-                        baselineIndex
-                      )
-                    );
-                    setFlyCount(getFlyCount(nextRigSetup.assignments.length || 1));
-                    markDraftDirty();
-                  }}
-                  onCreateFly={saveFlyToLibrary}
-                />
-              </View>
+              <RigFlyManager
+                title="Flies"
+                rigSetup={rigSetup}
+                savedFlies={savedFlies}
+                tone="light"
+                editorOnly
+                foregroundQuickAdd
+                onChange={(nextRigSetup) => {
+                  setRigSetup(nextRigSetup);
+                  setFlyEntries((current) =>
+                    alignExperimentEntries(
+                      current.map((entry, index) => ({
+                        ...entry,
+                        fly: nextRigSetup.assignments[index]?.fly ?? entry.fly
+                      })),
+                      nextRigSetup.assignments.length as 1 | 2 | 3,
+                      baselineIndex
+                    )
+                  );
+                  setFlyCount(getFlyCount(nextRigSetup.assignments.length || 1));
+                  markDraftDirty();
+                }}
+                onCreateFly={saveFlyToLibrary}
+              />
             ) : null}
             <AppButton label="Done" onPress={() => setActiveSetupSheet(null)} />
           </ScrollView>

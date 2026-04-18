@@ -516,6 +516,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
               onDeleteRigPreset={deleteSavedRigPreset}
               onPracticeMeasurementEnabledChange={setPracticeMeasurementEnabled}
               onPracticeLengthUnitChange={setPracticeLengthUnit}
+              foregroundEditing
             />
           ) : null}
           {mode !== 'competition' && !!joinedGroups.length ? (
