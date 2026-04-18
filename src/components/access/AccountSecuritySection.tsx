@@ -40,7 +40,8 @@ export const AccountSecuritySection = ({
   onVerifyTotp,
   onRemoveMfaFactor,
   onRefreshMfaState,
-  onSignOut
+  onSignOut,
+  embedded = false
 }: {
   currentUserName: string;
   currentEntitlementLabel: string;
@@ -72,6 +73,7 @@ export const AccountSecuritySection = ({
   onRemoveMfaFactor: (factorId: string) => Promise<void>;
   onRefreshMfaState: () => Promise<void>;
   onSignOut: () => Promise<void>;
+  embedded?: boolean;
 }) => {
   const { theme } = useTheme();
   const formInputStyle = getFormInputStyle();
@@ -86,8 +88,8 @@ export const AccountSecuritySection = ({
     }
   };
 
-  return (
-    <SectionCard title="Account & Security" subtitle="Your account details stay simple here, and security tools stay tucked away until you need them." tone="light">
+  const content = (
+    <>
       <View
         style={{
           gap: 8,
@@ -267,7 +269,17 @@ export const AccountSecuritySection = ({
             </>
           ) : null}
         </>
-      ) : null}
+        ) : null}
+    </>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <SectionCard title="Account & Security" subtitle="Your account details stay simple here, and security tools stay tucked away until you need them." tone="light">
+      {content}
     </SectionCard>
   );
 };

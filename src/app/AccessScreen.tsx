@@ -20,7 +20,7 @@ import { useResponsiveLayout } from '@/design/layout';
 import { useTheme } from '@/design/theme';
 import { hasSupabaseConfig } from '@/services/supabaseClient';
 
-type AccessDestination = 'hub' | 'account' | 'groups' | 'subscription' | 'appearance' | 'competitions' | 'myData' | 'ownerTools';
+type UtilitySectionKey = 'account' | 'appearance' | 'competitions' | 'groups' | 'myData' | 'subscription' | 'ownerTools';
 
 export const AccessScreen = () => {
   const layout = useResponsiveLayout();
@@ -93,7 +93,15 @@ export const AccessScreen = () => {
   const [passwordResetEmail, setPasswordResetEmail] = React.useState(currentUser?.email ?? remoteSession?.email ?? '');
   const [mfaFriendlyName, setMfaFriendlyName] = React.useState('Fishing Lab Authenticator');
   const [mfaCode, setMfaCode] = React.useState('');
-  const [activeDestination, setActiveDestination] = React.useState<AccessDestination>('hub');
+  const [expandedSections, setExpandedSections] = React.useState<Record<UtilitySectionKey, boolean>>({
+    account: false,
+    appearance: false,
+    competitions: false,
+    groups: false,
+    myData: false,
+    subscription: true,
+    ownerTools: false
+  });
   const [competitionSchedule, setCompetitionSchedule] = React.useState([
     { sessionNumber: 1, startTime: '08:00', endTime: '11:00' },
     { sessionNumber: 2, startTime: '13:00', endTime: '16:00' },
@@ -190,10 +198,9 @@ export const AccessScreen = () => {
   }, [currentUser?.email, remoteSession?.email]);
 
   React.useEffect(() => {
-    if (activeDestination === 'ownerTools' && !isAuthenticatedOwner) {
-      setActiveDestination('hub');
-    }
-  }, [activeDestination, isAuthenticatedOwner]);
+    if (isAuthenticatedOwner) return;
+    setExpandedSections((current) => (current.ownerTools ? { ...current, ownerTools: false } : current));
+  }, [isAuthenticatedOwner]);
 
   if (!currentUser) {
     return (
@@ -413,100 +420,8 @@ export const AccessScreen = () => {
     );
   };
 
-  const destinationMeta: Record<Exclude<AccessDestination, 'hub'>, { title: string; subtitle: string }> = {
-    account: {
-      title: 'Account & Security',
-      subtitle: 'Manage your account details, password recovery, and MFA without digging through admin tools.'
-    },
-    groups: {
-      title: 'Groups',
-      subtitle: 'Create or join shared groups, manage sharing, and handle owner-managed power-user invites.'
-    },
-    subscription: {
-      title: 'Subscription',
-      subtitle: 'Review current access, sync readiness, and the parts of the app that are unlocked for this account.'
-    },
-    appearance: {
-      title: 'Appearance',
-      subtitle: 'Pick the reading experience that works best on the water, on the web, or while reviewing data indoors.'
-    },
-    competitions: {
-      title: 'Competitions',
-      subtitle: 'Create competitions, join by code, and manage assignments without competing for space with account settings.'
-    },
-    myData: {
-      title: 'My Data',
-      subtitle: 'Clean up or reset local fishing data for this angler profile without touching shared access settings.'
-    },
-    ownerTools: {
-      title: 'Owner Tools',
-      subtitle: 'Owner-only tester access and administrative controls stay isolated here.'
-    }
-  };
-
-  const hubDestinations: Array<{ key: Exclude<AccessDestination, 'hub'>; label: string; description: string }> = [
-    { key: 'account', label: 'Account & Security', description: 'Name, email, password recovery, MFA, and sign-out.' },
-    { key: 'groups', label: 'Groups', description: 'Join crews, manage sharing, and accept or send power-user invites.' },
-    { key: 'subscription', label: 'Subscription', description: 'Current access, premium features, sync status, and account readiness.' },
-    { key: 'appearance', label: 'Appearance', description: 'Theme and readability choices for native testing and day-to-day use.' },
-    { key: 'competitions', label: 'Competitions', description: 'Competition setup, joining, and assignment review.' },
-    { key: 'myData', label: 'My Data', description: 'Local cleanup tools for this angler profile.' },
-    ...(isAuthenticatedOwner
-      ? [{ key: 'ownerTools' as const, label: 'Owner Tools', description: 'Tester access, sponsorship, and owner-only admin actions.' }]
-      : [])
-  ];
-
-  const renderHub = () => (
-    <>
-      <SectionCard title="Current Account" subtitle="A quick snapshot without forcing every access detail onto one screen." tone="light">
-        <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 22 }}>{currentUser.name}</Text>
-        <View
-          style={{
-            gap: 8,
-            backgroundColor: theme.colors.nestedSurface,
-            borderRadius: 12,
-            padding: 12,
-            borderWidth: 1,
-            borderColor: theme.colors.nestedSurfaceBorder
-          }}
-        >
-          <InlineSummaryRow label="Access" value={currentEntitlementLabel} tone="light" />
-          <InlineSummaryRow label="Premium" value={currentHasPremiumAccess ? 'Enabled' : 'Locked'} valueMuted={!currentHasPremiumAccess} tone="light" />
-          <InlineSummaryRow label="Signed In" value={remoteSession?.email ?? 'Not signed in'} valueMuted={!remoteSession?.email} tone="light" />
-          <InlineSummaryRow label="Shared Sync" value={isSyncEnabled ? 'Enabled' : hasSupabaseConfig ? 'Waiting for sign-in' : 'Cloud setup missing'} valueMuted={!isSyncEnabled} tone="light" />
-        </View>
-        {authStatus === 'pending_verification' ? (
-          <StatusBanner tone="info" text="Your account is waiting on an email step. Finish that first, then come back here." />
-        ) : null}
-        {syncStatus.lastError ? <StatusBanner tone="error" text={`Last sync issue: ${syncStatus.lastError}`} /> : null}
-      </SectionCard>
-
-      <SectionCard title="Settings" subtitle="Pick the area you want to manage instead of scrolling through one large utility dashboard." tone="light">
-        <View style={{ gap: 12 }}>
-          {hubDestinations.map((destination) => (
-            <View
-              key={destination.key}
-              style={{
-                gap: 8,
-                backgroundColor: theme.colors.nestedSurface,
-                borderRadius: 12,
-                padding: 12,
-                borderWidth: 1,
-                borderColor: theme.colors.nestedSurfaceBorder
-              }}
-            >
-              <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 16 }}>{destination.label}</Text>
-              <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>{destination.description}</Text>
-              <AppButton label={`Open ${destination.label}`} onPress={() => setActiveDestination(destination.key)} variant="ghost" surfaceTone="light" />
-            </View>
-          ))}
-        </View>
-      </SectionCard>
-    </>
-  );
-
   const renderSubscription = () => (
-    <SectionCard title="Subscription" subtitle="Current access and beta readiness stay here instead of competing with everyday account actions." tone="light">
+    <>
       <View
         style={{
           gap: 8,
@@ -541,11 +456,11 @@ export const AccessScreen = () => {
       <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
         Subscription shows what this account can do right now. Group settings, account recovery, and owner workflows live in their own spaces.
       </Text>
-    </SectionCard>
+    </>
   );
 
   const renderAppearance = () => (
-    <SectionCard title="Appearance" subtitle="Choose the look that is easiest to read on the water or on the web." tone="light">
+    <>
       <OptionChips
         label="App Theme"
         options={themeOptions.map((themeOption) => themeOption.label)}
@@ -561,147 +476,37 @@ export const AccessScreen = () => {
       <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
         `Default Professional` stays balanced, `High Contrast` is best outside, and `Daylight Light` is easiest to review on web or desktop.
       </Text>
-    </SectionCard>
+    </>
   );
 
-  const renderActiveDestination = () => {
-    switch (activeDestination) {
-      case 'hub':
-        return renderHub();
-      case 'account':
-        return (
-          <AccountSecuritySection
-            currentUserName={currentUser.name}
-            currentEntitlementLabel={currentEntitlementLabel}
-            currentHasPremiumAccess={currentHasPremiumAccess}
-            ownerLinked={ownerIdentityLinked}
-            isAuthenticatedOwner={isAuthenticatedOwner}
-            showOwnerIdentityTools={currentUser.role === 'owner'}
-            remoteSession={remoteSession}
-            authStatus={authStatus}
-            pendingTotpEnrollment={pendingTotpEnrollment}
-            mfaFactors={mfaFactors}
-            mfaAssuranceLevel={mfaAssuranceLevel}
-            accountName={accountName}
-            onAccountNameChange={setAccountName}
-            accountEmail={accountEmail}
-            onAccountEmailChange={setAccountEmail}
-            passwordResetEmail={passwordResetEmail}
-            onPasswordResetEmailChange={setPasswordResetEmail}
-            mfaFriendlyName={mfaFriendlyName}
-            onMfaFriendlyNameChange={setMfaFriendlyName}
-            mfaCode={mfaCode}
-            onMfaCodeChange={setMfaCode}
-            onSaveName={() => updateCurrentUserName(accountName)}
-            onUpdateEmail={() => updateAccountEmail(accountEmail)}
-            onSendPasswordReset={() => sendPasswordResetEmail(passwordResetEmail)}
-            onLinkOwnerIdentity={linkOwnerIdentity}
-            onEnrollTotp={() => enrollTotpMfa(mfaFriendlyName)}
-            onVerifyTotp={() => verifyTotpMfa(mfaCode)}
-            onRemoveMfaFactor={removeMfaFactor}
-            onRefreshMfaState={refreshMfaState}
-            onSignOut={signOutRemote}
-          />
-        );
-      case 'groups':
-        return (
-          <GroupsSharingSection
-            currentUserId={currentUser.id}
-            joinedGroups={joinedGroups}
-            joinedMemberships={joinedMemberships}
-            groups={groups}
-            organizerGroups={organizerGroups}
-            sharePreferences={sharePreferences}
-            isAuthenticatedOwner={isAuthenticatedOwner}
-            newGroupName={newGroupName}
-            onNewGroupNameChange={setNewGroupName}
-            joinGroupCode={joinGroupCode}
-            onJoinGroupCodeChange={setJoinGroupCode}
-            inviteTargetGroupId={inviteTargetGroupId}
-            onInviteTargetGroupChange={setInviteTargetGroupId}
-            inviteTargetName={inviteTargetName}
-            onInviteTargetNameChange={setInviteTargetName}
-            inviteAcceptCode={inviteAcceptCode}
-            onInviteAcceptCodeChange={setInviteAcceptCode}
-            invites={invites}
-            sponsoredAccess={sponsoredAccess}
-            users={users}
-            onCreateGroup={saveGroup}
-            onJoinGroup={handleJoinGroup}
-            onUpdateSharePreference={updateSharePreference}
-            onCreateInvite={sendInvite}
-            onAcceptInvite={handleAcceptInvite}
-            onRevokeSponsoredAccess={revokeSponsoredAccess}
-          />
-        );
-      case 'subscription':
-        return renderSubscription();
-      case 'appearance':
-        return renderAppearance();
-      case 'competitions':
-        return (
-          <CompetitionsSection
-            currentUser={currentUser}
-            users={users}
-            competitionGroups={competitionGroups}
-            competitionSessions={competitionSessions}
-            competitionParticipants={competitionParticipants}
-            competitionAssignments={competitionAssignments}
-            newCompetitionName={newCompetitionName}
-            onNewCompetitionNameChange={setNewCompetitionName}
-            competitionGroupCount={competitionGroupCount}
-            onCompetitionGroupCountChange={setCompetitionGroupCount}
-            competitionSessionCount={competitionSessionCount}
-            onCompetitionSessionCountChange={setCompetitionSessionCount}
-            competitionSchedule={competitionSchedule}
-            onCompetitionScheduleChange={(index, next) =>
-              setCompetitionSchedule((current) =>
-                current.map((entry, entryIndex) => (entryIndex === index ? { ...entry, ...next } : entry))
-              )
-            }
-            competitionJoinCode={competitionJoinCode}
-            onCompetitionJoinCodeChange={setCompetitionJoinCode}
-            joinedCompetitionList={joinedCompetitionList}
-            getDraftForAssignment={getDraftForAssignment}
-            onUpdateAssignmentDraft={updateAssignmentDraft}
-            onCreateCompetition={saveCompetition}
-            onJoinCompetition={handleJoinCompetition}
-            onSaveAssignment={saveAssignment}
-          />
-        );
-      case 'myData':
-        return (
-          <LocalDataSection
-            isOwner={currentUser.role === 'owner'}
-            cleanupActions={renderCleanupActions(currentUser.id, currentUser.name)}
-            onDeleteProfile={deleteCurrentProfile}
-          />
-        );
-      case 'ownerTools':
-        return isAuthenticatedOwner ? (
-          <OwnerControlsSection
-            ownerUser={ownerUser}
-            users={users}
-            cleanupConfig={cleanupConfig}
-            onGrantPowerUser={(userId, userName) => runAdminAction(() => grantPowerUserAccess(userId), `${userName} now has power-user access.`)}
-            onStartTrial={(userId, userName) => runAdminAction(() => startTrialForUser(userId), `${userName} now has a 7-day trial.`)}
-            onMarkSubscriber={(userId, userName) => runAdminAction(() => markSubscriberAccess(userId), `${userName} is marked as subscribed.`)}
-            onResetAccess={(userId, userName) => runAdminAction(() => clearUserAccess(userId), `${userName} was reset to free access.`)}
-            onCleanupCategory={handleCleanupCategory}
-            onDeleteAngler={(userId, userName) =>
-              confirmAdminAction(
-                'Delete angler?',
-                `This permanently removes ${userName} and all of their saved fishing data from this device.`,
-                () => deleteAngler(userId),
-                `${userName} was deleted from this device.`
-              )
-            }
-          />
-        ) : null;
-      default:
-        return null;
-    }
+  const toggleSection = (key: UtilitySectionKey) => {
+    setExpandedSections((current) => ({ ...current, [key]: !current[key] }));
   };
+
+  const renderCollapsibleCard = ({
+    sectionKey,
+    title,
+    subtitle,
+    summary,
+    children
+  }: {
+    sectionKey: UtilitySectionKey;
+    title: string;
+    subtitle: string;
+    summary: React.ReactNode;
+    children: React.ReactNode;
+  }) => (
+    <SectionCard title={title} subtitle={subtitle} tone="light">
+      {summary}
+      <AppButton
+        label={expandedSections[sectionKey] ? `Hide ${title}` : `Open ${title}`}
+        onPress={() => toggleSection(sectionKey)}
+        variant="ghost"
+        surfaceTone="light"
+      />
+      {expandedSections[sectionKey] ? children : null}
+    </SectionCard>
+  );
 
   return (
     <ScreenBackground>
@@ -710,25 +515,260 @@ export const AccessScreen = () => {
         keyboardShouldPersistTaps="handled"
       >
         <ScreenHeader
-          title={activeDestination === 'hub' ? 'Access & Billing' : destinationMeta[activeDestination].title}
-          subtitle={
-            activeDestination === 'hub'
-              ? 'Manage your account, groups, access, and competitions from a calmer settings-style hub.'
-              : destinationMeta[activeDestination].subtitle
-          }
-          eyebrow={activeDestination === 'hub' ? 'Utility Center' : 'Access Hub'}
+          title="Utility Center"
+          subtitle="Keep account, groups, access, and competitions in one calmer place without bouncing between screens."
         />
-        {activeDestination !== 'hub' ? (
-          <ActionGroup>
-            <AppButton
-              label="Back to Access Hub"
-              onPress={() => setActiveDestination('hub')}
-              variant="ghost"
-              surfaceTone="light"
+        {renderCollapsibleCard({
+          sectionKey: 'account',
+          title: 'Account & Security',
+          subtitle: 'Manage your account details, recovery tools, and MFA without exposing owner-only actions to everyone.',
+          summary: (
+            <View
+              style={{
+                gap: 8,
+                backgroundColor: theme.colors.nestedSurface,
+                borderRadius: 12,
+                padding: 12,
+                borderWidth: 1,
+                borderColor: theme.colors.nestedSurfaceBorder
+              }}
+            >
+              <InlineSummaryRow label="Angler Profile" value={currentUser.name} tone="light" />
+              <InlineSummaryRow label="Signed In Email" value={remoteSession?.email ?? 'Not signed in'} valueMuted={!remoteSession?.email} tone="light" />
+              <InlineSummaryRow label="Current Access" value={currentEntitlementLabel} tone="light" />
+            </View>
+          ),
+          children: (
+            <AccountSecuritySection
+              currentUserName={currentUser.name}
+              currentEntitlementLabel={currentEntitlementLabel}
+              currentHasPremiumAccess={currentHasPremiumAccess}
+              ownerLinked={ownerIdentityLinked}
+              isAuthenticatedOwner={isAuthenticatedOwner}
+              showOwnerIdentityTools={currentUser.role === 'owner'}
+              remoteSession={remoteSession}
+              authStatus={authStatus}
+              pendingTotpEnrollment={pendingTotpEnrollment}
+              mfaFactors={mfaFactors}
+              mfaAssuranceLevel={mfaAssuranceLevel}
+              accountName={accountName}
+              onAccountNameChange={setAccountName}
+              accountEmail={accountEmail}
+              onAccountEmailChange={setAccountEmail}
+              passwordResetEmail={passwordResetEmail}
+              onPasswordResetEmailChange={setPasswordResetEmail}
+              mfaFriendlyName={mfaFriendlyName}
+              onMfaFriendlyNameChange={setMfaFriendlyName}
+              mfaCode={mfaCode}
+              onMfaCodeChange={setMfaCode}
+              onSaveName={() => updateCurrentUserName(accountName)}
+              onUpdateEmail={() => updateAccountEmail(accountEmail)}
+              onSendPasswordReset={() => sendPasswordResetEmail(passwordResetEmail)}
+              onLinkOwnerIdentity={linkOwnerIdentity}
+              onEnrollTotp={() => enrollTotpMfa(mfaFriendlyName)}
+              onVerifyTotp={() => verifyTotpMfa(mfaCode)}
+              onRemoveMfaFactor={removeMfaFactor}
+              onRefreshMfaState={refreshMfaState}
+              onSignOut={signOutRemote}
+              embedded
             />
-          </ActionGroup>
-        ) : null}
-        {renderActiveDestination()}
+          )
+        })}
+
+        {renderCollapsibleCard({
+          sectionKey: 'appearance',
+          title: 'Appearance',
+          subtitle: 'Adjust the visual treatment for glare, desktop review, and day-to-day use.',
+          summary: (
+            <InlineSummaryRow
+              label="Current Theme"
+              value={themeOptions.find((themeOption) => themeOption.id === themeId)?.label ?? themeOptions[0]?.label ?? 'Default'}
+              tone="light"
+            />
+          ),
+          children: renderAppearance()
+        })}
+
+        {renderCollapsibleCard({
+          sectionKey: 'competitions',
+          title: 'Competitions',
+          subtitle: 'Create competitions, join by code, and review assignments without leaving Utility Center.',
+          summary: (
+            <View
+              style={{
+                gap: 8,
+                backgroundColor: theme.colors.nestedSurface,
+                borderRadius: 12,
+                padding: 12,
+                borderWidth: 1,
+                borderColor: theme.colors.nestedSurfaceBorder
+              }}
+            >
+              <InlineSummaryRow label="Joined Competitions" value={`${joinedCompetitionList.length}`} tone="light" />
+              <InlineSummaryRow label="Assignments Saved" value={`${competitionAssignments.filter((assignment) => assignment.userId === currentUser.id).length}`} tone="light" />
+            </View>
+          ),
+          children: (
+            <CompetitionsSection
+              currentUser={currentUser}
+              users={users}
+              competitionGroups={competitionGroups}
+              competitionSessions={competitionSessions}
+              competitionParticipants={competitionParticipants}
+              competitionAssignments={competitionAssignments}
+              newCompetitionName={newCompetitionName}
+              onNewCompetitionNameChange={setNewCompetitionName}
+              competitionGroupCount={competitionGroupCount}
+              onCompetitionGroupCountChange={setCompetitionGroupCount}
+              competitionSessionCount={competitionSessionCount}
+              onCompetitionSessionCountChange={setCompetitionSessionCount}
+              competitionSchedule={competitionSchedule}
+              onCompetitionScheduleChange={(index, next) =>
+                setCompetitionSchedule((current) =>
+                  current.map((entry, entryIndex) => (entryIndex === index ? { ...entry, ...next } : entry))
+                )
+              }
+              competitionJoinCode={competitionJoinCode}
+              onCompetitionJoinCodeChange={setCompetitionJoinCode}
+              joinedCompetitionList={joinedCompetitionList}
+              getDraftForAssignment={getDraftForAssignment}
+              onUpdateAssignmentDraft={updateAssignmentDraft}
+              onCreateCompetition={saveCompetition}
+              onJoinCompetition={handleJoinCompetition}
+              onSaveAssignment={saveAssignment}
+              embedded
+            />
+          )
+        })}
+
+        {renderCollapsibleCard({
+          sectionKey: 'groups',
+          title: 'Groups',
+          subtitle: 'Keep ordinary group joining separate from owner-managed power-user invites.',
+          summary: (
+            <View
+              style={{
+                gap: 8,
+                backgroundColor: theme.colors.nestedSurface,
+                borderRadius: 12,
+                padding: 12,
+                borderWidth: 1,
+                borderColor: theme.colors.nestedSurfaceBorder
+              }}
+            >
+              <InlineSummaryRow label="Your Groups" value={`${joinedGroups.length}`} tone="light" />
+              <InlineSummaryRow label="Organized by You" value={`${organizerGroups.length}`} tone="light" />
+              <InlineSummaryRow label="Power User Invites" value={isAuthenticatedOwner ? 'Owner-managed here' : 'Owner only'} valueMuted={!isAuthenticatedOwner} tone="light" />
+            </View>
+          ),
+          children: (
+            <GroupsSharingSection
+              currentUserId={currentUser.id}
+              joinedGroups={joinedGroups}
+              joinedMemberships={joinedMemberships}
+              groups={groups}
+              organizerGroups={organizerGroups}
+              sharePreferences={sharePreferences}
+              isAuthenticatedOwner={isAuthenticatedOwner}
+              newGroupName={newGroupName}
+              onNewGroupNameChange={setNewGroupName}
+              joinGroupCode={joinGroupCode}
+              onJoinGroupCodeChange={setJoinGroupCode}
+              inviteTargetGroupId={inviteTargetGroupId}
+              onInviteTargetGroupChange={setInviteTargetGroupId}
+              inviteTargetName={inviteTargetName}
+              onInviteTargetNameChange={setInviteTargetName}
+              inviteAcceptCode={inviteAcceptCode}
+              onInviteAcceptCodeChange={setInviteAcceptCode}
+              invites={invites}
+              sponsoredAccess={sponsoredAccess}
+              users={users}
+              onCreateGroup={saveGroup}
+              onJoinGroup={handleJoinGroup}
+              onUpdateSharePreference={updateSharePreference}
+              onCreateInvite={sendInvite}
+              onAcceptInvite={handleAcceptInvite}
+              onRevokeSponsoredAccess={revokeSponsoredAccess}
+              embedded
+            />
+          )
+        })}
+
+        {renderCollapsibleCard({
+          sectionKey: 'myData',
+          title: 'My Data',
+          subtitle: 'Keep cleanup tools nearby without leaving them open all the time.',
+          summary: (
+            <InlineSummaryRow label="Active Angler" value={currentUser.name} tone="light" />
+          ),
+          children: (
+            <LocalDataSection
+              isOwner={currentUser.role === 'owner'}
+              cleanupActions={renderCleanupActions(currentUser.id, currentUser.name)}
+              onDeleteProfile={deleteCurrentProfile}
+              embedded
+            />
+          )
+        })}
+
+        {renderCollapsibleCard({
+          sectionKey: 'subscription',
+          title: 'Subscription',
+          subtitle: 'See what this account can do right now without mixing billing, sync, and account details together.',
+          summary: (
+            <View
+              style={{
+                gap: 8,
+                backgroundColor: theme.colors.nestedSurface,
+                borderRadius: 12,
+                padding: 12,
+                borderWidth: 1,
+                borderColor: theme.colors.nestedSurfaceBorder
+              }}
+            >
+              <InlineSummaryRow label="Current Access" value={currentEntitlementLabel} tone="light" />
+              <InlineSummaryRow label="Premium Features" value={currentHasPremiumAccess ? 'Enabled' : 'Locked'} valueMuted={!currentHasPremiumAccess} tone="light" />
+              <InlineSummaryRow label="Sync State" value={syncStatus.state} tone="light" />
+            </View>
+          ),
+          children: renderSubscription()
+        })}
+
+        {isAuthenticatedOwner
+          ? renderCollapsibleCard({
+              sectionKey: 'ownerTools',
+              title: 'Owner Tools',
+              subtitle: 'Keep tester access changes powerful, but separate from ordinary account settings.',
+              summary: (
+                <InlineSummaryRow
+                  label="Owner Session"
+                  value={ownerUser ? `${ownerUser.name} linked and signed in` : 'Owner signed in'}
+                  tone="light"
+                />
+              ),
+              children: (
+                <OwnerControlsSection
+                  ownerUser={ownerUser}
+                  users={users}
+                  cleanupConfig={cleanupConfig}
+                  onGrantPowerUser={(userId, userName) => runAdminAction(() => grantPowerUserAccess(userId), `${userName} now has power-user access.`)}
+                  onStartTrial={(userId, userName) => runAdminAction(() => startTrialForUser(userId), `${userName} now has a 7-day trial.`)}
+                  onMarkSubscriber={(userId, userName) => runAdminAction(() => markSubscriberAccess(userId), `${userName} is marked as subscribed.`)}
+                  onResetAccess={(userId, userName) => runAdminAction(() => clearUserAccess(userId), `${userName} was reset to free access.`)}
+                  onCleanupCategory={handleCleanupCategory}
+                  onDeleteAngler={(userId, userName) =>
+                    confirmAdminAction(
+                      'Delete angler?',
+                      `This permanently removes ${userName} and all of their saved fishing data from this device.`,
+                      () => deleteAngler(userId),
+                      `${userName} was deleted from this device.`
+                    )
+                  }
+                  embedded
+                />
+              )
+            })
+          : null}
       </ScrollView>
     </ScreenBackground>
   );

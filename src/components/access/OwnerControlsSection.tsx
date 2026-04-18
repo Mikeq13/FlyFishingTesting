@@ -18,7 +18,8 @@ export const OwnerControlsSection = ({
   onMarkSubscriber,
   onResetAccess,
   onCleanupCategory,
-  onDeleteAngler
+  onDeleteAngler,
+  embedded = false
 }: {
   ownerUser: UserProfile | null;
   users: UserProfile[];
@@ -29,11 +30,12 @@ export const OwnerControlsSection = ({
   onResetAccess: (userId: number, name: string) => Promise<void>;
   onCleanupCategory: (userId: number, userName: string, category: UserDataCleanupCategory) => void;
   onDeleteAngler: (userId: number, userName: string) => void;
+  embedded?: boolean;
 }) => {
   const { theme } = useTheme();
 
-  return (
-  <SectionCard title="Owner Controls" subtitle="Keep tester access changes powerful, but easier to scan and safer to use." tone="light">
+  const content = (
+  <>
     {ownerUser ? <Text style={{ color: theme.colors.textDarkSoft }}>Admin access is controlled by {ownerUser.name} and only unlocks when the linked owner account is the one signed in.</Text> : null}
     {users.map((user) => (
       <View
@@ -69,6 +71,16 @@ export const OwnerControlsSection = ({
         )}
       </View>
     ))}
+  </>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+  <SectionCard title="Owner Controls" subtitle="Keep tester access changes powerful, but easier to scan and safer to use." tone="light">
+    {content}
   </SectionCard>
   );
 };

@@ -36,7 +36,8 @@ export const GroupsSharingSection = ({
   onUpdateSharePreference,
   onCreateInvite,
   onAcceptInvite,
-  onRevokeSponsoredAccess
+  onRevokeSponsoredAccess,
+  embedded = false
 }: {
   currentUserId: number;
   newGroupName: string;
@@ -64,12 +65,13 @@ export const GroupsSharingSection = ({
   onCreateInvite: () => Promise<void>;
   onAcceptInvite: () => Promise<void>;
   onRevokeSponsoredAccess: (id: number) => Promise<void>;
+  embedded?: boolean;
 }) => {
   const { theme } = useTheme();
   const formInputStyle = getFormInputStyle();
 
-  return (
-    <SectionCard title="Groups" subtitle="Use group codes for normal shared crews, and use power-user invites only when the owner is granting sponsored beta access." tone="light">
+  const content = (
+    <>
       <View
         style={{
           gap: 8,
@@ -265,6 +267,16 @@ export const GroupsSharingSection = ({
           })}
         </View>
       ) : null}
+    </>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <SectionCard title="Groups" subtitle="Use group codes for normal shared crews, and use power-user invites only when the owner is granting sponsored beta access." tone="light">
+      {content}
     </SectionCard>
   );
 };

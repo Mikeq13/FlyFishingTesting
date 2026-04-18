@@ -8,16 +8,18 @@ import { useTheme } from '@/design/theme';
 export const LocalDataSection = ({
   isOwner,
   cleanupActions,
-  onDeleteProfile
+  onDeleteProfile,
+  embedded = false
 }: {
   isOwner: boolean;
   cleanupActions: React.ReactNode;
   onDeleteProfile: () => Promise<void>;
+  embedded?: boolean;
 }) => {
   const { theme } = useTheme();
 
-  return (
-  <SectionCard title="My Data" subtitle="Manage local fishing data for the active profile without affecting other anglers on this device." tone="light">
+  const content = (
+  <>
     <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
       Clean up local fishing data for the active profile without affecting other anglers on this device.
     </Text>
@@ -36,6 +38,16 @@ export const LocalDataSection = ({
         </Text>
       </View>
     )}
+  </>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+  <SectionCard title="My Data" subtitle="Manage local fishing data for the active profile without affecting other anglers on this device." tone="light">
+    {content}
   </SectionCard>
   );
 };

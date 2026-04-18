@@ -31,7 +31,8 @@ export const CompetitionsSection = ({
   onUpdateAssignmentDraft,
   onCreateCompetition,
   onJoinCompetition,
-  onSaveAssignment
+  onSaveAssignment,
+  embedded = false
 }: {
   currentUser: UserProfile;
   users: UserProfile[];
@@ -55,12 +56,13 @@ export const CompetitionsSection = ({
   onCreateCompetition: () => Promise<void>;
   onJoinCompetition: () => Promise<void>;
   onSaveAssignment: (competitionId: number, userId: number, competitionSessionId: number, draft: { competitionGroupId: number | null; beat: string; role: CompetitionSessionRole }) => Promise<void>;
+  embedded?: boolean;
 }) => {
   const { theme } = useTheme();
   const formInputStyle = getFormInputStyle();
 
-  return (
-  <SectionCard title="Competitions" subtitle="Set the event clock once, then let anglers join and assignments stay reviewable." tone="light">
+  const content = (
+  <>
     <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
       Competitions now own their own groups and session schedule. Organizers create the event once, anglers join by code, and assignments can be reviewed and corrected before the event starts.
     </Text>
@@ -211,6 +213,16 @@ export const CompetitionsSection = ({
         </View>
       );
     })}
+  </>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+  <SectionCard title="Competitions" subtitle="Set the event clock once, then let anglers join and assignments stay reviewable." tone="light">
+    {content}
   </SectionCard>
   );
 };

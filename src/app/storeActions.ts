@@ -168,10 +168,14 @@ export const createStoreActions = ({
   };
 
   const assertOwnerAccess = () => {
-    if (!currentUser || currentUser.role !== 'owner' || (remoteSession && !isAuthenticatedOwner)) {
+    if (!currentUser || (!isAuthenticatedOwner && currentUser.role !== 'owner')) {
       throw new Error('Only the owner can manage tester access.');
     }
   };
+
+  const actingOwnerUserId =
+    (isAuthenticatedOwner ? users.find((user) => user.role === 'owner')?.id : currentUser?.role === 'owner' ? currentUser.id : null) ??
+    activeUserId;
 
   const refreshMfaStateInternal = async () => {
     if (!remoteSession) {
@@ -519,48 +523,48 @@ export const createStoreActions = ({
     assertOwnerAccess();
     const trialWindow = createTrialWindow();
     await updateUserAccess(userId, {
-      accessLevel: 'trial',
-      subscriptionStatus: 'trialing',
-      trialStartedAt: trialWindow.trialStartedAt,
-      trialEndsAt: trialWindow.trialEndsAt,
-      subscriptionExpiresAt: null,
-      grantedByUserId: activeUserId
-    });
-  },
+        accessLevel: 'trial',
+        subscriptionStatus: 'trialing',
+        trialStartedAt: trialWindow.trialStartedAt,
+        trialEndsAt: trialWindow.trialEndsAt,
+        subscriptionExpiresAt: null,
+        grantedByUserId: actingOwnerUserId
+      });
+    },
   grantPowerUserAccess: async (userId) => {
     assertOwnerAccess();
     await updateUserAccess(userId, {
-      accessLevel: 'power_user',
-      subscriptionStatus: 'power_user',
-      trialStartedAt: null,
-      trialEndsAt: null,
-      subscriptionExpiresAt: null,
-      grantedByUserId: activeUserId
-    });
-  },
+        accessLevel: 'power_user',
+        subscriptionStatus: 'power_user',
+        trialStartedAt: null,
+        trialEndsAt: null,
+        subscriptionExpiresAt: null,
+        grantedByUserId: actingOwnerUserId
+      });
+    },
   markSubscriberAccess: async (userId, expiresAt = null) => {
     assertOwnerAccess();
     await updateUserAccess(userId, {
       accessLevel: 'subscriber',
-      subscriptionStatus: 'active',
-      trialStartedAt: null,
-      trialEndsAt: null,
-      subscriptionExpiresAt: expiresAt,
-      grantedByUserId: activeUserId
-    });
-  },
+        subscriptionStatus: 'active',
+        trialStartedAt: null,
+        trialEndsAt: null,
+        subscriptionExpiresAt: expiresAt,
+        grantedByUserId: actingOwnerUserId
+      });
+    },
   clearUserAccess: async (userId) => {
     assertOwnerAccess();
     const target = users.find((user) => user.id === userId);
     await updateUserAccess(userId, {
-      accessLevel: target?.role === 'owner' ? 'power_user' : 'free',
-      subscriptionStatus: target?.role === 'owner' ? 'power_user' : 'not_started',
-      trialStartedAt: null,
-      trialEndsAt: null,
-      subscriptionExpiresAt: null,
-      grantedByUserId: activeUserId
-    });
-  },
+        accessLevel: target?.role === 'owner' ? 'power_user' : 'free',
+        subscriptionStatus: target?.role === 'owner' ? 'power_user' : 'not_started',
+        trialStartedAt: null,
+        trialEndsAt: null,
+        subscriptionExpiresAt: null,
+        grantedByUserId: actingOwnerUserId
+      });
+    },
   clearFishingDataForUser: async (userId) => {
     await clearLocalFishingDataForUser(userId);
     await refresh(activeUserId);

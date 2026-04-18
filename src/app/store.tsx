@@ -109,6 +109,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const [mfaAssuranceLevel, setMfaAssuranceLevel] = useState<'aal1' | 'aal2' | 'unknown'>('unknown');
   const importSeededRef = useRef<string | null>(null);
   const sessionMap = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
+  const normalizeEmail = (value?: string | null) => value?.trim().toLowerCase() ?? null;
   const currentUser = useMemo(() => users.find((user) => user.id === activeUserId) ?? null, [activeUserId, users]);
   const completeExperiments = useMemo(() => experiments.filter((experiment) => experiment.status !== 'draft'), [experiments]);
   const storedOwnerUser = useMemo(() => users.find((user) => user.role === 'owner') ?? null, [users]);
@@ -116,19 +117,27 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const isSyncEnabled = hasSupabaseConfig && !!remoteSession;
   const ownerIdentityLinked = Boolean(ownerUser?.ownerLinkedAuthId || ownerUser?.ownerLinkedEmail);
   const isAuthenticatedOwner = Boolean(
-    currentUser?.role === 'owner' &&
+    ownerUser &&
       remoteSession &&
-      ((currentUser.ownerLinkedAuthId && currentUser.ownerLinkedAuthId === remoteSession.authUserId) ||
-        (currentUser.ownerLinkedEmail && currentUser.ownerLinkedEmail === remoteSession.email))
+      ((ownerUser.ownerLinkedAuthId && ownerUser.ownerLinkedAuthId === remoteSession.authUserId) ||
+        (ownerUser.ownerLinkedEmail && normalizeEmail(ownerUser.ownerLinkedEmail) === normalizeEmail(remoteSession.email)))
   );
-  const canManageAccess = Boolean(currentUser?.role === 'owner' && (!remoteSession || isAuthenticatedOwner));
-  const normalizeEmail = (value?: string | null) => value?.trim().toLowerCase() ?? null;
+  const accessDisplayUser = useMemo(
+    () => (isAuthenticatedOwner && ownerUser ? ownerUser : currentUser),
+    [currentUser, isAuthenticatedOwner, ownerUser]
+  );
+  const canManageAccess = Boolean((currentUser?.role === 'owner' || isAuthenticatedOwner) && (!remoteSession || isAuthenticatedOwner));
   const ownerAccountEmail = normalizeEmail(OWNER_ACCOUNT_EMAIL);
 
   const selectActiveUser = async (id: number) => {
     setActiveUserId(id);
     await saveActiveUserId(id);
   };
+
+  useEffect(() => {
+    if (!isAuthenticatedOwner || !ownerUser || activeUserId === ownerUser.id) return;
+    selectActiveUser(ownerUser.id).catch(console.error);
+  }, [activeUserId, isAuthenticatedOwner, ownerUser]);
 
   const bootstrap = async () => {
     try {
@@ -763,8 +772,8 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         users,
         ownerUser,
         currentUser,
-        currentEntitlementLabel: getEntitlementLabel(currentUser),
-        currentHasPremiumAccess: hasPremiumAccess(currentUser),
+        currentEntitlementLabel: getEntitlementLabel(accessDisplayUser),
+        currentHasPremiumAccess: hasPremiumAccess(accessDisplayUser),
         canManageAccess,
         savedFlies,
         savedLeaderFormulas,

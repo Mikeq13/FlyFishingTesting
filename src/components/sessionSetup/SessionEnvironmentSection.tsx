@@ -112,7 +112,7 @@ export const SessionEnvironmentSection = ({
             }}
           />
         ) : (
-          <Text style={{ color: appTheme.colors.textSoft }}>Join or create a competition in Access & Billing before starting a comp session.</Text>
+          <Text style={{ color: appTheme.colors.textSoft }}>Join or create a competition in Utility Center before starting a comp session.</Text>
         )}
         {!!competitionAssignmentOptions.length ? (
           <OptionChips
@@ -125,7 +125,7 @@ export const SessionEnvironmentSection = ({
             }}
           />
         ) : (
-          <Text style={{ color: appTheme.colors.textSoft }}>No saved assignment yet. Enter your group, beat, and role in Access & Billing first.</Text>
+          <Text style={{ color: appTheme.colors.textSoft }}>No saved assignment yet. Enter your group, beat, and role in Utility Center first.</Text>
         )}
         <View style={{ gap: 8, backgroundColor: appTheme.colors.surfaceMuted, borderRadius: appTheme.radius.md, padding: 12 }}>
           <InlineSummaryRow label="Assigned Group" value={competitionAssignedGroupLabel || 'Not selected'} valueMuted={!competitionAssignedGroupLabel} />
