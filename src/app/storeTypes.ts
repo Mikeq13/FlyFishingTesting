@@ -68,6 +68,8 @@ export interface AppStore {
   authStatus: AuthStatus;
   remoteSession: RemoteSessionSnapshot | null;
   authReady: boolean;
+  localBootstrapReady: boolean;
+  remoteBootstrapState: 'idle' | 'resolving_local' | 'loading_remote' | 'ready' | 'degraded';
   isSyncEnabled: boolean;
   ownerIdentityLinked: boolean;
   isAuthenticatedOwner: boolean;

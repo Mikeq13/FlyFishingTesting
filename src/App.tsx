@@ -30,9 +30,14 @@ const AuthLoadingScreen = () => (
 
 const AppNavigator = () => {
   const { theme } = useTheme();
-  const { authReady, localBootstrapReady, remoteSession, currentUser } = useAppStore();
+  const { authReady, localBootstrapReady, remoteSession, currentUser, remoteBootstrapState } = useAppStore();
 
-  if (!authReady || !localBootstrapReady || (remoteSession && !currentUser)) {
+  if (
+    !authReady ||
+    !localBootstrapReady ||
+    remoteBootstrapState === 'resolving_local' ||
+    (remoteSession && !currentUser && remoteBootstrapState !== 'degraded')
+  ) {
     return (
       <NavigationContainer>
         <Stack.Navigator

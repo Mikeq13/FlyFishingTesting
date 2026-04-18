@@ -97,6 +97,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const [remoteSession, setRemoteSession] = useState<RemoteSessionSnapshot | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [localBootstrapReady, setLocalBootstrapReady] = useState(false);
+  const [remoteBootstrapState, setRemoteBootstrapState] = useState<'idle' | 'resolving_local' | 'loading_remote' | 'ready' | 'degraded'>('idle');
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
   const [sharedDataStatus, setSharedDataStatus] = useState<SharedDataStatus>('idle');
@@ -147,7 +148,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     return [...map.values()];
   };
 
-  const refresh = async (targetUserId?: number | null) => {
+  const refresh = async (targetUserId?: number | null, options?: { includeRemote?: boolean }) => {
     const loaded = await loadLocalAppData(targetUserId ?? activeUserId);
     let nextUsers = loaded.users;
     let nextSessions = loaded.sessions;
@@ -172,13 +173,17 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     let nextInvites = loaded.invites;
     let nextSponsoredAccess = loaded.sponsoredAccess;
 
-    if (hasSupabaseConfig && remoteSession && !remoteBackendBlocked) {
+    const includeRemote = options?.includeRemote ?? true;
+
+    if (hasSupabaseConfig && remoteSession && !remoteBackendBlocked && includeRemote) {
+      setRemoteBootstrapState('loading_remote');
       setSharedDataStatus('loading');
       try {
         const remoteAccess = await fetchRemoteAccessSnapshot(remoteSession.authUserId);
         const remoteShared = await fetchRemoteSharedDataSnapshot(remoteSession.authUserId, remoteAccess);
         setLastSyncError(null);
         setSharedDataStatus('ready');
+        setRemoteBootstrapState('ready');
 
         nextUsers = mergeById(loaded.users, remoteAccess.users);
         nextGroups = mergeById(loaded.groups, remoteAccess.groups);
@@ -212,11 +217,16 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
           setLastSyncError(getErrorMessage(error));
         }
         setSharedDataStatus('error');
+        setRemoteBootstrapState('degraded');
       }
     } else if (remoteBackendBlocked) {
       setSharedDataStatus('error');
+      setRemoteBootstrapState('degraded');
     } else {
       setSharedDataStatus('idle');
+      if (!remoteSession) {
+        setRemoteBootstrapState('idle');
+      }
     }
 
     setUsers(nextUsers);
@@ -244,6 +254,57 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     setSyncQueue(loaded.syncQueue);
     setAnglerComparisons(generateAnglerComparisons(nextUsers, nextAllSessions, nextAllExperiments.filter((experiment) => experiment.status !== 'draft')));
     setTopFlyRecords(buildTopFlyRecords(nextSessions, nextExperiments.filter((experiment) => experiment.status !== 'draft')));
+  };
+
+  const flushSyncQueueWithUser = async (
+    user: UserProfile,
+    sessionOverride?: RemoteSessionSnapshot | null
+  ) => {
+    const effectiveSession = sessionOverride ?? remoteSession;
+
+    if (!hasSupabaseConfig) {
+      throw new Error('Supabase is not configured yet. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY first.');
+    }
+
+    if (!effectiveSession) {
+      throw new Error('Sign in before syncing shared data.');
+    }
+
+    if (remoteBackendBlocked) {
+      throw new Error('Shared beta backend needs a schema or policy fix before sync can continue.');
+    }
+
+    setIsSyncing(true);
+    setLastSyncError(null);
+    try {
+      const loaded = await loadLocalAppData(user.id);
+      await syncQueueToSupabase(
+        {
+          currentUser: {
+            ...user,
+            email: effectiveSession.email ?? user.email ?? null,
+            remoteAuthId: effectiveSession.authUserId,
+            emailVerifiedAt: effectiveSession.emailVerifiedAt ?? user.emailVerifiedAt ?? null
+          },
+          remoteAuthUserId: effectiveSession.authUserId,
+          loaded
+        },
+        loaded.syncQueue
+      );
+      await refresh(user.id);
+    } catch (error) {
+      const message = isStructuralBackendError(error)
+        ? toStructuralBackendMessage(error)
+        : getErrorMessage(error);
+      if (isStructuralBackendError(error)) {
+        setRemoteBackendBlocked(true);
+        setRemoteBootstrapState('degraded');
+      }
+      setLastSyncError(message);
+      throw error;
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const ensureUserForRemoteSession = async (snapshot: RemoteSessionSnapshot) => {
@@ -416,6 +477,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       setRemoteSession(null);
       setSharedDataStatus('idle');
       setRemoteBackendBlocked(false);
+      setRemoteBootstrapState('idle');
       setAuthReady(true);
       return;
     }
@@ -426,6 +488,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       .then((snapshot) => {
         if (!mounted) return;
         setRemoteBackendBlocked(false);
+        setRemoteBootstrapState(snapshot ? 'resolving_local' : 'idle');
         setRemoteSession(snapshot);
         setAuthStatus(snapshot ? 'authenticated' : 'unauthenticated');
         setAuthReady(true);
@@ -434,6 +497,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         console.error(error);
         if (!mounted) return;
         setRemoteBackendBlocked(false);
+        setRemoteBootstrapState('idle');
         setRemoteSession(null);
         setAuthStatus('unauthenticated');
         setAuthReady(true);
@@ -442,6 +506,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     const unsubscribe = subscribeToAuthChanges((snapshot, event) => {
       if (!mounted) return;
       setRemoteBackendBlocked(false);
+      setRemoteBootstrapState(snapshot ? 'resolving_local' : 'idle');
       setRemoteSession(snapshot);
       if (event === 'PASSWORD_RECOVERY') {
         setAuthStatus('password_reset_required');
@@ -479,6 +544,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
 
       if (remoteBackendBlocked) {
         setRemoteBackendBlocked(false);
+        setRemoteBootstrapState(remoteSession ? 'loading_remote' : 'idle');
         if (currentUser) {
           refresh(currentUser.id).catch(console.error);
         }
@@ -503,7 +569,11 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     let cancelled = false;
 
     (async () => {
+      setRemoteBootstrapState('resolving_local');
       const resolvedUserId = await ensureUserForRemoteSession(remoteSession);
+      if (cancelled) return;
+
+      await refresh(resolvedUserId, { includeRemote: false });
       if (cancelled) return;
 
       const [factors, assurance] = await Promise.all([
@@ -553,10 +623,11 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       if (!targetUser) return;
       await enqueueImportSeed(targetUser);
       await refresh(resolvedUserId);
-      await flushSyncQueue();
+      await flushSyncQueueWithUser(targetUser, remoteSession);
     })().catch((error) => {
       console.error(error);
       importSeededRef.current = null;
+      setRemoteBootstrapState('degraded');
     });
 
     return () => {
@@ -627,49 +698,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     if (!currentUser) {
       throw new Error('No active user selected.');
     }
-
-    if (!hasSupabaseConfig) {
-      throw new Error('Supabase is not configured yet. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY first.');
-    }
-
-    if (!remoteSession) {
-      throw new Error('Sign in before syncing shared data.');
-    }
-
-    if (remoteBackendBlocked) {
-      throw new Error('Shared beta backend needs a schema or policy fix before sync can continue.');
-    }
-
-    setIsSyncing(true);
-    setLastSyncError(null);
-    try {
-      const loaded = await loadLocalAppData(currentUser.id);
-      await syncQueueToSupabase(
-        {
-          currentUser: {
-            ...currentUser,
-            email: remoteSession.email ?? currentUser.email ?? null,
-            remoteAuthId: remoteSession.authUserId,
-            emailVerifiedAt: remoteSession.emailVerifiedAt ?? currentUser.emailVerifiedAt ?? null
-          },
-          remoteAuthUserId: remoteSession.authUserId,
-          loaded
-        },
-        loaded.syncQueue
-      );
-      await refresh(currentUser.id);
-    } catch (error) {
-      const message = isStructuralBackendError(error)
-        ? toStructuralBackendMessage(error)
-        : getErrorMessage(error);
-      if (isStructuralBackendError(error)) {
-        setRemoteBackendBlocked(true);
-      }
-      setLastSyncError(message);
-      throw error;
-    } finally {
-      setIsSyncing(false);
-    }
+    await flushSyncQueueWithUser(currentUser);
   };
 
   const updateUserAccess = async (
@@ -759,6 +788,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         remoteSession,
         authReady,
         localBootstrapReady,
+        remoteBootstrapState,
         isSyncEnabled,
         ownerIdentityLinked,
         isAuthenticatedOwner,

@@ -35,6 +35,7 @@ export const AccessScreen = () => {
     notificationPermissionStatus,
     authStatus,
     remoteSession,
+    remoteBootstrapState,
     ownerIdentityLinked,
     isAuthenticatedOwner,
     mfaFactors,
@@ -193,7 +194,18 @@ export const AccessScreen = () => {
     return (
       <ScreenBackground>
         <View style={{ flex: 1, justifyContent: 'center', padding: 20 }}>
-          <Text style={{ color: '#f7fdff', textAlign: 'center' }}>No active user selected.</Text>
+          <Text style={{ color: theme.colors.text, textAlign: 'center', fontWeight: '700', fontSize: 18 }}>
+            {remoteSession
+              ? remoteBootstrapState === 'resolving_local'
+                ? 'Finishing your account setup...'
+                : 'Your personal angler profile is still loading.'
+              : 'No active user selected.'}
+          </Text>
+          <Text style={{ color: theme.colors.textSoft, textAlign: 'center', marginTop: 10, lineHeight: 20 }}>
+            {remoteSession
+              ? 'Stay on this screen while the app finishes linking your signed-in account to a local angler profile. If shared beta data is unavailable, your account should still recover once bootstrap completes.'
+              : 'Sign in or select an angler profile before opening the utility center.'}
+          </Text>
         </View>
       </ScreenBackground>
     );
