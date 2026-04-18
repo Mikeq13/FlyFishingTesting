@@ -14,12 +14,14 @@ import { GroupsSharingSection } from '@/components/access/GroupsSharingSection';
 import { CompetitionsSection } from '@/components/access/CompetitionsSection';
 import { CompetitionOrganizerSection } from '@/components/access/CompetitionOrganizerSection';
 import { OwnerControlsSection } from '@/components/access/OwnerControlsSection';
+import { RemoteTesterOnboardingSection } from '@/components/access/RemoteTesterOnboardingSection';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { StatusBanner } from '@/components/ui/StatusBanner';
 import { OptionChips } from '@/components/OptionChips';
 import { useResponsiveLayout } from '@/design/layout';
 import { useTheme } from '@/design/theme';
+import { getAppSetting, setAppSetting } from '@/db/settingsRepo';
 
 type UtilitySectionKey = 'accountInfo' | 'appearance' | 'billing' | 'competitions' | 'dataManagement' | 'groups' | 'security' | 'powerTools' | 'ownerTools';
 
@@ -29,6 +31,11 @@ const getManageableProfileScore = (user: { remoteAuthId?: string | null; email?:
   const accessRank = user.accessLevel === 'power_user' ? 4 : user.accessLevel === 'trial' ? 3 : user.accessLevel === 'subscriber' ? 2 : 1;
   return (user.remoteAuthId ? 100 : 0) + (normalizeIdentityEmail(user.email) ? 10 : 0) + accessRank - user.id / 100000;
 };
+
+const IOS_PREVIEW_LINK_KEY = 'tester_onboarding.iosPreviewLink';
+const ANDROID_PREVIEW_LINK_KEY = 'tester_onboarding.androidPreviewLink';
+const ACCESS_CODE_KEY = 'tester_onboarding.accessCode';
+const ONBOARDING_NOTE_KEY = 'tester_onboarding.note';
 
 export const AccessScreen = ({ navigation }: any) => {
   const layout = useResponsiveLayout();
@@ -94,6 +101,10 @@ export const AccessScreen = ({ navigation }: any) => {
   const [inviteTargetGroupId, setInviteTargetGroupId] = React.useState<number | null>(null);
   const [inviteTargetName, setInviteTargetName] = React.useState('');
   const [inviteAcceptCode, setInviteAcceptCode] = React.useState('');
+  const [iosPreviewUrl, setIosPreviewUrl] = React.useState('');
+  const [androidPreviewUrl, setAndroidPreviewUrl] = React.useState('');
+  const [testerAccessCode, setTesterAccessCode] = React.useState('');
+  const [testerOnboardingNote, setTesterOnboardingNote] = React.useState('Install the build for your phone, open the app, create your account, and then redeem the code if one was included.');
   const [accountName, setAccountName] = React.useState(currentUser?.name ?? '');
   const [accountEmail, setAccountEmail] = React.useState(currentUser?.email ?? remoteSession?.email ?? '');
   const [passwordResetEmail, setPasswordResetEmail] = React.useState(currentUser?.email ?? remoteSession?.email ?? '');
@@ -229,6 +240,31 @@ export const AccessScreen = ({ navigation }: any) => {
     setAccountEmail(resolvedEmail);
     setPasswordResetEmail(resolvedEmail);
   }, [currentUser?.email, remoteSession?.email]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const loadTesterOnboardingSettings = async () => {
+      const [savedIosLink, savedAndroidLink, savedAccessCode, savedNote] = await Promise.all([
+        getAppSetting(IOS_PREVIEW_LINK_KEY),
+        getAppSetting(ANDROID_PREVIEW_LINK_KEY),
+        getAppSetting(ACCESS_CODE_KEY),
+        getAppSetting(ONBOARDING_NOTE_KEY)
+      ]);
+
+      if (cancelled) return;
+      setIosPreviewUrl(savedIosLink ?? '');
+      setAndroidPreviewUrl(savedAndroidLink ?? '');
+      setTesterAccessCode(savedAccessCode ?? '');
+      setTesterOnboardingNote(savedNote ?? 'Install the build for your phone, open the app, create your account, and then redeem the code if one was included.');
+    };
+
+    loadTesterOnboardingSettings().catch(console.error);
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   React.useEffect(() => {
     if (isAuthenticatedOwner) return;
@@ -460,20 +496,9 @@ export const AccessScreen = ({ navigation }: any) => {
 
   const renderBilling = () => (
     <>
-      <View
-        style={{
-          gap: 8,
-          backgroundColor: theme.colors.nestedSurface,
-          borderRadius: 12,
-          padding: 12,
-          borderWidth: 1,
-          borderColor: theme.colors.nestedSurfaceBorder
-        }}
-      >
-        <InlineSummaryRow label="Current Plan" value={currentEntitlementLabel} tone="light" />
-        <InlineSummaryRow label="Premium Features" value={currentHasPremiumAccess ? 'Enabled' : 'Locked'} valueMuted={!currentHasPremiumAccess} tone="light" />
-        <InlineSummaryRow label="Billing Status" value={currentHasPremiumAccess ? 'Premium features available' : 'Free access active'} valueMuted={!currentHasPremiumAccess} tone="light" />
-      </View>
+      <InlineSummaryRow label="Current Plan" value={currentEntitlementLabel} tone="light" />
+      <InlineSummaryRow label="Premium Features" value={currentHasPremiumAccess ? 'Enabled' : 'Locked'} valueMuted={!currentHasPremiumAccess} tone="light" />
+      <InlineSummaryRow label="Billing Status" value={currentHasPremiumAccess ? 'Premium features available' : 'Free access active'} valueMuted={!currentHasPremiumAccess} tone="light" />
       <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
         Billing is the one place that explains what this account can access right now. Account identity, security, and sync details stay in their own spaces.
       </Text>
@@ -502,6 +527,15 @@ export const AccessScreen = ({ navigation }: any) => {
 
   const toggleSection = (key: UtilitySectionKey) => {
     setExpandedSections((current) => ({ ...current, [key]: !current[key] }));
+  };
+
+  const saveTesterOnboardingSettings = async () => {
+    await Promise.all([
+      setAppSetting(IOS_PREVIEW_LINK_KEY, iosPreviewUrl.trim()),
+      setAppSetting(ANDROID_PREVIEW_LINK_KEY, androidPreviewUrl.trim()),
+      setAppSetting(ACCESS_CODE_KEY, testerAccessCode.trim()),
+      setAppSetting(ONBOARDING_NOTE_KEY, testerOnboardingNote.trim())
+    ]);
   };
 
   const renderCollapsibleCard = ({
@@ -567,20 +601,9 @@ export const AccessScreen = ({ navigation }: any) => {
           title: 'Account Information',
           subtitle: 'Identity, signed-in email, and access type live here once so the rest of Settings can stay quieter.',
           summary: (
-            <View
-              style={{
-                gap: 8,
-                backgroundColor: theme.colors.nestedSurface,
-                borderRadius: 12,
-                padding: 12,
-                borderWidth: 1,
-                borderColor: theme.colors.nestedSurfaceBorder
-              }}
-            >
-              <InlineSummaryRow label="Active Angler" value={currentUser.name} tone="light" />
-              <InlineSummaryRow label="Signed In Email" value={remoteSession?.email ?? 'Not signed in'} valueMuted={!remoteSession?.email} tone="light" />
-              <InlineSummaryRow label="Access Type" value={currentEntitlementLabel} tone="light" />
-            </View>
+            <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+              {currentUser.name} • {remoteSession?.email ?? 'Not signed in'} • {currentEntitlementLabel}
+            </Text>
           ),
           children: (
             <AccountSecuritySection
@@ -618,19 +641,9 @@ export const AccessScreen = ({ navigation }: any) => {
           title: 'Billing',
           subtitle: 'Plan details stay here instead of repeating across account and admin tools.',
           summary: (
-            <View
-              style={{
-                gap: 8,
-                backgroundColor: theme.colors.nestedSurface,
-                borderRadius: 12,
-                padding: 12,
-                borderWidth: 1,
-                borderColor: theme.colors.nestedSurfaceBorder
-              }}
-            >
-              <InlineSummaryRow label="Current Plan" value={currentEntitlementLabel} tone="light" />
-              <InlineSummaryRow label="Premium Features" value={currentHasPremiumAccess ? 'Enabled' : 'Locked'} valueMuted={!currentHasPremiumAccess} tone="light" />
-            </View>
+            <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+              {currentEntitlementLabel} • {currentHasPremiumAccess ? 'Premium features enabled' : 'Free access active'}
+            </Text>
           ),
           children: renderBilling()
         })}
@@ -665,9 +678,7 @@ export const AccessScreen = ({ navigation }: any) => {
           sectionKey: 'dataManagement',
           title: 'Data Management',
           subtitle: 'Keep cleanup and profile maintenance tools nearby without leaving them open all the time.',
-          summary: (
-            <InlineSummaryRow label="Active Angler" value={currentUser.name} tone="light" />
-          ),
+          summary: <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>Cleanup and local profile maintenance for {currentUser.name}.</Text>,
           children: (
             <LocalDataSection
               isOwner={currentUser.role === 'owner'}
@@ -683,20 +694,9 @@ export const AccessScreen = ({ navigation }: any) => {
           title: 'Groups',
           subtitle: 'Normal group joining stays here, while owner-managed power-user invites stay clearly separated.',
           summary: (
-            <View
-              style={{
-                gap: 8,
-                backgroundColor: theme.colors.nestedSurface,
-                borderRadius: 12,
-                padding: 12,
-                borderWidth: 1,
-                borderColor: theme.colors.nestedSurfaceBorder
-              }}
-            >
-              <InlineSummaryRow label="Your Groups" value={`${joinedGroups.length}`} tone="light" />
-              <InlineSummaryRow label="Organized by You" value={`${organizerGroups.length}`} tone="light" />
-              <InlineSummaryRow label="Power User Invites" value={isAuthenticatedOwner ? 'Owner-managed here' : 'Owner only'} valueMuted={!isAuthenticatedOwner} tone="light" />
-            </View>
+            <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+              {joinedGroups.length} groups • {organizerGroups.length} organized by you • {isAuthenticatedOwner ? 'owner invites here' : 'owner-only invites'}
+            </Text>
           ),
           children: (
             <GroupsSharingSection
@@ -736,24 +736,9 @@ export const AccessScreen = ({ navigation }: any) => {
           title: 'Security',
           subtitle: 'Recovery, MFA, sign-out, and owner verification live here instead of inside account details.',
           summary: (
-            <View
-              style={{
-                gap: 8,
-                backgroundColor: theme.colors.nestedSurface,
-                borderRadius: 12,
-                padding: 12,
-                borderWidth: 1,
-                borderColor: theme.colors.nestedSurfaceBorder
-              }}
-            >
-              <InlineSummaryRow
-                label="Email Verification"
-                value={remoteSession?.emailVerifiedAt ? 'Verified' : authStatus === 'pending_verification' ? 'Pending' : 'Not verified'}
-                valueMuted={!remoteSession?.emailVerifiedAt}
-                tone="light"
-              />
-              <InlineSummaryRow label="MFA" value={mfaFactors.length ? `${mfaFactors.length} factor${mfaFactors.length === 1 ? '' : 's'}` : 'Not enrolled'} valueMuted={!mfaFactors.length} tone="light" />
-            </View>
+            <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+              {remoteSession?.emailVerifiedAt ? 'Verified email' : authStatus === 'pending_verification' ? 'Email verification pending' : 'Email not verified'} • {mfaFactors.length ? `${mfaFactors.length} MFA factor${mfaFactors.length === 1 ? '' : 's'}` : 'No MFA yet'}
+            </Text>
           ),
           children: (
             <SecuritySection
@@ -827,14 +812,27 @@ export const AccessScreen = ({ navigation }: any) => {
               title: 'Owner Tools',
               subtitle: 'Grant power-user access, start a seven-day trial, or reset access without mixing in other settings.',
               children: (
-                <OwnerControlsSection
-                  ownerUser={ownerUser}
-                  manageableUsers={manageableUsers}
-                  onGrantPowerUser={(userId, userName) => runAdminAction(() => grantPowerUserAccess(userId), `${userName} now has power-user access.`)}
-                  onStartTrial={(userId, userName) => runAdminAction(() => startTrialForUser(userId), `${userName} now has a 7-day trial.`)}
-                  onResetAccess={(userId, userName) => runAdminAction(() => clearUserAccess(userId), `${userName} was reset to free access.`)}
-                  embedded
-                />
+                <>
+                  <OwnerControlsSection
+                    ownerUser={ownerUser}
+                    manageableUsers={manageableUsers}
+                    onGrantPowerUser={(userId, userName) => runAdminAction(() => grantPowerUserAccess(userId), `${userName} now has power-user access.`)}
+                    onStartTrial={(userId, userName) => runAdminAction(() => startTrialForUser(userId), `${userName} now has a 7-day trial.`)}
+                    onResetAccess={(userId, userName) => runAdminAction(() => clearUserAccess(userId), `${userName} was reset to free access.`)}
+                    embedded
+                  />
+                  <RemoteTesterOnboardingSection
+                    iosPreviewUrl={iosPreviewUrl}
+                    onIosPreviewUrlChange={setIosPreviewUrl}
+                    androidPreviewUrl={androidPreviewUrl}
+                    onAndroidPreviewUrlChange={setAndroidPreviewUrl}
+                    accessCode={testerAccessCode}
+                    onAccessCodeChange={setTesterAccessCode}
+                    onboardingNote={testerOnboardingNote}
+                    onOnboardingNoteChange={setTesterOnboardingNote}
+                    onSave={saveTesterOnboardingSettings}
+                  />
+                </>
               )
             })
           : null}
