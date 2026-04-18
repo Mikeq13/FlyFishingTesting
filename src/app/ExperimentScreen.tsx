@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { Alert, Modal, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { ExperimentCatchModal } from '@/components/ExperimentCatchModal';
 import { ExperimentSavedActionsModal } from '@/components/ExperimentSavedActionsModal';
 import { KeyboardDismissView } from '@/components/KeyboardDismissView';
@@ -24,6 +24,7 @@ import { CastCounter } from '@/components/CastCounter';
 import { CatchCounter } from '@/components/CatchCounter';
 import { WATER_TYPES } from '@/constants/options';
 import { WaterType } from '@/types/session';
+import { BottomSheetSurface } from '@/components/ui/BottomSheetSurface';
 
 const isDraftExperiment = (entries: ExperimentFlyEntry[]) =>
   entries.some((entry) => entry.casts <= 0 || !entry.fly.name.trim());
@@ -41,6 +42,8 @@ const CONTROL_FOCUS_OPTIONS: ExperimentControlFocus[] = [
 ];
 
 type ExperimentSectionKey = 'hypothesis' | 'waterType' | 'leaders' | 'rigging' | 'flies';
+type DraftSaveState = 'dirty' | 'saving' | 'save_failed' | 'saved';
+type SetupSheetKey = 'leader' | 'rigging' | 'flies' | null;
 
 export const ExperimentScreen = ({ route, navigation }: any) => {
   const { theme } = useTheme();
@@ -60,7 +63,8 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     experiments,
     updateExperimentEntry,
     updateSessionEntry,
-    sessions
+    sessions,
+    refresh
   } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
   const sessionId: number = route.params.sessionId;
@@ -85,7 +89,8 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   const [isSaving, setIsSaving] = useState(false);
   const [showSavedExperimentActions, setShowSavedExperimentActions] = useState(false);
   const [draftExperimentId, setDraftExperimentId] = useState<number | null>(null);
-  const [hasDraftChanges, setHasDraftChanges] = useState(false);
+  const [draftSaveState, setDraftSaveState] = useState<DraftSaveState>('saved');
+  const [draftRevision, setDraftRevision] = useState(0);
   const [pendingFishEntryIndex, setPendingFishEntryIndex] = useState<number | null>(null);
   const [pendingFishSize, setPendingFishSize] = useState<number | null>(null);
   const [pendingFishSpecies, setPendingFishSpecies] = useState<TroutSpecies | null>(null);
@@ -96,13 +101,19 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     rigging: false,
     flies: false
   });
+  const [activeSetupSheet, setActiveSetupSheet] = useState<SetupSheetKey>(null);
   const isCompactLayout = width < 720;
   const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 980) : undefined;
   const hydratedRef = useRef(false);
+  const hydratedSourceKeyRef = useRef<string | null>(null);
+  const draftRevisionRef = useRef(0);
+  const latestSaveTokenRef = useRef(0);
 
   const markDraftDirty = () => {
     if (routeExperiment?.status === 'complete') return;
-    setHasDraftChanges(true);
+    draftRevisionRef.current += 1;
+    setDraftRevision(draftRevisionRef.current);
+    setDraftSaveState('dirty');
   };
 
   const toggleSection = (key: ExperimentSectionKey) => {
@@ -117,23 +128,45 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     setRigSetup((current) => syncRigSetupFromFlies(current, flyEntries.slice(0, flyCount).map((entry) => entry.fly)));
   }, [flyCount, flyEntries]);
 
-  useEffect(() => {
-    if (!existingExperiment) return;
-    const existingEntries = alignExperimentEntries(existingExperiment.flyEntries, existingExperiment.flyEntries.length || 2, Math.max(0, existingExperiment.flyEntries.findIndex((entry) => entry.role === 'baseline')));
+  const resetDraftTracking = (nextState: DraftSaveState = 'saved') => {
+    draftRevisionRef.current = 0;
+    latestSaveTokenRef.current = 0;
+    setDraftRevision(0);
+    setDraftSaveState(nextState);
+  };
+
+  const hydrateFromExperiment = (experiment: NonNullable<typeof existingExperiment>, sourceKey: string) => {
+    const existingEntries = alignExperimentEntries(experiment.flyEntries, experiment.flyEntries.length || 2, Math.max(0, experiment.flyEntries.findIndex((entry) => entry.role === 'baseline')));
     const nextBaselineIndex = Math.max(0, existingEntries.findIndex((entry) => entry.role === 'baseline'));
     setFlyCount(existingEntries.length as 1 | 2 | 3);
     setBaselineIndex(nextBaselineIndex);
-    setControlFocus(existingExperiment.controlFocus ?? 'pattern');
+    setControlFocus(experiment.controlFocus ?? 'pattern');
     setFlyEntries(existingEntries);
-    setRigSetup(getExperimentRigSetup(existingExperiment));
+    setRigSetup(getExperimentRigSetup(experiment));
     setCurrentWaterType(session?.waterType ?? 'run');
-    setDraftExperimentId(existingExperiment.status === 'draft' ? existingExperiment.id : null);
-    setHasDraftChanges(false);
+    setDraftExperimentId(experiment.status === 'draft' ? experiment.id : null);
+    resetDraftTracking('saved');
+    hydratedSourceKeyRef.current = sourceKey;
     hydratedRef.current = true;
-  }, [existingExperiment]);
+  };
 
   useEffect(() => {
-    if (existingExperiment || !session?.startingRigSetup) return;
+    if (!routeExperiment) return;
+    const sourceKey = `route:${routeExperiment.id}`;
+    if (hydratedSourceKeyRef.current === sourceKey) return;
+    hydrateFromExperiment(routeExperiment, sourceKey);
+  }, [routeExperiment, session?.waterType]);
+
+  useEffect(() => {
+    if (routeExperiment || !autosavedDraft || hydratedRef.current) return;
+    const sourceKey = `draft:${autosavedDraft.id}`;
+    hydrateFromExperiment(autosavedDraft, sourceKey);
+  }, [autosavedDraft, routeExperiment, session?.waterType]);
+
+  useEffect(() => {
+    if (routeExperiment || autosavedDraft || !session?.startingRigSetup) return;
+    const sourceKey = `seed:${sessionId}`;
+    if (hydratedSourceKeyRef.current === sourceKey) return;
     const seededAssignments = session.startingRigSetup.assignments.slice(0, 3);
     const seededFlyCount = getFlyCount(seededAssignments.length || 1);
     const seededEntries = createEmptyExperimentEntries(seededFlyCount, 0).map((entry, index) => ({
@@ -146,16 +179,19 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     setRigSetup(session.startingRigSetup);
     setCurrentWaterType(session.waterType);
     setDraftExperimentId(null);
-    setHasDraftChanges(false);
+    resetDraftTracking('saved');
+    hydratedSourceKeyRef.current = sourceKey;
     hydratedRef.current = true;
-  }, [existingExperiment, session?.startingRigSetup]);
+  }, [autosavedDraft, routeExperiment, session?.startingRigSetup, session?.waterType, sessionId]);
 
   useEffect(() => {
-    if (!existingExperiment && !session?.startingRigSetup) {
+    if (!routeExperiment && !autosavedDraft && !session?.startingRigSetup && !hydratedRef.current) {
       setCurrentWaterType(session?.waterType ?? 'run');
+      resetDraftTracking('saved');
+      hydratedSourceKeyRef.current = `empty:${sessionId}`;
       hydratedRef.current = true;
     }
-  }, [existingExperiment, session?.startingRigSetup, session?.waterType]);
+  }, [autosavedDraft, routeExperiment, session?.startingRigSetup, session?.waterType, sessionId]);
 
   const visibleEntries = useMemo(() => flyEntries.slice(0, flyCount), [flyCount, flyEntries]);
   const isDraft = useMemo(() => isDraftExperiment(visibleEntries), [visibleEntries]);
@@ -164,7 +200,6 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     const allSpecies = visibleEntries.flatMap((entry) => entry.fishSpecies);
     return (allSpecies.length ? allSpecies[allSpecies.length - 1] : null) as TroutSpecies | null;
   }, [visibleEntries]);
-  const flySummary = visibleEntries.map((entry) => `${entry.label}: ${entry.fly.name.trim() || 'No fly selected'}`).join(' | ');
   const leaderSummary = rigSetup.leaderFormulaName ?? (rigSetup.leaderFormulaSectionsSnapshot.length ? 'Custom leader' : 'Not chosen');
   const rigSummary = `${rigSetup.assignments.length} ${rigSetup.assignments.length === 1 ? 'fly' : 'flies'} | ${rigSetup.assignments.map((assignment) => assignment.position).join(' | ')}`;
 
@@ -188,27 +223,40 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   };
 
   useEffect(() => {
-    if (!hydratedRef.current || !hasDraftChanges || routeExperiment?.status === 'complete') return;
+    if (!hydratedRef.current || draftSaveState !== 'dirty' || routeExperiment?.status === 'complete') return;
+
+    const revisionToPersist = draftRevision;
 
     const timeoutId = setTimeout(() => {
       const payload = buildExperimentPayload('draft');
+      const saveToken = latestSaveTokenRef.current + 1;
+      latestSaveTokenRef.current = saveToken;
+      setDraftSaveState('saving');
       const persist = async () => {
         if (activeExperimentId) {
-          await updateExperimentEntry(activeExperimentId, payload);
+          await updateExperimentEntry(activeExperimentId, payload, { refresh: false });
         } else {
-          const createdId = await addExperiment(payload);
+          const createdId = await addExperiment(payload, { refresh: false });
           setDraftExperimentId(createdId);
         }
-        setHasDraftChanges(false);
       };
 
-      persist().catch((error) => {
-        console.error(error);
-      });
+      persist()
+        .then(() => {
+          if (latestSaveTokenRef.current !== saveToken || draftRevisionRef.current !== revisionToPersist) {
+            return;
+          }
+          setDraftSaveState('saved');
+        })
+        .catch((error) => {
+          if (latestSaveTokenRef.current !== saveToken) return;
+          console.error(error);
+          setDraftSaveState('save_failed');
+        });
     }, 700);
 
     return () => clearTimeout(timeoutId);
-  }, [activeExperimentId, addExperiment, controlFocus, hasDraftChanges, rigSetup, routeExperiment?.status, sessionId, updateExperimentEntry, visibleEntries]);
+  }, [activeExperimentId, addExperiment, buildExperimentPayload, draftRevision, draftSaveState, routeExperiment?.status, sessionId, updateExperimentEntry]);
 
   const updateEntry = (index: number, nextEntry: ExperimentFlyEntry) => {
     setFlyEntries((current) => {
@@ -260,7 +308,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     setPendingFishSize(null);
     setPendingFishSpecies(null);
     setDraftExperimentId(null);
-    setHasDraftChanges(false);
+    resetDraftTracking('saved');
   };
 
   const modifyAndContinue = () => {
@@ -356,13 +404,34 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         const createdId = await addExperiment(payload);
         setDraftExperimentId(createdId);
       }
-      setHasDraftChanges(false);
+      resetDraftTracking('saved');
       setShowSavedExperimentActions(true);
       cancelCatchModal();
     } finally {
       setIsSaving(false);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (draftExperimentId || draftSaveState === 'dirty' || draftSaveState === 'saving' || draftSaveState === 'save_failed') {
+        refresh(activeUserId).catch(console.error);
+      }
+    };
+  }, [activeUserId, draftExperimentId, draftSaveState, refresh]);
+
+  const draftStatusText =
+    routeExperiment?.status === 'complete'
+      ? null
+      : draftSaveState === 'dirty'
+        ? 'Draft changes are waiting to autosave.'
+        : draftSaveState === 'saving'
+          ? 'Saving the latest draft changes now.'
+          : draftSaveState === 'save_failed'
+            ? 'Draft autosave failed. Keep fishing, then use Save Progress to retry.'
+            : activeExperimentId
+              ? 'Draft changes autosave in the background while you keep fishing.'
+              : 'The first meaningful change will create a draft automatically.';
 
   const updateWaterType = async (nextWaterType: WaterType) => {
     setCurrentWaterType(nextWaterType);
@@ -413,6 +482,45 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
       {expandedSections[sectionKey] ? children : null}
     </SectionCard>
   );
+
+  const renderSetupSummaryCard = ({
+    title,
+    subtitle,
+    summaryTitle,
+    summaryText,
+    buttonLabel,
+    sheetKey
+  }: {
+    title: string;
+    subtitle: string;
+    summaryTitle: string;
+    summaryText: string;
+    buttonLabel: string;
+    sheetKey: Exclude<SetupSheetKey, null>;
+  }) => (
+    <SectionCard title={title} subtitle={subtitle}>
+      <View
+        style={{
+          gap: 8,
+          borderRadius: theme.radius.md,
+          padding: 12,
+          backgroundColor: theme.colors.surfaceAlt,
+          borderWidth: 1,
+          borderColor: theme.colors.border
+        }}
+      >
+        <Text style={{ color: theme.colors.text, fontWeight: '800' }}>{summaryTitle}</Text>
+        <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>{summaryText}</Text>
+        <AppButton label={buttonLabel} onPress={() => setActiveSetupSheet(sheetKey)} variant="ghost" />
+      </View>
+    </SectionCard>
+  );
+
+  const flySummaryText = visibleEntries
+    .map((entry, index) =>
+      `${entry.label} ${index === baselineIndex ? '(Baseline)' : '(Test)'}: ${entry.fly.name.trim() || 'No fly selected'}`
+    )
+    .join(' | ');
 
   return (
     <ScreenBackground>
@@ -488,148 +596,31 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           )
         })}
 
-        {renderExperimentSection({
-          sectionKey: 'leaders',
-          title: 'Leaders',
-          subtitle: 'Keep leader choice separate from rigging so you only see leader decisions here.',
-          summary: `Current leader: ${leaderSummary}`,
-          children: (
-            <RigSetupPanel
-              title="Leaders"
-              rigSetup={rigSetup}
-              flyCount={visibleEntries.length}
-              editMode="leader"
-              forceEditorOpen
-              tone="light"
-              savedLeaderFormulas={savedLeaderFormulas}
-              savedRigPresets={savedRigPresets}
-              onChange={(next) => {
-                setRigSetup(next);
-                markDraftDirty();
-              }}
-              onCreateLeaderFormula={async (payload) => {
-                const id = await addSavedLeaderFormula(payload);
-                return {
-                  id,
-                  userId: activeUserId ?? 0,
-                  name: payload.name,
-                  sections: payload.sections,
-                  createdAt: new Date().toISOString()
-                };
-              }}
-              onCreateRigPreset={async (payload) => {
-                const id = await addSavedRigPreset(payload);
-                return {
-                  id,
-                  userId: activeUserId ?? 0,
-                  ...payload,
-                  createdAt: new Date().toISOString()
-                };
-              }}
-              onApplyRigPreset={() => undefined}
-              onDeleteLeaderFormula={deleteSavedLeaderFormula}
-              onDeleteRigPreset={deleteSavedRigPreset}
-            />
-          )
+        {renderSetupSummaryCard({
+          title: 'Leader',
+          subtitle: 'Leader setup persists from Session and can be changed here without leaving the experiment.',
+          summaryTitle: 'Current Leader',
+          summaryText: leaderSummary,
+          buttonLabel: 'Change Leader',
+          sheetKey: 'leader'
         })}
 
-        {renderExperimentSection({
-          sectionKey: 'rigging',
+        {renderSetupSummaryCard({
           title: 'Rigging',
-          subtitle: 'Use rigging to control fly count, tippet path, and saved rig presets without mixing in fly editing.',
-          summary: `Current rigging: ${rigSummary}`,
-          children: (
-            <RigSetupPanel
-              title="Rigging"
-              rigSetup={rigSetup}
-              flyCount={visibleEntries.length}
-              onFlyCountChange={(nextCount) => {
-                setFlyCount(nextCount);
-                markDraftDirty();
-              }}
-              editMode="rig"
-              forceEditorOpen
-              tone="light"
-              savedLeaderFormulas={savedLeaderFormulas}
-              savedRigPresets={savedRigPresets}
-              onChange={(next) => {
-                setRigSetup(next);
-                markDraftDirty();
-              }}
-              onCreateLeaderFormula={async (payload) => {
-                const id = await addSavedLeaderFormula(payload);
-                return {
-                  id,
-                  userId: activeUserId ?? 0,
-                  name: payload.name,
-                  sections: payload.sections,
-                  createdAt: new Date().toISOString()
-                };
-              }}
-              onCreateRigPreset={async (payload) => {
-                const id = await addSavedRigPreset(payload);
-                return {
-                  id,
-                  userId: activeUserId ?? 0,
-                  ...payload,
-                  createdAt: new Date().toISOString()
-                };
-              }}
-              onApplyRigPreset={(preset) => {
-                setFlyCount(getFlyCount(preset.flyCount));
-                setRigSetup((current) => applyRigPresetToRig(current, preset, { clearSinglePointFly: false }));
-                markDraftDirty();
-              }}
-              onDeleteLeaderFormula={deleteSavedLeaderFormula}
-              onDeleteRigPreset={deleteSavedRigPreset}
-            />
-          )
+          subtitle: 'Rigging persists from Session. Change fly count, preset, or tippet details in one focused step.',
+          summaryTitle: 'Current Rigging',
+          summaryText: rigSummary,
+          buttonLabel: 'Change Rigging',
+          sheetKey: 'rigging'
         })}
 
-        {renderExperimentSection({
-          sectionKey: 'flies',
+        {renderSetupSummaryCard({
           title: 'Flies',
-          subtitle: 'Keep fly selection persistent from the session setup, but make position changes obvious whenever this section is open.',
-          summary: flySummary,
-          children: (
-            <View style={{ gap: 10 }}>
-              <OptionChips
-                label="Baseline Fly"
-                options={visibleEntries.map((entry) => entry.label) as [string, ...string[]]}
-                value={visibleEntries[baselineIndex]?.label}
-                onChange={(value) => {
-                  const nextIndex = visibleEntries.findIndex((entry) => entry.label === value);
-                  if (nextIndex >= 0) {
-                    setBaselineIndex(nextIndex);
-                    markDraftDirty();
-                  }
-                }}
-                tone="light"
-              />
-              <RigFlyManager
-                title="Flies"
-                rigSetup={rigSetup}
-                savedFlies={savedFlies}
-                tone="light"
-                onChange={(nextRigSetup) => {
-                  setRigSetup(nextRigSetup);
-                  setFlyEntries((current) =>
-                    alignExperimentEntries(
-                      current.map((entry, index) => ({
-                        ...entry,
-                        fly: nextRigSetup.assignments[index]?.fly ?? entry.fly
-                      })),
-                      nextRigSetup.assignments.length as 1 | 2 | 3,
-                      baselineIndex
-                    )
-                  );
-                  setFlyCount(getFlyCount(nextRigSetup.assignments.length || 1));
-                  markDraftDirty();
-                }}
-                onCreateFly={saveFlyToLibrary}
-              />
-            </View>
-          )
+          subtitle: 'Flies persist from Session. Replace them or fill empty slots without pushing Results off screen.',
+          summaryTitle: 'Current Flies',
+          summaryText: flySummaryText,
+          buttonLabel: 'Change Flies',
+          sheetKey: 'flies'
         })}
 
         <SectionCard title="Results" subtitle="Record casts and catches without reopening the fly builder each time.">
@@ -698,7 +689,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           </Text>
           {routeExperiment?.status !== 'complete' ? (
             <Text style={{ color: theme.colors.textSoft }}>
-              {hasDraftChanges ? 'Draft changes are waiting to autosave.' : activeExperimentId ? 'Draft changes autosave in the background while you keep fishing.' : 'The first meaningful change will create a draft automatically.'}
+              {draftStatusText}
             </Text>
           ) : null}
           <AppButton
@@ -724,6 +715,155 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
 
       </ScrollView>
       </KeyboardDismissView>
+      <Modal visible={activeSetupSheet !== null} transparent animationType="slide" onRequestClose={() => setActiveSetupSheet(null)}>
+        <BottomSheetSurface
+          title={
+            activeSetupSheet === 'leader'
+              ? 'Change Leader'
+              : activeSetupSheet === 'rigging'
+                ? 'Change Rigging'
+                : 'Change Flies'
+          }
+          subtitle={
+            activeSetupSheet === 'leader'
+              ? 'Keep the current experiment visible while you swap leader setup.'
+              : activeSetupSheet === 'rigging'
+                ? 'Adjust rig count, preset, and tippet details without losing your place in Results.'
+                : 'Replace flies or fill empty slots in one focused editor.'
+          }
+          onClose={() => setActiveSetupSheet(null)}
+        >
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 12 }}>
+            {activeSetupSheet === 'leader' ? (
+              <RigSetupPanel
+                title="Leader"
+                rigSetup={rigSetup}
+                flyCount={visibleEntries.length}
+                editMode="leader"
+                forceEditorOpen
+                tone="light"
+                savedLeaderFormulas={savedLeaderFormulas}
+                savedRigPresets={savedRigPresets}
+                onChange={(next) => {
+                  setRigSetup(next);
+                  markDraftDirty();
+                }}
+                onCreateLeaderFormula={async (payload) => {
+                  const id = await addSavedLeaderFormula(payload);
+                  return {
+                    id,
+                    userId: activeUserId ?? 0,
+                    name: payload.name,
+                    sections: payload.sections,
+                    createdAt: new Date().toISOString()
+                  };
+                }}
+                onCreateRigPreset={async (payload) => {
+                  const id = await addSavedRigPreset(payload);
+                  return {
+                    id,
+                    userId: activeUserId ?? 0,
+                    ...payload,
+                    createdAt: new Date().toISOString()
+                  };
+                }}
+                onApplyRigPreset={() => undefined}
+                onDeleteLeaderFormula={deleteSavedLeaderFormula}
+                onDeleteRigPreset={deleteSavedRigPreset}
+              />
+            ) : null}
+            {activeSetupSheet === 'rigging' ? (
+              <RigSetupPanel
+                title="Rigging"
+                rigSetup={rigSetup}
+                flyCount={visibleEntries.length}
+                onFlyCountChange={(nextCount) => {
+                  setFlyCount(nextCount);
+                  markDraftDirty();
+                }}
+                editMode="rig"
+                forceEditorOpen
+                tone="light"
+                savedLeaderFormulas={savedLeaderFormulas}
+                savedRigPresets={savedRigPresets}
+                onChange={(next) => {
+                  setRigSetup(next);
+                  markDraftDirty();
+                }}
+                onCreateLeaderFormula={async (payload) => {
+                  const id = await addSavedLeaderFormula(payload);
+                  return {
+                    id,
+                    userId: activeUserId ?? 0,
+                    name: payload.name,
+                    sections: payload.sections,
+                    createdAt: new Date().toISOString()
+                  };
+                }}
+                onCreateRigPreset={async (payload) => {
+                  const id = await addSavedRigPreset(payload);
+                  return {
+                    id,
+                    userId: activeUserId ?? 0,
+                    ...payload,
+                    createdAt: new Date().toISOString()
+                  };
+                }}
+                onApplyRigPreset={(preset) => {
+                  setFlyCount(getFlyCount(preset.flyCount));
+                  setRigSetup((current) => applyRigPresetToRig(current, preset, { clearSinglePointFly: false }));
+                  markDraftDirty();
+                }}
+                onDeleteLeaderFormula={deleteSavedLeaderFormula}
+                onDeleteRigPreset={deleteSavedRigPreset}
+              />
+            ) : null}
+            {activeSetupSheet === 'flies' ? (
+              <View style={{ gap: 12 }}>
+                <SectionCard title="Baseline Fly" subtitle="Keep the control obvious while you change flies.">
+                  <OptionChips
+                    label="Baseline Fly"
+                    options={visibleEntries.map((entry) => entry.label) as [string, ...string[]]}
+                    value={visibleEntries[baselineIndex]?.label}
+                    onChange={(value) => {
+                      const nextIndex = visibleEntries.findIndex((entry) => entry.label === value);
+                      if (nextIndex >= 0) {
+                        setBaselineIndex(nextIndex);
+                        markDraftDirty();
+                      }
+                    }}
+                    tone="light"
+                  />
+                </SectionCard>
+                <RigFlyManager
+                  title="Flies"
+                  rigSetup={rigSetup}
+                  savedFlies={savedFlies}
+                  tone="light"
+                  editorOnly
+                  onChange={(nextRigSetup) => {
+                    setRigSetup(nextRigSetup);
+                    setFlyEntries((current) =>
+                      alignExperimentEntries(
+                        current.map((entry, index) => ({
+                          ...entry,
+                          fly: nextRigSetup.assignments[index]?.fly ?? entry.fly
+                        })),
+                        nextRigSetup.assignments.length as 1 | 2 | 3,
+                        baselineIndex
+                      )
+                    );
+                    setFlyCount(getFlyCount(nextRigSetup.assignments.length || 1));
+                    markDraftDirty();
+                  }}
+                  onCreateFly={saveFlyToLibrary}
+                />
+              </View>
+            ) : null}
+            <AppButton label="Done" onPress={() => setActiveSetupSheet(null)} />
+          </ScrollView>
+        </BottomSheetSurface>
+      </Modal>
       <ExperimentCatchModal
         visible={pendingFishEntryIndex !== null}
         title={`Log catch for ${pendingFishEntryIndex !== null && visibleEntries[pendingFishEntryIndex] ? visibleEntries[pendingFishEntryIndex].label : 'Fly'}`}

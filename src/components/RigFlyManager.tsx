@@ -28,12 +28,13 @@ interface RigFlyManagerProps {
   onChange: (nextRigSetup: RigSetup) => void;
   onCreateFly: (fly: FlySetup) => Promise<void>;
   tone?: 'dark' | 'light';
+  editorOnly?: boolean;
 }
 
-export const RigFlyManager = ({ title, rigSetup, savedFlies, onChange, onCreateFly, tone = 'dark' }: RigFlyManagerProps) => {
-  const [showSavedFlyList, setShowSavedFlyList] = useState(false);
+export const RigFlyManager = ({ title, rigSetup, savedFlies, onChange, onCreateFly, tone = 'dark', editorOnly = false }: RigFlyManagerProps) => {
+  const [showSavedFlyList, setShowSavedFlyList] = useState(editorOnly);
   const [showAddFly, setShowAddFly] = useState(false);
-  const [showFlyManager, setShowFlyManager] = useState(() => !rigSetup.assignments.some((assignment) => assignment.fly.name.trim()));
+  const [showFlyManager, setShowFlyManager] = useState(() => editorOnly || !rigSetup.assignments.some((assignment) => assignment.fly.name.trim()));
   const [draftFly, setDraftFly] = useState<FlySetup>(createEmptyFly());
   const [targetAssignmentIndex, setTargetAssignmentIndex] = useState<number | null>(null);
   const sortedSavedFlies = useMemo(() => [...savedFlies].sort((a, b) => a.name.localeCompare(b.name)), [savedFlies]);
@@ -50,12 +51,12 @@ export const RigFlyManager = ({ title, rigSetup, savedFlies, onChange, onCreateF
         setTargetAssignmentIndex(firstEmptyIndex);
         setShowSavedFlyList(true);
         setShowFlyManager(true);
-      } else if (selectedAssignments.every((assignment) => assignment.fly.name.trim())) {
+      } else if (!editorOnly && selectedAssignments.every((assignment) => assignment.fly.name.trim())) {
         setShowFlyManager(false);
       }
       previousSignature.current = currentSignature;
     }
-  }, [selectedAssignments]);
+  }, [editorOnly, selectedAssignments]);
 
   const openChooserForIndex = (index: number) => {
     setTargetAssignmentIndex(index);
@@ -69,9 +70,75 @@ export const RigFlyManager = ({ title, rigSetup, savedFlies, onChange, onCreateF
     setShowSavedFlyList(false);
   };
 
+  const openQuickAddForIndex = (index: number) => {
+    setTargetAssignmentIndex(index);
+    setShowAddFly(true);
+    setShowSavedFlyList(false);
+    setDraftFly(createEmptyFly());
+  };
+
+  const renderAssignmentCard = (assignment: RigFlyAssignment, index: number) => (
+    <View
+      key={`assignment-${assignment.position}-${assignment.fly.name || 'empty'}-${index}`}
+      style={{
+        gap: 8,
+        borderRadius: appTheme.radius.md,
+        padding: 10,
+        backgroundColor: isLightTone ? appTheme.colors.nestedSurface : appTheme.colors.surfaceMuted,
+        borderWidth: isLightTone ? 1 : 0,
+        borderColor: isLightTone ? appTheme.colors.nestedSurfaceBorder : 'transparent'
+      }}
+    >
+      <Text style={{ color: isLightTone ? appTheme.colors.textDark : appTheme.colors.text, fontWeight: '700' }}>
+        {assignment.position}
+      </Text>
+      <Text style={{ color: isLightTone ? appTheme.colors.textDarkSoft : appTheme.colors.textSoft }}>
+        {assignment.fly.name.trim()
+          ? `${assignment.fly.name} #${assignment.fly.hookSize} | ${assignment.fly.beadColor} | ${assignment.fly.beadSizeMm}`
+          : 'No fly selected yet'}
+      </Text>
+      <OptionChips
+        label="Fly Position"
+        options={allowedPositions}
+        value={assignment.position}
+        tone={isLightTone ? 'light' : 'dark'}
+        onChange={(value) =>
+          onChange(
+            syncRigAssignments(
+              rigSetup,
+              replaceRigAssignmentPosition(selectedAssignments, index, value as RigFlyAssignment['position'])
+            )
+          )
+        }
+      />
+      <View style={{ gap: 8 }}>
+        <AppButton
+          label={assignment.fly.name.trim() ? 'Choose Existing Fly' : 'Choose Existing Fly'}
+          onPress={() => openChooserForIndex(index)}
+          variant="tertiary"
+          surfaceTone={isLightTone ? 'light' : 'dark'}
+        />
+        <AppButton
+          label={assignment.fly.name.trim() ? 'Quick Add Replacement' : 'Quick Add Fly'}
+          onPress={() => openQuickAddForIndex(index)}
+          variant="secondary"
+          surfaceTone={isLightTone ? 'light' : 'dark'}
+        />
+        {assignment.fly.name.trim() ? (
+          <AppButton label="Clear Fly" onPress={() => onChange(clearRigAssignmentFly(rigSetup, index))} variant="danger" surfaceTone={isLightTone ? 'light' : 'dark'} />
+        ) : null}
+      </View>
+      {targetAssignmentIndex === index ? (
+        <Text style={{ color: isLightTone ? appTheme.colors.textDarkSoft : appTheme.colors.textSoft }}>
+          {showAddFly ? 'Build a fly for this slot below.' : 'Choose a saved fly for this slot below.'}
+        </Text>
+      ) : null}
+    </View>
+  );
+
   return (
     <SectionCard title={title} subtitle="Manage saved flies, quick-add a new one, and keep role assignments easy to scan." tone={tone}>
-      {!showFlyManager && selectedAssignments.length ? (
+      {!editorOnly && !showFlyManager && selectedAssignments.length ? (
         <View style={{ gap: 8 }}>
           {selectedAssignments.map((assignment, index) => (
             <View key={`summary-${assignment.position}-${assignment.fly.name || 'empty'}-${index}`} style={{ gap: 6, borderRadius: appTheme.radius.md, padding: 10, backgroundColor: isLightTone ? appTheme.colors.nestedSurface : appTheme.colors.surfaceMuted, borderWidth: isLightTone ? 1 : 0, borderColor: isLightTone ? appTheme.colors.nestedSurfaceBorder : 'transparent' }}>
@@ -97,9 +164,27 @@ export const RigFlyManager = ({ title, rigSetup, savedFlies, onChange, onCreateF
 
       {showFlyManager ? (
         <>
-      {!!sortedSavedFlies.length ? (
+      <Text style={{ color: isLightTone ? appTheme.colors.textDark : appTheme.colors.textMuted, fontWeight: '700' }}>
+        Current Flies
+      </Text>
+      {!selectedAssignments.length ? (
+        <Text style={{ color: isLightTone ? appTheme.colors.textDarkSoft : appTheme.colors.textSoft }}>No flies selected for this rig yet.</Text>
+      ) : (
+        selectedAssignments.map((assignment, index) => renderAssignmentCard(assignment, index))
+      )}
+      {!!sortedSavedFlies.length && targetAssignmentIndex !== null ? (
         <>
-          <AppButton label={showSavedFlyList ? 'Hide Existing Flies' : 'Existing Fly'} onPress={() => setShowSavedFlyList((current) => !current)} variant="secondary" surfaceTone={isLightTone ? 'light' : 'dark'} />
+          {!editorOnly ? (
+            <AppButton
+              label={showSavedFlyList ? 'Hide Existing Flies' : 'Existing Fly'}
+              onPress={() => {
+                setShowSavedFlyList((current) => !current);
+                if (!showSavedFlyList) setShowAddFly(false);
+              }}
+              variant="secondary"
+              surfaceTone={isLightTone ? 'light' : 'dark'}
+            />
+          ) : null}
           {showSavedFlyList ? (
             <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: appTheme.colors.borderStrong, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.surfaceLight }}>
               {sortedSavedFlies.map((savedFly) => {
@@ -107,20 +192,7 @@ export const RigFlyManager = ({ title, rigSetup, savedFlies, onChange, onCreateF
                 return (
                   <Pressable
                     key={savedFly.id}
-                    onPress={() => {
-                      if (targetAssignmentIndex !== null) {
-                        assignFlyAtIndex(targetAssignmentIndex, { ...savedFly });
-                        return;
-                      }
-                      const firstEmptyIndex = selectedAssignments.findIndex((assignment) => !assignment.fly.name.trim());
-                      if (firstEmptyIndex >= 0) {
-                        assignFlyAtIndex(firstEmptyIndex, { ...savedFly });
-                        return;
-                      }
-                      if (selected) {
-                        return;
-                      }
-                    }}
+                    onPress={() => assignFlyAtIndex(targetAssignmentIndex, { ...savedFly })}
                     style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#d8e2eb', backgroundColor: selected ? 'rgba(42,157,143,0.18)' : 'transparent' }}
                   >
                     <Text style={{ color: appTheme.colors.textDark, fontWeight: '700' }}>{savedFly.name}</Text>
@@ -135,74 +207,37 @@ export const RigFlyManager = ({ title, rigSetup, savedFlies, onChange, onCreateF
         </>
       ) : null}
 
-      <AppButton label={showAddFly ? 'Hide Fly Builder' : 'Quick Add Fly'} onPress={() => setShowAddFly((current) => !current)} variant="tertiary" surfaceTone={isLightTone ? 'light' : 'dark'} />
-
-      {showAddFly ? (
+      {targetAssignmentIndex !== null && showAddFly ? (
         <FlySelector
-          title="New Fly"
+          title={`Fly For ${selectedAssignments[targetAssignmentIndex]?.position ?? 'Slot'}`}
           value={draftFly}
           savedFlies={[]}
           onChange={setDraftFly}
           onSave={async () => {
             try {
               await onCreateFly(draftFly);
-              if (targetAssignmentIndex !== null) {
-                assignFlyAtIndex(targetAssignmentIndex, draftFly);
-              }
+              assignFlyAtIndex(targetAssignmentIndex, draftFly);
               setShowAddFly(false);
               setDraftFly(createEmptyFly());
-              setShowFlyManager(false);
+              if (!editorOnly) {
+                setShowFlyManager(false);
+              }
             } catch (error) {
               Alert.alert('Unable to save fly', error instanceof Error ? error.message : 'Please try again.');
             }
           }}
+          onConfirm={() => {
+            if (targetAssignmentIndex !== null) {
+              assignFlyAtIndex(targetAssignmentIndex, draftFly);
+              setShowAddFly(false);
+              setDraftFly(createEmptyFly());
+            }
+          }}
+          confirmLabel="Use This Fly"
         />
       ) : null}
 
-      <Text style={{ color: isLightTone ? appTheme.colors.textDark : appTheme.colors.textMuted, fontWeight: '700' }}>Current Flies</Text>
-      {!selectedAssignments.length ? (
-        <Text style={{ color: isLightTone ? appTheme.colors.textDarkSoft : appTheme.colors.textSoft }}>No flies selected for this rig yet.</Text>
-      ) : (
-        selectedAssignments.map((assignment, index) => (
-          <View key={`assignment-${assignment.position}-${assignment.fly.name || 'empty'}-${index}`} style={{ gap: 8, borderRadius: appTheme.radius.md, padding: 10, backgroundColor: isLightTone ? appTheme.colors.nestedSurface : appTheme.colors.surfaceMuted, borderWidth: isLightTone ? 1 : 0, borderColor: isLightTone ? appTheme.colors.nestedSurfaceBorder : 'transparent' }}>
-            <Text style={{ color: isLightTone ? appTheme.colors.textDark : appTheme.colors.text, fontWeight: '700' }}>
-              {assignment.position}
-            </Text>
-            <Text style={{ color: isLightTone ? appTheme.colors.textDarkSoft : appTheme.colors.textSoft }}>
-              {assignment.fly.name.trim()
-                ? `${assignment.fly.name} #${assignment.fly.hookSize} | ${assignment.fly.beadColor} | ${assignment.fly.beadSizeMm}`
-                : 'No fly selected yet'}
-            </Text>
-            <OptionChips
-              label="Fly Position"
-              options={allowedPositions}
-              value={assignment.position}
-              tone={isLightTone ? 'light' : 'dark'}
-              onChange={(value) =>
-                onChange(
-                  syncRigAssignments(
-                    rigSetup,
-                    replaceRigAssignmentPosition(selectedAssignments, index, value as RigFlyAssignment['position'])
-                  )
-                )
-              }
-            />
-            <AppButton
-              label={assignment.fly.name.trim() ? 'Replace Fly' : 'Existing Fly'}
-              onPress={() => openChooserForIndex(index)}
-              variant="tertiary"
-              surfaceTone={isLightTone ? 'light' : 'dark'}
-            />
-            {assignment.fly.name.trim() ? (
-              <AppButton label="Clear Fly" onPress={() => onChange(clearRigAssignmentFly(rigSetup, index))} variant="danger" surfaceTone={isLightTone ? 'light' : 'dark'} />
-            ) : null}
-            {targetAssignmentIndex === index ? (
-              <Text style={{ color: isLightTone ? appTheme.colors.textDarkSoft : appTheme.colors.textSoft }}>Choose an existing fly or quick-add one for this role.</Text>
-            ) : null}
-          </View>
-        ))
-      )}
-      {selectedAssignments.some((assignment) => assignment.fly.name.trim()) ? (
+      {!editorOnly && selectedAssignments.some((assignment) => assignment.fly.name.trim()) ? (
         <AppButton label="Hide Fly Details" onPress={() => setShowFlyManager(false)} variant="ghost" surfaceTone={isLightTone ? 'light' : 'dark'} />
       ) : null}
         </>

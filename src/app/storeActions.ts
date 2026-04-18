@@ -31,7 +31,9 @@ import {
   saveLocalCompetitionAssignment,
   updateLocalSharePreference
 } from '@/services/localAppDataService';
-import { hasSupabaseConfig } from '@/services/supabaseClient';
+import { fetchRemoteAccessSnapshot } from '@/services/remoteAccessService';
+import { fetchRemoteSharedDataSnapshot } from '@/services/remoteSharedDataService';
+import { hasSupabaseConfig, supabase } from '@/services/supabaseClient';
 import {
   enrollTotpFactor,
   getMfaAssuranceLevel,
@@ -234,6 +236,99 @@ export const createStoreActions = ({
     );
     if (cleanupFailures.length) {
       throw new Error(fallbackMessage);
+    }
+  };
+
+  const mergeById = <T extends { id: number }>(primary: T[], incoming: T[]) => {
+    const map = new Map<number, T>();
+    [...primary, ...incoming].forEach((item) => {
+      map.set(item.id, item);
+    });
+    return [...map.values()];
+  };
+
+  const forceClearOwnedFreshStartSetupRows = async () => {
+    if (!remoteSession) return;
+
+    const setupTables = ['saved_flies', 'saved_leader_formulas', 'saved_rig_presets', 'saved_rivers'] as const;
+    await Promise.all(
+      setupTables.map(async (table) => {
+        const { error } = await supabase.from(table).delete().eq('owner_auth_user_id', remoteSession.authUserId);
+        if (error) throw error;
+      })
+    );
+  };
+
+  const verifyFreshStartReset = async (userId: number) => {
+    const loaded = await loadLocalAppData(userId);
+    let nextSessions = loaded.sessions;
+    let nextSessionGroupShares = loaded.sessionGroupShares;
+    let nextExperiments = loaded.experiments;
+    let nextSavedFlies = loaded.savedFlies;
+    let nextSavedLeaderFormulas = loaded.savedLeaderFormulas;
+    let nextSavedRigPresets = loaded.savedRigPresets;
+    let nextSavedRivers = loaded.savedRivers;
+    let nextGroups = loaded.groups;
+    let nextGroupMemberships = loaded.groupMemberships;
+    let nextInvites = loaded.invites;
+    let nextSponsoredAccess = loaded.sponsoredAccess;
+
+    if (hasSupabaseConfig && remoteSession) {
+      const remoteAccess = await fetchRemoteAccessSnapshot(remoteSession.authUserId);
+      const remoteShared = await fetchRemoteSharedDataSnapshot(remoteSession.authUserId, remoteAccess);
+      nextSessions = mergeById(loaded.sessions, remoteShared.ownedSessions);
+      nextSessionGroupShares = mergeById(loaded.sessionGroupShares, remoteShared.ownedSessionGroupShares);
+      nextExperiments = mergeById(loaded.experiments, remoteShared.ownedExperiments);
+      nextSavedFlies = mergeById(loaded.savedFlies, remoteShared.savedFlies);
+      nextSavedLeaderFormulas = mergeById(loaded.savedLeaderFormulas, remoteShared.savedLeaderFormulas);
+      nextSavedRigPresets = mergeById(loaded.savedRigPresets, remoteShared.savedRigPresets);
+      nextSavedRivers = mergeById(loaded.savedRivers, remoteShared.savedRivers);
+      nextGroups = mergeById(loaded.groups, remoteAccess.groups);
+      nextGroupMemberships = mergeById(loaded.groupMemberships, remoteAccess.groupMemberships);
+      nextInvites = mergeById(loaded.invites, remoteAccess.invites);
+      nextSponsoredAccess = mergeById(loaded.sponsoredAccess, remoteAccess.sponsoredAccess);
+    }
+
+    const remainingGroupIds = new Set<number>();
+    nextGroups.forEach((group) => {
+      if (group.createdByUserId === userId) {
+        remainingGroupIds.add(group.id);
+      }
+    });
+    nextGroupMemberships.forEach((membership) => {
+      if (membership.userId === userId) {
+        remainingGroupIds.add(membership.groupId);
+      }
+    });
+
+    const remainingCategories = [
+      nextSessions.length ? `sessions (${nextSessions.length})` : null,
+      nextExperiments.length ? `experiments (${nextExperiments.length})` : null,
+      nextSessionGroupShares.length ? `session shares (${nextSessionGroupShares.length})` : null,
+      nextSavedFlies.length ? `saved flies (${nextSavedFlies.length})` : null,
+      nextSavedLeaderFormulas.length ? `leader formulas (${nextSavedLeaderFormulas.length})` : null,
+      nextSavedRigPresets.length ? `rig presets (${nextSavedRigPresets.length})` : null,
+      nextSavedRivers.length ? `saved rivers (${nextSavedRivers.length})` : null,
+      remainingGroupIds.size ? `group connections (${remainingGroupIds.size})` : null,
+      nextInvites.filter((invite) => invite.inviterUserId === userId || invite.acceptedByUserId === userId).length
+        ? `invites (${nextInvites.filter((invite) => invite.inviterUserId === userId || invite.acceptedByUserId === userId).length})`
+        : null,
+      nextSponsoredAccess.filter((access) => access.sponsorUserId === userId || access.sponsoredUserId === userId).length
+        ? `sponsored access (${nextSponsoredAccess.filter((access) => access.sponsorUserId === userId || access.sponsoredUserId === userId).length})`
+        : null
+    ].filter(Boolean) as string[];
+
+    console.info('[fresh-start-reset] verification', {
+      userId,
+      remainingCategories
+    });
+
+    if (remainingCategories.length) {
+      console.warn('[fresh-start-reset] verification failed', {
+        userId,
+        remainingCategories
+      });
+      throw new Error(`Fresh-start reset incomplete. Remaining: ${remainingCategories.join(', ')}.`);
     }
   };
 
@@ -981,10 +1076,22 @@ export const createStoreActions = ({
       });
     },
   clearFishingDataForUser: async (userId) => {
+    console.info('[fresh-start-reset] started', {
+      userId,
+      sessions: sessions.filter((session) => session.userId === userId).length,
+      experiments: experiments.filter((experiment) => experiment.userId === userId).length,
+      sessionGroupShares: sessionGroupShares.filter((share) => share.userId === userId).length,
+      savedFlies: savedFlies.filter((entry) => entry.userId === userId).length,
+      savedLeaderFormulas: savedLeaderFormulas.filter((entry) => entry.userId === userId).length,
+      savedRigPresets: savedRigPresets.filter((entry) => entry.userId === userId).length,
+      savedRivers: savedRivers.filter((entry) => entry.userId === userId).length
+    });
     const startedAt = await queueCleanupDeletes(userId, ['all']);
     await flushSyncChangesOrThrow(startedAt, 'Some shared records could not be removed, so cleanup stopped before local data was cleared.');
+    await forceClearOwnedFreshStartSetupRows();
     await clearLocalFishingDataForUser(userId, { preserveSyncQueue: true });
     await refresh(activeUserId);
+    await verifyFreshStartReset(userId);
   },
   clearUserDataCategories: async (userId, categories) => {
     const startedAt = await queueCleanupDeletes(userId, categories);
@@ -1141,7 +1248,7 @@ export const createStoreActions = ({
     await refresh(activeUserId);
     return id;
   },
-  addExperiment: async (payload) => {
+  addExperiment: async (payload, options) => {
     assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
     if (!sessionMap.has(payload.sessionId)) {
@@ -1156,10 +1263,12 @@ export const createStoreActions = ({
     };
     const id = await createExperiment({ ...normalizedPayload, userId: activeUserId });
     await trackSyncChange('experiment', 'create', id, normalizedPayload);
-    await refresh();
+    if (options?.refresh !== false) {
+      await refresh();
+    }
     return id;
   },
-  updateExperimentEntry: async (experimentId, payload) => {
+  updateExperimentEntry: async (experimentId, payload, options) => {
     assertActiveUser();
     if (!sessionMap.has(payload.sessionId)) {
       throw new Error('This experiment needs a valid parent session before it can be saved.');
@@ -1173,7 +1282,9 @@ export const createStoreActions = ({
     };
     await updateExperiment(experimentId, normalizedPayload);
     await trackSyncChange('experiment', 'update', experimentId, normalizedPayload);
-    await refresh(activeUserId);
+    if (options?.refresh !== false) {
+      await refresh(activeUserId);
+    }
   },
   archiveInconclusiveExperiments: async ({ from, to }) => {
     assertActiveUser();

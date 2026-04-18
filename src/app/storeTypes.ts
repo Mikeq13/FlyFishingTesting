@@ -157,7 +157,7 @@ export interface AppStore {
   addSessionSegment: (payload: Omit<SessionSegment, 'id' | 'userId'>) => Promise<number>;
   updateSessionSegmentEntry: (segmentId: number, payload: Omit<SessionSegment, 'id' | 'userId'>) => Promise<void>;
   addCatchEvent: (payload: Omit<CatchEvent, 'id' | 'userId'>) => Promise<number>;
-  addExperiment: (payload: Omit<Experiment, 'id' | 'userId'>) => Promise<number>;
-  updateExperimentEntry: (experimentId: number, payload: Omit<Experiment, 'id' | 'userId'>) => Promise<void>;
+  addExperiment: (payload: Omit<Experiment, 'id' | 'userId'>, options?: { refresh?: boolean }) => Promise<number>;
+  updateExperimentEntry: (experimentId: number, payload: Omit<Experiment, 'id' | 'userId'>, options?: { refresh?: boolean }) => Promise<void>;
   archiveInconclusiveExperiments: (range: { from?: string; to?: string }) => Promise<number>;
 }
