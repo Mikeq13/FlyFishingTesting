@@ -130,6 +130,14 @@ PGRST205: Could not find the table 'public.profiles' in the schema cache
 
 your active Supabase project does not have the required schema yet.
 
+If the app logs errors like:
+
+```text
+42P17: infinite recursion detected in policy for relation "group_memberships"
+```
+
+the schema exists, but one or more row-level security policies were applied with recursive membership checks. Re-run the updated `supabase/friend_beta_schema.sql` so the helper-function-based policies replace the recursive ones.
+
 ### Before you apply it
 
 1. Confirm `.env.local` points to the intended Supabase project.
@@ -173,6 +181,7 @@ If `profiles` is missing, apply the repo schema.
 2. Copy the full file into the Supabase `SQL Editor`.
 3. Run it against the same project used by `.env.local`.
 4. Re-run the verification query above and confirm `profiles` and the related tables now exist.
+5. If you previously applied an older copy of the schema, run the updated file again so the policy drops/recreates replace the recursive RLS rules too.
 
 ### After schema apply
 

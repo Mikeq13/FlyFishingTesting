@@ -299,26 +299,130 @@ alter table public.saved_leader_formulas enable row level security;
 alter table public.saved_rig_presets enable row level security;
 alter table public.saved_rivers enable row level security;
 
+create or replace function public.is_group_member(
+  target_group_id uuid,
+  viewer_auth_user_id uuid default auth.uid()
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.group_memberships gm
+    where gm.group_id = target_group_id
+      and gm.member_auth_user_id = viewer_auth_user_id
+  );
+$$;
+
+create or replace function public.is_competition_participant(
+  target_competition_id uuid,
+  viewer_auth_user_id uuid default auth.uid()
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.competition_participants cp
+    where cp.competition_id = target_competition_id
+      and cp.participant_auth_user_id = viewer_auth_user_id
+  );
+$$;
+
+create or replace function public.shares_group_with_user(
+  target_profile_id uuid,
+  viewer_auth_user_id uuid default auth.uid()
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.group_memberships gm_self
+    join public.group_memberships gm_target
+      on gm_target.group_id = gm_self.group_id
+    where gm_self.member_auth_user_id = viewer_auth_user_id
+      and gm_target.member_auth_user_id = target_profile_id
+  );
+$$;
+
+create or replace function public.shares_competition_with_user(
+  target_profile_id uuid,
+  viewer_auth_user_id uuid default auth.uid()
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.competition_participants cp_self
+    join public.competition_participants cp_target
+      on cp_target.competition_id = cp_self.competition_id
+    where cp_self.participant_auth_user_id = viewer_auth_user_id
+      and cp_target.participant_auth_user_id = target_profile_id
+  );
+$$;
+
+grant execute on function public.is_group_member(uuid, uuid) to authenticated;
+grant execute on function public.is_competition_participant(uuid, uuid) to authenticated;
+grant execute on function public.shares_group_with_user(uuid, uuid) to authenticated;
+grant execute on function public.shares_competition_with_user(uuid, uuid) to authenticated;
+
+drop policy if exists "users manage own profile" on public.profiles;
+drop policy if exists "members read related profiles" on public.profiles;
+drop policy if exists "users manage owned rows" on public.groups;
+drop policy if exists "members read shared groups" on public.groups;
+drop policy if exists "users manage owned group memberships" on public.group_memberships;
+drop policy if exists "members read shared group memberships" on public.group_memberships;
+drop policy if exists "members read competition and shared records" on public.competitions;
+drop policy if exists "owners manage competitions" on public.competitions;
+drop policy if exists "owners manage tables by owner_auth_user_id" on public.share_preferences;
+drop policy if exists "members read group share preferences" on public.share_preferences;
+drop policy if exists "owners manage invites" on public.invites;
+drop policy if exists "members read relevant invites" on public.invites;
+drop policy if exists "owners manage sponsored access" on public.sponsored_access;
+drop policy if exists "participants read relevant sponsored access" on public.sponsored_access;
+drop policy if exists "owners manage competition groups" on public.competition_groups;
+drop policy if exists "participants read competition groups" on public.competition_groups;
+drop policy if exists "owners manage competition sessions" on public.competition_sessions;
+drop policy if exists "participants read competition sessions" on public.competition_sessions;
+drop policy if exists "owners manage competition participants" on public.competition_participants;
+drop policy if exists "participants read competition participants" on public.competition_participants;
+drop policy if exists "owners manage competition assignments" on public.competition_session_assignments;
+drop policy if exists "participants read competition assignments" on public.competition_session_assignments;
+drop policy if exists "owners manage sessions" on public.sessions;
+drop policy if exists "shared sessions readable by group members" on public.sessions;
+drop policy if exists "owners manage session segments" on public.session_segments;
+drop policy if exists "shared session segments readable" on public.session_segments;
+drop policy if exists "owners manage catch events" on public.catch_events;
+drop policy if exists "shared catch events readable" on public.catch_events;
+drop policy if exists "owners manage experiments" on public.experiments;
+drop policy if exists "shared experiments readable" on public.experiments;
+drop policy if exists "owners manage saved flies" on public.saved_flies;
+drop policy if exists "owners manage saved formulas" on public.saved_leader_formulas;
+drop policy if exists "owners manage saved rig presets" on public.saved_rig_presets;
+drop policy if exists "owners manage saved rivers" on public.saved_rivers;
+
 create policy "users manage own profile" on public.profiles
 for all using (auth.uid() = id) with check (auth.uid() = id);
 
 create policy "members read related profiles" on public.profiles
 for select using (
   auth.uid() = id
-  or exists (
-    select 1
-    from public.group_memberships gm_self
-    join public.group_memberships gm_target on gm_target.group_id = gm_self.group_id
-    where gm_self.member_auth_user_id = auth.uid()
-      and gm_target.member_auth_user_id = profiles.id
-  )
-  or exists (
-    select 1
-    from public.competition_participants cp_self
-    join public.competition_participants cp_target on cp_target.competition_id = cp_self.competition_id
-    where cp_self.participant_auth_user_id = auth.uid()
-      and cp_target.participant_auth_user_id = profiles.id
-  )
+  or public.shares_group_with_user(profiles.id)
+  or public.shares_competition_with_user(profiles.id)
 );
 
 create policy "users manage owned rows" on public.groups
@@ -326,11 +430,8 @@ for all using (owner_auth_user_id = auth.uid()) with check (owner_auth_user_id =
 
 create policy "members read shared groups" on public.groups
 for select using (
-  exists (
-    select 1 from public.group_memberships
-    where group_memberships.group_id = groups.id
-      and group_memberships.member_auth_user_id = auth.uid()
-  )
+  owner_auth_user_id = auth.uid()
+  or public.is_group_member(groups.id)
 );
 
 create policy "users manage owned group memberships" on public.group_memberships
@@ -340,21 +441,13 @@ create policy "members read shared group memberships" on public.group_membership
 for select using (
   owner_auth_user_id = auth.uid()
   or member_auth_user_id = auth.uid()
-  or exists (
-    select 1 from public.group_memberships gm_self
-    where gm_self.group_id = group_memberships.group_id
-      and gm_self.member_auth_user_id = auth.uid()
-  )
+  or public.is_group_member(group_memberships.group_id)
 );
 
 create policy "members read competition and shared records" on public.competitions
 for select using (
   owner_auth_user_id = auth.uid()
-  or exists (
-    select 1 from public.competition_participants
-    where competition_participants.competition_id = competitions.id
-      and competition_participants.participant_auth_user_id = auth.uid()
-  )
+  or public.is_competition_participant(competitions.id)
 );
 
 create policy "owners manage competitions" on public.competitions
@@ -365,11 +458,7 @@ for all using (owner_auth_user_id = auth.uid()) with check (owner_auth_user_id =
 create policy "members read group share preferences" on public.share_preferences
 for select using (
   owner_auth_user_id = auth.uid()
-  or exists (
-    select 1 from public.group_memberships gm_self
-    where gm_self.group_id = share_preferences.group_id
-      and gm_self.member_auth_user_id = auth.uid()
-  )
+  or public.is_group_member(share_preferences.group_id)
 );
 create policy "owners manage invites" on public.invites
 for all using (owner_auth_user_id = auth.uid()) with check (owner_auth_user_id = auth.uid());
@@ -378,11 +467,7 @@ for select using (
   owner_auth_user_id = auth.uid()
   or inviter_auth_user_id = auth.uid()
   or accepted_by_auth_user_id = auth.uid()
-  or exists (
-    select 1 from public.group_memberships gm_self
-    where gm_self.group_id = invites.target_group_id
-      and gm_self.member_auth_user_id = auth.uid()
-  )
+  or public.is_group_member(invites.target_group_id)
 );
 create policy "owners manage sponsored access" on public.sponsored_access
 for all using (owner_auth_user_id = auth.uid()) with check (owner_auth_user_id = auth.uid());
@@ -397,22 +482,14 @@ for all using (owner_auth_user_id = auth.uid()) with check (owner_auth_user_id =
 create policy "participants read competition groups" on public.competition_groups
 for select using (
   owner_auth_user_id = auth.uid()
-  or exists (
-    select 1 from public.competition_participants cp
-    where cp.competition_id = competition_groups.competition_id
-      and cp.participant_auth_user_id = auth.uid()
-  )
+  or public.is_competition_participant(competition_groups.competition_id)
 );
 create policy "owners manage competition sessions" on public.competition_sessions
 for all using (owner_auth_user_id = auth.uid()) with check (owner_auth_user_id = auth.uid());
 create policy "participants read competition sessions" on public.competition_sessions
 for select using (
   owner_auth_user_id = auth.uid()
-  or exists (
-    select 1 from public.competition_participants cp
-    where cp.competition_id = competition_sessions.competition_id
-      and cp.participant_auth_user_id = auth.uid()
-  )
+  or public.is_competition_participant(competition_sessions.competition_id)
 );
 create policy "owners manage competition participants" on public.competition_participants
 for all using (owner_auth_user_id = auth.uid()) with check (owner_auth_user_id = auth.uid());
@@ -420,11 +497,7 @@ create policy "participants read competition participants" on public.competition
 for select using (
   owner_auth_user_id = auth.uid()
   or participant_auth_user_id = auth.uid()
-  or exists (
-    select 1 from public.competition_participants cp_self
-    where cp_self.competition_id = competition_participants.competition_id
-      and cp_self.participant_auth_user_id = auth.uid()
-  )
+  or public.is_competition_participant(competition_participants.competition_id)
 );
 create policy "owners manage competition assignments" on public.competition_session_assignments
 for all using (owner_auth_user_id = auth.uid()) with check (owner_auth_user_id = auth.uid());
@@ -432,11 +505,7 @@ create policy "participants read competition assignments" on public.competition_
 for select using (
   owner_auth_user_id = auth.uid()
   or participant_auth_user_id = auth.uid()
-  or exists (
-    select 1 from public.competition_participants cp_self
-    where cp_self.competition_id = competition_session_assignments.competition_id
-      and cp_self.participant_auth_user_id = auth.uid()
-  )
+  or public.is_competition_participant(competition_session_assignments.competition_id)
 );
 create policy "owners manage sessions" on public.sessions
 for all using (owner_auth_user_id = auth.uid()) with check (owner_auth_user_id = auth.uid());
@@ -445,12 +514,7 @@ for select using (
   owner_auth_user_id = auth.uid()
   or (
     shared_group_id is not null
-    and exists (
-      select 1
-      from public.group_memberships gm
-      where gm.group_id = sessions.shared_group_id
-        and gm.member_auth_user_id = auth.uid()
-    )
+    and public.is_group_member(sessions.shared_group_id)
     and exists (
       select 1
       from public.share_preferences sp
@@ -465,11 +529,7 @@ for select using (
   )
   or (
     sessions.competition_id is not null
-    and exists (
-      select 1 from public.competition_participants cp
-      where cp.competition_id = sessions.competition_id
-        and cp.participant_auth_user_id = auth.uid()
-    )
+    and public.is_competition_participant(sessions.competition_id)
   )
 );
 create policy "owners manage session segments" on public.session_segments
@@ -485,12 +545,7 @@ for select using (
         s.owner_auth_user_id = auth.uid()
         or (
           s.shared_group_id is not null
-          and exists (
-            select 1
-            from public.group_memberships gm
-            where gm.group_id = s.shared_group_id
-              and gm.member_auth_user_id = auth.uid()
-          )
+          and public.is_group_member(s.shared_group_id)
           and exists (
             select 1
             from public.share_preferences sp
@@ -505,11 +560,7 @@ for select using (
         )
         or (
           s.competition_id is not null
-          and exists (
-            select 1 from public.competition_participants cp
-            where cp.competition_id = s.competition_id
-              and cp.participant_auth_user_id = auth.uid()
-          )
+          and public.is_competition_participant(s.competition_id)
         )
       )
   )
@@ -527,12 +578,7 @@ for select using (
         s.owner_auth_user_id = auth.uid()
         or (
           s.shared_group_id is not null
-          and exists (
-            select 1
-            from public.group_memberships gm
-            where gm.group_id = s.shared_group_id
-              and gm.member_auth_user_id = auth.uid()
-          )
+          and public.is_group_member(s.shared_group_id)
           and exists (
             select 1
             from public.share_preferences sp
@@ -547,11 +593,7 @@ for select using (
         )
         or (
           s.competition_id is not null
-          and exists (
-            select 1 from public.competition_participants cp
-            where cp.competition_id = s.competition_id
-              and cp.participant_auth_user_id = auth.uid()
-          )
+          and public.is_competition_participant(s.competition_id)
         )
       )
   )
@@ -569,12 +611,7 @@ for select using (
         s.owner_auth_user_id = auth.uid()
         or (
           s.shared_group_id is not null
-          and exists (
-            select 1
-            from public.group_memberships gm
-            where gm.group_id = s.shared_group_id
-              and gm.member_auth_user_id = auth.uid()
-          )
+          and public.is_group_member(s.shared_group_id)
           and exists (
             select 1
             from public.share_preferences sp
@@ -589,11 +626,7 @@ for select using (
         )
         or (
           s.competition_id is not null
-          and exists (
-            select 1 from public.competition_participants cp
-            where cp.competition_id = s.competition_id
-              and cp.participant_auth_user_id = auth.uid()
-          )
+          and public.is_competition_participant(s.competition_id)
         )
       )
   )

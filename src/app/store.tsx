@@ -44,6 +44,28 @@ export type { UserDataCleanupCategory };
 
 const Ctx = createContext<AppStore | null>(null);
 const OWNER_ACCOUNT_EMAIL = '13jmmq@gmail.com';
+const STRUCTURAL_BACKEND_ERROR_CODES = new Set(['42P17', 'PGRST205', 'PGRST116']);
+
+const getErrorCode = (error: unknown): string | null => {
+  if (!error || typeof error !== 'object' || !('code' in error)) return null;
+  return typeof (error as { code?: unknown }).code === 'string' ? ((error as { code: string }).code) : null;
+};
+
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === 'object' && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
+    return (error as { message: string }).message;
+  }
+  return 'Unable to reach the shared beta backend right now.';
+};
+
+const isStructuralBackendError = (error: unknown) => {
+  const code = getErrorCode(error);
+  return code ? STRUCTURAL_BACKEND_ERROR_CODES.has(code) : false;
+};
+
+const toStructuralBackendMessage = (error: unknown) =>
+  `Shared beta backend needs a schema or policy fix before cloud sync can continue. ${getErrorMessage(error)}`;
 
 export const AppStoreProvider = ({ children }: { children: React.ReactNode }) => {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -80,6 +102,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const [sharedDataStatus, setSharedDataStatus] = useState<SharedDataStatus>('idle');
   const [notificationPermissionStatus, setNotificationPermissionStatus] = useState<NotificationPermissionStatus>('unknown');
   const [activeUserId, setActiveUserId] = useState<number | null>(null);
+  const [remoteBackendBlocked, setRemoteBackendBlocked] = useState(false);
   const [mfaFactors, setMfaFactors] = useState<MfaFactorSummary[]>([]);
   const [pendingTotpEnrollment, setPendingTotpEnrollment] = useState<PendingTotpEnrollment | null>(null);
   const [mfaAssuranceLevel, setMfaAssuranceLevel] = useState<'aal1' | 'aal2' | 'unknown'>('unknown');
@@ -149,7 +172,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     let nextInvites = loaded.invites;
     let nextSponsoredAccess = loaded.sponsoredAccess;
 
-    if (hasSupabaseConfig && remoteSession) {
+    if (hasSupabaseConfig && remoteSession && !remoteBackendBlocked) {
       setSharedDataStatus('loading');
       try {
         const remoteAccess = await fetchRemoteAccessSnapshot(remoteSession.authUserId);
@@ -182,9 +205,16 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         nextSavedRivers = mergeById(loaded.savedRivers, remoteShared.savedRivers);
       } catch (error) {
         console.error(error);
-        setLastSyncError(error instanceof Error ? error.message : 'Unable to load shared data from Supabase.');
+        if (isStructuralBackendError(error)) {
+          setRemoteBackendBlocked(true);
+          setLastSyncError(toStructuralBackendMessage(error));
+        } else {
+          setLastSyncError(getErrorMessage(error));
+        }
         setSharedDataStatus('error');
       }
+    } else if (remoteBackendBlocked) {
+      setSharedDataStatus('error');
     } else {
       setSharedDataStatus('idle');
     }
@@ -385,6 +415,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       setAuthStatus('unauthenticated');
       setRemoteSession(null);
       setSharedDataStatus('idle');
+      setRemoteBackendBlocked(false);
       setAuthReady(true);
       return;
     }
@@ -394,6 +425,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     bootstrapAuthSession()
       .then((snapshot) => {
         if (!mounted) return;
+        setRemoteBackendBlocked(false);
         setRemoteSession(snapshot);
         setAuthStatus(snapshot ? 'authenticated' : 'unauthenticated');
         setAuthReady(true);
@@ -401,6 +433,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       .catch((error) => {
         console.error(error);
         if (!mounted) return;
+        setRemoteBackendBlocked(false);
         setRemoteSession(null);
         setAuthStatus('unauthenticated');
         setAuthReady(true);
@@ -408,6 +441,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
 
     const unsubscribe = subscribeToAuthChanges((snapshot, event) => {
       if (!mounted) return;
+      setRemoteBackendBlocked(false);
       setRemoteSession(snapshot);
       if (event === 'PASSWORD_RECOVERY') {
         setAuthStatus('password_reset_required');
@@ -443,7 +477,12 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
           setNotificationPermissionStatus('unknown');
         });
 
-      if (remoteSession && currentUser && !isSyncing) {
+      if (remoteBackendBlocked) {
+        setRemoteBackendBlocked(false);
+        if (currentUser) {
+          refresh(currentUser.id).catch(console.error);
+        }
+      } else if (remoteSession && currentUser && !isSyncing) {
         flushSyncQueue().catch(console.error);
       }
     });
@@ -451,7 +490,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     return () => {
       subscription.remove();
     };
-  }, [currentUser, isSyncing, remoteSession]);
+  }, [currentUser, isSyncing, refresh, remoteBackendBlocked, remoteSession]);
 
   useEffect(() => {
     if (!remoteSession) {
@@ -526,7 +565,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   }, [remoteSession]);
 
   useEffect(() => {
-    if (!remoteSession || !currentUser || isSyncing) return;
+    if (!remoteSession || !currentUser || isSyncing || remoteBackendBlocked) return;
     const hasPendingEntries = syncQueue.some((entry) => entry.status === 'pending');
     if (!hasPendingEntries) return;
 
@@ -535,10 +574,10 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     }, 600);
 
     return () => clearTimeout(timeoutId);
-  }, [currentUser, isSyncing, remoteSession, syncQueue]);
+  }, [currentUser, isSyncing, remoteBackendBlocked, remoteSession, syncQueue]);
 
   useEffect(() => {
-    if (!remoteSession || !currentUser || isSyncing) return;
+    if (!remoteSession || !currentUser || isSyncing || remoteBackendBlocked) return;
     const hasRetryableEntries = syncQueue.some((entry) => entry.status === 'pending' || entry.status === 'failed');
     if (!hasRetryableEntries) return;
 
@@ -547,7 +586,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     }, 15000);
 
     return () => clearInterval(intervalId);
-  }, [currentUser, isSyncing, remoteSession, syncQueue]);
+  }, [currentUser, isSyncing, remoteBackendBlocked, remoteSession, syncQueue]);
 
   const insights = useMemo(() => generateInsights(buildAggregates(sessions, completeExperiments)), [sessions, completeExperiments]);
   const topFlyInsights = useMemo(() => buildTopFlyInsights(topFlyRecords), [topFlyRecords]);
@@ -597,6 +636,10 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       throw new Error('Sign in before syncing shared data.');
     }
 
+    if (remoteBackendBlocked) {
+      throw new Error('Shared beta backend needs a schema or policy fix before sync can continue.');
+    }
+
     setIsSyncing(true);
     setLastSyncError(null);
     try {
@@ -616,7 +659,12 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       );
       await refresh(currentUser.id);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to sync right now.';
+      const message = isStructuralBackendError(error)
+        ? toStructuralBackendMessage(error)
+        : getErrorMessage(error);
+      if (isStructuralBackendError(error)) {
+        setRemoteBackendBlocked(true);
+      }
       setLastSyncError(message);
       throw error;
     } finally {
