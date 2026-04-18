@@ -183,6 +183,20 @@ If `profiles` is missing, apply the repo schema.
 4. Re-run the verification query above and confirm `profiles` and the related tables now exist.
 5. If you previously applied an older copy of the schema, run the updated file again so the policy drops/recreates replace the recursive RLS rules too.
 
+### Verify helper functions and policies
+
+After reapplying the schema, open:
+
+- [verify_friend_beta_schema.sql](C:\Users\13jmm\OneDrive\Documents\GitHub\FlyFishingTesting\supabase\verify_friend_beta_schema.sql)
+- [diagnose_live_rls.sql](C:\Users\13jmm\OneDrive\Documents\GitHub\FlyFishingTesting\supabase\diagnose_live_rls.sql)
+
+Run that query file in Supabase SQL Editor and confirm:
+
+- helper functions like `is_group_member` exist
+- `pg_policies` shows the recreated policies
+- the final query returns no recursive `group_memberships` policy body references
+- `group_memberships` is not using forced RLS and the helper functions show `is_security_definer = true`
+
 ### After schema apply
 
 Restart the native dev-client bundler:
