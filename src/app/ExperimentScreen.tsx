@@ -214,6 +214,16 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   }, [visibleEntries]);
   const leaderSummary = rigSetup.leaderFormulaName ?? (rigSetup.leaderFormulaSectionsSnapshot.length ? 'Custom leader' : 'Not chosen');
   const rigSummary = `${rigSetup.assignments.length} ${rigSetup.assignments.length === 1 ? 'fly' : 'flies'} | ${rigSetup.assignments.map((assignment) => assignment.position).join(' | ')}`;
+  const comparisonWarning = useMemo(() => {
+    if (visibleEntries.length <= 1) return null;
+    const baselineEntry = visibleEntries[baselineIndex];
+    return (
+      visibleEntries
+        .filter((_, index) => index !== baselineIndex)
+        .map((entry) => ({ entry, check: validateExperimentPair(baselineEntry.fly, entry.fly, controlFocus) }))
+        .find(({ check }) => !!check.warning) ?? null
+    );
+  }, [baselineIndex, controlFocus, visibleEntries]);
 
   const buildExperimentPayload = (nextStatus?: ExperimentStatus) => {
     const status = deriveExperimentStatus(visibleEntries);
@@ -390,18 +400,6 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
 
   const save = async () => {
     if (isSaving) return;
-
-    if (visibleEntries.length > 1) {
-      const baselineEntry = visibleEntries[baselineIndex];
-      const comparisonNote = visibleEntries
-        .filter((_, index) => index !== baselineIndex)
-        .map((entry) => ({ entry, check: validateExperimentPair(baselineEntry.fly, entry.fly, controlFocus) }))
-        .find(({ check }) => !!check.warning);
-
-      if (comparisonNote?.check.warning) {
-        console.warn(`Design note for ${comparisonNote.entry.label}: ${comparisonNote.check.warning}`);
-      }
-    }
 
     if (visibleEntries.some((entry) => entry.catches > entry.casts)) {
       Alert.alert('Invalid catch count', 'Catches cannot be greater than casts.');
@@ -632,6 +630,12 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         {isDraft ? (
           <StatusBanner tone="warning" text="Draft mode: incomplete experiments can be saved now and finished later. Only invalid counts are blocked." />
         ) : null}
+        {comparisonWarning?.check.warning ? (
+          <StatusBanner
+            tone="info"
+            text={`Design note for ${comparisonWarning.entry.label}: ${comparisonWarning.check.warning}`}
+          />
+        ) : null}
 
         {renderExperimentSection({
           sectionKey: 'hypothesis',
@@ -834,7 +838,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
 
       </ScrollView>
       </KeyboardDismissView>
-      <Modal visible={activeSetupSheet !== null} transparent animationType="slide" onRequestClose={() => setActiveSetupSheet(null)}>
+      <Modal visible={activeSetupSheet !== null} transparent animationType="fade" onRequestClose={() => setActiveSetupSheet(null)}>
         <BottomSheetSurface
           title={
             activeSetupSheet === 'technique'

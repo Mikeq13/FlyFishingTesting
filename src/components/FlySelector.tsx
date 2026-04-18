@@ -63,7 +63,7 @@ export const FlySelector = ({ title, value, savedFlies, onChange, onSave, onConf
   const hasNamedFly = !!value.name.trim();
 
   return (
-    <SectionCard title={title} subtitle="Choose a saved fly or build one quickly without leaving the current flow.">
+    <SectionCard title={title} subtitle="Choose a saved fly or build one quickly without leaving the current flow." tone="light">
 
       {!!sortedSavedFlies.length && (
         <View style={{ gap: 6 }}>

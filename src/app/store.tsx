@@ -56,9 +56,19 @@ const getErrorCode = (error: unknown): string | null => {
 };
 
 const getErrorMessage = (error: unknown): string => {
-  if (error instanceof Error) return error.message;
-  if (error && typeof error === 'object' && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
-    return (error as { message: string }).message;
+  const rawMessage =
+    error instanceof Error
+      ? error.message
+      : error && typeof error === 'object' && 'message' in error && typeof (error as { message?: unknown }).message === 'string'
+        ? (error as { message: string }).message
+        : null;
+
+  if (rawMessage) {
+    const normalized = rawMessage.toLowerCase();
+    if (normalized.includes('502 bad gateway') || normalized.includes('bad gateway') || normalized.includes('<!doctype html')) {
+      return 'Shared beta backend is temporarily unavailable right now. Your local data is still safe, and cloud sync should recover once the service is back.';
+    }
+    return rawMessage;
   }
   return 'Unable to reach the shared beta backend right now.';
 };

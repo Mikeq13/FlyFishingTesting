@@ -14,7 +14,7 @@ export const RigPresetEditor = ({ onSave }: RigPresetEditorProps) => {
   const canSave = useMemo(() => !!name.trim(), [name]);
 
   return (
-    <SectionCard title="Save Rig Preset" subtitle="Capture the current leader, fly count, and tippet setup as a reusable rig.">
+    <SectionCard title="Save Rig Preset" subtitle="Capture the current leader, fly count, and tippet setup as a reusable rig." tone="light">
       <TextInput
         value={name}
         onChangeText={setName}

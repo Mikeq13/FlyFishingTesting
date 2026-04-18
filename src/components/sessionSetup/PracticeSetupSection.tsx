@@ -171,7 +171,7 @@ export const PracticeSetupSection = ({
           ) : null}
         </SectionCard>
       ) : null}
-      <Modal visible={activeSetupSheet !== null} transparent animationType="slide" onRequestClose={() => setActiveSetupSheet(null)}>
+      <Modal visible={activeSetupSheet !== null} transparent animationType="fade" onRequestClose={() => setActiveSetupSheet(null)}>
         <BottomSheetSurface
           title={
             activeSetupSheet === 'leader'

@@ -370,7 +370,7 @@ export const PracticeScreen = ({ route }: any) => {
           )}
         </SectionCard>
       </ScrollView>
-      <Modal visible={activeSetupSheet !== null} transparent animationType="slide" onRequestClose={() => setActiveSetupSheet(null)}>
+      <Modal visible={activeSetupSheet !== null} transparent animationType="fade" onRequestClose={() => setActiveSetupSheet(null)}>
         <BottomSheetSurface
           title={
             activeSetupSheet === 'technique'

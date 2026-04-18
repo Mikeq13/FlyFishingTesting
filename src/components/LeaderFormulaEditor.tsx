@@ -24,7 +24,7 @@ export const LeaderFormulaEditor = ({ onSave }: LeaderFormulaEditorProps) => {
   );
 
   return (
-    <SectionCard title="Save Leader" subtitle="Save the mono formula from fly line to tippet ring without leaving the current flow.">
+    <SectionCard title="Save Leader" subtitle="Save the mono formula from fly line to tippet ring without leaving the current flow." tone="light">
       <TextInput
         value={name}
         onChangeText={setName}
@@ -34,8 +34,18 @@ export const LeaderFormulaEditor = ({ onSave }: LeaderFormulaEditorProps) => {
       />
 
       {sections.map((section, index) => (
-        <View key={`${section.order}-${index}`} style={{ gap: 8, borderRadius: theme.radius.md, padding: 10, backgroundColor: theme.colors.surfaceMuted }}>
-          <Text style={{ color: theme.colors.textMuted, fontWeight: '700' }}>Section {index + 1}</Text>
+        <View
+          key={`${section.order}-${index}`}
+          style={{
+            gap: 8,
+            borderRadius: theme.radius.md,
+            padding: 10,
+            backgroundColor: theme.colors.nestedSurface,
+            borderWidth: 1,
+            borderColor: theme.colors.nestedSurfaceBorder
+          }}
+        >
+          <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>Section {index + 1}</Text>
           <TextInput
             value={section.materialLabel}
             onChangeText={(materialLabel) =>
