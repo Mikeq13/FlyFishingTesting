@@ -185,50 +185,10 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     return records.filter((record) => !pendingDeleteIds.has(record.id));
   };
 
-  const suppressPendingSavedSetupDeletes = <T extends { id: number }>(
-    records: T[],
-    syncQueue: SyncQueueEntry[],
-    savedType: 'fly' | 'leader_formula' | 'rig_preset' | 'river'
-  ) => {
-    const pendingDeleteIds = new Set(
-      syncQueue
-        .filter(
-          (entry) =>
-            entry.entityType === 'saved_setup' &&
-            entry.operation === 'delete' &&
-            (entry.status === 'pending' || entry.status === 'failed') &&
-            typeof entry.recordId === 'number'
-        )
-        .filter((entry) => {
-          try {
-            const payload = JSON.parse(entry.payloadJson || '{}') as { savedType?: string };
-            return payload.savedType === savedType;
-          } catch {
-            return false;
-          }
-        })
-        .map((entry) => entry.recordId as number)
-    );
-
-    if (!pendingDeleteIds.size) return records;
-    return records.filter((record) => !pendingDeleteIds.has(record.id));
-  };
-
   const getSyncRecordState = React.useCallback<AppStore['getSyncRecordState']>(
-    (entityType, recordId, options) => {
+    (entityType, recordId) => {
       const matchingEntries = syncQueue.filter((entry) => {
-        if (entry.entityType !== entityType || entry.operation !== 'delete' || entry.recordId !== recordId) {
-          return false;
-        }
-        if (entityType !== 'saved_setup' || !options?.savedType) {
-          return true;
-        }
-        try {
-          const payload = JSON.parse(entry.payloadJson || '{}') as { savedType?: string };
-          return payload.savedType === options.savedType;
-        } catch {
-          return false;
-        }
+        return entry.entityType === entityType && entry.operation === 'delete' && entry.recordId === recordId;
       });
       const failedEntry = matchingEntries.find((entry) => entry.status === 'failed');
       if (failedEntry) return 'failed_cleanup';
@@ -501,10 +461,10 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     nextAllCatchEvents = suppressPendingDeletes(nextAllCatchEvents, loaded.syncQueue, ['catch_event']);
     nextExperiments = suppressPendingDeletes(nextExperiments, loaded.syncQueue, ['experiment']);
     nextAllExperiments = suppressPendingDeletes(nextAllExperiments, loaded.syncQueue, ['experiment']);
-    nextSavedFlies = suppressPendingSavedSetupDeletes(nextSavedFlies, loaded.syncQueue, 'fly');
-    nextSavedLeaderFormulas = suppressPendingSavedSetupDeletes(nextSavedLeaderFormulas, loaded.syncQueue, 'leader_formula');
-    nextSavedRigPresets = suppressPendingSavedSetupDeletes(nextSavedRigPresets, loaded.syncQueue, 'rig_preset');
-    nextSavedRivers = suppressPendingSavedSetupDeletes(nextSavedRivers, loaded.syncQueue, 'river');
+    nextSavedFlies = suppressPendingDeletes(nextSavedFlies, loaded.syncQueue, ['saved_fly']);
+    nextSavedLeaderFormulas = suppressPendingDeletes(nextSavedLeaderFormulas, loaded.syncQueue, ['saved_leader_formula']);
+    nextSavedRigPresets = suppressPendingDeletes(nextSavedRigPresets, loaded.syncQueue, ['saved_rig_preset']);
+    nextSavedRivers = suppressPendingDeletes(nextSavedRivers, loaded.syncQueue, ['saved_river']);
 
     setUsers(nextUsers);
     setSessions(nextSessions);
@@ -727,19 +687,19 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     }
 
     for (const savedFly of loaded.savedFlies) {
-      await trackSyncChange('saved_setup', 'create', savedFly.id, savedFly);
+      await trackSyncChange('saved_fly', 'create', savedFly.id, savedFly);
     }
 
     for (const formula of loaded.savedLeaderFormulas) {
-      await trackSyncChange('saved_setup', 'create', formula.id, formula);
+      await trackSyncChange('saved_leader_formula', 'create', formula.id, formula);
     }
 
     for (const preset of loaded.savedRigPresets) {
-      await trackSyncChange('saved_setup', 'create', preset.id, preset);
+      await trackSyncChange('saved_rig_preset', 'create', preset.id, preset);
     }
 
     for (const river of loaded.savedRivers) {
-      await trackSyncChange('saved_setup', 'create', river.id, river);
+      await trackSyncChange('saved_river', 'create', river.id, river);
     }
   };
 

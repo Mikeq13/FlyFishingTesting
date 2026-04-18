@@ -27,7 +27,10 @@ export type SyncEntityType =
   | 'session_segment'
   | 'catch_event'
   | 'experiment'
-  | 'saved_setup';
+  | 'saved_fly'
+  | 'saved_leader_formula'
+  | 'saved_rig_preset'
+  | 'saved_river';
 export type SyncOperation = 'create' | 'update' | 'delete' | 'join' | 'accept' | 'revoke';
 
 export interface Invite {

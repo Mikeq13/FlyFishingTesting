@@ -219,6 +219,15 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     markDraftDirty();
   };
 
+  const updateEntryWith = (index: number, updater: (entry: ExperimentFlyEntry) => ExperimentFlyEntry) => {
+    setFlyEntries((current) => {
+      const nextEntries = current.map((entry, entryIndex) => (entryIndex === index ? updater(entry) : entry));
+      setRigSetup((existingRigSetup) => syncRigSetupFromFlies(existingRigSetup, nextEntries.slice(0, flyCount).map((entry) => entry.fly)));
+      return nextEntries;
+    });
+    markDraftDirty();
+  };
+
   const saveFlyToLibrary = async (fly: FlySetup) => {
     const normalizedName = fly.name.trim();
 
@@ -278,16 +287,13 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     }
 
     const index = pendingFishEntryIndex;
-    const entry = visibleEntries[index];
-    if (!entry) return;
-
-    updateEntry(index, {
+    updateEntryWith(index, (entry) => ({
       ...entry,
       catches: entry.catches + 1,
       fishSizesInches: pendingFishSize === null ? entry.fishSizesInches : [...entry.fishSizesInches, pendingFishSize],
       fishSpecies: [...entry.fishSpecies, pendingFishSpecies],
       catchTimestamps: [...entry.catchTimestamps, new Date().toISOString()]
-    });
+    }));
     setPendingFishEntryIndex(null);
     setPendingFishSize(null);
     setPendingFishSpecies(null);
@@ -300,25 +306,23 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   };
 
   const removeCatch = (index: number) => {
-    const entry = visibleEntries[index];
-    if (!entry || entry.catches <= 0) return;
-
-    updateEntry(index, {
-      ...entry,
-      catches: Math.max(0, entry.catches - 1),
-      fishSizesInches: entry.fishSizesInches.slice(0, Math.max(0, entry.fishSizesInches.length - 1)),
-      fishSpecies: entry.fishSpecies.slice(0, Math.max(0, entry.fishSpecies.length - 1)),
-      catchTimestamps: entry.catchTimestamps.slice(0, Math.max(0, entry.catchTimestamps.length - 1))
+    updateEntryWith(index, (entry) => {
+      if (entry.catches <= 0) return entry;
+      return {
+        ...entry,
+        catches: Math.max(0, entry.catches - 1),
+        fishSizesInches: entry.fishSizesInches.slice(0, Math.max(0, entry.fishSizesInches.length - 1)),
+        fishSpecies: entry.fishSpecies.slice(0, Math.max(0, entry.fishSpecies.length - 1)),
+        catchTimestamps: entry.catchTimestamps.slice(0, Math.max(0, entry.catchTimestamps.length - 1))
+      };
     });
   };
 
   const removeCasts = (index: number) => {
-    const entry = visibleEntries[index];
-    if (!entry) return;
-    updateEntry(index, {
+    updateEntryWith(index, (entry) => ({
       ...entry,
       casts: Math.max(0, entry.casts - castStep)
-    });
+    }));
   };
 
   const save = async () => {
@@ -656,7 +660,12 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                     value={entry.casts}
                     step={castStep}
                     onDecrement={() => removeCasts(index)}
-                    onIncrement={() => updateEntry(index, { ...entry, casts: entry.casts + castStep })}
+                    onIncrement={() =>
+                      updateEntryWith(index, (currentEntry) => ({
+                        ...currentEntry,
+                        casts: currentEntry.casts + castStep
+                      }))
+                    }
                   />
                   <CatchCounter
                     label={`${entry.label} catches`}

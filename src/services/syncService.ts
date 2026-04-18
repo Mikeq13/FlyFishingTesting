@@ -404,28 +404,31 @@ const syncExperiment = async (context: SyncContext, experiment: Experiment) => {
   await recordSyncSuccess('experiment', experiment.id, remoteId);
 };
 
-const deleteRemoteSavedSetup = async (context: SyncContext, entry: SyncQueueEntry) => {
-  const payload = JSON.parse(entry.payloadJson || '{}') as { savedType?: string };
+const deleteRemoteSavedSetup = async (
+  context: SyncContext,
+  entityType: 'saved_fly' | 'saved_leader_formula' | 'saved_rig_preset' | 'saved_river',
+  entry: SyncQueueEntry
+) => {
   const recordId = entry.recordId;
   if (!recordId) return;
-  const remoteId = await findRemoteId('saved_setup', recordId);
+  const remoteId = await findRemoteId(entityType, recordId);
   const table =
-    payload.savedType === 'fly'
+    entityType === 'saved_fly'
       ? 'saved_flies'
-      : payload.savedType === 'leader_formula'
+      : entityType === 'saved_leader_formula'
         ? 'saved_leader_formulas'
-        : payload.savedType === 'rig_preset'
+        : entityType === 'saved_rig_preset'
           ? 'saved_rig_presets'
-          : payload.savedType === 'river'
+          : entityType === 'saved_river'
             ? 'saved_rivers'
             : null;
 
   if (!table) {
-    throw new Error('Saved setup delete is missing its setup type.');
+    throw new Error(`Saved setup delete is missing its setup table for ${entityType}.`);
   }
 
   await deleteOwnedRow(table, context.remoteAuthUserId, recordId, remoteId);
-  await clearSyncMetadata('saved_setup', recordId);
+  await clearSyncMetadata(entityType, recordId);
 };
 
 const deleteRemoteEntity = async (context: SyncContext, entry: SyncQueueEntry) => {
@@ -552,8 +555,11 @@ const deleteRemoteEntity = async (context: SyncContext, entry: SyncQueueEntry) =
       );
       await clearSyncMetadata('session_group_share', entry.recordId!);
       return;
-    case 'saved_setup':
-      await deleteRemoteSavedSetup(context, entry);
+    case 'saved_fly':
+    case 'saved_leader_formula':
+    case 'saved_rig_preset':
+    case 'saved_river':
+      await deleteRemoteSavedSetup(context, entry.entityType, entry);
       return;
     default:
       return;
@@ -562,50 +568,60 @@ const deleteRemoteEntity = async (context: SyncContext, entry: SyncQueueEntry) =
 
 const syncSavedSetup = async (
   context: SyncContext,
+  entityType: 'saved_fly' | 'saved_leader_formula' | 'saved_rig_preset' | 'saved_river',
   localRecordId: number,
   payloadJson: string
 ) => {
-  const fly = context.loaded.savedFlies.find((entry) => entry.id === localRecordId);
+  const fly = entityType === 'saved_fly' ? context.loaded.savedFlies.find((entry) => entry.id === localRecordId) : null;
   if (fly) {
     const remoteId = await upsertOwnedRow('saved_flies', context.remoteAuthUserId, fly.id, {
       payload_json: fly,
       created_at: fly.createdAt
     });
-    await recordSyncSuccess('saved_setup', fly.id, remoteId);
+    await recordSyncSuccess('saved_fly', fly.id, remoteId);
     return;
   }
 
-  const formula = context.loaded.savedLeaderFormulas.find((entry) => entry.id === localRecordId);
+  const formula =
+    entityType === 'saved_leader_formula'
+      ? context.loaded.savedLeaderFormulas.find((entry) => entry.id === localRecordId)
+      : null;
   if (formula) {
     const remoteId = await upsertOwnedRow('saved_leader_formulas', context.remoteAuthUserId, formula.id, {
       payload_json: formula,
       created_at: formula.createdAt
     });
-    await recordSyncSuccess('saved_setup', formula.id, remoteId);
+    await recordSyncSuccess('saved_leader_formula', formula.id, remoteId);
     return;
   }
 
-  const preset = context.loaded.savedRigPresets.find((entry) => entry.id === localRecordId);
+  const preset =
+    entityType === 'saved_rig_preset'
+      ? context.loaded.savedRigPresets.find((entry) => entry.id === localRecordId)
+      : null;
   if (preset) {
     const remoteId = await upsertOwnedRow('saved_rig_presets', context.remoteAuthUserId, preset.id, {
       payload_json: preset,
       created_at: preset.createdAt
     });
-    await recordSyncSuccess('saved_setup', preset.id, remoteId);
+    await recordSyncSuccess('saved_rig_preset', preset.id, remoteId);
     return;
   }
 
-  const river = context.loaded.savedRivers.find((entry) => entry.id === localRecordId);
+  const river =
+    entityType === 'saved_river'
+      ? context.loaded.savedRivers.find((entry) => entry.id === localRecordId)
+      : null;
   if (river) {
     const remoteId = await upsertOwnedRow('saved_rivers', context.remoteAuthUserId, river.id, {
       name: river.name,
       created_at: river.createdAt
     });
-    await recordSyncSuccess('saved_setup', river.id, remoteId);
+    await recordSyncSuccess('saved_river', river.id, remoteId);
     return;
   }
 
-  throw new Error(`Unable to resolve saved setup payload for sync item ${localRecordId}: ${payloadJson}`);
+  throw new Error(`Unable to resolve ${entityType} payload for sync item ${localRecordId}: ${payloadJson}`);
 };
 
 export const syncQueueToSupabase = async (
@@ -723,9 +739,12 @@ export const syncQueueToSupabase = async (
             }
           }
           break;
-        case 'saved_setup':
+        case 'saved_fly':
+        case 'saved_leader_formula':
+        case 'saved_rig_preset':
+        case 'saved_river':
           if (entry.recordId) {
-            await syncSavedSetup(context, entry.recordId, entry.payloadJson);
+            await syncSavedSetup(context, entry.entityType, entry.recordId, entry.payloadJson);
           }
           break;
       }

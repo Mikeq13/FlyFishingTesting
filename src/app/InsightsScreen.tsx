@@ -8,6 +8,7 @@ import { ScreenBackground } from '@/components/ScreenBackground';
 import { AppButton } from '@/components/ui/AppButton';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
+import { StatusBanner } from '@/components/ui/StatusBanner';
 import { appTheme } from '@/design/theme';
 import { buildAggregates } from '@/engine/aggregationEngine';
 import { generateAnglerComparisons } from '@/engine/anglerComparisonEngine';
@@ -53,6 +54,8 @@ export const InsightsScreen = ({ navigation }: any) => {
     users,
     currentUser,
     currentHasPremiumAccess,
+    sharedDataStatus,
+    remoteSession,
     savedFlies,
     getSessionIntegrity,
     getExperimentIntegrity
@@ -72,9 +75,10 @@ export const InsightsScreen = ({ navigation }: any) => {
   const [showRiverChoices, setShowRiverChoices] = useState(false);
   const [showFlyChoices, setShowFlyChoices] = useState(false);
   const [showHypothesisChoices, setShowHypothesisChoices] = useState(false);
+  const sharedDataSettling = !!remoteSession && sharedDataStatus === 'loading';
   const joinedGroups = useMemo(
-    () => getJoinedGroupsForUser(currentUser?.id, groups, groupMemberships),
-    [currentUser?.id, groupMemberships, groups]
+    () => (sharedDataSettling ? [] : getJoinedGroupsForUser(currentUser?.id, groups, groupMemberships)),
+    [currentUser?.id, groupMemberships, groups, sharedDataSettling]
   );
 
   React.useEffect(() => {
@@ -324,6 +328,9 @@ export const InsightsScreen = ({ navigation }: any) => {
               subtitle="Review the strongest patterns in your data, your best flies, and where anglers overlap."
               eyebrow="Shared Learning"
             />
+            {sharedDataSettling ? (
+              <StatusBanner tone="info" text="Shared groups and friend visibility are still loading from the beta backend. Group-based filters will unlock as soon as shared data is ready." />
+            ) : null}
 
             <SectionCard title="View Context" subtitle="Switch between your own data, a shared group, or a friend comparison without losing trust in the numbers.">
               <OptionChips

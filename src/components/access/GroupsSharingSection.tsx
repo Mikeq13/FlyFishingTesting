@@ -71,9 +71,8 @@ export const GroupsSharingSection = ({
   onLeaveGroup: (groupId: number) => Promise<{ membershipId: number | null; groupId: number; deletedGroup: boolean }>;
   onDeleteGroup: (groupId: number) => Promise<void>;
   getSyncRecordState: (
-    entityType: 'group' | 'group_membership' | 'saved_setup' | 'session' | 'experiment',
-    recordId: number,
-    options?: { savedType?: 'fly' | 'leader_formula' | 'rig_preset' | 'river' }
+    entityType: 'group' | 'group_membership' | 'session' | 'experiment',
+    recordId: number
   ) => 'active' | 'pending_delete' | 'failed_cleanup';
   embedded?: boolean;
 }) => {

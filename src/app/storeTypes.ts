@@ -141,8 +141,7 @@ export interface AppStore {
   clearUserDataCategories: (userId: number, categories: UserDataCleanupCategory[]) => Promise<void>;
   getSyncRecordState: (
     entityType: SyncQueueEntry['entityType'],
-    recordId: number,
-    options?: { savedType?: 'fly' | 'leader_formula' | 'rig_preset' | 'river' }
+    recordId: number
   ) => SyncCleanupState;
   getSessionIntegrity: (sessionId: number) => IntegritySummary;
   getExperimentIntegrity: (experimentId: number) => IntegritySummary;

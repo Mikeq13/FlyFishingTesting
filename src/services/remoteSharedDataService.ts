@@ -187,28 +187,28 @@ export const fetchRemoteSharedDataSnapshot = async (
       ...(savedFliesResponse.data ?? [])
         .filter((row) => row.owner_auth_user_id === currentAuthUserId)
         .map((row) => ({
-          entityType: 'saved_setup' as const,
+          entityType: 'saved_fly' as const,
           localRecordId: mapRemoteSavedFly(row, currentAuthUserId).id,
           remoteRecordId: row.id as string
         })),
       ...(savedLeaderFormulasResponse.data ?? [])
         .filter((row) => row.owner_auth_user_id === currentAuthUserId)
         .map((row) => ({
-          entityType: 'saved_setup' as const,
+          entityType: 'saved_leader_formula' as const,
           localRecordId: mapRemoteLeaderFormula(row, currentAuthUserId).id,
           remoteRecordId: row.id as string
         })),
       ...(savedRigPresetsResponse.data ?? [])
         .filter((row) => row.owner_auth_user_id === currentAuthUserId)
         .map((row) => ({
-          entityType: 'saved_setup' as const,
+          entityType: 'saved_rig_preset' as const,
           localRecordId: mapRemoteRigPreset(row, currentAuthUserId).id,
           remoteRecordId: row.id as string
         })),
       ...(savedRiversResponse.data ?? [])
         .filter((row) => row.owner_auth_user_id === currentAuthUserId)
         .map((row) => ({
-          entityType: 'saved_setup' as const,
+          entityType: 'saved_river' as const,
           localRecordId: mapRemoteSavedRiver(row, currentAuthUserId).id,
           remoteRecordId: row.id as string
         }))

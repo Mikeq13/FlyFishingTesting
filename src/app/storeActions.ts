@@ -459,22 +459,22 @@ export const createStoreActions = ({
 
     if (normalizedCategories.includes('flies')) {
       for (const fly of mergedSavedFlies) {
-        await queueDelete('saved_setup', fly.id, { savedType: 'fly', savedFlyId: fly.id });
+        await queueDelete('saved_fly', fly.id, { savedFlyId: fly.id });
       }
     }
     if (normalizedCategories.includes('formulas')) {
       for (const formula of mergedSavedLeaderFormulas) {
-        await queueDelete('saved_setup', formula.id, { savedType: 'leader_formula', formulaId: formula.id });
+        await queueDelete('saved_leader_formula', formula.id, { formulaId: formula.id });
       }
     }
     if (normalizedCategories.includes('rig_presets')) {
       for (const preset of mergedSavedRigPresets) {
-        await queueDelete('saved_setup', preset.id, { savedType: 'rig_preset', presetId: preset.id });
+        await queueDelete('saved_rig_preset', preset.id, { presetId: preset.id });
       }
     }
     if (normalizedCategories.includes('rivers')) {
       for (const river of mergedSavedRivers) {
-        await queueDelete('saved_setup', river.id, { savedType: 'river', riverId: river.id });
+        await queueDelete('saved_river', river.id, { riverId: river.id });
       }
     }
 
@@ -722,7 +722,7 @@ export const createStoreActions = ({
     if (!activeUserId) throw new Error('No active user selected.');
     ensureUniqueSavedName(savedFlies, payload.name, 'Fly');
     const id = await createSavedFly({ ...payload, name: payload.name.trim(), userId: activeUserId });
-    await trackSyncChange('saved_setup', 'create', id, payload);
+    await trackSyncChange('saved_fly', 'create', id, payload);
     await refresh(activeUserId);
     return id;
   },
@@ -731,14 +731,14 @@ export const createStoreActions = ({
     if (!activeUserId) throw new Error('No active user selected.');
     ensureUniqueSavedName(savedLeaderFormulas, payload.name, 'Leader');
     const id = await createSavedLeaderFormula({ ...payload, name: payload.name.trim(), userId: activeUserId });
-    await trackSyncChange('saved_setup', 'create', id, payload);
+    await trackSyncChange('saved_leader_formula', 'create', id, payload);
     await refresh(activeUserId);
     return id;
   },
   deleteSavedLeaderFormula: async (formulaId) => {
     await deleteSavedLeaderFormula(formulaId);
     const startedAt = new Date().toISOString();
-    await trackSyncChange('saved_setup', 'delete', formulaId, { savedType: 'leader_formula', formulaId });
+    await trackSyncChange('saved_leader_formula', 'delete', formulaId, { formulaId });
     await flushSyncChangesOrThrow(startedAt, 'Unable to remove this leader formula from shared data right now.');
     await refresh(activeUserId);
   },
@@ -747,14 +747,14 @@ export const createStoreActions = ({
     if (!activeUserId) throw new Error('No active user selected.');
     ensureUniqueSavedName(savedRigPresets, payload.name, 'Rig preset');
     const id = await createSavedRigPreset({ ...payload, name: payload.name.trim(), userId: activeUserId });
-    await trackSyncChange('saved_setup', 'create', id, payload);
+    await trackSyncChange('saved_rig_preset', 'create', id, payload);
     await refresh(activeUserId);
     return id;
   },
   deleteSavedRigPreset: async (presetId) => {
     await deleteSavedRigPreset(presetId);
     const startedAt = new Date().toISOString();
-    await trackSyncChange('saved_setup', 'delete', presetId, { savedType: 'rig_preset', presetId });
+    await trackSyncChange('saved_rig_preset', 'delete', presetId, { presetId });
     await flushSyncChangesOrThrow(startedAt, 'Unable to remove this rig preset from shared data right now.');
     await refresh(activeUserId);
   },
@@ -763,7 +763,7 @@ export const createStoreActions = ({
     if (!activeUserId) throw new Error('No active user selected.');
     ensureUniqueSavedName(savedRivers, name, 'River');
     const id = await createSavedRiver({ userId: activeUserId, name: name.trim() });
-    await trackSyncChange('saved_setup', 'create', id, { name });
+    await trackSyncChange('saved_river', 'create', id, { name });
     await refresh(activeUserId);
     return id;
   },

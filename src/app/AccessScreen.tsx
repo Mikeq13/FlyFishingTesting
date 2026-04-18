@@ -153,6 +153,7 @@ export const AccessScreen = ({ navigation }: any) => {
   });
   const currentUserSessions = React.useMemo(() => sessions.filter((session) => session.userId === currentUser?.id), [currentUser?.id, sessions]);
   const currentUserExperiments = React.useMemo(() => experiments.filter((experiment) => experiment.userId === currentUser?.id), [currentUser?.id, experiments]);
+  const sharedDataSettling = !!remoteSession && (remoteBootstrapState === 'resolving_local' || sharedDataStatus === 'loading');
   const incompleteSessions = React.useMemo(
     () => currentUserSessions.filter((session) => getSessionIntegrity(session.id).state === 'incomplete'),
     [currentUserSessions, getSessionIntegrity]
@@ -887,6 +888,9 @@ export const AccessScreen = ({ navigation }: any) => {
           summary: <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>Cleanup and local profile maintenance for {currentUser.name}.</Text>,
           children: (
             <View style={{ gap: 10 }}>
+              {sharedDataSettling ? (
+                <StatusBanner tone="info" text="Shared groups and invite visibility are still loading from the beta backend. Group lists may stay hidden until that finishes." />
+              ) : null}
               <AppButton
                 label="Review Problem Records"
                 onPress={openProblemRecordReview}
@@ -1044,42 +1048,49 @@ export const AccessScreen = ({ navigation }: any) => {
           subtitle: 'Normal group joining stays here, while owner-managed power-user invites stay clearly separated.',
           summary: (
             <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-              {joinedGroups.length} active groups - {problemGroups.length} problem group{problemGroups.length === 1 ? '' : 's'} - {isAuthenticatedOwner ? 'owner invites here' : 'owner-only invites'}
+              {sharedDataSettling
+                ? 'Shared groups are still loading from the beta backend.'
+                : `${joinedGroups.length} active groups - ${problemGroups.length} problem group${problemGroups.length === 1 ? '' : 's'} - ${isAuthenticatedOwner ? 'owner invites here' : 'owner-only invites'}`}
             </Text>
           ),
           children: (
-            <GroupsSharingSection
-              currentUserId={currentUser.id}
-              joinedGroups={joinedGroups}
-              joinedMemberships={joinedMemberships.filter((membership) => joinedGroups.some((group) => group.id === membership.groupId))}
-              groups={groups}
-              organizerGroups={organizerGroups}
-              sharePreferences={sharePreferences}
-              isAuthenticatedOwner={isAuthenticatedOwner}
-              newGroupName={newGroupName}
-              onNewGroupNameChange={setNewGroupName}
-              joinGroupCode={joinGroupCode}
-              onJoinGroupCodeChange={setJoinGroupCode}
-              inviteTargetGroupId={inviteTargetGroupId}
-              onInviteTargetGroupChange={setInviteTargetGroupId}
-              inviteTargetName={inviteTargetName}
-              onInviteTargetNameChange={setInviteTargetName}
-              inviteAcceptCode={inviteAcceptCode}
-              onInviteAcceptCodeChange={setInviteAcceptCode}
-              invites={invites}
-              sponsoredAccess={sponsoredAccess}
-              users={users}
-              onCreateGroup={saveGroup}
-              onJoinGroup={handleJoinGroup}
-              onUpdateSharePreference={updateSharePreference}
-              onCreateInvite={sendInvite}
-              onAcceptInvite={handleAcceptInvite}
-              onRevokeSponsoredAccess={revokeSponsoredAccess}
-              onLeaveGroup={leaveGroup}
-              onDeleteGroup={deleteGroup}
-              getSyncRecordState={getSyncRecordState}
-              embedded
-            />
+            <View style={{ gap: 10 }}>
+              {sharedDataSettling ? (
+                <StatusBanner tone="info" text="Waiting for shared groups, invites, and sponsored access to finish loading before showing the full group workspace." />
+              ) : null}
+              <GroupsSharingSection
+                currentUserId={currentUser.id}
+                joinedGroups={sharedDataSettling ? [] : joinedGroups}
+                joinedMemberships={sharedDataSettling ? [] : joinedMemberships.filter((membership) => joinedGroups.some((group) => group.id === membership.groupId))}
+                groups={sharedDataSettling ? groups.filter((group) => group.createdByUserId === currentUser.id) : groups}
+                organizerGroups={sharedDataSettling ? organizerGroups.filter((group) => group.createdByUserId === currentUser.id) : organizerGroups}
+                sharePreferences={sharedDataSettling ? [] : sharePreferences}
+                isAuthenticatedOwner={isAuthenticatedOwner}
+                newGroupName={newGroupName}
+                onNewGroupNameChange={setNewGroupName}
+                joinGroupCode={joinGroupCode}
+                onJoinGroupCodeChange={setJoinGroupCode}
+                inviteTargetGroupId={inviteTargetGroupId}
+                onInviteTargetGroupChange={setInviteTargetGroupId}
+                inviteTargetName={inviteTargetName}
+                onInviteTargetNameChange={setInviteTargetName}
+                inviteAcceptCode={inviteAcceptCode}
+                onInviteAcceptCodeChange={setInviteAcceptCode}
+                invites={sharedDataSettling ? [] : invites}
+                sponsoredAccess={sharedDataSettling ? [] : sponsoredAccess}
+                users={users}
+                onCreateGroup={saveGroup}
+                onJoinGroup={handleJoinGroup}
+                onUpdateSharePreference={updateSharePreference}
+                onCreateInvite={sendInvite}
+                onAcceptInvite={handleAcceptInvite}
+                onRevokeSponsoredAccess={revokeSponsoredAccess}
+                onLeaveGroup={leaveGroup}
+                onDeleteGroup={deleteGroup}
+                getSyncRecordState={getSyncRecordState}
+                embedded
+              />
+            </View>
           )
         })}
 
