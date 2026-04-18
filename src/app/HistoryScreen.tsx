@@ -18,7 +18,7 @@ import { getFormInputStyle } from '@/components/ui/FormField';
 export const HistoryScreen = ({ navigation, route }: any) => {
   useTheme();
   const layout = useResponsiveLayout();
-  const { sessions, experiments, users, activeUserId, archiveExperiment, deleteExperiment, cleanupExperimentsForCurrentUser } = useAppStore();
+  const { sessions, experiments, users, activeUserId, archiveExperiment, deleteExperiment, cleanupExperimentsForCurrentUser, cleanupSyncStatus, getSyncRecordState } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
   const initialModeFilter = route?.params?.modeFilter;
   const [riverFilter, setRiverFilter] = useState('');
@@ -179,6 +179,12 @@ export const HistoryScreen = ({ navigation, route }: any) => {
         </SectionCard>
 
         <SectionCard title="Cleanup Experiments" subtitle="Archive or delete old results without making the rest of history harder to scan." tone="light">
+          {cleanupSyncStatus.pendingDeleteCount ? (
+            <StatusBanner tone="info" text={`${cleanupSyncStatus.pendingDeleteCount} delete action${cleanupSyncStatus.pendingDeleteCount === 1 ? ' is' : 's are'} still syncing. Items stay hidden while cleanup finishes.`} />
+          ) : null}
+          {cleanupSyncStatus.failedDeleteCount ? (
+            <StatusBanner tone="warning" text={`${cleanupSyncStatus.failedDeleteCount} cleanup action${cleanupSyncStatus.failedDeleteCount === 1 ? ' needs' : 's need'} another retry. ${cleanupSyncStatus.lastFailedDeleteMessage ?? ''}`.trim()} />
+          ) : null}
           <TextInput value={cleanupFrom} onChangeText={setCleanupFrom} placeholder="From date (YYYY-MM-DD)" placeholderTextColor="#5a6c78" style={inputStyle} />
           <TextInput value={cleanupTo} onChangeText={setCleanupTo} placeholder="To date (YYYY-MM-DD)" placeholderTextColor="#5a6c78" style={inputStyle} />
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -233,6 +239,9 @@ export const HistoryScreen = ({ navigation, route }: any) => {
               <View style={{ marginTop: 4, gap: 4 }}>
                 <Text style={{ fontWeight: '700', color: appTheme.colors.textDark }}>Experiment history</Text>
                 {sessionExperiments.map((experiment) => {
+                  const cleanupState = getSyncRecordState('experiment', experiment.id);
+                  const isCleanupPending = cleanupState === 'pending_delete';
+                  const isCleanupFailed = cleanupState === 'failed_cleanup';
                   const entries = getExperimentEntries(experiment);
                   const experimentCasts = entries.reduce((sum, entry) => sum + entry.casts, 0);
                   const experimentCatches = entries.reduce((sum, entry) => sum + entry.catches, 0);
@@ -253,6 +262,8 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                       <InlineSummaryRow label="Hypothesis" value={experiment.hypothesis} tone="light" />
                       <InlineSummaryRow label="Control Focus" value={experiment.controlFocus} tone="light" />
                       <InlineSummaryRow label="Status" value={experiment.status === 'draft' ? 'Incomplete Entry' : 'Complete'} tone="light" />
+                      {isCleanupPending ? <InlineSummaryRow label="Cleanup" value="Pending delete" tone="light" /> : null}
+                      {isCleanupFailed ? <InlineSummaryRow label="Cleanup" value="Delete needs retry" tone="light" /> : null}
                       <InlineSummaryRow label="Outcome" value={experiment.outcome} tone="light" />
                       <InlineSummaryRow label="Winner" value={experiment.winner} tone="light" />
                       <Text style={{ color: appTheme.colors.textDarkSoft }}>Flies: {entries.map((entry) => `${entry.fly.name || entry.label} (#${entry.fly.hookSize}, ${entry.fly.beadColor}, ${entry.fly.beadSizeMm})`).join(', ')}</Text>
@@ -270,15 +281,15 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                       ) : null}
                       <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
                         <View style={{ flex: 1 }}>
-                          <AppButton label="Edit" onPress={() => navigation.navigate('Experiment', { sessionId: session.id, experimentId: experiment.id })} variant="secondary" />
+                          <AppButton label="Edit" onPress={() => navigation.navigate('Experiment', { sessionId: session.id, experimentId: experiment.id })} variant="secondary" disabled={isCleanupPending} />
                         </View>
                         {experiment.status !== 'draft' ? (
                           <View style={{ flex: 1 }}>
-                            <AppButton label="Archive" onPress={() => runSingleExperimentCleanup(experiment.id, 'archive')} variant="neutral" />
+                            <AppButton label={isCleanupPending ? 'Archiving...' : 'Archive'} onPress={() => runSingleExperimentCleanup(experiment.id, 'archive')} variant="neutral" disabled={isCleanupPending} />
                           </View>
                         ) : null}
                         <View style={{ flex: 1 }}>
-                          <AppButton label={experiment.status === 'draft' ? 'Delete Incomplete' : 'Delete'} onPress={() => runSingleExperimentCleanup(experiment.id, 'delete')} variant="danger" />
+                          <AppButton label={isCleanupPending ? 'Deleting...' : isCleanupFailed ? 'Retry Delete' : experiment.status === 'draft' ? 'Delete Incomplete' : 'Delete'} onPress={() => runSingleExperimentCleanup(experiment.id, 'delete')} variant="danger" disabled={isCleanupPending} />
                         </View>
                       </View>
                       {experiment.status === 'draft' ? (

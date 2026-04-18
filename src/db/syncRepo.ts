@@ -17,11 +17,46 @@ export const createSyncQueueEntry = async (
   };
 
   if (isWeb) {
+    const existing = payload.recordId == null
+      ? null
+      : listWebRows<SyncQueueEntry>(WEB_SYNC_QUEUE_KEY).find(
+          (row) =>
+            row.entityType === payload.entityType &&
+            row.recordId === payload.recordId &&
+            (row.status === 'pending' || row.status === 'failed')
+        );
+    if (existing) {
+      updateWebRows<SyncQueueEntry>(WEB_SYNC_QUEUE_KEY, (rows) =>
+        rows.map((row) => (row.id === existing.id ? { ...row, ...nextPayload } : row))
+      );
+      return { id: existing.id, ...nextPayload };
+    }
     const id = insertWebRow<SyncQueueEntry>(WEB_SYNC_QUEUE_KEY, WEB_SYNC_QUEUE_ID_KEY, nextPayload);
     return { id, ...nextPayload };
   }
 
   const db = await getDb();
+  if (payload.recordId != null) {
+    const existingRows = await db.getAllAsync<any>(
+      `SELECT id FROM sync_queue WHERE entity_type = ? AND record_id = ? AND status IN ('pending', 'failed') ORDER BY id DESC LIMIT 1`,
+      payload.entityType,
+      payload.recordId
+    );
+    const existing = existingRows[0];
+    if (existing) {
+      await db.runAsync(
+        `UPDATE sync_queue
+         SET operation = ?, payload_json = ?, status = ?, created_at = ?, synced_at = NULL, error_message = NULL
+         WHERE id = ?`,
+        nextPayload.operation,
+        nextPayload.payloadJson,
+        nextPayload.status,
+        nextPayload.createdAt,
+        existing.id
+      );
+      return { id: existing.id, ...nextPayload };
+    }
+  }
   const result = await db.runAsync(
     `INSERT INTO sync_queue (entity_type, operation, record_id, payload_json, status, created_at, synced_at, error_message)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,

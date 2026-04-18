@@ -21,8 +21,10 @@ import {
   PendingTotpEnrollment,
   RemoteSessionSnapshot,
   SponsoredAccess,
+  SyncCleanupState,
   SyncQueueEntry,
-  SyncStatusSnapshot
+  SyncStatusSnapshot,
+  CleanupSyncStatus
 } from '@/types/remote';
 import { TopFlyRecord } from '@/engine/topFlyEngine';
 import { NotificationPermissionStatus, SharedDataStatus } from '@/types/appState';
@@ -63,6 +65,7 @@ export interface AppStore {
   sponsoredAccess: SponsoredAccess[];
   syncQueue: SyncQueueEntry[];
   syncStatus: SyncStatusSnapshot;
+  cleanupSyncStatus: CleanupSyncStatus;
   sharedDataStatus: SharedDataStatus;
   notificationPermissionStatus: NotificationPermissionStatus;
   authStatus: AuthStatus;
@@ -122,6 +125,11 @@ export interface AppStore {
   clearUserAccess: (userId: number) => Promise<void>;
   clearFishingDataForUser: (userId: number) => Promise<void>;
   clearUserDataCategories: (userId: number, categories: UserDataCleanupCategory[]) => Promise<void>;
+  getSyncRecordState: (
+    entityType: SyncQueueEntry['entityType'],
+    recordId: number,
+    options?: { savedType?: 'fly' | 'leader_formula' | 'rig_preset' | 'river' }
+  ) => SyncCleanupState;
   deleteAngler: (userId: number) => Promise<void>;
   archiveExperiment: (experimentId: number) => Promise<void>;
   deleteExperiment: (experimentId: number) => Promise<void>;

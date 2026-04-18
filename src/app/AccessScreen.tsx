@@ -47,6 +47,7 @@ export const AccessScreen = ({ navigation }: any) => {
     currentEntitlementLabel,
     currentHasPremiumAccess,
     syncStatus,
+    cleanupSyncStatus,
     sharedDataStatus,
     notificationPermissionStatus,
     authStatus,
@@ -74,6 +75,7 @@ export const AccessScreen = ({ navigation }: any) => {
     clearFishingDataForUser,
     clearUserDataCategories,
     deleteAngler,
+    getSyncRecordState,
     groups,
     groupMemberships,
     sharePreferences,
@@ -335,14 +337,14 @@ export const AccessScreen = ({ navigation }: any) => {
   };
 
   const cleanupConfig: Array<{ key: UserDataCleanupCategory; label: string; description: string; destructive?: boolean }> = [
-    { key: 'experiments', label: 'Clear Experiments', description: 'Removes experiment results but keeps sessions, saved flies, and saved rivers.' },
-    { key: 'sessions', label: 'Clear Sessions', description: 'Removes sessions and their linked experiments, but keeps saved flies and saved rivers.' },
-    { key: 'flies', label: 'Clear Saved Flies', description: 'Removes saved flies but keeps sessions, experiments, and saved rivers.' },
-    { key: 'formulas', label: 'Clear Leader Formulas', description: 'Removes saved leader formulas but keeps sessions, experiments, flies, and saved rivers.' },
-    { key: 'rig_presets', label: 'Clear Rig Presets', description: 'Removes saved rig presets but keeps sessions, experiments, flies, and leader formulas.' },
-    { key: 'rivers', label: 'Clear Saved Rivers', description: 'Removes saved rivers but keeps sessions, experiments, and saved flies.' },
-    { key: 'groups', label: 'Clear Groups', description: 'Removes groups you own, leaves groups you joined, and clears related sharing or invite records tied to those groups.' },
-    { key: 'all', label: 'Clear Everything', description: 'Removes sessions, experiments, saved flies, saved leader formulas, saved rig presets, and saved rivers for this profile.', destructive: true }
+    { key: 'experiments', label: 'Clear Experiments', description: 'Deletes synced and local experiment records for this profile, but keeps sessions and saved setups.' },
+    { key: 'sessions', label: 'Clear Sessions', description: 'Deletes this profile’s synced and local sessions, linked experiments, and catch logs.' },
+    { key: 'flies', label: 'Clear Saved Flies', description: 'Deletes this profile’s saved fly library from local storage and shared sync.' },
+    { key: 'formulas', label: 'Clear Leader Formulas', description: 'Deletes this profile’s saved leader formulas from local storage and shared sync.' },
+    { key: 'rig_presets', label: 'Clear Rig Presets', description: 'Deletes this profile’s saved rig presets from local storage and shared sync.' },
+    { key: 'rivers', label: 'Clear Saved Rivers', description: 'Deletes this profile’s saved rivers from local storage and shared sync.' },
+    { key: 'groups', label: 'Clear Groups', description: 'Deletes groups this profile owns, leaves joined groups, and removes related sharing or invite records tied to this angler.' },
+    { key: 'all', label: 'Clear Everything', description: 'Deletes this profile’s owned sessions, experiments, saved setups, groups, and related synced records.', destructive: true }
   ];
 
   const renderCleanupActions = (userId: number, userName: string) => (
@@ -505,7 +507,7 @@ export const AccessScreen = ({ navigation }: any) => {
 
     confirmAdminAction(
       `${item.label}?`,
-      `${item.description} This only affects ${userName} on this device.`,
+      `${item.description} Joined shared records owned by other anglers are detached instead of globally deleted.`,
       () => (item.key === 'all' ? clearFishingDataForUser(userId) : clearUserDataCategories(userId, [item.key])),
       `${item.label.replace('Clear ', '')} finished for ${userName}.`
     );
@@ -748,6 +750,7 @@ export const AccessScreen = ({ navigation }: any) => {
             <LocalDataSection
               isOwner={currentUser.role === 'owner'}
               cleanupActions={renderCleanupActions(currentUser.id, currentUser.name)}
+              cleanupStatus={cleanupSyncStatus}
               onDeleteProfile={deleteCurrentProfile}
               embedded
             />
@@ -793,6 +796,7 @@ export const AccessScreen = ({ navigation }: any) => {
               onRevokeSponsoredAccess={revokeSponsoredAccess}
               onLeaveGroup={leaveGroup}
               onDeleteGroup={deleteGroup}
+              getSyncRecordState={getSyncRecordState}
               embedded
             />
           )

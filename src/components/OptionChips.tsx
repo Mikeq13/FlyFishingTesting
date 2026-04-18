@@ -8,9 +8,10 @@ interface OptionChipsProps<T extends string> {
   value?: T | null;
   onChange: (value: T) => void;
   tone?: 'dark' | 'light';
+  disabled?: boolean;
 }
 
-export const OptionChips = <T extends string>({ label, options, value, onChange, tone = 'dark' }: OptionChipsProps<T>) => {
+export const OptionChips = <T extends string>({ label, options, value, onChange, tone = 'dark', disabled = false }: OptionChipsProps<T>) => {
   const { theme } = useTheme();
 
   return (
@@ -20,14 +21,20 @@ export const OptionChips = <T extends string>({ label, options, value, onChange,
         {options.map((option, index) => (
           <Pressable
             key={`${option}-${index}`}
-            onPress={() => onChange(option)}
+            onPress={() => {
+              if (!disabled) {
+                onChange(option);
+              }
+            }}
+            disabled={disabled}
             style={{
               paddingHorizontal: 12,
               paddingVertical: 8,
               borderRadius: theme.radius.pill,
               borderWidth: 1,
               borderColor: value === option ? theme.colors.chipSelectedBorder : theme.colors.chipBorder,
-              backgroundColor: value === option ? theme.colors.chipSelectedBg : theme.colors.chipBg
+              backgroundColor: value === option ? theme.colors.chipSelectedBg : theme.colors.chipBg,
+              opacity: disabled ? 0.55 : 1
             }}
           >
             <Text style={{ color: value === option ? theme.colors.chipSelectedText : theme.colors.chipText, fontWeight: '700' }}>{option}</Text>

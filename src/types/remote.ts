@@ -1,6 +1,7 @@
 export type InviteStatus = 'pending' | 'accepted' | 'revoked' | 'expired';
 export type InviteGrantType = 'power_user_group';
 export type SyncQueueStatus = 'pending' | 'synced' | 'failed';
+export type SyncCleanupState = 'active' | 'pending_delete' | 'failed_cleanup';
 export type AuthStatus =
   | 'unauthenticated'
   | 'authenticating'
@@ -103,6 +104,12 @@ export interface SyncStatusSnapshot {
   syncedCount: number;
   lastSyncedAt?: string | null;
   lastError?: string | null;
+}
+
+export interface CleanupSyncStatus {
+  pendingDeleteCount: number;
+  failedDeleteCount: number;
+  lastFailedDeleteMessage?: string | null;
 }
 
 export interface RemoteEntityMaps {

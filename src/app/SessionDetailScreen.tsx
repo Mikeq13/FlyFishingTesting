@@ -11,7 +11,7 @@ import { StatusBanner } from '@/components/ui/StatusBanner';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 
 export const SessionDetailScreen = ({ route, navigation }: any) => {
-  const { sessions, experiments, users, activeUserId, archiveExperiment, deleteExperiment } = useAppStore();
+  const { sessions, experiments, users, activeUserId, archiveExperiment, deleteExperiment, cleanupSyncStatus, getSyncRecordState } = useAppStore();
   const sessionId = route?.params?.sessionId as number;
   const activeUser = users.find((user) => user.id === activeUserId);
 
@@ -76,7 +76,17 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
         )}
 
         <SectionCard title={`Experiments In This Session: ${sessionExperiments.length}`} subtitle="Review each experiment cleanly before editing, archiving, or deleting." tone="light">
-        {sessionExperiments.map((e) => (
+        {cleanupSyncStatus.pendingDeleteCount ? (
+          <StatusBanner tone="info" text={`${cleanupSyncStatus.pendingDeleteCount} cleanup action${cleanupSyncStatus.pendingDeleteCount === 1 ? ' is' : 's are'} still syncing.`} />
+        ) : null}
+        {cleanupSyncStatus.failedDeleteCount ? (
+          <StatusBanner tone="warning" text={`${cleanupSyncStatus.failedDeleteCount} cleanup action${cleanupSyncStatus.failedDeleteCount === 1 ? ' needs' : 's need'} another retry. ${cleanupSyncStatus.lastFailedDeleteMessage ?? ''}`.trim()} />
+        ) : null}
+        {sessionExperiments.map((e) => {
+          const cleanupState = getSyncRecordState('experiment', e.id);
+          const isCleanupPending = cleanupState === 'pending_delete';
+          const isCleanupFailed = cleanupState === 'failed_cleanup';
+          return (
           <View
             key={e.id}
             style={{
@@ -89,6 +99,8 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
             }}
           >
             <Text style={{ fontWeight: '800', color: '#102a43' }}>#{e.id} Status: {e.status === 'draft' ? 'Draft' : 'Complete'}</Text>
+            {isCleanupPending ? <InlineSummaryRow label="Cleanup" value="Pending delete" tone="light" /> : null}
+            {isCleanupFailed ? <InlineSummaryRow label="Cleanup" value="Delete needs retry" tone="light" /> : null}
             <InlineSummaryRow label="Outcome" value={e.outcome} tone="light" />
             <InlineSummaryRow label="Winner" value={e.winner} tone="light" />
             <InlineSummaryRow label="Hypothesis" value={e.hypothesis} tone="light" />
@@ -107,19 +119,20 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
             ))}
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
               <View style={{ flex: 1 }}>
-                <AppButton label="Edit" onPress={() => navigation.navigate('Experiment', { sessionId, experimentId: e.id })} variant="secondary" />
+                <AppButton label="Edit" onPress={() => navigation.navigate('Experiment', { sessionId, experimentId: e.id })} variant="secondary" disabled={isCleanupPending} />
               </View>
               {e.status !== 'draft' ? (
                 <View style={{ flex: 1 }}>
-                  <AppButton label="Archive" onPress={() => runSingleExperimentCleanup(e.id, 'archive')} variant="neutral" />
+                  <AppButton label={isCleanupPending ? 'Archiving...' : 'Archive'} onPress={() => runSingleExperimentCleanup(e.id, 'archive')} variant="neutral" disabled={isCleanupPending} />
                 </View>
               ) : null}
               <View style={{ flex: 1 }}>
-                <AppButton label={e.status === 'draft' ? 'Delete Draft' : 'Delete'} onPress={() => runSingleExperimentCleanup(e.id, 'delete')} variant="danger" />
+                <AppButton label={isCleanupPending ? 'Deleting...' : isCleanupFailed ? 'Retry Delete' : e.status === 'draft' ? 'Delete Draft' : 'Delete'} onPress={() => runSingleExperimentCleanup(e.id, 'delete')} variant="danger" disabled={isCleanupPending} />
               </View>
             </View>
           </View>
-        ))}
+          );
+        })}
         </SectionCard>
 
         <AppButton label="Add Another Experiment" onPress={() => navigation.navigate('Experiment', { sessionId })} />

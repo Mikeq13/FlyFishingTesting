@@ -39,6 +39,7 @@ export const GroupsSharingSection = ({
   onRevokeSponsoredAccess,
   onLeaveGroup,
   onDeleteGroup,
+  getSyncRecordState,
   embedded = false
 }: {
   currentUserId: number;
@@ -69,6 +70,11 @@ export const GroupsSharingSection = ({
   onRevokeSponsoredAccess: (id: number) => Promise<void>;
   onLeaveGroup: (groupId: number) => Promise<{ membershipId: number; groupId: number; deletedGroup: boolean }>;
   onDeleteGroup: (groupId: number) => Promise<void>;
+  getSyncRecordState: (
+    entityType: 'group' | 'group_membership' | 'saved_setup' | 'session' | 'experiment',
+    recordId: number,
+    options?: { savedType?: 'fly' | 'leader_formula' | 'rig_preset' | 'river' }
+  ) => 'active' | 'pending_delete' | 'failed_cleanup';
   embedded?: boolean;
 }) => {
   const { theme } = useTheme();
@@ -150,6 +156,11 @@ export const GroupsSharingSection = ({
       {joinedGroups.map((group) => {
         const pref = sharePreferences.find((item) => item.groupId === group.id && item.userId === currentUserId);
         const membership = joinedMemberships.find((item) => item.groupId === group.id);
+        const groupCleanupState = getSyncRecordState('group', group.id);
+        const membershipCleanupState = membership ? getSyncRecordState('group_membership', membership.id) : 'active';
+        const cleanupState = groupCleanupState !== 'active' ? groupCleanupState : membershipCleanupState;
+        const isCleanupPending = cleanupState === 'pending_delete';
+        const isCleanupFailed = cleanupState === 'failed_cleanup';
         return (
           <View
             key={group.id}
@@ -165,6 +176,16 @@ export const GroupsSharingSection = ({
             <Text style={{ color: theme.colors.textDark, fontWeight: '800' }}>{group.name}</Text>
             <InlineSummaryRow label="Join Code" value={group.joinCode} tone="light" />
             <InlineSummaryRow label="Role" value={membership?.role ?? 'member'} tone="light" />
+            {isCleanupPending ? (
+              <Text style={{ color: theme.colors.textDarkSoft }}>
+                Cleanup pending: this group is being removed from your active view while shared delete finishes syncing.
+              </Text>
+            ) : null}
+            {isCleanupFailed ? (
+              <Text style={{ color: theme.colors.danger }}>
+                Cleanup failed: this group is hidden from normal use, but the shared delete needs another retry.
+              </Text>
+            ) : null}
             {([
               ['Journal Entries', 'shareJournalEntries'],
               ['Practice Sessions', 'sharePracticeSessions'],
@@ -177,6 +198,7 @@ export const GroupsSharingSection = ({
                 options={['On', 'Off'] as const}
                 value={pref && pref[key] ? 'On' : 'Off'}
                 tone="light"
+                disabled={isCleanupPending}
                 onChange={(option) =>
                   onUpdateSharePreference(group.id, {
                     shareJournalEntries: pref?.shareJournalEntries ?? false,
@@ -191,7 +213,7 @@ export const GroupsSharingSection = ({
             <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
               {membership?.role !== 'organizer' ? (
                 <AppButton
-                  label="Leave Group"
+                  label={isCleanupPending ? 'Leaving...' : isCleanupFailed ? 'Retry Leave Group' : 'Leave Group'}
                   onPress={() => {
                     Alert.alert('Leave this group?', `You will stop sharing with ${group.name}. If you are the last member, the group will be removed.`, [
                       { text: 'Cancel', style: 'cancel' },
@@ -210,11 +232,12 @@ export const GroupsSharingSection = ({
                   }}
                   variant="neutral"
                   surfaceTone="light"
+                  disabled={isCleanupPending}
                 />
               ) : null}
               {membership?.role === 'organizer' ? (
                 <AppButton
-                  label="Delete Group"
+                  label={isCleanupPending ? 'Deleting...' : isCleanupFailed ? 'Retry Delete Group' : 'Delete Group'}
                   onPress={() => {
                     Alert.alert('Delete this group?', `${group.name} and its related sharing records will be removed for everyone in the group.`, [
                       { text: 'Cancel', style: 'cancel' },
@@ -233,6 +256,7 @@ export const GroupsSharingSection = ({
                   }}
                   variant="danger"
                   surfaceTone="light"
+                  disabled={isCleanupPending}
                 />
               ) : null}
             </View>

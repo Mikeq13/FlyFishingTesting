@@ -8,11 +8,17 @@ import { useTheme } from '@/design/theme';
 export const LocalDataSection = ({
   isOwner,
   cleanupActions,
+  cleanupStatus,
   onDeleteProfile,
   embedded = false
 }: {
   isOwner: boolean;
   cleanupActions: React.ReactNode;
+  cleanupStatus?: {
+    pendingDeleteCount: number;
+    failedDeleteCount: number;
+    lastFailedDeleteMessage?: string | null;
+  };
   onDeleteProfile: () => Promise<void>;
   embedded?: boolean;
 }) => {
@@ -21,8 +27,23 @@ export const LocalDataSection = ({
   const content = (
   <>
     <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-      Clean up local fishing data for the active profile without affecting other anglers on this device.
+      Clean up local and synced owned fishing data for the active profile. Joined shared records are detached instead of globally deleted.
     </Text>
+    {cleanupStatus?.pendingDeleteCount ? (
+      <View style={{ backgroundColor: theme.colors.nestedSurface, borderRadius: 12, padding: 10, borderWidth: 1, borderColor: theme.colors.nestedSurfaceBorder }}>
+        <Text style={{ color: theme.colors.textDarkSoft }}>
+          Cleanup in progress: {cleanupStatus.pendingDeleteCount} item{cleanupStatus.pendingDeleteCount === 1 ? '' : 's'} still waiting to delete from shared data.
+        </Text>
+      </View>
+    ) : null}
+    {cleanupStatus?.failedDeleteCount ? (
+      <View style={{ backgroundColor: theme.colors.nestedSurface, borderRadius: 12, padding: 10, borderWidth: 1, borderColor: theme.colors.errorBorder }}>
+        <Text style={{ color: theme.colors.textDarkSoft }}>
+          Cleanup needs attention: {cleanupStatus.failedDeleteCount} delete {cleanupStatus.failedDeleteCount === 1 ? 'action has' : 'actions have'} failed and will retry.
+          {cleanupStatus.lastFailedDeleteMessage ? ` Last error: ${cleanupStatus.lastFailedDeleteMessage}` : ''}
+        </Text>
+      </View>
+    ) : null}
     <ActionGroup>{cleanupActions}</ActionGroup>
     {!isOwner ? (
       <AppButton

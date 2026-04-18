@@ -24,7 +24,7 @@ import { createTrialWindow, getEntitlementLabel, hasPremiumAccess } from '@/engi
 import { generateInsights } from '@/engine/insightEngine';
 import { buildTopFlyInsights, buildTopFlyRecords, TopFlyRecord } from '@/engine/topFlyEngine';
 import { AccessLevel, SubscriptionStatus } from '@/types/user';
-import { AuthStatus, Invite, MfaFactorSummary, PendingTotpEnrollment, RemoteSessionSnapshot, SponsoredAccess, SyncQueueEntry, SyncStatusSnapshot } from '@/types/remote';
+import { AuthStatus, CleanupSyncStatus, Invite, MfaFactorSummary, PendingTotpEnrollment, RemoteSessionSnapshot, SponsoredAccess, SyncCleanupState, SyncQueueEntry, SyncStatusSnapshot } from '@/types/remote';
 import {
   bootstrapLocalApp,
   enqueueLocalSyncChange,
@@ -206,6 +206,31 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     if (!pendingDeleteIds.size) return records;
     return records.filter((record) => !pendingDeleteIds.has(record.id));
   };
+
+  const getSyncRecordState = React.useCallback<AppStore['getSyncRecordState']>(
+    (entityType, recordId, options) => {
+      const matchingEntries = syncQueue.filter((entry) => {
+        if (entry.entityType !== entityType || entry.operation !== 'delete' || entry.recordId !== recordId) {
+          return false;
+        }
+        if (entityType !== 'saved_setup' || !options?.savedType) {
+          return true;
+        }
+        try {
+          const payload = JSON.parse(entry.payloadJson || '{}') as { savedType?: string };
+          return payload.savedType === options.savedType;
+        } catch {
+          return false;
+        }
+      });
+      const failedEntry = matchingEntries.find((entry) => entry.status === 'failed');
+      if (failedEntry) return 'failed_cleanup';
+      const pendingEntry = matchingEntries.find((entry) => entry.status === 'pending');
+      if (pendingEntry) return 'pending_delete';
+      return 'active';
+    },
+    [syncQueue]
+  );
 
   const refresh = async (targetUserId?: number | null, options?: { includeRemote?: boolean }) => {
     const loaded = await loadLocalAppData(targetUserId ?? activeUserId);
@@ -760,6 +785,15 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       lastError: lastSyncError
     };
   }, [isSyncing, lastSyncError, syncQueue]);
+  const cleanupSyncStatus = useMemo<CleanupSyncStatus>(() => {
+    const deleteEntries = syncQueue.filter((entry) => entry.operation === 'delete');
+    const failedDeleteEntries = deleteEntries.filter((entry) => entry.status === 'failed');
+    return {
+      pendingDeleteCount: deleteEntries.filter((entry) => entry.status === 'pending').length,
+      failedDeleteCount: failedDeleteEntries.length,
+      lastFailedDeleteMessage: failedDeleteEntries[0]?.errorMessage ?? null
+    };
+  }, [syncQueue]);
 
   const trackSyncChange = async (
     entityType: SyncQueueEntry['entityType'],
@@ -867,6 +901,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         sponsoredAccess,
         syncQueue,
         syncStatus,
+        cleanupSyncStatus,
         sharedDataStatus,
         notificationPermissionStatus,
         authStatus,
@@ -881,6 +916,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         pendingTotpEnrollment,
         mfaAssuranceLevel,
         activeUserId,
+        getSyncRecordState,
         ...actions
       }}
     >
