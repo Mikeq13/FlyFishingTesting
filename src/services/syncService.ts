@@ -16,7 +16,7 @@ import { Session, SavedRiver } from '@/types/session';
 import { UserProfile } from '@/types/user';
 import { supabase } from './supabaseClient';
 import { LoadedLocalAppData } from './localAppDataService';
-import { getSyncMetadataEntry, upsertSyncMetadataEntry } from '@/db/syncMetadataRepo';
+import { deleteSyncMetadataEntry, getSyncMetadataEntry, upsertSyncMetadataEntry } from '@/db/syncMetadataRepo';
 import { updateSyncQueueEntry } from '@/db/syncRepo';
 
 type SyncContext = {
@@ -40,6 +40,10 @@ const findRemoteId = async (entityType: SyncEntityType, localRecordId: number) =
   return metadata?.remoteRecordId ?? null;
 };
 
+const clearSyncMetadata = async (entityType: SyncEntityType, localRecordId: number) => {
+  await deleteSyncMetadataEntry(entityType, localRecordId);
+};
+
 const upsertOwnedRow = async (
   table: string,
   ownerAuthUserId: string,
@@ -60,6 +64,22 @@ const upsertOwnedRow = async (
     .single();
   if (error) throw error;
   return data?.id as string | undefined;
+};
+
+const deleteOwnedRow = async (
+  table: string,
+  ownerAuthUserId: string,
+  localRecordId: number,
+  remoteRecordId?: string | null
+) => {
+  let query = supabase.from(table).delete();
+  if (remoteRecordId) {
+    query = query.eq('id', remoteRecordId);
+  } else {
+    query = query.eq('owner_auth_user_id', ownerAuthUserId).eq('local_record_id', localRecordId);
+  }
+  const { error } = await query;
+  if (error) throw error;
 };
 
 const syncProfile = async ({ currentUser, remoteAuthUserId }: SyncContext) => {
@@ -369,6 +389,153 @@ const syncExperiment = async (context: SyncContext, experiment: Experiment) => {
   await recordSyncSuccess('experiment', experiment.id, remoteId);
 };
 
+const deleteRemoteSavedSetup = async (context: SyncContext, entry: SyncQueueEntry) => {
+  const payload = JSON.parse(entry.payloadJson || '{}') as { savedType?: string };
+  const recordId = entry.recordId;
+  if (!recordId) return;
+  const remoteId = await findRemoteId('saved_setup', recordId);
+  const table =
+    payload.savedType === 'fly'
+      ? 'saved_flies'
+      : payload.savedType === 'leader_formula'
+        ? 'saved_leader_formulas'
+        : payload.savedType === 'rig_preset'
+          ? 'saved_rig_presets'
+          : payload.savedType === 'river'
+            ? 'saved_rivers'
+            : null;
+
+  if (!table) {
+    throw new Error('Saved setup delete is missing its setup type.');
+  }
+
+  await deleteOwnedRow(table, context.remoteAuthUserId, recordId, remoteId);
+  await clearSyncMetadata('saved_setup', recordId);
+};
+
+const deleteRemoteEntity = async (context: SyncContext, entry: SyncQueueEntry) => {
+  if (!entry.recordId && entry.entityType !== 'profile') return;
+
+  switch (entry.entityType) {
+    case 'group':
+      await deleteOwnedRow('groups', context.remoteAuthUserId, entry.recordId!, await findRemoteId('group', entry.recordId!));
+      await clearSyncMetadata('group', entry.recordId!);
+      return;
+    case 'group_membership':
+      await deleteOwnedRow(
+        'group_memberships',
+        context.remoteAuthUserId,
+        entry.recordId!,
+        await findRemoteId('group_membership', entry.recordId!)
+      );
+      await clearSyncMetadata('group_membership', entry.recordId!);
+      return;
+    case 'share_preference':
+      await deleteOwnedRow(
+        'share_preferences',
+        context.remoteAuthUserId,
+        entry.recordId!,
+        await findRemoteId('share_preference', entry.recordId!)
+      );
+      await clearSyncMetadata('share_preference', entry.recordId!);
+      return;
+    case 'invite':
+      await deleteOwnedRow('invites', context.remoteAuthUserId, entry.recordId!, await findRemoteId('invite', entry.recordId!));
+      await clearSyncMetadata('invite', entry.recordId!);
+      return;
+    case 'sponsored_access':
+      await deleteOwnedRow(
+        'sponsored_access',
+        context.remoteAuthUserId,
+        entry.recordId!,
+        await findRemoteId('sponsored_access', entry.recordId!)
+      );
+      await clearSyncMetadata('sponsored_access', entry.recordId!);
+      return;
+    case 'competition_assignment':
+      await deleteOwnedRow(
+        'competition_session_assignments',
+        context.remoteAuthUserId,
+        entry.recordId!,
+        await findRemoteId('competition_assignment', entry.recordId!)
+      );
+      await clearSyncMetadata('competition_assignment', entry.recordId!);
+      return;
+    case 'competition_participant':
+      await deleteOwnedRow(
+        'competition_participants',
+        context.remoteAuthUserId,
+        entry.recordId!,
+        await findRemoteId('competition_participant', entry.recordId!)
+      );
+      await clearSyncMetadata('competition_participant', entry.recordId!);
+      return;
+    case 'competition_session':
+      await deleteOwnedRow(
+        'competition_sessions',
+        context.remoteAuthUserId,
+        entry.recordId!,
+        await findRemoteId('competition_session', entry.recordId!)
+      );
+      await clearSyncMetadata('competition_session', entry.recordId!);
+      return;
+    case 'competition_group':
+      await deleteOwnedRow(
+        'competition_groups',
+        context.remoteAuthUserId,
+        entry.recordId!,
+        await findRemoteId('competition_group', entry.recordId!)
+      );
+      await clearSyncMetadata('competition_group', entry.recordId!);
+      return;
+    case 'competition':
+      await deleteOwnedRow(
+        'competitions',
+        context.remoteAuthUserId,
+        entry.recordId!,
+        await findRemoteId('competition', entry.recordId!)
+      );
+      await clearSyncMetadata('competition', entry.recordId!);
+      return;
+    case 'catch_event':
+      await deleteOwnedRow(
+        'catch_events',
+        context.remoteAuthUserId,
+        entry.recordId!,
+        await findRemoteId('catch_event', entry.recordId!)
+      );
+      await clearSyncMetadata('catch_event', entry.recordId!);
+      return;
+    case 'session_segment':
+      await deleteOwnedRow(
+        'session_segments',
+        context.remoteAuthUserId,
+        entry.recordId!,
+        await findRemoteId('session_segment', entry.recordId!)
+      );
+      await clearSyncMetadata('session_segment', entry.recordId!);
+      return;
+    case 'experiment':
+      await deleteOwnedRow(
+        'experiments',
+        context.remoteAuthUserId,
+        entry.recordId!,
+        await findRemoteId('experiment', entry.recordId!)
+      );
+      await clearSyncMetadata('experiment', entry.recordId!);
+      return;
+    case 'session':
+      await deleteOwnedRow('sessions', context.remoteAuthUserId, entry.recordId!, await findRemoteId('session', entry.recordId!));
+      await clearSyncMetadata('session', entry.recordId!);
+      return;
+    case 'saved_setup':
+      await deleteRemoteSavedSetup(context, entry);
+      return;
+    default:
+      return;
+  }
+};
+
 const syncSavedSetup = async (
   context: SyncContext,
   localRecordId: number,
@@ -425,6 +592,16 @@ export const syncQueueToSupabase = async (
 
   for (const entry of queueEntries.filter((item) => item.status !== 'synced').sort((left, right) => left.createdAt.localeCompare(right.createdAt))) {
     try {
+      if (entry.operation === 'delete') {
+        await deleteRemoteEntity(context, entry);
+        await updateSyncQueueEntry(entry.id, {
+          status: 'synced',
+          syncedAt: new Date().toISOString(),
+          errorMessage: null
+        });
+        continue;
+      }
+
       switch (entry.entityType) {
         case 'profile':
           await syncProfile(context);
@@ -506,7 +683,14 @@ export const syncQueueToSupabase = async (
         case 'experiment':
           if (entry.recordId) {
             const experiment = context.loaded.experiments.find((item) => item.id === entry.recordId);
-            if (experiment) await syncExperiment(context, experiment);
+            if (experiment) {
+              await syncExperiment(context, experiment);
+            } else {
+              const payload = JSON.parse(entry.payloadJson) as Partial<Experiment>;
+              if (payload.sessionId && payload.hypothesis && Array.isArray(payload.flyEntries)) {
+                await syncExperiment(context, payload as Experiment);
+              }
+            }
           }
           break;
         case 'saved_setup':

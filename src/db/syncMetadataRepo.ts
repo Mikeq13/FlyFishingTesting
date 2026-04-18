@@ -86,6 +86,22 @@ export const getSyncMetadataEntry = async (
   return entries.find((entry) => entry.entityType === entityType && entry.localRecordId === localRecordId) ?? null;
 };
 
+export const deleteSyncMetadataEntry = async (
+  entityType: SyncEntityType,
+  localRecordId: number
+): Promise<void> => {
+  if (isWeb) {
+    deleteWebRows<SyncMetadataEntry>(
+      WEB_SYNC_METADATA_KEY,
+      (row) => row.entityType === entityType && row.localRecordId === localRecordId
+    );
+    return;
+  }
+
+  const db = await getDb();
+  await db.runAsync('DELETE FROM sync_metadata WHERE entity_type = ? AND local_record_id = ?', entityType, localRecordId);
+};
+
 export const deleteAllSyncMetadataEntries = async (): Promise<void> => {
   if (isWeb) {
     deleteWebRows<SyncMetadataEntry>(WEB_SYNC_METADATA_KEY, () => true);

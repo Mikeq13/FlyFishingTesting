@@ -482,7 +482,10 @@ export const flushLocalSyncQueue = async () => {
   await markAllPendingSyncEntriesAsSynced();
 };
 
-export const clearLocalFishingDataForUser = async (userId: number) => {
+export const clearLocalFishingDataForUser = async (
+  userId: number,
+  options: { preserveSyncQueue?: boolean } = {}
+) => {
   await deleteCatchEventsForUser(userId);
   await deleteSessionSegmentsForUser(userId);
   await deleteExperimentsForUser(userId);
@@ -494,12 +497,14 @@ export const clearLocalFishingDataForUser = async (userId: number) => {
   await deleteSavedRigPresetsForUser(userId);
   await deleteSavedRiversForUser(userId);
   await deleteAccessRecordsForUser(userId);
-  await deleteSyncQueueEntriesForUserReset();
+  if (!options.preserveSyncQueue) {
+    await deleteSyncQueueEntriesForUserReset();
+  }
 };
 
 export const clearLocalUserDataCategories = async (userId: number, categories: UserDataCleanupCategory[]) => {
   const targets = categories.includes('all')
-    ? ['experiments', 'sessions', 'flies', 'formulas', 'rig_presets', 'rivers']
+    ? ['experiments', 'sessions', 'flies', 'formulas', 'rig_presets', 'rivers', 'groups']
     : categories;
 
   if (targets.includes('sessions')) {

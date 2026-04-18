@@ -69,7 +69,7 @@ export const fetchRemoteSharedDataSnapshot = async (
   );
   const accessibleExperiments = experimentRows.map((row) =>
     mapRemoteExperiment(row, currentAuthUserId, accessSnapshot.entityMaps, sessionIdByRemoteId)
-  );
+  ).filter((experiment) => !experiment.archivedAt);
 
   return {
     ownedSessions: accessibleSessions.filter((session) => session.userId === accessSnapshot.entityMaps.userIdByAuthId.get(currentAuthUserId)),

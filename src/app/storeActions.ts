@@ -1,6 +1,6 @@
 import { createTrialWindow } from '@/engine/entitlementEngine';
 import { isWithinDateRange } from '@/utils/dateRange';
-import { archiveExperiments, createExperiment, deleteExperiments, updateExperiment } from '@/db/experimentRepo';
+import { archiveExperiments, createExperiment, deleteExperiments, listExperiments, updateExperiment } from '@/db/experimentRepo';
 import { createUser, listUsers, updateUser as updateLocalUser } from '@/db/userRepo';
 import { createSavedFly } from '@/db/savedFlyRepo';
 import { createSavedLeaderFormula, deleteSavedLeaderFormula } from '@/db/savedLeaderFormulaRepo';
@@ -200,6 +200,132 @@ export const createStoreActions = ({
     if (entries.some((entry) => normalizeSavedName(entry.name) === normalizedName)) {
       throw new Error(`${label} "${name.trim()}" already exists.`);
     }
+  };
+
+  const flushSyncChangesOrThrow = async (startedAt: string, fallbackMessage: string) => {
+    if (!remoteSession) return;
+    await flushSyncQueueInternal();
+    const loadedAfterFlush = await loadLocalAppData(activeUserId);
+    const cleanupFailures = loadedAfterFlush.syncQueue.filter(
+      (entry) => entry.status === 'failed' && entry.createdAt >= startedAt
+    );
+    if (cleanupFailures.length) {
+      throw new Error(fallbackMessage);
+    }
+  };
+
+  const queueExperimentArchiveUpdates = async (experimentIds: number[]) => {
+    const archivedAt = new Date().toISOString();
+    const matchingExperiments = experiments.filter((experiment) => experimentIds.includes(experiment.id));
+    for (const experiment of matchingExperiments) {
+      await trackSyncChange('experiment', 'update', experiment.id, {
+        ...experiment,
+        archivedAt
+      });
+    }
+  };
+
+  const queueCleanupDeletes = async (
+    userId: number,
+    categories: AppStore['clearUserDataCategories'] extends (userId: number, categories: infer T) => Promise<void> ? T : never
+  ) => {
+    const startedAt = new Date().toISOString();
+    if (!remoteSession) {
+      return startedAt;
+    }
+    const loaded = await loadLocalAppData(userId);
+    const archivedExperiments = await listExperiments(userId, { includeArchived: true });
+    const ownedGroupIds = loaded.groups.filter((group) => group.createdByUserId === userId).map((group) => group.id);
+    const ownedCompetitionIds = loaded.competitions
+      .filter((competition) => competition.organizerUserId === userId)
+      .map((competition) => competition.id);
+
+    const normalizedCategories = categories.includes('all')
+      ? ['experiments', 'sessions', 'drafts', 'flies', 'formulas', 'rig_presets', 'rivers', 'groups'] as const
+      : categories;
+
+    const queueDelete = async (entityType: SyncEntityType, recordId: number, payload: Record<string, unknown>) => {
+      await trackSyncChange(entityType, 'delete', recordId, payload);
+    };
+
+    if (normalizedCategories.includes('groups')) {
+      for (const entry of loaded.sharePreferences.filter((preference) => preference.userId === userId || ownedGroupIds.includes(preference.groupId))) {
+        await queueDelete('share_preference', entry.id, { groupId: entry.groupId });
+      }
+      for (const entry of loaded.invites.filter((invite) => invite.inviterUserId === userId || ownedGroupIds.includes(invite.targetGroupId) || invite.acceptedByUserId === userId)) {
+        await queueDelete('invite', entry.id, { inviteId: entry.id });
+      }
+      for (const entry of loaded.sponsoredAccess.filter((access) => access.sponsorUserId === userId || access.sponsoredUserId === userId || ownedGroupIds.includes(access.targetGroupId))) {
+        await queueDelete('sponsored_access', entry.id, { sponsoredAccessId: entry.id });
+      }
+      for (const entry of loaded.groupMemberships.filter((membership) => membership.userId === userId || ownedGroupIds.includes(membership.groupId))) {
+        await queueDelete('group_membership', entry.id, { membershipId: entry.id, groupId: entry.groupId });
+      }
+      for (const groupId of ownedGroupIds) {
+        await queueDelete('group', groupId, { groupId });
+      }
+    }
+
+    if (normalizedCategories.includes('sessions')) {
+      for (const event of loaded.catchEvents.filter((item) => item.userId === userId)) {
+        await queueDelete('catch_event', event.id, { catchEventId: event.id });
+      }
+      for (const segment of loaded.sessionSegments.filter((item) => item.userId === userId)) {
+        await queueDelete('session_segment', segment.id, { segmentId: segment.id });
+      }
+      for (const experiment of archivedExperiments.filter((item) => item.userId === userId)) {
+        await queueDelete('experiment', experiment.id, { experimentId: experiment.id });
+      }
+      for (const session of loaded.sessions.filter((item) => item.userId === userId)) {
+        await queueDelete('session', session.id, { sessionId: session.id });
+      }
+      for (const assignment of loaded.competitionAssignments.filter((item) => item.userId === userId || ownedCompetitionIds.includes(item.competitionId))) {
+        await queueDelete('competition_assignment', assignment.id, { assignmentId: assignment.id });
+      }
+      for (const participant of loaded.competitionParticipants.filter((item) => item.userId === userId || ownedCompetitionIds.includes(item.competitionId))) {
+        await queueDelete('competition_participant', participant.id, { participantId: participant.id });
+      }
+      for (const competitionSession of loaded.competitionSessions.filter((item) => ownedCompetitionIds.includes(item.competitionId))) {
+        await queueDelete('competition_session', competitionSession.id, { competitionSessionId: competitionSession.id });
+      }
+      for (const competitionGroup of loaded.competitionGroups.filter((item) => ownedCompetitionIds.includes(item.competitionId))) {
+        await queueDelete('competition_group', competitionGroup.id, { competitionGroupId: competitionGroup.id });
+      }
+      for (const competition of loaded.competitions.filter((item) => item.organizerUserId === userId)) {
+        await queueDelete('competition', competition.id, { competitionId: competition.id });
+      }
+    } else if (normalizedCategories.includes('experiments')) {
+      for (const experiment of archivedExperiments.filter((item) => item.userId === userId)) {
+        await queueDelete('experiment', experiment.id, { experimentId: experiment.id });
+      }
+    } else if (normalizedCategories.includes('drafts')) {
+      for (const experiment of archivedExperiments.filter((item) => item.userId === userId && item.status === 'draft')) {
+        await queueDelete('experiment', experiment.id, { experimentId: experiment.id });
+      }
+    }
+
+    if (normalizedCategories.includes('flies')) {
+      for (const fly of loaded.savedFlies.filter((item) => item.userId === userId)) {
+        await queueDelete('saved_setup', fly.id, { savedType: 'fly', savedFlyId: fly.id });
+      }
+    }
+    if (normalizedCategories.includes('formulas')) {
+      for (const formula of loaded.savedLeaderFormulas.filter((item) => item.userId === userId)) {
+        await queueDelete('saved_setup', formula.id, { savedType: 'leader_formula', formulaId: formula.id });
+      }
+    }
+    if (normalizedCategories.includes('rig_presets')) {
+      for (const preset of loaded.savedRigPresets.filter((item) => item.userId === userId)) {
+        await queueDelete('saved_setup', preset.id, { savedType: 'rig_preset', presetId: preset.id });
+      }
+    }
+    if (normalizedCategories.includes('rivers')) {
+      for (const river of loaded.savedRivers.filter((item) => item.userId === userId)) {
+        await queueDelete('saved_setup', river.id, { savedType: 'river', riverId: river.id });
+      }
+    }
+
+    return startedAt;
   };
 
   const refreshMfaStateInternal = async () => {
@@ -407,7 +533,9 @@ export const createStoreActions = ({
   },
   deleteSavedLeaderFormula: async (formulaId) => {
     await deleteSavedLeaderFormula(formulaId);
-    await trackSyncChange('saved_setup', 'delete', formulaId, { formulaId });
+    const startedAt = new Date().toISOString();
+    await trackSyncChange('saved_setup', 'delete', formulaId, { savedType: 'leader_formula', formulaId });
+    await flushSyncChangesOrThrow(startedAt, 'Unable to remove this leader formula from shared data right now.');
     await refresh(activeUserId);
   },
   addSavedRigPreset: async (payload) => {
@@ -421,7 +549,9 @@ export const createStoreActions = ({
   },
   deleteSavedRigPreset: async (presetId) => {
     await deleteSavedRigPreset(presetId);
-    await trackSyncChange('saved_setup', 'delete', presetId, { presetId });
+    const startedAt = new Date().toISOString();
+    await trackSyncChange('saved_setup', 'delete', presetId, { savedType: 'rig_preset', presetId });
+    await flushSyncChangesOrThrow(startedAt, 'Unable to remove this rig preset from shared data right now.');
     await refresh(activeUserId);
   },
   addSavedRiver: async (name) => {
@@ -614,11 +744,15 @@ export const createStoreActions = ({
       });
     },
   clearFishingDataForUser: async (userId) => {
-    await clearLocalFishingDataForUser(userId);
+    const startedAt = await queueCleanupDeletes(userId, ['all']);
+    await flushSyncChangesOrThrow(startedAt, 'Some shared records could not be removed, so cleanup stopped before local data was cleared.');
+    await clearLocalFishingDataForUser(userId, { preserveSyncQueue: true });
     await refresh(activeUserId);
   },
   clearUserDataCategories: async (userId, categories) => {
-    if (categories.includes('groups')) {
+    const startedAt = await queueCleanupDeletes(userId, categories);
+    await flushSyncChangesOrThrow(startedAt, 'Some shared records could not be removed, so cleanup stopped before local data was cleared.');
+    if (categories.includes('groups') || categories.includes('all')) {
       await clearLocalGroupsForUser(userId);
     }
     await clearLocalUserDataCategories(userId, categories.filter((category) => category !== 'groups'));
@@ -644,11 +778,17 @@ export const createStoreActions = ({
     await refresh(fallbackUserId ?? activeUserId);
   },
   archiveExperiment: async (experimentId) => {
+    const startedAt = new Date().toISOString();
+    await queueExperimentArchiveUpdates([experimentId]);
     await archiveExperiments([experimentId]);
+    await flushSyncChangesOrThrow(startedAt, 'Unable to archive this experiment in shared history right now.');
     await refresh(activeUserId);
   },
   deleteExperiment: async (experimentId) => {
+    const startedAt = new Date().toISOString();
+    await trackSyncChange('experiment', 'delete', experimentId, { experimentId });
     await deleteExperiments([experimentId]);
+    await flushSyncChangesOrThrow(startedAt, 'Unable to delete this experiment from shared history right now.');
     await refresh(activeUserId);
   },
   cleanupExperimentsForCurrentUser: async ({ from, to, outcome = 'all', action }) => {
@@ -664,9 +804,17 @@ export const createStoreActions = ({
     if (!experimentIds.length) return 0;
 
     if (action === 'archive') {
+      const startedAt = new Date().toISOString();
+      await queueExperimentArchiveUpdates(experimentIds);
       await archiveExperiments(experimentIds);
+      await flushSyncChangesOrThrow(startedAt, 'Unable to archive all of those experiments in shared history right now.');
     } else {
+      const startedAt = new Date().toISOString();
+      for (const experimentId of experimentIds) {
+        await trackSyncChange('experiment', 'delete', experimentId, { experimentId });
+      }
       await deleteExperiments(experimentIds);
+      await flushSyncChangesOrThrow(startedAt, 'Unable to delete all of those experiments from shared history right now.');
     }
 
     await refresh(activeUserId);
