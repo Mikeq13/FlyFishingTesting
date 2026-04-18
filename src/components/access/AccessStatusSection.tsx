@@ -38,7 +38,7 @@ export const AccessStatusSection = ({
   const { theme } = useTheme();
 
   return (
-  <SectionCard title="Current Access" subtitle="Your sync state, remote sign-in, and subscription tools live here." tone="light">
+  <SectionCard title="Billing & Access" subtitle="Your sync state, remote sign-in, and account access details live here." tone="light">
     <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 22 }}>{currentUserName}</Text>
     <View
       style={{

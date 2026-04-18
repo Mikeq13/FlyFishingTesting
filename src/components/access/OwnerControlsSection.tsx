@@ -2,11 +2,9 @@ import React from 'react';
 import { Text, View } from 'react-native';
 import { UserProfile } from '@/types/user';
 import { UserDataCleanupCategory } from '@/app/storeTypes';
-import { getEntitlementLabel, hasPremiumAccess } from '@/engine/entitlementEngine';
 import { AppButton } from '@/components/ui/AppButton';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { ActionGroup } from '@/components/ui/ActionGroup';
-import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { useTheme } from '@/design/theme';
 
 export const OwnerControlsSection = ({
@@ -50,9 +48,6 @@ export const OwnerControlsSection = ({
         }}
       >
         <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 18 }}>{user.name}</Text>
-        <InlineSummaryRow label="Role" value={user.role} tone="light" />
-        <InlineSummaryRow label="Access" value={getEntitlementLabel(user)} tone="light" />
-        <InlineSummaryRow label="Premium" value={hasPremiumAccess(user) ? 'Enabled' : 'Locked'} tone="light" />
         {user.role === 'owner' ? (
           <View style={{ backgroundColor: theme.colors.surfaceLightAlt, borderRadius: 12, padding: 10, borderWidth: 1, borderColor: theme.colors.borderLight }}>
             <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>Owner access stays enabled.</Text>

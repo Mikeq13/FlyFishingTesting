@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { CastCounter } from '@/components/CastCounter';
 import { CatchCounter } from '@/components/CatchCounter';
 import { FlySelector } from '@/components/FlySelector';
+import { AppButton } from '@/components/ui/AppButton';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { useTheme } from '@/design/theme';
 import { SavedFly } from '@/types/fly';
@@ -34,16 +35,44 @@ export const ExperimentFlyCard = ({
   onIncrementCatches
 }: ExperimentFlyCardProps) => {
   const { theme } = useTheme();
+  const hasSelectedFly = !!entry.fly.name.trim();
+  const [showFlyEditor, setShowFlyEditor] = useState(!hasSelectedFly);
+
+  useEffect(() => {
+    if (!hasSelectedFly) {
+      setShowFlyEditor(true);
+      return;
+    }
+
+    setShowFlyEditor(false);
+  }, [hasSelectedFly, entry.fly.name]);
 
   return (
   <SectionCard tone="dark">
-    <FlySelector
-      title={entry.label}
-      value={entry.fly}
-      savedFlies={savedFlies}
-      onChange={(fly) => onChangeFly({ ...entry, fly })}
-      onSave={onSaveFly}
-    />
+    {showFlyEditor ? (
+      <FlySelector
+        title={entry.label}
+        value={entry.fly}
+        savedFlies={savedFlies}
+        onChange={(fly) => onChangeFly({ ...entry, fly })}
+        onSave={onSaveFly}
+      />
+    ) : (
+      <View
+        style={{
+          gap: 8,
+          borderRadius: theme.radius.md,
+          padding: 12,
+          backgroundColor: theme.colors.surfaceMuted
+        }}
+      >
+        <Text style={{ color: theme.colors.text, fontWeight: '800' }}>{entry.label}</Text>
+        <Text style={{ color: theme.colors.textSoft }}>
+          {entry.fly.name} #{entry.fly.hookSize} | {entry.fly.beadColor} | {entry.fly.beadSizeMm.toFixed(1)} mm
+        </Text>
+        <AppButton label="Change Fly" onPress={() => setShowFlyEditor(true)} variant="ghost" />
+      </View>
+    )}
     <View style={{ flexDirection: isCompactLayout ? 'column' : 'row', gap: 8 }}>
       <CastCounter
         label={`${entry.label} casts`}

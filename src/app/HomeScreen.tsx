@@ -5,7 +5,6 @@ import { ScreenBackground } from '@/components/ScreenBackground';
 import { AppButton } from '@/components/ui/AppButton';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
-import { StatusBanner } from '@/components/ui/StatusBanner';
 import { useTheme } from '@/design/theme';
 import { useAppStore } from './store';
 import { SessionMode } from '@/types/session';
@@ -34,7 +33,7 @@ const SESSION_MODE_OPTIONS: Array<{
 ];
 
 export const HomeScreen = ({ navigation }: any) => {
-  const { currentEntitlementLabel, currentHasPremiumAccess, currentUser, canManageAccess, syncStatus, sharedDataStatus, notificationPermissionStatus, authStatus, remoteSession, isAuthenticatedOwner } = useAppStore();
+  const { currentHasPremiumAccess, currentUser, remoteSession } = useAppStore();
   const { theme } = useTheme();
   const layout = useResponsiveLayout();
   const [showSessionChooser, setShowSessionChooser] = React.useState(false);
@@ -65,26 +64,7 @@ export const HomeScreen = ({ navigation }: any) => {
           </Text>
           <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 24 }}>{currentUser?.name ?? 'Loading...'}</Text>
           <Text style={{ color: theme.colors.textSoft }}>
-            Your fishing history, personal angler profile, saved setups, invites, and shared beta data stay tied to this signed-in account.
-          </Text>
-          <Text style={{ color: theme.colors.textMuted }}>Access: {currentEntitlementLabel}</Text>
-          <Text style={{ color: theme.colors.textSoft }}>Premium features: {currentHasPremiumAccess ? 'Enabled' : 'Locked'}</Text>
-          <Text style={{ color: theme.colors.textSoft }}>Signed in as: {remoteSession?.email ?? 'No account linked'}</Text>
-          <Text style={{ color: theme.colors.textSoft }}>Beta sync queue: {syncStatus.pendingCount} pending</Text>
-          <Text style={{ color: theme.colors.textSoft }}>Sync state: {syncStatus.state}</Text>
-          <Text style={{ color: theme.colors.textSoft }}>Shared data: {sharedDataStatus}</Text>
-          <Text style={{ color: theme.colors.textSoft }}>Notifications: {notificationPermissionStatus}</Text>
-          {authStatus === 'authenticating' && !remoteSession ? <StatusBanner tone="info" text="Finish account sign-in on this device before using the rest of the app." /> : null}
-          {authStatus === 'pending_verification' ? <StatusBanner tone="info" text="Check your inbox to finish verification, recovery, or magic-link sign-in for this account." /> : null}
-          {syncStatus.lastError ? <StatusBanner tone="error" text={`Last sync issue: ${syncStatus.lastError}`} /> : null}
-          {notificationPermissionStatus === 'denied' ? <StatusBanner tone="warning" text="Device notifications are turned off, so session reminders will stay in-app only until permissions are restored." /> : null}
-        </SectionCard>
-        <SectionCard title="Account Identity" subtitle="Owner and tester access depend on the signed-in beta account.">
-          <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
-            Use Access to update your account details, verify the owner account, and manage group or tester access tied to this signed-in person.
-          </Text>
-          <Text style={{ color: theme.colors.textMuted }}>
-            Owner tools: {canManageAccess ? 'Unlocked for this session' : isAuthenticatedOwner ? 'Unlocked for this session' : 'Locked until the linked owner account is signed in'}
+            Signed in as: {remoteSession?.email ?? 'No account linked'}
           </Text>
         </SectionCard>
         <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
@@ -98,7 +78,7 @@ export const HomeScreen = ({ navigation }: any) => {
         {[
           [`View Insights${currentHasPremiumAccess ? '' : ' (Premium)'}`, 'Insights'],
           [`Ask AI Coach${currentHasPremiumAccess ? '' : ' (Premium)'}`, 'Coach'],
-          [canManageAccess ? 'Manage Access' : 'Subscription', 'Access']
+          ['Settings', 'Access']
         ].map(([label, route]) => (
           <AppButton key={route} label={label} onPress={() => navigation.navigate(route)} variant="tertiary" />
         ))}

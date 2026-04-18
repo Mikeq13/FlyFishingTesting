@@ -18,7 +18,7 @@ export const PremiumFeatureGate = ({ title, description }: PremiumFeatureGatePro
       <Text style={{ color: appTheme.colors.textSoft }}>
         Start a 7-day trial, subscribe for $3.99/month, or grant power-user access from the owner account.
       </Text>
-      <AppButton label="Open Utility Center" onPress={() => navigation.navigate('Access')} />
+      <AppButton label="Open Settings" onPress={() => navigation.navigate('Access')} />
       <AppButton label="Back Home" onPress={() => navigation.navigate('Home')} variant="secondary" />
     </SectionCard>
   );

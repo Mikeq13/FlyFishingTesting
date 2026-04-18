@@ -32,6 +32,7 @@ interface RigFlyManagerProps {
 export const RigFlyManager = ({ title, rigSetup, savedFlies, onChange, onCreateFly }: RigFlyManagerProps) => {
   const [showSavedFlyList, setShowSavedFlyList] = useState(false);
   const [showAddFly, setShowAddFly] = useState(false);
+  const [showFlyManager, setShowFlyManager] = useState(true);
   const [draftFly, setDraftFly] = useState<FlySetup>(createEmptyFly());
   const [targetAssignmentIndex, setTargetAssignmentIndex] = useState<number | null>(null);
   const sortedSavedFlies = useMemo(() => [...savedFlies].sort((a, b) => a.name.localeCompare(b.name)), [savedFlies]);
@@ -46,6 +47,9 @@ export const RigFlyManager = ({ title, rigSetup, savedFlies, onChange, onCreateF
       if (firstEmptyIndex >= 0) {
         setTargetAssignmentIndex(firstEmptyIndex);
         setShowSavedFlyList(true);
+        setShowFlyManager(true);
+      } else if (selectedAssignments.every((assignment) => assignment.fly.name.trim())) {
+        setShowFlyManager(false);
       }
       previousSignature.current = currentSignature;
     }
@@ -65,6 +69,31 @@ export const RigFlyManager = ({ title, rigSetup, savedFlies, onChange, onCreateF
 
   return (
     <SectionCard title={title} subtitle="Manage saved flies, quick-add a new one, and keep role assignments easy to scan.">
+      {!showFlyManager && selectedAssignments.length ? (
+        <View style={{ gap: 8 }}>
+          {selectedAssignments.map((assignment, index) => (
+            <View key={`${assignment.position}-${index}`} style={{ gap: 6, borderRadius: appTheme.radius.md, padding: 10, backgroundColor: appTheme.colors.surfaceMuted }}>
+              <Text style={{ color: appTheme.colors.text, fontWeight: '700' }}>{assignment.position}</Text>
+              <Text style={{ color: appTheme.colors.textSoft }}>
+                {assignment.fly.name.trim()
+                  ? `${assignment.fly.name} #${assignment.fly.hookSize} | ${assignment.fly.beadColor} | ${assignment.fly.beadSizeMm}`
+                  : 'No fly selected yet'}
+              </Text>
+              <AppButton
+                label="Change Fly"
+                onPress={() => {
+                  setShowFlyManager(true);
+                  openChooserForIndex(index);
+                }}
+                variant="ghost"
+              />
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      {showFlyManager ? (
+        <>
       {!!sortedSavedFlies.length ? (
         <>
           <AppButton label={showSavedFlyList ? 'Hide Saved Flies' : 'Choose Saved Flies'} onPress={() => setShowSavedFlyList((current) => !current)} variant="secondary" />
@@ -118,6 +147,7 @@ export const RigFlyManager = ({ title, rigSetup, savedFlies, onChange, onCreateF
             }
             setShowAddFly(false);
             setDraftFly(createEmptyFly());
+            setShowFlyManager(false);
           }}
         />
       ) : null}
@@ -163,6 +193,11 @@ export const RigFlyManager = ({ title, rigSetup, savedFlies, onChange, onCreateF
           </View>
         ))
       )}
+      {selectedAssignments.some((assignment) => assignment.fly.name.trim()) ? (
+        <AppButton label="Hide Fly Details" onPress={() => setShowFlyManager(false)} variant="ghost" />
+      ) : null}
+        </>
+      ) : null}
     </SectionCard>
   );
 };

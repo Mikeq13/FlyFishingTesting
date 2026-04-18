@@ -380,13 +380,13 @@ export const SessionScreen = ({ navigation, route }: any) => {
           <StatusBanner tone="info" text="Loading shared competition assignments from the beta backend..." />
         ) : null}
         {mode === 'competition' && sharedDataStatus === 'error' ? (
-          <StatusBanner tone="error" text={syncStatus.lastError ? `Shared assignments could not load: ${syncStatus.lastError}` : 'Shared assignments could not load right now. You can retry from Utility Center.'} />
+          <StatusBanner tone="error" text={syncStatus.lastError ? `Shared assignments could not load: ${syncStatus.lastError}` : 'Shared assignments could not load right now. You can retry from Settings.'} />
         ) : null}
         {mode === 'competition' && selectedCompetitionId && !selectedCompetitionAssignments.length && sharedDataStatus === 'ready' ? (
-          <StatusBanner tone="warning" text="This competition does not have a saved assignment for this angler yet. Add or review the assignment in Utility Center before starting the session." />
+          <StatusBanner tone="warning" text="This competition does not have a saved assignment for this angler yet. Add or review the assignment in Settings before starting the session." />
         ) : null}
         {mode === 'competition' && selectedCompetitionAssignment && (!selectedCompetitionGroup || !selectedCompetitionSession) ? (
-          <StatusBanner tone="warning" text="This saved assignment is missing its synced group or session details. Open Utility Center, review the assignment, and sync again before starting." />
+          <StatusBanner tone="warning" text="This saved assignment is missing its synced group or session details. Open Settings, review the assignment, and sync again before starting." />
         ) : null}
         <SectionCard
           title={mode === 'practice' ? 'Session Setup' : mode === 'competition' ? 'Competition Setup' : 'Journal Setup'}

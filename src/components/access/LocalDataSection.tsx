@@ -46,7 +46,7 @@ export const LocalDataSection = ({
   }
 
   return (
-  <SectionCard title="My Data" subtitle="Manage local fishing data for the active profile without affecting other anglers on this device." tone="light">
+  <SectionCard title="Data Management" subtitle="Manage local fishing data for the active profile without affecting other anglers on this device." tone="light">
     {content}
   </SectionCard>
   );

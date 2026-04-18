@@ -8,6 +8,7 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { ActionGroup } from '@/components/ui/ActionGroup';
 import { AppButton } from '@/components/ui/AppButton';
 import { AccountSecuritySection } from '@/components/access/AccountSecuritySection';
+import { SecuritySection } from '@/components/access/SecuritySection';
 import { LocalDataSection } from '@/components/access/LocalDataSection';
 import { GroupsSharingSection } from '@/components/access/GroupsSharingSection';
 import { CompetitionsSection } from '@/components/access/CompetitionsSection';
@@ -20,7 +21,7 @@ import { useResponsiveLayout } from '@/design/layout';
 import { useTheme } from '@/design/theme';
 import { hasSupabaseConfig } from '@/services/supabaseClient';
 
-type UtilitySectionKey = 'account' | 'appearance' | 'competitions' | 'groups' | 'myData' | 'subscription' | 'ownerTools';
+type UtilitySectionKey = 'accountInfo' | 'appearance' | 'billing' | 'competitions' | 'dataManagement' | 'groups' | 'security' | 'ownerTools';
 
 export const AccessScreen = () => {
   const layout = useResponsiveLayout();
@@ -94,12 +95,13 @@ export const AccessScreen = () => {
   const [mfaFriendlyName, setMfaFriendlyName] = React.useState('Fishing Lab Authenticator');
   const [mfaCode, setMfaCode] = React.useState('');
   const [expandedSections, setExpandedSections] = React.useState<Record<UtilitySectionKey, boolean>>({
-    account: false,
+    accountInfo: true,
     appearance: false,
+    billing: false,
     competitions: false,
+    dataManagement: false,
     groups: false,
-    myData: false,
-    subscription: true,
+    security: false,
     ownerTools: false
   });
   const [competitionSchedule, setCompetitionSchedule] = React.useState([
@@ -216,7 +218,7 @@ export const AccessScreen = () => {
           <Text style={{ color: theme.colors.textSoft, textAlign: 'center', marginTop: 10, lineHeight: 20 }}>
             {remoteSession
               ? 'Stay on this screen while the app finishes linking your signed-in account to a local angler profile. If shared beta data is unavailable, your account should still recover once bootstrap completes.'
-              : 'Sign in or select an angler profile before opening the utility center.'}
+              : 'Sign in or select an angler profile before opening Settings.'}
           </Text>
         </View>
       </ScreenBackground>
@@ -420,7 +422,7 @@ export const AccessScreen = () => {
     );
   };
 
-  const renderSubscription = () => (
+  const renderBilling = () => (
     <>
       <View
         style={{
@@ -432,29 +434,12 @@ export const AccessScreen = () => {
           borderColor: theme.colors.nestedSurfaceBorder
         }}
       >
-        <InlineSummaryRow label="Current Access" value={currentEntitlementLabel} tone="light" />
+        <InlineSummaryRow label="Current Plan" value={currentEntitlementLabel} tone="light" />
         <InlineSummaryRow label="Premium Features" value={currentHasPremiumAccess ? 'Enabled' : 'Locked'} valueMuted={!currentHasPremiumAccess} tone="light" />
-        <InlineSummaryRow label="Shared Data" value={sharedDataStatus} valueMuted={sharedDataStatus !== 'ready'} tone="light" />
-        <InlineSummaryRow label="Sync Queue" value={`${syncStatus.pendingCount} pending, ${syncStatus.syncedCount} synced`} tone="light" />
-        <InlineSummaryRow label="Sync State" value={syncStatus.state} tone="light" />
-        <InlineSummaryRow label="Notifications" value={notificationPermissionStatus} valueMuted={notificationPermissionStatus !== 'granted' && notificationPermissionStatus !== 'provisional'} tone="light" />
-        <InlineSummaryRow label="Last Sync" value={syncStatus.lastSyncedAt ? new Date(syncStatus.lastSyncedAt).toLocaleString() : 'Not synced yet'} valueMuted={!syncStatus.lastSyncedAt} tone="light" />
+        <InlineSummaryRow label="Billing Status" value={currentHasPremiumAccess ? 'Premium features available' : 'Free access active'} valueMuted={!currentHasPremiumAccess} tone="light" />
       </View>
-      {sharedDataStatus === 'error' ? (
-        <StatusBanner
-          tone="error"
-          text={
-            syncStatus.lastError
-              ? `Shared data hit a beta sync issue: ${syncStatus.lastError}`
-              : 'Shared data could not load. Retry sync before assuming invites, assignments, or shared practice data are current.'
-          }
-        />
-      ) : null}
-      {notificationPermissionStatus === 'denied' ? (
-        <StatusBanner tone="warning" text="Notifications are blocked on this device. Session reminders will stay in-app until phone notification access is re-enabled." />
-      ) : null}
       <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-        Subscription shows what this account can do right now. Group settings, account recovery, and owner workflows live in their own spaces.
+        Billing is the one place that explains what this account can access right now. Account identity, security, and sync details stay in their own spaces.
       </Text>
     </>
   );
@@ -515,13 +500,26 @@ export const AccessScreen = () => {
         keyboardShouldPersistTaps="handled"
       >
         <ScreenHeader
-          title="Utility Center"
-          subtitle="Keep account, groups, access, and competitions in one calmer place without bouncing between screens."
+          title="Settings"
+          subtitle="Keep account, billing, groups, and fishing preferences in one calmer place without repeating the same details everywhere."
         />
+        {sharedDataStatus === 'error' ? (
+          <StatusBanner
+            tone="error"
+            text={
+              syncStatus.lastError
+                ? `Shared data hit a beta sync issue: ${syncStatus.lastError}`
+                : 'Shared data could not load. Retry sync before assuming invites, assignments, or shared practice data are current.'
+            }
+          />
+        ) : null}
+        {notificationPermissionStatus === 'denied' ? (
+          <StatusBanner tone="warning" text="Notifications are blocked on this device. Session reminders will stay in-app until phone notification access is re-enabled." />
+        ) : null}
         {renderCollapsibleCard({
-          sectionKey: 'account',
-          title: 'Account & Security',
-          subtitle: 'Manage your account details, recovery tools, and MFA without exposing owner-only actions to everyone.',
+          sectionKey: 'accountInfo',
+          title: 'Account Information',
+          subtitle: 'Keep identity, signed-in email, and access type in one place instead of repeating them across the app.',
           summary: (
             <View
               style={{
@@ -533,43 +531,23 @@ export const AccessScreen = () => {
                 borderColor: theme.colors.nestedSurfaceBorder
               }}
             >
-              <InlineSummaryRow label="Angler Profile" value={currentUser.name} tone="light" />
+              <InlineSummaryRow label="Active Angler" value={currentUser.name} tone="light" />
               <InlineSummaryRow label="Signed In Email" value={remoteSession?.email ?? 'Not signed in'} valueMuted={!remoteSession?.email} tone="light" />
-              <InlineSummaryRow label="Current Access" value={currentEntitlementLabel} tone="light" />
+              <InlineSummaryRow label="Access Type" value={currentEntitlementLabel} tone="light" />
             </View>
           ),
           children: (
             <AccountSecuritySection
               currentUserName={currentUser.name}
               currentEntitlementLabel={currentEntitlementLabel}
-              currentHasPremiumAccess={currentHasPremiumAccess}
-              ownerLinked={ownerIdentityLinked}
-              isAuthenticatedOwner={isAuthenticatedOwner}
-              showOwnerIdentityTools={currentUser.role === 'owner'}
               remoteSession={remoteSession}
               authStatus={authStatus}
-              pendingTotpEnrollment={pendingTotpEnrollment}
-              mfaFactors={mfaFactors}
-              mfaAssuranceLevel={mfaAssuranceLevel}
               accountName={accountName}
               onAccountNameChange={setAccountName}
               accountEmail={accountEmail}
               onAccountEmailChange={setAccountEmail}
-              passwordResetEmail={passwordResetEmail}
-              onPasswordResetEmailChange={setPasswordResetEmail}
-              mfaFriendlyName={mfaFriendlyName}
-              onMfaFriendlyNameChange={setMfaFriendlyName}
-              mfaCode={mfaCode}
-              onMfaCodeChange={setMfaCode}
               onSaveName={() => updateCurrentUserName(accountName)}
               onUpdateEmail={() => updateAccountEmail(accountEmail)}
-              onSendPasswordReset={() => sendPasswordResetEmail(passwordResetEmail)}
-              onLinkOwnerIdentity={linkOwnerIdentity}
-              onEnrollTotp={() => enrollTotpMfa(mfaFriendlyName)}
-              onVerifyTotp={() => verifyTotpMfa(mfaCode)}
-              onRemoveMfaFactor={removeMfaFactor}
-              onRefreshMfaState={refreshMfaState}
-              onSignOut={signOutRemote}
               embedded
             />
           )
@@ -590,9 +568,31 @@ export const AccessScreen = () => {
         })}
 
         {renderCollapsibleCard({
+          sectionKey: 'billing',
+          title: 'Billing',
+          subtitle: 'See what this account can do right now without mixing billing, identity, and admin tools together.',
+          summary: (
+            <View
+              style={{
+                gap: 8,
+                backgroundColor: theme.colors.nestedSurface,
+                borderRadius: 12,
+                padding: 12,
+                borderWidth: 1,
+                borderColor: theme.colors.nestedSurfaceBorder
+              }}
+            >
+              <InlineSummaryRow label="Current Plan" value={currentEntitlementLabel} tone="light" />
+              <InlineSummaryRow label="Premium Features" value={currentHasPremiumAccess ? 'Enabled' : 'Locked'} valueMuted={!currentHasPremiumAccess} tone="light" />
+            </View>
+          ),
+          children: renderBilling()
+        })}
+
+        {renderCollapsibleCard({
           sectionKey: 'competitions',
           title: 'Competitions',
-          subtitle: 'Create competitions, join by code, and review assignments without leaving Utility Center.',
+          subtitle: 'Create competitions, join by code, and review assignments without leaving Settings.',
           summary: (
             <View
               style={{
@@ -636,6 +636,23 @@ export const AccessScreen = () => {
               onCreateCompetition={saveCompetition}
               onJoinCompetition={handleJoinCompetition}
               onSaveAssignment={saveAssignment}
+              embedded
+            />
+          )
+        })}
+
+        {renderCollapsibleCard({
+          sectionKey: 'dataManagement',
+          title: 'Data Management',
+          subtitle: 'Keep cleanup and profile maintenance tools nearby without leaving them open all the time.',
+          summary: (
+            <InlineSummaryRow label="Active Angler" value={currentUser.name} tone="light" />
+          ),
+          children: (
+            <LocalDataSection
+              isOwner={currentUser.role === 'owner'}
+              cleanupActions={renderCleanupActions(currentUser.id, currentUser.name)}
+              onDeleteProfile={deleteCurrentProfile}
               embedded
             />
           )
@@ -695,26 +712,9 @@ export const AccessScreen = () => {
         })}
 
         {renderCollapsibleCard({
-          sectionKey: 'myData',
-          title: 'My Data',
-          subtitle: 'Keep cleanup tools nearby without leaving them open all the time.',
-          summary: (
-            <InlineSummaryRow label="Active Angler" value={currentUser.name} tone="light" />
-          ),
-          children: (
-            <LocalDataSection
-              isOwner={currentUser.role === 'owner'}
-              cleanupActions={renderCleanupActions(currentUser.id, currentUser.name)}
-              onDeleteProfile={deleteCurrentProfile}
-              embedded
-            />
-          )
-        })}
-
-        {renderCollapsibleCard({
-          sectionKey: 'subscription',
-          title: 'Subscription',
-          subtitle: 'See what this account can do right now without mixing billing, sync, and account details together.',
+          sectionKey: 'security',
+          title: 'Security',
+          subtitle: 'Keep recovery, MFA, sign-out, and owner verification separate from account information.',
           summary: (
             <View
               style={{
@@ -726,12 +726,41 @@ export const AccessScreen = () => {
                 borderColor: theme.colors.nestedSurfaceBorder
               }}
             >
-              <InlineSummaryRow label="Current Access" value={currentEntitlementLabel} tone="light" />
-              <InlineSummaryRow label="Premium Features" value={currentHasPremiumAccess ? 'Enabled' : 'Locked'} valueMuted={!currentHasPremiumAccess} tone="light" />
-              <InlineSummaryRow label="Sync State" value={syncStatus.state} tone="light" />
+              <InlineSummaryRow
+                label="Email Verification"
+                value={remoteSession?.emailVerifiedAt ? 'Verified' : authStatus === 'pending_verification' ? 'Pending' : 'Not verified'}
+                valueMuted={!remoteSession?.emailVerifiedAt}
+                tone="light"
+              />
+              <InlineSummaryRow label="MFA" value={mfaFactors.length ? `${mfaFactors.length} factor${mfaFactors.length === 1 ? '' : 's'}` : 'Not enrolled'} valueMuted={!mfaFactors.length} tone="light" />
             </View>
           ),
-          children: renderSubscription()
+          children: (
+            <SecuritySection
+              ownerLinked={ownerIdentityLinked}
+              isAuthenticatedOwner={isAuthenticatedOwner}
+              showOwnerIdentityTools={currentUser.role === 'owner'}
+              remoteSession={remoteSession}
+              authStatus={authStatus}
+              pendingTotpEnrollment={pendingTotpEnrollment}
+              mfaFactors={mfaFactors}
+              mfaAssuranceLevel={mfaAssuranceLevel}
+              passwordResetEmail={passwordResetEmail}
+              onPasswordResetEmailChange={setPasswordResetEmail}
+              mfaFriendlyName={mfaFriendlyName}
+              onMfaFriendlyNameChange={setMfaFriendlyName}
+              mfaCode={mfaCode}
+              onMfaCodeChange={setMfaCode}
+              onSendPasswordReset={() => sendPasswordResetEmail(passwordResetEmail)}
+              onLinkOwnerIdentity={linkOwnerIdentity}
+              onEnrollTotp={() => enrollTotpMfa(mfaFriendlyName)}
+              onVerifyTotp={() => verifyTotpMfa(mfaCode)}
+              onRemoveMfaFactor={removeMfaFactor}
+              onRefreshMfaState={refreshMfaState}
+              onSignOut={signOutRemote}
+              embedded
+            />
+          )
         })}
 
         {isAuthenticatedOwner

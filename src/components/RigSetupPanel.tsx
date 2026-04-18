@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { OptionChips } from './OptionChips';
 import { AddedTippetSection, LeaderFormula, RigPreset, RigSetup, TippetSize } from '@/types/rig';
@@ -45,12 +45,59 @@ export const RigSetupPanel = ({
   const [showFormulaEditor, setShowFormulaEditor] = useState(false);
   const [showPresetList, setShowPresetList] = useState(false);
   const [showPresetEditor, setShowPresetEditor] = useState(false);
+  const [showSetupEditor, setShowSetupEditor] = useState(true);
   const sortedFormulas = useMemo(() => [...savedLeaderFormulas].sort((left, right) => left.name.localeCompare(right.name)), [savedLeaderFormulas]);
   const sortedPresets = useMemo(() => [...savedRigPresets].sort((left, right) => left.name.localeCompare(right.name)), [savedRigPresets]);
+  const hasConfiguredLeader = !!rigSetup.leaderFormulaName || rigSetup.leaderFormulaSectionsSnapshot.length > 0;
+  const hasMeaningfulRigConfig = hasConfiguredLeader || rigSetup.assignments.length > 1 || rigSetup.addedTippetSections.some((section) => typeof section.lengthFeet === 'number' && section.lengthFeet > 0);
+  const rigSummary = `${rigSetup.assignments.length} fly${rigSetup.assignments.length === 1 ? '' : 'ies'} | ${rigSetup.assignments.map((assignment) => assignment.position).join(' | ')}`;
+
+  useEffect(() => {
+    if (hasMeaningfulRigConfig) {
+      setShowSetupEditor(false);
+    }
+  }, [hasMeaningfulRigConfig]);
 
   return (
     <SectionCard title={title} subtitle="Keep leaders from fly line to tippet ring and rigs from tippet ring to point fly in one place.">
+      {!showSetupEditor ? (
+        <View
+          style={{
+            gap: 8,
+            borderRadius: theme.radius.md,
+            padding: 12,
+            backgroundColor: theme.colors.surfaceMuted
+          }}
+        >
+          <Text style={{ color: theme.colors.text, fontWeight: '800' }}>
+            Leader: {rigSetup.leaderFormulaName ?? (rigSetup.leaderFormulaSectionsSnapshot.length ? 'Custom leader' : 'Not chosen')}
+          </Text>
+          <Text style={{ color: theme.colors.textMuted }}>Rig: {rigSummary}</Text>
+          <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+            <AppButton
+              label="Change Leader"
+              onPress={() => {
+                setShowSetupEditor(true);
+                setShowFormulaList(true);
+                setShowFormulaEditor(false);
+              }}
+              variant="ghost"
+            />
+            <AppButton
+              label="Change Rig"
+              onPress={() => {
+                setShowSetupEditor(true);
+                setShowPresetList(true);
+                setShowPresetEditor(false);
+              }}
+              variant="ghost"
+            />
+          </View>
+        </View>
+      ) : null}
 
+      {showSetupEditor ? (
+        <>
       {!!sortedFormulas.length ? (
         <>
           <AppButton label={showFormulaList ? 'Hide Leaders' : 'Use Leader'} onPress={() => setShowFormulaList((current) => !current)} variant="secondary" />
@@ -65,6 +112,7 @@ export const RigSetupPanel = ({
                     onPress={() => {
                       onChange(applyLeaderFormulaToRig(rigSetup, formula));
                       setShowFormulaList(false);
+                      setShowSetupEditor(false);
                     }}
                   >
                     <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>{formula.name}</Text>
@@ -116,6 +164,7 @@ export const RigSetupPanel = ({
                     onPress={() => {
                       onApplyRigPreset(preset);
                       setShowPresetList(false);
+                      setShowSetupEditor(false);
                     }}
                   >
                     <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>{preset.name}</Text>
@@ -147,6 +196,7 @@ export const RigSetupPanel = ({
             const saved = await onCreateLeaderFormula(payload);
             onChange(applyLeaderFormulaToRig(rigSetup, saved));
             setShowFormulaEditor(false);
+            setShowSetupEditor(false);
           }}
         />
       ) : null}
@@ -156,9 +206,9 @@ export const RigSetupPanel = ({
           label="Fly Count"
           options={['1', '2', '3'] as const}
           value={String(flyCount || 1)}
-          onChange={(value) => onFlyCountChange(Number(value) as 1 | 2 | 3)}
-        />
-      ) : null}
+            onChange={(value) => onFlyCountChange(Number(value) as 1 | 2 | 3)}
+          />
+        ) : null}
 
       <View style={{ gap: 8 }}>
         {rigSetup.addedTippetSections.map((section, index) => (
@@ -203,6 +253,9 @@ export const RigSetupPanel = ({
             {rigSetup.leaderFormulaSectionsSnapshot.map((section) => `${section.lengthFeet} ft ${section.materialLabel}`).join(' | ')}
           </Text>
         </View>
+      ) : null}
+          <AppButton label="Hide Setup Details" onPress={() => setShowSetupEditor(false)} variant="ghost" />
+        </>
       ) : null}
     </SectionCard>
   );
