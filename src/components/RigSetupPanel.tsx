@@ -46,6 +46,7 @@ export const RigSetupPanel = ({
   const [showPresetList, setShowPresetList] = useState(false);
   const [showPresetEditor, setShowPresetEditor] = useState(false);
   const [showSetupEditor, setShowSetupEditor] = useState(true);
+  const [editTarget, setEditTarget] = useState<'all' | 'leader' | 'rig'>('all');
   const sortedFormulas = useMemo(() => [...savedLeaderFormulas].sort((left, right) => left.name.localeCompare(right.name)), [savedLeaderFormulas]);
   const sortedPresets = useMemo(() => [...savedRigPresets].sort((left, right) => left.name.localeCompare(right.name)), [savedRigPresets]);
   const hasConfiguredLeader = !!rigSetup.leaderFormulaName || rigSetup.leaderFormulaSectionsSnapshot.length > 0;
@@ -57,6 +58,15 @@ export const RigSetupPanel = ({
       setShowSetupEditor(false);
     }
   }, [hasMeaningfulRigConfig]);
+
+  const closeSetupEditor = () => {
+    setShowSetupEditor(false);
+    setEditTarget('all');
+    setShowFormulaList(false);
+    setShowFormulaEditor(false);
+    setShowPresetList(false);
+    setShowPresetEditor(false);
+  };
 
   return (
     <SectionCard title={title} subtitle="Keep leaders from fly line to tippet ring and rigs from tippet ring to point fly in one place.">
@@ -78,8 +88,11 @@ export const RigSetupPanel = ({
               label="Change Leader"
               onPress={() => {
                 setShowSetupEditor(true);
+                setEditTarget('leader');
                 setShowFormulaList(true);
                 setShowFormulaEditor(false);
+                setShowPresetList(false);
+                setShowPresetEditor(false);
               }}
               variant="ghost"
             />
@@ -87,8 +100,11 @@ export const RigSetupPanel = ({
               label="Change Rig"
               onPress={() => {
                 setShowSetupEditor(true);
+                setEditTarget('rig');
                 setShowPresetList(true);
                 setShowPresetEditor(false);
+                setShowFormulaList(false);
+                setShowFormulaEditor(false);
               }}
               variant="ghost"
             />
@@ -98,163 +114,160 @@ export const RigSetupPanel = ({
 
       {showSetupEditor ? (
         <>
-      {!!sortedFormulas.length ? (
-        <>
-          <AppButton label={showFormulaList ? 'Hide Leaders' : 'Use Leader'} onPress={() => setShowFormulaList((current) => !current)} variant="secondary" />
-          {showFormulaList ? (
-            <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: theme.colors.borderStrong, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceLight }}>
-              {sortedFormulas.map((formula) => (
-                <View
-                  key={formula.id}
-                  style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.borderLight, gap: 8 }}
-                >
-                  <Pressable
-                    onPress={() => {
-                      onChange(applyLeaderFormulaToRig(rigSetup, formula));
-                      setShowFormulaList(false);
-                      setShowSetupEditor(false);
-                    }}
-                  >
-                    <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>{formula.name}</Text>
-                    <Text style={{ color: theme.colors.textDarkSoft, fontSize: 12 }}>
-                      {formula.sections.map((section) => `${section.lengthFeet} ft ${section.materialLabel}`).join(' | ')}
-                    </Text>
-                  </Pressable>
-                  {onDeleteLeaderFormula ? (
-                    <AppButton
-                      label="Delete Formula"
-                      onPress={() => {
-                        onDeleteLeaderFormula(formula.id).catch(console.error);
-                        if (rigSetup.leaderFormulaId === formula.id) {
-                          onChange(applyLeaderFormulaToRig(rigSetup, null));
-                        }
-                      }}
-                      variant="danger"
-                    />
+          {(editTarget === 'all' || editTarget === 'leader') ? (
+            <>
+              {!!sortedFormulas.length ? (
+                <>
+                  <AppButton label={showFormulaList ? 'Hide Leaders' : 'Use Leader'} onPress={() => setShowFormulaList((current) => !current)} variant="secondary" />
+                  {showFormulaList ? (
+                    <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: theme.colors.borderStrong, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceLight }}>
+                      {sortedFormulas.map((formula) => (
+                        <View
+                          key={formula.id}
+                          style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.borderLight, gap: 8 }}
+                        >
+                          <Pressable
+                            onPress={() => {
+                              onChange(applyLeaderFormulaToRig(rigSetup, formula));
+                              closeSetupEditor();
+                            }}
+                          >
+                            <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>{formula.name}</Text>
+                            <Text style={{ color: theme.colors.textDarkSoft, fontSize: 12 }}>
+                              {formula.sections.map((section) => `${section.lengthFeet} ft ${section.materialLabel}`).join(' | ')}
+                            </Text>
+                          </Pressable>
+                          {onDeleteLeaderFormula ? (
+                            <AppButton
+                              label="Delete Formula"
+                              onPress={() => {
+                                onDeleteLeaderFormula(formula.id).catch(console.error);
+                                if (rigSetup.leaderFormulaId === formula.id) {
+                                  onChange(applyLeaderFormulaToRig(rigSetup, null));
+                                }
+                              }}
+                              variant="danger"
+                            />
+                          ) : null}
+                        </View>
+                      ))}
+                    </ScrollView>
                   ) : null}
-                </View>
-              ))}
-            </ScrollView>
+                </>
+              ) : null}
+
+              <AppButton label={showFormulaEditor ? 'Hide Save Leader' : 'Build New Leader'} onPress={() => setShowFormulaEditor((current) => !current)} variant="tertiary" />
+
+              {showFormulaEditor ? (
+                <LeaderFormulaEditor
+                  onSave={async (payload) => {
+                    const saved = await onCreateLeaderFormula(payload);
+                    onChange(applyLeaderFormulaToRig(rigSetup, saved));
+                    closeSetupEditor();
+                  }}
+                />
+              ) : null}
+            </>
           ) : null}
-        </>
-      ) : null}
 
-      <AppButton label={showPresetEditor ? 'Hide Save Rig' : 'Save Rig'} onPress={() => setShowPresetEditor((current) => !current)} variant="ghost" />
+          {(editTarget === 'all' || editTarget === 'rig') ? (
+            <>
+              <AppButton label={showPresetEditor ? 'Hide Save Rig' : 'Save Rig'} onPress={() => setShowPresetEditor((current) => !current)} variant="ghost" />
 
-      {showPresetEditor ? (
-        <RigPresetEditor
-          onSave={async (name) => {
-            await onCreateRigPreset(createRigPresetPayload(rigSetup, name));
-            setShowPresetEditor(false);
-          }}
-        />
-      ) : null}
+              {showPresetEditor ? (
+                <RigPresetEditor
+                  onSave={async (name) => {
+                    await onCreateRigPreset(createRigPresetPayload(rigSetup, name));
+                    setShowPresetEditor(false);
+                  }}
+                />
+              ) : null}
 
-      {!!sortedPresets.length ? (
-        <>
-          <AppButton label={showPresetList ? 'Hide Rigs' : 'Use Rig'} onPress={() => setShowPresetList((current) => !current)} variant="secondary" />
-          {showPresetList ? (
-            <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: theme.colors.borderStrong, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceLight }}>
-              {sortedPresets.map((preset) => (
-                <View
-                  key={preset.id}
-                  style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.borderLight, gap: 8 }}
-                >
-                  <Pressable
-                    onPress={() => {
-                      onApplyRigPreset(preset);
-                      setShowPresetList(false);
-                      setShowSetupEditor(false);
-                    }}
-                  >
-                    <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>{preset.name}</Text>
-                    <Text style={{ color: theme.colors.textDarkSoft, fontSize: 12 }}>
-                      {preset.flyCount} fly{preset.flyCount === 1 ? '' : 's'} | {preset.positions.join(' | ')}
-                    </Text>
-                  </Pressable>
-                  {onDeleteRigPreset ? (
-                    <AppButton
-                      label="Delete Rig Preset"
-                      onPress={() => {
-                        onDeleteRigPreset(preset.id).catch(console.error);
-                      }}
-                      variant="danger"
-                    />
+              {!!sortedPresets.length ? (
+                <>
+                  <AppButton label={showPresetList ? 'Hide Rigs' : 'Use Rig'} onPress={() => setShowPresetList((current) => !current)} variant="secondary" />
+                  {showPresetList ? (
+                    <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: theme.colors.borderStrong, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceLight }}>
+                      {sortedPresets.map((preset) => (
+                        <View
+                          key={preset.id}
+                          style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.borderLight, gap: 8 }}
+                        >
+                          <Pressable
+                            onPress={() => {
+                              onApplyRigPreset(preset);
+                              closeSetupEditor();
+                            }}
+                          >
+                            <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>{preset.name}</Text>
+                            <Text style={{ color: theme.colors.textDarkSoft, fontSize: 12 }}>
+                              {preset.flyCount} fly{preset.flyCount === 1 ? '' : 's'} | {preset.positions.join(' | ')}
+                            </Text>
+                          </Pressable>
+                          {onDeleteRigPreset ? (
+                            <AppButton
+                              label="Delete Rig Preset"
+                              onPress={() => {
+                                onDeleteRigPreset(preset.id).catch(console.error);
+                              }}
+                              variant="danger"
+                            />
+                          ) : null}
+                        </View>
+                      ))}
+                    </ScrollView>
                   ) : null}
-                </View>
-              ))}
-            </ScrollView>
+                </>
+              ) : null}
+
+              {onFlyCountChange ? (
+                <OptionChips
+                  label="Fly Count"
+                  options={['1', '2', '3'] as const}
+                  value={String(flyCount || 1)}
+                  onChange={(value) => onFlyCountChange(Number(value) as 1 | 2 | 3)}
+                />
+              ) : null}
+
+              <View style={{ gap: 8 }}>
+                {rigSetup.addedTippetSections.map((section, index) => (
+                  <View key={`${section.label}-${index}`} style={{ gap: 8, borderRadius: theme.radius.md, padding: 10, backgroundColor: theme.colors.surfaceMuted }}>
+                    <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{section.label}</Text>
+                    <OptionChips
+                      label="Tippet Size"
+                      options={TIPPET_SIZES}
+                      value={section.size}
+                      onChange={(value) =>
+                        onChange({
+                          ...rigSetup,
+                          addedTippetSections: rigSetup.addedTippetSections.map((entry, entryIndex) =>
+                            entryIndex === index ? { ...entry, size: value as TippetSize } : entry
+                          )
+                        })
+                      }
+                    />
+                    <TextInput
+                      value={section.lengthFeet ? String(section.lengthFeet) : ''}
+                      onChangeText={(value) =>
+                        onChange({
+                          ...rigSetup,
+                          addedTippetSections: rigSetup.addedTippetSections.map((entry, entryIndex): AddedTippetSection =>
+                            entryIndex === index ? { ...entry, lengthFeet: value ? Number(value) : undefined } : entry
+                          )
+                        })
+                      }
+                      placeholder="Added tippet length (feet)"
+                      keyboardType="decimal-pad"
+                      placeholderTextColor={theme.colors.inputPlaceholder}
+                      style={{ borderWidth: 1, borderColor: theme.colors.borderStrong, padding: 12, borderRadius: theme.radius.md, backgroundColor: theme.colors.inputBg, color: theme.colors.textDark }}
+                    />
+                  </View>
+                ))}
+              </View>
+            </>
           ) : null}
-        </>
-      ) : null}
 
-      <AppButton label={showFormulaEditor ? 'Hide Save Leader' : 'Save Leader'} onPress={() => setShowFormulaEditor((current) => !current)} variant="tertiary" />
-
-      {showFormulaEditor ? (
-        <LeaderFormulaEditor
-          onSave={async (payload) => {
-            const saved = await onCreateLeaderFormula(payload);
-            onChange(applyLeaderFormulaToRig(rigSetup, saved));
-            setShowFormulaEditor(false);
-            setShowSetupEditor(false);
-          }}
-        />
-      ) : null}
-
-      {onFlyCountChange ? (
-        <OptionChips
-          label="Fly Count"
-          options={['1', '2', '3'] as const}
-          value={String(flyCount || 1)}
-            onChange={(value) => onFlyCountChange(Number(value) as 1 | 2 | 3)}
-          />
-        ) : null}
-
-      <View style={{ gap: 8 }}>
-        {rigSetup.addedTippetSections.map((section, index) => (
-          <View key={`${section.label}-${index}`} style={{ gap: 8, borderRadius: theme.radius.md, padding: 10, backgroundColor: theme.colors.surfaceMuted }}>
-            <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{section.label}</Text>
-            <OptionChips
-              label="Tippet Size"
-              options={TIPPET_SIZES}
-              value={section.size}
-              onChange={(value) =>
-                onChange({
-                  ...rigSetup,
-                  addedTippetSections: rigSetup.addedTippetSections.map((entry, entryIndex) =>
-                    entryIndex === index ? { ...entry, size: value as TippetSize } : entry
-                  )
-                })
-              }
-            />
-            <TextInput
-              value={section.lengthFeet ? String(section.lengthFeet) : ''}
-              onChangeText={(value) =>
-                onChange({
-                  ...rigSetup,
-                  addedTippetSections: rigSetup.addedTippetSections.map((entry, entryIndex): AddedTippetSection =>
-                    entryIndex === index ? { ...entry, lengthFeet: value ? Number(value) : undefined } : entry
-                  )
-                })
-              }
-              placeholder="Added tippet length (feet)"
-              keyboardType="decimal-pad"
-              placeholderTextColor={theme.colors.inputPlaceholder}
-              style={{ borderWidth: 1, borderColor: theme.colors.borderStrong, padding: 12, borderRadius: theme.radius.md, backgroundColor: theme.colors.inputBg, color: theme.colors.textDark }}
-            />
-          </View>
-        ))}
-      </View>
-
-      {rigSetup.leaderFormulaName ? (
-        <View style={{ gap: 4, borderRadius: theme.radius.md, padding: 10, backgroundColor: theme.colors.surfaceMuted }}>
-          <Text style={{ color: theme.colors.text, fontWeight: '700' }}>Leader: {rigSetup.leaderFormulaName}</Text>
-          <Text style={{ color: theme.colors.textMuted }}>
-            {rigSetup.leaderFormulaSectionsSnapshot.map((section) => `${section.lengthFeet} ft ${section.materialLabel}`).join(' | ')}
-          </Text>
-        </View>
-      ) : null}
-          <AppButton label="Hide Setup Details" onPress={() => setShowSetupEditor(false)} variant="ghost" />
+          <AppButton label="Hide Setup Details" onPress={closeSetupEditor} variant="ghost" />
         </>
       ) : null}
     </SectionCard>

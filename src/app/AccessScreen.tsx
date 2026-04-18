@@ -23,7 +23,7 @@ import { hasSupabaseConfig } from '@/services/supabaseClient';
 
 type UtilitySectionKey = 'accountInfo' | 'appearance' | 'billing' | 'competitions' | 'dataManagement' | 'groups' | 'security' | 'ownerTools';
 
-export const AccessScreen = () => {
+export const AccessScreen = ({ navigation }: any) => {
   const layout = useResponsiveLayout();
   const { theme, themeId, setThemeId, themeOptions } = useTheme();
   const {
@@ -57,7 +57,6 @@ export const AccessScreen = () => {
     signOutRemote,
     startTrialForUser,
     grantPowerUserAccess,
-    markSubscriberAccess,
     clearUserAccess,
     clearFishingDataForUser,
     clearUserDataCategories,
@@ -138,6 +137,7 @@ export const AccessScreen = () => {
         .filter((competition): competition is (typeof competitions)[number] => !!competition),
     [competitionParticipants, competitions, currentUser?.id]
   );
+  const canOrganizeCompetitions = currentUser?.role === 'owner' || currentUser?.accessLevel === 'power_user';
 
   const getAssignmentDraftKey = (competitionId: number, userId: number, competitionSessionId: number) =>
     `${competitionId}:${userId}:${competitionSessionId}`;
@@ -482,7 +482,7 @@ export const AccessScreen = () => {
     children: React.ReactNode;
   }) => (
     <SectionCard title={title} subtitle={subtitle} tone="light">
-      {summary}
+      {!expandedSections[sectionKey] ? summary : null}
       <AppButton
         label={expandedSections[sectionKey] ? `Hide ${title}` : `Open ${title}`}
         onPress={() => toggleSection(sectionKey)}
@@ -604,13 +604,13 @@ export const AccessScreen = () => {
                 borderColor: theme.colors.nestedSurfaceBorder
               }}
             >
-              <InlineSummaryRow label="Joined Competitions" value={`${joinedCompetitionList.length}`} tone="light" />
-              <InlineSummaryRow label="Assignments Saved" value={`${competitionAssignments.filter((assignment) => assignment.userId === currentUser.id).length}`} tone="light" />
+              <InlineSummaryRow label="Competition History" value={joinedCompetitionList.length ? 'Open filtered competition results' : 'No competition history yet'} valueMuted={!joinedCompetitionList.length} tone="light" />
             </View>
           ),
           children: (
             <CompetitionsSection
               currentUser={currentUser}
+              canOrganizeCompetitions={canOrganizeCompetitions}
               users={users}
               competitionGroups={competitionGroups}
               competitionSessions={competitionSessions}
@@ -636,6 +636,7 @@ export const AccessScreen = () => {
               onCreateCompetition={saveCompetition}
               onJoinCompetition={handleJoinCompetition}
               onSaveAssignment={saveAssignment}
+              onOpenCompetitionHistory={() => navigation.navigate('History', { modeFilter: 'competition' })}
               embedded
             />
           )
@@ -779,20 +780,9 @@ export const AccessScreen = () => {
                 <OwnerControlsSection
                   ownerUser={ownerUser}
                   users={users}
-                  cleanupConfig={cleanupConfig}
                   onGrantPowerUser={(userId, userName) => runAdminAction(() => grantPowerUserAccess(userId), `${userName} now has power-user access.`)}
                   onStartTrial={(userId, userName) => runAdminAction(() => startTrialForUser(userId), `${userName} now has a 7-day trial.`)}
-                  onMarkSubscriber={(userId, userName) => runAdminAction(() => markSubscriberAccess(userId), `${userName} is marked as subscribed.`)}
                   onResetAccess={(userId, userName) => runAdminAction(() => clearUserAccess(userId), `${userName} was reset to free access.`)}
-                  onCleanupCategory={handleCleanupCategory}
-                  onDeleteAngler={(userId, userName) =>
-                    confirmAdminAction(
-                      'Delete angler?',
-                      `This permanently removes ${userName} and all of their saved fishing data from this device.`,
-                      () => deleteAngler(userId),
-                      `${userName} was deleted from this device.`
-                    )
-                  }
                   embedded
                 />
               )

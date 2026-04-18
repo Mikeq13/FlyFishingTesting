@@ -11,6 +11,7 @@ import { useTheme } from '@/design/theme';
 
 export const CompetitionsSection = ({
   currentUser,
+  canOrganizeCompetitions,
   users,
   competitionGroups,
   competitionSessions,
@@ -32,9 +33,11 @@ export const CompetitionsSection = ({
   onCreateCompetition,
   onJoinCompetition,
   onSaveAssignment,
+  onOpenCompetitionHistory,
   embedded = false
 }: {
   currentUser: UserProfile;
+  canOrganizeCompetitions: boolean;
   users: UserProfile[];
   competitionGroups: CompetitionGroup[];
   competitionSessions: CompetitionSession[];
@@ -56,6 +59,7 @@ export const CompetitionsSection = ({
   onCreateCompetition: () => Promise<void>;
   onJoinCompetition: () => Promise<void>;
   onSaveAssignment: (competitionId: number, userId: number, competitionSessionId: number, draft: { competitionGroupId: number | null; beat: string; role: CompetitionSessionRole }) => Promise<void>;
+  onOpenCompetitionHistory: () => void;
   embedded?: boolean;
 }) => {
   const { theme } = useTheme();
@@ -63,52 +67,14 @@ export const CompetitionsSection = ({
 
   const content = (
   <>
-    <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-      Competitions now own their own groups and session schedule. Organizers create the event once, anglers join by code, and assignments can be reviewed and corrected before the event starts.
-    </Text>
-    <FormField label="Competition Name" tone="light">
-      <TextInput value={newCompetitionName} onChangeText={onNewCompetitionNameChange} placeholder="Competition name" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
-    </FormField>
-    <OptionChips
-      label="Competition Groups"
-      options={['1', '2', '3', '4'] as const}
-      value={competitionGroupCount as '1' | '2' | '3' | '4'}
-      onChange={onCompetitionGroupCountChange}
-      tone="light"
-    />
-    <FormField label="Total Sessions" tone="light">
-      <TextInput value={competitionSessionCount} onChangeText={onCompetitionSessionCountChange} keyboardType="number-pad" placeholder="Session count" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
-    </FormField>
     <View style={{ gap: 8 }}>
-      {competitionSchedule.map((session, index) => (
-        <View
-          key={session.sessionNumber}
-          style={{
-            gap: 6,
-            backgroundColor: theme.colors.nestedSurface,
-            borderRadius: theme.radius.md,
-            padding: 12,
-            borderWidth: 1,
-            borderColor: theme.colors.nestedSurfaceBorder
-          }}
-        >
-          <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>Session {index + 1}</Text>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <View style={{ flex: 1 }}>
-              <FormField label="Start" tone="light">
-                <TextInput value={session.startTime} onChangeText={(value) => onCompetitionScheduleChange(index, { startTime: value })} placeholder="08:00" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
-              </FormField>
-            </View>
-            <View style={{ flex: 1 }}>
-              <FormField label="End" tone="light">
-                <TextInput value={session.endTime} onChangeText={(value) => onCompetitionScheduleChange(index, { endTime: value })} placeholder="11:00" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
-              </FormField>
-            </View>
-          </View>
-        </View>
-      ))}
+      <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 16 }}>Competition History</Text>
+      <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+        Review competition-only sessions and experiment results without digging through every normal journal entry.
+      </Text>
+      <AppButton label="Open Competition History" onPress={onOpenCompetitionHistory} variant="secondary" surfaceTone="light" />
     </View>
-    <AppButton label="Create Competition" onPress={() => { onCreateCompetition().catch((error) => Alert.alert('Unable to create competition', error instanceof Error ? error.message : 'Please try again.')); }} surfaceTone="light" />
+
     <View style={{ flexDirection: 'row', gap: 8 }}>
       <View style={{ flex: 1 }}>
         <FormField label="Competition Join Code" tone="light">
@@ -119,6 +85,58 @@ export const CompetitionsSection = ({
         <AppButton label="Join" onPress={() => { onJoinCompetition().catch((error) => Alert.alert('Unable to join competition', error instanceof Error ? error.message : 'Please try again.')); }} variant="secondary" surfaceTone="light" />
       </View>
     </View>
+
+    {canOrganizeCompetitions ? (
+      <View style={{ gap: 8 }}>
+        <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 16 }}>Competition Organizer</Text>
+        <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+          Owners and power users can create competitions, define the schedule, and review assignments before the event starts.
+        </Text>
+        <FormField label="Competition Name" tone="light">
+          <TextInput value={newCompetitionName} onChangeText={onNewCompetitionNameChange} placeholder="Competition name" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
+        </FormField>
+        <OptionChips
+          label="Competition Groups"
+          options={['1', '2', '3', '4'] as const}
+          value={competitionGroupCount as '1' | '2' | '3' | '4'}
+          onChange={onCompetitionGroupCountChange}
+          tone="light"
+        />
+        <FormField label="Total Sessions" tone="light">
+          <TextInput value={competitionSessionCount} onChangeText={onCompetitionSessionCountChange} keyboardType="number-pad" placeholder="Session count" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
+        </FormField>
+        <View style={{ gap: 8 }}>
+          {competitionSchedule.map((session, index) => (
+            <View
+              key={session.sessionNumber}
+              style={{
+                gap: 6,
+                backgroundColor: theme.colors.nestedSurface,
+                borderRadius: theme.radius.md,
+                padding: 12,
+                borderWidth: 1,
+                borderColor: theme.colors.nestedSurfaceBorder
+              }}
+            >
+              <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>Session {index + 1}</Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <FormField label="Start" tone="light">
+                    <TextInput value={session.startTime} onChangeText={(value) => onCompetitionScheduleChange(index, { startTime: value })} placeholder="08:00" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
+                  </FormField>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <FormField label="End" tone="light">
+                    <TextInput value={session.endTime} onChangeText={(value) => onCompetitionScheduleChange(index, { endTime: value })} placeholder="11:00" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
+                  </FormField>
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
+        <AppButton label="Create Competition" onPress={() => { onCreateCompetition().catch((error) => Alert.alert('Unable to create competition', error instanceof Error ? error.message : 'Please try again.')); }} surfaceTone="light" />
+      </View>
+    ) : null}
 
     {joinedCompetitionList.map((competition) => {
       const compGroups = competitionGroups.filter((item) => item.competitionId === competition.id);
@@ -140,12 +158,11 @@ export const CompetitionsSection = ({
           <Text style={{ color: theme.colors.textDark, fontWeight: '800' }}>{competition.name}</Text>
           <InlineSummaryRow label="Join Code" value={competition.joinCode} tone="light" />
           <InlineSummaryRow label="Competition Groups" value={compGroups.map((group) => group.label).join(', ') || 'Not generated yet'} tone="light" />
-          <InlineSummaryRow label="Roster" value={`${participants.length} participants | ${new Set(assignments.map((assignment) => assignment.userId)).size} with assignments`} tone="light" />
           <View style={{ gap: 6 }}>
             {compSessions.map((session) => <InlineSummaryRow key={session.id} label={`Session ${session.sessionNumber}`} value={`${session.startTime} - ${session.endTime}`} tone="light" />)}
           </View>
           <View style={{ gap: 8, marginTop: 4 }}>
-            <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>My Assignments</Text>
+            <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>My Competition Assignment</Text>
             {compSessions.map((session) => {
               const existingAssignment = assignments.find((assignment) => assignment.userId === currentUser.id && assignment.competitionSessionId === session.id);
               const draft = getDraftForAssignment(competition.id, currentUser.id, session.id, { competitionGroupId: existingAssignment?.competitionGroupId ?? compGroups[0]?.id ?? null, beat: existingAssignment?.beat ?? '', role: existingAssignment?.role ?? 'fishing' });
@@ -172,9 +189,10 @@ export const CompetitionsSection = ({
               );
             })}
           </View>
-          {competition.organizerUserId === currentUser.id ? (
+          {canOrganizeCompetitions && competition.organizerUserId === currentUser.id ? (
             <View style={{ gap: 8, marginTop: 6 }}>
               <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>Organizer Review</Text>
+              <InlineSummaryRow label="Roster" value={`${participants.length} participants | ${new Set(assignments.map((assignment) => assignment.userId)).size} with assignments`} tone="light" />
               {participants.map((participant) => {
                 const participantUser = users.find((user) => user.id === participant.userId);
                 return (
@@ -221,7 +239,7 @@ export const CompetitionsSection = ({
   }
 
   return (
-  <SectionCard title="Competitions" subtitle="Set the event clock once, then let anglers join and assignments stay reviewable." tone="light">
+  <SectionCard title="Competitions" subtitle="Keep participant competition tools available to everyone, and organizer tools limited to owners and power users." tone="light">
     {content}
   </SectionCard>
   );

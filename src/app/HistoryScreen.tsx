@@ -15,15 +15,17 @@ import { appTheme, useTheme } from '@/design/theme';
 import { useResponsiveLayout } from '@/design/layout';
 import { getFormInputStyle } from '@/components/ui/FormField';
 
-export const HistoryScreen = ({ navigation }: any) => {
+export const HistoryScreen = ({ navigation, route }: any) => {
   useTheme();
   const layout = useResponsiveLayout();
   const { sessions, experiments, users, activeUserId, archiveExperiment, deleteExperiment, cleanupExperimentsForCurrentUser } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
+  const initialModeFilter = route?.params?.modeFilter;
   const [riverFilter, setRiverFilter] = useState('');
   const [monthFilter, setMonthFilter] = useState('');
   const [waterFilter, setWaterFilter] = useState('');
   const [depthFilter, setDepthFilter] = useState('');
+  const [modeFilter, setModeFilter] = useState<'all' | 'competition'>(initialModeFilter === 'competition' ? 'competition' : 'all');
   const [showRiverChoices, setShowRiverChoices] = useState(false);
   const [cleanupFrom, setCleanupFrom] = useState('');
   const [cleanupTo, setCleanupTo] = useState('');
@@ -55,13 +57,14 @@ export const HistoryScreen = ({ navigation }: any) => {
         const depth = session.depthRange.toLowerCase();
 
         return (
+          (modeFilter === 'all' || session.mode === modeFilter) &&
           (!normalizedFilters.river || river.includes(normalizedFilters.river)) &&
           (!normalizedFilters.month || month.includes(normalizedFilters.month)) &&
           (!normalizedFilters.water || water.includes(normalizedFilters.water)) &&
           (!normalizedFilters.depth || depth.includes(normalizedFilters.depth))
         );
       }),
-    [sessions, normalizedFilters.river, normalizedFilters.month, normalizedFilters.water, normalizedFilters.depth]
+    [modeFilter, sessions, normalizedFilters.river, normalizedFilters.month, normalizedFilters.water, normalizedFilters.depth]
   );
 
   const cleanupCount = useMemo(
@@ -129,11 +132,12 @@ export const HistoryScreen = ({ navigation }: any) => {
         keyboardShouldPersistTaps="handled"
       >
         <ScreenHeader
-          title="History"
-          subtitle="Filter past sessions, review experiment history, and clean up old noise when needed."
+          title={modeFilter === 'competition' ? 'Competition History' : 'History'}
+          subtitle={modeFilter === 'competition' ? 'Review competition-only sessions, assignments, and experiment results without mixing in normal journal entries.' : 'Filter past sessions, review experiment history, and clean up old noise when needed.'}
           eyebrow={`Angler: ${activeUser?.name ?? 'Loading...'}`}
         />
         <SectionCard title="Filters" subtitle="Tighten the session list without burying the important controls.">
+          <OptionChips label="Session Type" options={['all', 'competition'] as const} value={modeFilter} onChange={(value) => setModeFilter(value as 'all' | 'competition')} />
           {!!riverOptions.length && (
             <>
               <AppButton label={showRiverChoices ? 'Hide Rivers' : 'Choose River'} onPress={() => setShowRiverChoices((current) => !current)} variant="secondary" />
