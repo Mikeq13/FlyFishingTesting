@@ -127,6 +127,10 @@ export const AccessScreen = ({ navigation }: any) => {
     { sessionNumber: 3, startTime: '17:00', endTime: '20:00' }
   ]);
   const [assignmentDrafts, setAssignmentDrafts] = React.useState<Record<string, { competitionGroupId: number | null; beat: string; role: CompetitionSessionRole }>>({});
+  const [powerToolsSections, setPowerToolsSections] = React.useState({
+    competitionOrganizer: false,
+    userManagement: false
+  });
 
   const joinedMemberships = React.useMemo(
     () => groupMemberships.filter((membership) => membership.userId === currentUser?.id),
@@ -275,6 +279,16 @@ export const AccessScreen = ({ navigation }: any) => {
     if (canAccessPowerTools) return;
     setExpandedSections((current) => (current.powerTools ? { ...current, powerTools: false } : current));
   }, [canAccessPowerTools]);
+
+  React.useEffect(() => {
+    if (canAccessPowerTools) return;
+    setPowerToolsSections({ competitionOrganizer: false, userManagement: false });
+  }, [canAccessPowerTools]);
+
+  React.useEffect(() => {
+    if (isAuthenticatedOwner) return;
+    setPowerToolsSections((current) => (current.userManagement ? { ...current, userManagement: false } : current));
+  }, [isAuthenticatedOwner]);
 
   if (!currentUser) {
     return (
@@ -529,6 +543,10 @@ export const AccessScreen = ({ navigation }: any) => {
     setExpandedSections((current) => ({ ...current, [key]: !current[key] }));
   };
 
+  const togglePowerToolsSection = (key: keyof typeof powerToolsSections) => {
+    setPowerToolsSections((current) => ({ ...current, [key]: !current[key] }));
+  };
+
   const saveTesterOnboardingSettings = async () => {
     await Promise.all([
       setAppSetting(IOS_PREVIEW_LINK_KEY, iosPreviewUrl.trim()),
@@ -571,6 +589,50 @@ export const AccessScreen = ({ navigation }: any) => {
       </Pressable>
       {expandedSections[sectionKey] ? children : null}
     </SectionCard>
+  );
+
+  const renderNestedCollapsibleSection = ({
+    title,
+    subtitle,
+    expanded,
+    onToggle,
+    children
+  }: {
+    title: string;
+    subtitle: string;
+    expanded: boolean;
+    onToggle: () => void;
+    children: React.ReactNode;
+  }) => (
+    <View
+      style={{
+        gap: 8,
+        borderRadius: theme.radius.md,
+        padding: 12,
+        backgroundColor: theme.colors.nestedSurface,
+        borderWidth: 1,
+        borderColor: theme.colors.nestedSurfaceBorder
+      }}
+    >
+      <Pressable
+        onPress={onToggle}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8
+        }}
+      >
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text style={{ color: theme.colors.textDark, fontWeight: '800' }}>{title}</Text>
+          <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 18 }}>{subtitle}</Text>
+        </View>
+        <Text style={{ color: theme.colors.textDark, fontSize: 18, fontWeight: '800' }}>
+          {expanded ? '-' : '+'}
+        </Text>
+      </Pressable>
+      {expanded ? children : null}
+    </View>
   );
 
   return (
@@ -777,62 +839,76 @@ export const AccessScreen = ({ navigation }: any) => {
                 <InlineSummaryRow label="Organizer Competitions" value={`${organizerCompetitionList.length}`} tone="light" />
               ) : undefined,
               children: (
-                <CompetitionOrganizerSection
-                  users={users}
-                  organizerCompetitions={organizerCompetitionList}
-                  competitionGroups={competitionGroups}
-                  competitionSessions={competitionSessions}
-                  competitionParticipants={competitionParticipants}
-                  competitionAssignments={competitionAssignments}
-                  newCompetitionName={newCompetitionName}
-                  onNewCompetitionNameChange={setNewCompetitionName}
-                  competitionGroupCount={competitionGroupCount}
-                  onCompetitionGroupCountChange={setCompetitionGroupCount}
-                  competitionSessionCount={competitionSessionCount}
-                  onCompetitionSessionCountChange={setCompetitionSessionCount}
-                  competitionSchedule={competitionSchedule}
-                  onCompetitionScheduleChange={(index, next) =>
-                    setCompetitionSchedule((current) =>
-                      current.map((entry, entryIndex) => (entryIndex === index ? { ...entry, ...next } : entry))
+                <View style={{ gap: 10 }}>
+                  {renderNestedCollapsibleSection({
+                    title: 'Competition Organizer',
+                    subtitle: 'Create competitions, shape the session schedule, and review assignments without opening a wall of organizer controls.',
+                    expanded: powerToolsSections.competitionOrganizer,
+                    onToggle: () => togglePowerToolsSection('competitionOrganizer'),
+                    children: (
+                      <CompetitionOrganizerSection
+                        users={users}
+                        organizerCompetitions={organizerCompetitionList}
+                        competitionGroups={competitionGroups}
+                        competitionSessions={competitionSessions}
+                        competitionParticipants={competitionParticipants}
+                        competitionAssignments={competitionAssignments}
+                        newCompetitionName={newCompetitionName}
+                        onNewCompetitionNameChange={setNewCompetitionName}
+                        competitionGroupCount={competitionGroupCount}
+                        onCompetitionGroupCountChange={setCompetitionGroupCount}
+                        competitionSessionCount={competitionSessionCount}
+                        onCompetitionSessionCountChange={setCompetitionSessionCount}
+                        competitionSchedule={competitionSchedule}
+                        onCompetitionScheduleChange={(index, next) =>
+                          setCompetitionSchedule((current) =>
+                            current.map((entry, entryIndex) => (entryIndex === index ? { ...entry, ...next } : entry))
+                          )
+                        }
+                        getDraftForAssignment={getDraftForAssignment}
+                        onUpdateAssignmentDraft={updateAssignmentDraft}
+                        onCreateCompetition={saveCompetition}
+                        onSaveAssignment={saveAssignment}
+                        embedded
+                      />
                     )
-                  }
-                  getDraftForAssignment={getDraftForAssignment}
-                  onUpdateAssignmentDraft={updateAssignmentDraft}
-                  onCreateCompetition={saveCompetition}
-                  onSaveAssignment={saveAssignment}
-                  embedded
-                />
-              )
-            })
-          : null}
-
-        {isAuthenticatedOwner
-          ? renderCollapsibleCard({
-              sectionKey: 'ownerTools',
-              title: 'Owner Tools',
-              subtitle: 'Grant power-user access, start a seven-day trial, or reset access without mixing in other settings.',
-              children: (
-                <>
-                  <OwnerControlsSection
-                    ownerUser={ownerUser}
-                    manageableUsers={manageableUsers}
-                    onGrantPowerUser={(userId, userName) => runAdminAction(() => grantPowerUserAccess(userId), `${userName} now has power-user access.`)}
-                    onStartTrial={(userId, userName) => runAdminAction(() => startTrialForUser(userId), `${userName} now has a 7-day trial.`)}
-                    onResetAccess={(userId, userName) => runAdminAction(() => clearUserAccess(userId), `${userName} was reset to free access.`)}
-                    embedded
-                  />
-                  <RemoteTesterOnboardingSection
-                    iosPreviewUrl={iosPreviewUrl}
-                    onIosPreviewUrlChange={setIosPreviewUrl}
-                    androidPreviewUrl={androidPreviewUrl}
-                    onAndroidPreviewUrlChange={setAndroidPreviewUrl}
-                    accessCode={testerAccessCode}
-                    onAccessCodeChange={setTesterAccessCode}
-                    onboardingNote={testerOnboardingNote}
-                    onOnboardingNoteChange={setTesterOnboardingNote}
-                    onSave={saveTesterOnboardingSettings}
-                  />
-                </>
+                  })}
+                  {renderNestedCollapsibleSection({
+                    title: 'User Management',
+                    subtitle: isAuthenticatedOwner
+                      ? 'Grant power-user access, start trials, reset access, and keep tester install links in one owner-only section.'
+                      : 'Only the authenticated owner can manage tester access from here.',
+                    expanded: powerToolsSections.userManagement,
+                    onToggle: () => togglePowerToolsSection('userManagement'),
+                    children: isAuthenticatedOwner ? (
+                      <>
+                        <OwnerControlsSection
+                          ownerUser={ownerUser}
+                          manageableUsers={manageableUsers}
+                          onGrantPowerUser={(userId, userName) => runAdminAction(() => grantPowerUserAccess(userId), `${userName} now has power-user access.`)}
+                          onStartTrial={(userId, userName) => runAdminAction(() => startTrialForUser(userId), `${userName} now has a 7-day trial.`)}
+                          onResetAccess={(userId, userName) => runAdminAction(() => clearUserAccess(userId), `${userName} was reset to free access.`)}
+                          embedded
+                        />
+                        <RemoteTesterOnboardingSection
+                          iosPreviewUrl={iosPreviewUrl}
+                          onIosPreviewUrlChange={setIosPreviewUrl}
+                          androidPreviewUrl={androidPreviewUrl}
+                          onAndroidPreviewUrlChange={setAndroidPreviewUrl}
+                          accessCode={testerAccessCode}
+                          onAccessCodeChange={setTesterAccessCode}
+                          onboardingNote={testerOnboardingNote}
+                          onOnboardingNoteChange={setTesterOnboardingNote}
+                          onSave={saveTesterOnboardingSettings}
+                        />
+                      </>
+                    ) : (
+                      <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+                        Sign in as the owner account to manage tester access and saved onboarding links.
+                      </Text>
+                    )
+                  })}
+                </View>
               )
             })
           : null}

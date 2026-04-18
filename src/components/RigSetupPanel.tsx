@@ -16,6 +16,8 @@ interface RigSetupPanelProps {
   rigSetup: RigSetup;
   flyCount: number;
   onFlyCountChange?: (nextCount: 1 | 2 | 3) => void;
+  editMode?: 'all' | 'leader' | 'rig';
+  forceEditorOpen?: boolean;
   savedLeaderFormulas: LeaderFormula[];
   savedRigPresets: RigPreset[];
   onChange: (next: RigSetup) => void;
@@ -31,6 +33,8 @@ export const RigSetupPanel = ({
   rigSetup,
   flyCount,
   onFlyCountChange,
+  editMode = 'all',
+  forceEditorOpen = false,
   savedLeaderFormulas,
   savedRigPresets,
   onChange,
@@ -46,7 +50,7 @@ export const RigSetupPanel = ({
   const [showPresetList, setShowPresetList] = useState(false);
   const [showPresetEditor, setShowPresetEditor] = useState(false);
   const [showSetupEditor, setShowSetupEditor] = useState(true);
-  const [editTarget, setEditTarget] = useState<'all' | 'leader' | 'rig'>('all');
+  const [editTarget, setEditTarget] = useState<'all' | 'leader' | 'rig'>(editMode);
   const sortedFormulas = useMemo(() => [...savedLeaderFormulas].sort((left, right) => left.name.localeCompare(right.name)), [savedLeaderFormulas]);
   const sortedPresets = useMemo(() => [...savedRigPresets].sort((left, right) => left.name.localeCompare(right.name)), [savedRigPresets]);
   const hasConfiguredLeader = !!rigSetup.leaderFormulaName || rigSetup.leaderFormulaSectionsSnapshot.length > 0;
@@ -59,9 +63,16 @@ export const RigSetupPanel = ({
     }
   }, [hasMeaningfulRigConfig]);
 
+  useEffect(() => {
+    if (forceEditorOpen) {
+      setShowSetupEditor(true);
+      setEditTarget(editMode);
+    }
+  }, [editMode, forceEditorOpen]);
+
   const closeSetupEditor = () => {
     setShowSetupEditor(false);
-    setEditTarget('all');
+    setEditTarget(editMode);
     setShowFormulaList(false);
     setShowFormulaEditor(false);
     setShowPresetList(false);
@@ -70,7 +81,7 @@ export const RigSetupPanel = ({
 
   return (
     <SectionCard title={title} subtitle="Keep leaders from fly line to tippet ring and rigs from tippet ring to point fly in one place.">
-      {!showSetupEditor ? (
+      {!forceEditorOpen && !showSetupEditor ? (
         <View
           style={{
             gap: 8,
@@ -84,41 +95,45 @@ export const RigSetupPanel = ({
           </Text>
           <Text style={{ color: theme.colors.textMuted }}>Rig: {rigSummary}</Text>
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-            <AppButton
-              label="Change Leader"
-              onPress={() => {
-                setShowSetupEditor(true);
-                setEditTarget('leader');
-                setShowFormulaList(true);
-                setShowFormulaEditor(false);
-                setShowPresetList(false);
-                setShowPresetEditor(false);
-              }}
-              variant="ghost"
-            />
-            <AppButton
-              label="Change Rig"
-              onPress={() => {
-                setShowSetupEditor(true);
-                setEditTarget('rig');
-                setShowPresetList(true);
-                setShowPresetEditor(false);
-                setShowFormulaList(false);
-                setShowFormulaEditor(false);
-              }}
-              variant="ghost"
-            />
+            {editMode !== 'rig' ? (
+              <AppButton
+                label="Change Leader"
+                onPress={() => {
+                  setShowSetupEditor(true);
+                  setEditTarget('leader');
+                  setShowFormulaList(true);
+                  setShowFormulaEditor(false);
+                  setShowPresetList(false);
+                  setShowPresetEditor(false);
+                }}
+                variant="ghost"
+              />
+            ) : null}
+            {editMode !== 'leader' ? (
+              <AppButton
+                label="Change Rig"
+                onPress={() => {
+                  setShowSetupEditor(true);
+                  setEditTarget('rig');
+                  setShowPresetList(true);
+                  setShowPresetEditor(false);
+                  setShowFormulaList(false);
+                  setShowFormulaEditor(false);
+                }}
+                variant="ghost"
+              />
+            ) : null}
           </View>
         </View>
       ) : null}
 
-      {showSetupEditor ? (
+      {(forceEditorOpen || showSetupEditor) ? (
         <>
-          {(editTarget === 'all' || editTarget === 'leader') ? (
+          {(editMode !== 'rig' && (editTarget === 'all' || editTarget === 'leader')) ? (
             <>
               {!!sortedFormulas.length ? (
                 <>
-                  <AppButton label={showFormulaList ? 'Hide Leaders' : 'Use Leader'} onPress={() => setShowFormulaList((current) => !current)} variant="secondary" />
+                  <AppButton label={showFormulaList ? 'Hide Existing Leaders' : 'Existing Leader'} onPress={() => setShowFormulaList((current) => !current)} variant="secondary" />
                   {showFormulaList ? (
                     <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: theme.colors.borderStrong, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceLight }}>
                       {sortedFormulas.map((formula) => (
@@ -156,7 +171,7 @@ export const RigSetupPanel = ({
                 </>
               ) : null}
 
-              <AppButton label={showFormulaEditor ? 'Hide Save Leader' : 'Build New Leader'} onPress={() => setShowFormulaEditor((current) => !current)} variant="tertiary" />
+              <AppButton label={showFormulaEditor ? 'Hide New Leader' : 'New Leader'} onPress={() => setShowFormulaEditor((current) => !current)} variant="tertiary" />
 
               {showFormulaEditor ? (
                 <LeaderFormulaEditor
@@ -174,9 +189,9 @@ export const RigSetupPanel = ({
             </>
           ) : null}
 
-          {(editTarget === 'all' || editTarget === 'rig') ? (
+          {(editMode !== 'leader' && (editTarget === 'all' || editTarget === 'rig')) ? (
             <>
-              <AppButton label={showPresetEditor ? 'Hide Save Rig' : 'Save Rig'} onPress={() => setShowPresetEditor((current) => !current)} variant="ghost" />
+              <AppButton label={showPresetEditor ? 'Hide New Rig' : 'New Rig'} onPress={() => setShowPresetEditor((current) => !current)} variant="ghost" />
 
               {showPresetEditor ? (
                 <RigPresetEditor
@@ -193,7 +208,7 @@ export const RigSetupPanel = ({
 
               {!!sortedPresets.length ? (
                 <>
-                  <AppButton label={showPresetList ? 'Hide Rigs' : 'Use Rig'} onPress={() => setShowPresetList((current) => !current)} variant="secondary" />
+                  <AppButton label={showPresetList ? 'Hide Existing Rigs' : 'Existing Rig'} onPress={() => setShowPresetList((current) => !current)} variant="secondary" />
                   {showPresetList ? (
                     <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: theme.colors.borderStrong, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceLight }}>
                       {sortedPresets.map((preset) => (
@@ -275,7 +290,7 @@ export const RigSetupPanel = ({
             </>
           ) : null}
 
-          <AppButton label="Hide Setup Details" onPress={closeSetupEditor} variant="ghost" />
+          {!forceEditorOpen ? <AppButton label="Hide Setup Details" onPress={closeSetupEditor} variant="ghost" /> : null}
         </>
       ) : null}
     </SectionCard>

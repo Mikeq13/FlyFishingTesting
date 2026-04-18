@@ -431,7 +431,8 @@ export const createStoreActions = ({
   createGroup: async (name) => {
     assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
-    const group = await createLocalGroupWithDefaults(activeUserId, name);
+    ensureUniqueSavedName(groups, name, 'Group');
+    const group = await createLocalGroupWithDefaults(activeUserId, name.trim());
     await trackSyncChange('group', 'create', group.id, group);
     const refreshed = await loadLocalAppData(activeUserId);
     const membership = refreshed.groupMemberships.find((entry) => entry.groupId === group.id && entry.userId === activeUserId);

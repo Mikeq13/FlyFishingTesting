@@ -88,13 +88,17 @@ export const HistoryScreen = ({ navigation, route }: any) => {
           text: cleanupAction === 'archive' ? 'Archive' : 'Delete',
           style: 'destructive',
           onPress: async () => {
-            const count = await cleanupExperimentsForCurrentUser({
-              from: cleanupFrom || undefined,
-              to: cleanupTo || undefined,
-              outcome: cleanupOutcome,
-              action: cleanupAction
-            });
-            Alert.alert('Cleanup complete', `${count} experiment${count === 1 ? '' : 's'} ${cleanupAction === 'archive' ? 'archived' : 'deleted'}.`);
+            try {
+              const count = await cleanupExperimentsForCurrentUser({
+                from: cleanupFrom || undefined,
+                to: cleanupTo || undefined,
+                outcome: cleanupOutcome,
+                action: cleanupAction
+              });
+              Alert.alert('Cleanup complete', `${count} experiment${count === 1 ? '' : 's'} ${cleanupAction === 'archive' ? 'archived' : 'deleted'}.`);
+            } catch (error) {
+              Alert.alert('Cleanup failed', error instanceof Error ? error.message : 'Please try again.');
+            }
           }
         }
       ]
@@ -113,12 +117,16 @@ export const HistoryScreen = ({ navigation, route }: any) => {
           text: action === 'archive' ? 'Archive' : 'Delete',
           style: 'destructive',
           onPress: async () => {
-            if (action === 'archive') {
-              await archiveExperiment(experimentId);
-            } else {
-              await deleteExperiment(experimentId);
+            try {
+              if (action === 'archive') {
+                await archiveExperiment(experimentId);
+              } else {
+                await deleteExperiment(experimentId);
+              }
+              Alert.alert('Cleanup complete', `Experiment ${action === 'archive' ? 'archived' : 'deleted'}.`);
+            } catch (error) {
+              Alert.alert('Cleanup failed', error instanceof Error ? error.message : 'Please try again.');
             }
-            Alert.alert('Cleanup complete', `Experiment ${action === 'archive' ? 'archived' : 'deleted'}.`);
           }
         }
       ]

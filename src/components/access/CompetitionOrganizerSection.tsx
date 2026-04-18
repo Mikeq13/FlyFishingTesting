@@ -70,12 +70,14 @@ export const CompetitionOrganizerSection = ({
 
   const content = (
     <>
-      <View style={{ gap: 8 }}>
-        <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 16 }}>Competition Organizer</Text>
-        <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-          Create competitions, shape the session schedule, and review assignments without surfacing organizer controls to every angler.
-        </Text>
-      </View>
+      {!embedded ? (
+        <View style={{ gap: 8 }}>
+          <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 16 }}>Competition Organizer</Text>
+          <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+            Create competitions, shape the session schedule, and review assignments without surfacing organizer controls to every angler.
+          </Text>
+        </View>
+      ) : null}
 
       <FormField label="Competition Name" tone="light">
         <TextInput value={newCompetitionName} onChangeText={onNewCompetitionNameChange} placeholder="Competition name" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />

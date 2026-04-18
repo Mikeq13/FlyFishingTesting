@@ -32,7 +32,7 @@ interface RigFlyManagerProps {
 export const RigFlyManager = ({ title, rigSetup, savedFlies, onChange, onCreateFly }: RigFlyManagerProps) => {
   const [showSavedFlyList, setShowSavedFlyList] = useState(false);
   const [showAddFly, setShowAddFly] = useState(false);
-  const [showFlyManager, setShowFlyManager] = useState(true);
+  const [showFlyManager, setShowFlyManager] = useState(() => !rigSetup.assignments.some((assignment) => assignment.fly.name.trim()));
   const [draftFly, setDraftFly] = useState<FlySetup>(createEmptyFly());
   const [targetAssignmentIndex, setTargetAssignmentIndex] = useState<number | null>(null);
   const sortedSavedFlies = useMemo(() => [...savedFlies].sort((a, b) => a.name.localeCompare(b.name)), [savedFlies]);
@@ -72,7 +72,7 @@ export const RigFlyManager = ({ title, rigSetup, savedFlies, onChange, onCreateF
       {!showFlyManager && selectedAssignments.length ? (
         <View style={{ gap: 8 }}>
           {selectedAssignments.map((assignment, index) => (
-            <View key={`${assignment.position}-${index}`} style={{ gap: 6, borderRadius: appTheme.radius.md, padding: 10, backgroundColor: appTheme.colors.surfaceMuted }}>
+            <View key={`summary-${assignment.position}-${assignment.fly.name || 'empty'}-${index}`} style={{ gap: 6, borderRadius: appTheme.radius.md, padding: 10, backgroundColor: appTheme.colors.surfaceMuted }}>
               <Text style={{ color: appTheme.colors.text, fontWeight: '700' }}>{assignment.position}</Text>
               <Text style={{ color: appTheme.colors.textSoft }}>
                 {assignment.fly.name.trim()
@@ -96,7 +96,7 @@ export const RigFlyManager = ({ title, rigSetup, savedFlies, onChange, onCreateF
         <>
       {!!sortedSavedFlies.length ? (
         <>
-          <AppButton label={showSavedFlyList ? 'Hide Saved Flies' : 'Choose Saved Flies'} onPress={() => setShowSavedFlyList((current) => !current)} variant="secondary" />
+          <AppButton label={showSavedFlyList ? 'Hide Existing Flies' : 'Existing Fly'} onPress={() => setShowSavedFlyList((current) => !current)} variant="secondary" />
           {showSavedFlyList ? (
             <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: appTheme.colors.borderStrong, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.surfaceLight }}>
               {sortedSavedFlies.map((savedFly) => {
@@ -161,7 +161,7 @@ export const RigFlyManager = ({ title, rigSetup, savedFlies, onChange, onCreateF
         <Text style={{ color: '#bde6f6' }}>No flies selected for this rig yet.</Text>
       ) : (
         selectedAssignments.map((assignment, index) => (
-          <View key={`${assignment.fly.name}-${index}`} style={{ gap: 8, borderRadius: appTheme.radius.md, padding: 10, backgroundColor: appTheme.colors.surfaceMuted }}>
+          <View key={`assignment-${assignment.position}-${assignment.fly.name || 'empty'}-${index}`} style={{ gap: 8, borderRadius: appTheme.radius.md, padding: 10, backgroundColor: appTheme.colors.surfaceMuted }}>
             <Text style={{ color: '#f7fdff', fontWeight: '700' }}>
               {assignment.position}
             </Text>
@@ -184,7 +184,7 @@ export const RigFlyManager = ({ title, rigSetup, savedFlies, onChange, onCreateF
               }
             />
             <AppButton
-              label={assignment.fly.name.trim() ? 'Replace Fly' : 'Choose Fly'}
+              label={assignment.fly.name.trim() ? 'Replace Fly' : 'Existing Fly'}
               onPress={() => openChooserForIndex(index)}
               variant="tertiary"
             />

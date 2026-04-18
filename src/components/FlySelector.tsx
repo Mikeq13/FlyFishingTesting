@@ -58,7 +58,7 @@ export const FlySelector = ({ title, value, savedFlies, onChange, onSave, onConf
 
       {!!sortedSavedFlies.length && (
         <View style={{ gap: 6 }}>
-          <AppButton label={showSavedFlyList ? 'Hide Saved Flies' : 'Choose Saved Fly'} onPress={() => setShowSavedFlyList((current) => !current)} variant="secondary" />
+          <AppButton label={showSavedFlyList ? 'Hide Existing Flies' : 'Existing Fly'} onPress={() => setShowSavedFlyList((current) => !current)} variant="secondary" />
           {showSavedFlyList && (
             <View style={{ borderWidth: 1, borderColor: appTheme.colors.borderStrong, borderRadius: appTheme.radius.md, backgroundColor: appTheme.colors.surfaceLight }}>
               {sortedSavedFlies.map((fly) => (

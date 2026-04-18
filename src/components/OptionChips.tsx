@@ -17,9 +17,9 @@ export const OptionChips = <T extends string>({ label, options, value, onChange,
     <View style={{ gap: 8 }}>
       <Text style={{ color: tone === 'light' ? theme.colors.textDark : theme.colors.text, fontWeight: '800' }}>{label}</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-        {options.map((option) => (
+        {options.map((option, index) => (
           <Pressable
-            key={option}
+            key={`${option}-${index}`}
             onPress={() => onChange(option)}
             style={{
               paddingHorizontal: 12,
