@@ -29,6 +29,9 @@ export const LocalDataSection = ({
     <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
       Clean up local and synced owned fishing data for the active profile. Joined shared records are detached instead of globally deleted.
     </Text>
+    <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+      Draft, legacy, archived, and pending-delete records are handled differently so the app can stay trustworthy while cleanup sync finishes.
+    </Text>
     {cleanupStatus?.pendingDeleteCount ? (
       <View style={{ backgroundColor: theme.colors.nestedSurface, borderRadius: 12, padding: 10, borderWidth: 1, borderColor: theme.colors.nestedSurfaceBorder }}>
         <Text style={{ color: theme.colors.textDarkSoft }}>

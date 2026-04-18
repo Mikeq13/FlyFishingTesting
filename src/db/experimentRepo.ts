@@ -2,6 +2,7 @@ import { getDb, isWeb } from './schema';
 import { Experiment } from '@/types/experiment';
 import { deleteWebRows, insertWebRow, listWebRows, updateWebRows } from './webStore';
 import { getExperimentEntries } from '@/utils/experimentEntries';
+import { normalizeLegacyExperimentStatus } from '@/services/dataIntegrityService';
 
 const WEB_EXPERIMENTS_KEY = 'fishing_lab.experiments';
 const WEB_EXPERIMENTS_ID_KEY = 'fishing_lab.experiments.nextId';
@@ -11,7 +12,8 @@ const hydrateExperiment = (experiment: Experiment): Experiment => ({
   controlFly: { ...experiment.controlFly, hookSize: experiment.controlFly.hookSize ?? 16 },
   variantFly: { ...experiment.variantFly, hookSize: experiment.variantFly.hookSize ?? 16 },
   controlFocus: experiment.controlFocus ?? 'pattern',
-  status: experiment.status ?? 'complete',
+  status: experiment.status ?? normalizeLegacyExperimentStatus(experiment),
+  legacyStatusMissing: experiment.status === undefined || experiment.status === null ? true : experiment.legacyStatusMissing,
   flyEntries: experiment.flyEntries?.length
     ? experiment.flyEntries
     : getExperimentEntries({
@@ -95,9 +97,25 @@ export const updateExperiment = async (experimentId: number, payload: Omit<Exper
 export const listExperiments = async (userId: number, options: { includeArchived?: boolean } = {}): Promise<Experiment[]> => {
   const includeArchived = options.includeArchived ?? false;
   if (isWeb) {
-    return listWebRows<Experiment>(WEB_EXPERIMENTS_KEY)
+    const normalizedRows = listWebRows<Experiment>(WEB_EXPERIMENTS_KEY)
       .filter((e) => e.userId === userId && (includeArchived || !e.archivedAt))
       .map(hydrateExperiment);
+
+    const rowsNeedingRepair = normalizedRows.filter((experiment) => experiment.legacyStatusMissing);
+    if (rowsNeedingRepair.length) {
+      updateWebRows<Experiment>(WEB_EXPERIMENTS_KEY, (rows) =>
+        rows.map((row) => {
+          const repaired = rowsNeedingRepair.find((experiment) => experiment.id === row.id);
+          if (!repaired) return row;
+          return {
+            ...row,
+            status: repaired.status
+          };
+        })
+      );
+    }
+
+    return normalizedRows;
   }
 
   const db = await getDb();
@@ -109,7 +127,7 @@ export const listExperiments = async (userId: number, options: { includeArchived
     userId,
     includeArchived ? 1 : 0
   );
-  return rows.map((r) => ({
+  const experiments = rows.map((r) => ({
     id: r.id,
     userId: r.user_id,
     sessionId: r.session_id,
@@ -125,10 +143,23 @@ export const listExperiments = async (userId: number, options: { includeArchived
     variantCatches: r.variant_catches,
     winner: r.winner,
     outcome: r.outcome ?? 'inconclusive',
-    status: r.status ?? 'complete',
+    status: r.status ?? undefined,
     confidenceScore: r.confidence_score,
-    archivedAt: r.archived_at ?? undefined
+    archivedAt: r.archived_at ?? undefined,
+    legacyStatusMissing: r.status == null
   })).map(hydrateExperiment);
+
+  const rowsNeedingRepair = experiments.filter((experiment) => experiment.legacyStatusMissing);
+  if (rowsNeedingRepair.length) {
+    const repairDb = await getDb();
+    await Promise.all(
+      rowsNeedingRepair.map((experiment) =>
+        repairDb.runAsync('UPDATE experiments SET status = ? WHERE id = ?', experiment.status, experiment.id)
+      )
+    );
+  }
+
+  return experiments;
 };
 
 export const archiveExperiments = async (experimentIds: number[]): Promise<void> => {

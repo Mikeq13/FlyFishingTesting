@@ -5,6 +5,8 @@ import { catchRate, percentDiff } from '@/utils/calculations';
 import { getExperimentEntries } from '@/utils/experimentEntries';
 
 const normalize = (value: string): string => value.trim().toLowerCase();
+const MIN_ANGLER_COMPARISON_CASTS = 20;
+const MIN_ABSOLUTE_RATE_GAP = 0.08;
 
 const buildExperimentSignature = (experiment: Experiment, session?: Session): string => {
   const flySignature = getExperimentEntries(experiment)
@@ -71,14 +73,21 @@ export const generateAnglerComparisons = (users: UserProfile[], sessions: Sessio
     if (!leader || !runnerUp) return;
 
     const diff = percentDiff(runnerUp.rate, leader.rate);
-    if (leader.casts < 20 || runnerUp.casts < 20 || diff < 0.1) return;
+    const absoluteGap = leader.rate - runnerUp.rate;
+    if (leader.casts < MIN_ANGLER_COMPARISON_CASTS || runnerUp.casts < MIN_ANGLER_COMPARISON_CASTS || absoluteGap < MIN_ABSOLUTE_RATE_GAP) {
+      return;
+    }
 
     const hypothesis = group[0]?.hypothesis || 'matching experiment';
+    const relativeLift = runnerUp.rate >= 0.05 ? Math.min(diff, 3) : null;
     insights.push({
       type: 'pattern',
-      message: `Across anglers, '${hypothesis}' is strongest for ${leader.name} over ${runnerUp.name} by ${(diff * 100).toFixed(0)}% in comparable tests.`,
+      message:
+        relativeLift !== null
+          ? `Across anglers, '${hypothesis}' is strongest for ${leader.name} over ${runnerUp.name} by ${(relativeLift * 100).toFixed(0)}% in comparable tests.`
+          : `Across anglers, '${hypothesis}' shows a stronger clean catch-rate signal for ${leader.name} than ${runnerUp.name} by ${(absoluteGap * 100).toFixed(1)} percentage points.`,
       confidence: leader.casts + runnerUp.casts >= 80 ? 'high' : 'medium',
-      supportingData: { signature, leader, runnerUp, anglers: ranked }
+      supportingData: { signature, leader, runnerUp, anglers: ranked, absoluteGap, relativeLift }
     });
   });
 

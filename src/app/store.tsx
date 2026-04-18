@@ -39,6 +39,8 @@ import { createStoreActions } from '@/app/storeActions';
 import { AppStore, UserDataCleanupCategory } from '@/app/storeTypes';
 import { NotificationPermissionStatus, SharedDataStatus } from '@/types/appState';
 import { getNotificationPermissionStatus } from '@/utils/sessionNotifications';
+import { classifyExperimentIntegrity, classifySessionIntegrity } from '@/services/dataIntegrityService';
+import { IntegritySummary } from '@/types/dataIntegrity';
 
 export type { UserDataCleanupCategory };
 
@@ -75,8 +77,6 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const [allCatchEvents, setAllCatchEvents] = useState<CatchEvent[]>([]);
   const [experiments, setExperiments] = useState<Experiment[]>([]);
   const [allExperiments, setAllExperiments] = useState<Experiment[]>([]);
-  const [anglerComparisons, setAnglerComparisons] = useState<Insight[]>([]);
-  const [topFlyRecords, setTopFlyRecords] = useState<TopFlyRecord[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [savedFlies, setSavedFlies] = useState<SavedFly[]>([]);
   const [savedLeaderFormulas, setSavedLeaderFormulas] = useState<LeaderFormula[]>([]);
@@ -111,7 +111,6 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const sessionMap = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
   const normalizeEmail = (value?: string | null) => value?.trim().toLowerCase() ?? null;
   const currentUser = useMemo(() => users.find((user) => user.id === activeUserId) ?? null, [activeUserId, users]);
-  const completeExperiments = useMemo(() => experiments.filter((experiment) => experiment.status !== 'draft'), [experiments]);
   const storedOwnerUser = useMemo(() => users.find((user) => user.role === 'owner') ?? null, [users]);
   const ownerUser = useMemo(() => storedOwnerUser, [storedOwnerUser]);
   const isSyncEnabled = hasSupabaseConfig && !!remoteSession;
@@ -231,6 +230,73 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     },
     [syncQueue]
   );
+
+  const sessionIntegrityById = useMemo(() => {
+    const map = new Map<number, IntegritySummary>();
+    sessions.forEach((session) => {
+      map.set(session.id, classifySessionIntegrity(session, getSyncRecordState('session', session.id)));
+    });
+    return map;
+  }, [getSyncRecordState, sessions]);
+
+  const experimentIntegrityById = useMemo(() => {
+    const map = new Map<number, IntegritySummary>();
+    experiments.forEach((experiment) => {
+      map.set(
+        experiment.id,
+        classifyExperimentIntegrity(
+          experiment,
+          sessionMap.get(experiment.sessionId),
+          getSyncRecordState('experiment', experiment.id)
+        )
+      );
+    });
+    return map;
+  }, [experiments, getSyncRecordState, sessionMap]);
+
+  const getSessionIntegrity = React.useCallback<AppStore['getSessionIntegrity']>(
+    (sessionId) =>
+      sessionIntegrityById.get(sessionId) ?? {
+        state: 'orphaned',
+        label: 'Missing',
+        analyticsEligible: false,
+        reason: 'This session could not be found.'
+      },
+    [sessionIntegrityById]
+  );
+
+  const getExperimentIntegrity = React.useCallback<AppStore['getExperimentIntegrity']>(
+    (experimentId) =>
+      experimentIntegrityById.get(experimentId) ?? {
+        state: 'orphaned',
+        label: 'Missing',
+        analyticsEligible: false,
+        reason: 'This experiment could not be found.'
+      },
+    [experimentIntegrityById]
+  );
+
+  const analyticsEligibleSessions = useMemo(
+    () => sessions.filter((session) => getSessionIntegrity(session.id).analyticsEligible),
+    [getSessionIntegrity, sessions]
+  );
+
+  const analyticsEligibleExperiments = useMemo(
+    () => experiments.filter((experiment) => getExperimentIntegrity(experiment.id).analyticsEligible),
+    [experiments, getExperimentIntegrity]
+  );
+
+  const analyticsEligibleAllSessions = useMemo(
+    () => allSessions.filter((session) => classifySessionIntegrity(session).analyticsEligible),
+    [allSessions]
+  );
+
+  const analyticsEligibleAllExperiments = useMemo(() => {
+    const allSessionMap = new Map(allSessions.map((session) => [session.id, session]));
+    return allExperiments.filter((experiment) =>
+      classifyExperimentIntegrity(experiment, allSessionMap.get(experiment.sessionId)).analyticsEligible
+    );
+  }, [allExperiments, allSessions]);
 
   const refresh = async (targetUserId?: number | null, options?: { includeRemote?: boolean }) => {
     const loaded = await loadLocalAppData(targetUserId ?? activeUserId);
@@ -358,8 +424,6 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     setInvites(nextInvites);
     setSponsoredAccess(nextSponsoredAccess);
     setSyncQueue(loaded.syncQueue);
-    setAnglerComparisons(generateAnglerComparisons(nextUsers, nextAllSessions, nextAllExperiments.filter((experiment) => experiment.status !== 'draft')));
-    setTopFlyRecords(buildTopFlyRecords(nextSessions, nextExperiments.filter((experiment) => experiment.status !== 'draft')));
   };
 
   const flushSyncQueueWithUser = async (
@@ -765,7 +829,18 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     return () => clearInterval(intervalId);
   }, [currentUser, isSyncing, remoteBackendBlocked, remoteSession, syncQueue]);
 
-  const insights = useMemo(() => generateInsights(buildAggregates(sessions, completeExperiments)), [sessions, completeExperiments]);
+  const insights = useMemo(
+    () => generateInsights(buildAggregates(analyticsEligibleSessions, analyticsEligibleExperiments)),
+    [analyticsEligibleExperiments, analyticsEligibleSessions]
+  );
+  const anglerComparisons = useMemo(
+    () => generateAnglerComparisons(users, analyticsEligibleAllSessions, analyticsEligibleAllExperiments),
+    [analyticsEligibleAllExperiments, analyticsEligibleAllSessions, users]
+  );
+  const topFlyRecords = useMemo(
+    () => buildTopFlyRecords(analyticsEligibleSessions, analyticsEligibleExperiments),
+    [analyticsEligibleExperiments, analyticsEligibleSessions]
+  );
   const topFlyInsights = useMemo(() => buildTopFlyInsights(topFlyRecords), [topFlyRecords]);
   const syncStatus = useMemo<SyncStatusSnapshot>(() => {
     const pendingCount = syncQueue.filter((entry) => entry.status === 'pending').length;
@@ -917,6 +992,8 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         mfaAssuranceLevel,
         activeUserId,
         getSyncRecordState,
+        getSessionIntegrity,
+        getExperimentIntegrity,
         ...actions
       }}
     >

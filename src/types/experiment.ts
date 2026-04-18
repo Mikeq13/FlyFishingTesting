@@ -39,6 +39,7 @@ export interface Experiment {
   status: ExperimentStatus;
   confidenceScore: number;
   archivedAt?: string;
+  legacyStatusMissing?: boolean;
 }
 
 export interface Insight {

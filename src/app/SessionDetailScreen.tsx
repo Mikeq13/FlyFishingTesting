@@ -11,7 +11,7 @@ import { StatusBanner } from '@/components/ui/StatusBanner';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 
 export const SessionDetailScreen = ({ route, navigation }: any) => {
-  const { sessions, experiments, users, activeUserId, archiveExperiment, deleteExperiment, cleanupSyncStatus, getSyncRecordState } = useAppStore();
+  const { sessions, experiments, users, activeUserId, archiveExperiment, deleteExperiment, cleanupSyncStatus, getSyncRecordState, getExperimentIntegrity } = useAppStore();
   const sessionId = route?.params?.sessionId as number;
   const activeUser = users.find((user) => user.id === activeUserId);
 
@@ -86,6 +86,7 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
           const cleanupState = getSyncRecordState('experiment', e.id);
           const isCleanupPending = cleanupState === 'pending_delete';
           const isCleanupFailed = cleanupState === 'failed_cleanup';
+          const integrity = getExperimentIntegrity(e.id);
           return (
           <View
             key={e.id}
@@ -98,9 +99,10 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
               borderColor: 'rgba(16,42,67,0.08)'
             }}
           >
-            <Text style={{ fontWeight: '800', color: '#102a43' }}>#{e.id} Status: {e.status === 'draft' ? 'Draft' : 'Complete'}</Text>
+            <Text style={{ fontWeight: '800', color: '#102a43' }}>#{e.id} Status: {integrity.label}</Text>
             {isCleanupPending ? <InlineSummaryRow label="Cleanup" value="Pending delete" tone="light" /> : null}
             {isCleanupFailed ? <InlineSummaryRow label="Cleanup" value="Delete needs retry" tone="light" /> : null}
+            {integrity.reason ? <Text style={{ color: '#486581' }}>{integrity.reason}</Text> : null}
             <InlineSummaryRow label="Outcome" value={e.outcome} tone="light" />
             <InlineSummaryRow label="Winner" value={e.winner} tone="light" />
             <InlineSummaryRow label="Hypothesis" value={e.hypothesis} tone="light" />

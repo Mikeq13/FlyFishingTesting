@@ -18,7 +18,7 @@ import { getFormInputStyle } from '@/components/ui/FormField';
 export const HistoryScreen = ({ navigation, route }: any) => {
   useTheme();
   const layout = useResponsiveLayout();
-  const { sessions, experiments, users, activeUserId, archiveExperiment, deleteExperiment, cleanupExperimentsForCurrentUser, cleanupSyncStatus, getSyncRecordState } = useAppStore();
+  const { sessions, experiments, users, activeUserId, archiveExperiment, deleteExperiment, cleanupExperimentsForCurrentUser, cleanupSyncStatus, getSyncRecordState, getExperimentIntegrity } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
   const initialModeFilter = route?.params?.modeFilter;
   const [riverFilter, setRiverFilter] = useState('');
@@ -76,6 +76,10 @@ export const HistoryScreen = ({ navigation, route }: any) => {
         return isWithinDateRange(session.date, { from: cleanupFrom || undefined, to: cleanupTo || undefined });
       }).length,
     [cleanupFrom, cleanupOutcome, cleanupTo, experiments, sessionMap]
+  );
+  const orphanedExperiments = useMemo(
+    () => experiments.filter((experiment) => getExperimentIntegrity(experiment.id).state === 'orphaned'),
+    [experiments, getExperimentIntegrity]
   );
 
   const runCleanup = () => {
@@ -261,7 +265,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                     >
                       <InlineSummaryRow label="Hypothesis" value={experiment.hypothesis} tone="light" />
                       <InlineSummaryRow label="Control Focus" value={experiment.controlFocus} tone="light" />
-                      <InlineSummaryRow label="Status" value={experiment.status === 'draft' ? 'Incomplete Entry' : 'Complete'} tone="light" />
+                      <InlineSummaryRow label="Status" value={getExperimentIntegrity(experiment.id).label} tone="light" />
                       {isCleanupPending ? <InlineSummaryRow label="Cleanup" value="Pending delete" tone="light" /> : null}
                       {isCleanupFailed ? <InlineSummaryRow label="Cleanup" value="Delete needs retry" tone="light" /> : null}
                       <InlineSummaryRow label="Outcome" value={experiment.outcome} tone="light" />
@@ -305,6 +309,59 @@ export const HistoryScreen = ({ navigation, route }: any) => {
           </SectionCard>
         );
       })}
+
+      {!!orphanedExperiments.length && (
+        <SectionCard
+          title="Legacy Orphaned Experiments"
+          subtitle="These older experiment records no longer have a valid session, but you can still clean them up."
+          tone="light"
+        >
+          {orphanedExperiments.map((experiment) => {
+            const cleanupState = getSyncRecordState('experiment', experiment.id);
+            const isCleanupPending = cleanupState === 'pending_delete';
+            const integrity = getExperimentIntegrity(experiment.id);
+            const entries = getExperimentEntries(experiment);
+            return (
+              <View
+                key={`orphan-${experiment.id}`}
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.72)',
+                  borderRadius: appTheme.radius.md,
+                  padding: 10,
+                  gap: 4,
+                  borderWidth: 1,
+                  borderColor: 'rgba(16,42,67,0.08)'
+                }}
+              >
+                <InlineSummaryRow label="Hypothesis" value={experiment.hypothesis || 'No saved hypothesis'} tone="light" />
+                <InlineSummaryRow label="Status" value={integrity.label} tone="light" />
+                {integrity.reason ? <Text style={{ color: appTheme.colors.textDarkSoft }}>{integrity.reason}</Text> : null}
+                <Text style={{ color: appTheme.colors.textDarkSoft }}>
+                  Flies: {entries.map((entry) => entry.fly.name || entry.label).join(', ')}
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+                  <View style={{ flex: 1 }}>
+                    <AppButton
+                      label="Edit"
+                      onPress={() => navigation.navigate('Experiment', { sessionId: experiment.sessionId, experimentId: experiment.id })}
+                      variant="secondary"
+                      disabled={isCleanupPending}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <AppButton
+                      label={isCleanupPending ? 'Deleting...' : 'Delete Legacy Record'}
+                      onPress={() => runSingleExperimentCleanup(experiment.id, 'delete')}
+                      variant="danger"
+                      disabled={isCleanupPending}
+                    />
+                  </View>
+                </View>
+              </View>
+            );
+          })}
+        </SectionCard>
+      )}
       </ScrollView>
     </ScreenBackground>
   );

@@ -125,7 +125,8 @@ export const listSessions = async (userId: number): Promise<Session[]> => {
         competitionSessionNumber: session.competitionSessionNumber ?? undefined,
         competitionRequiresMeasurement: session.competitionRequiresMeasurement ?? true,
         competitionLengthUnit: session.competitionLengthUnit ?? 'mm',
-        startingRigSetup: session.startingRigSetup ?? undefined
+        startingRigSetup: session.startingRigSetup ?? undefined,
+        legacyContextMissing: !session.riverName?.trim()
       }));
   }
 
@@ -166,7 +167,8 @@ export const listSessions = async (userId: number): Promise<Session[]> => {
     depthRange: r.depth_range,
     riverName: r.river_name ?? undefined,
     hypothesis: r.hypothesis ?? undefined,
-    notes: r.notes ?? undefined
+    notes: r.notes ?? undefined,
+    legacyContextMissing: !r.river_name?.trim()
   }));
 };
 

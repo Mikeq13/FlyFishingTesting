@@ -28,6 +28,7 @@ import {
 } from '@/types/remote';
 import { TopFlyRecord } from '@/engine/topFlyEngine';
 import { NotificationPermissionStatus, SharedDataStatus } from '@/types/appState';
+import { IntegritySummary } from '@/types/dataIntegrity';
 
 export type UserDataCleanupCategory = 'drafts' | 'experiments' | 'sessions' | 'flies' | 'formulas' | 'rig_presets' | 'rivers' | 'groups' | 'all';
 
@@ -130,6 +131,8 @@ export interface AppStore {
     recordId: number,
     options?: { savedType?: 'fly' | 'leader_formula' | 'rig_preset' | 'river' }
   ) => SyncCleanupState;
+  getSessionIntegrity: (sessionId: number) => IntegritySummary;
+  getExperimentIntegrity: (experimentId: number) => IntegritySummary;
   deleteAngler: (userId: number) => Promise<void>;
   archiveExperiment: (experimentId: number) => Promise<void>;
   deleteExperiment: (experimentId: number) => Promise<void>;

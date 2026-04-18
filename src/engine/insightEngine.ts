@@ -17,24 +17,24 @@ export const generateInsights = (stats: AggregatedStats): Insight[] => {
   const monthRates = bucketRates(stats.byMonth);
   const riverMonthRates = bucketRates(stats.byRiverMonth);
 
-  const candidates: Array<{ label: string; rates: Record<string, number>; castsByKey: Record<string, { casts: number }> }> = [
-    { label: 'water type', rates: waterRates, castsByKey: stats.byWaterType },
+  const experimentalCandidates: Array<{ label: string; rates: Record<string, number>; castsByKey: Record<string, { casts: number }> }> = [
     { label: 'depth range', rates: depthRates, castsByKey: stats.byDepthRange },
-    { label: 'fly type', rates: intentRates, castsByKey: stats.byFlyIntent },
-    { label: 'river', rates: riverRates, castsByKey: stats.byRiverName },
-    { label: 'month', rates: monthRates, castsByKey: stats.byMonth }
+    { label: 'fly type', rates: intentRates, castsByKey: stats.byFlyIntent }
   ];
 
-  for (const c of candidates) {
+  for (const c of experimentalCandidates) {
     if (Object.keys(c.rates).length < 2) continue;
     const { top, bottom } = topAndBottom(c.rates);
     if (!top || !bottom) continue;
+    const topCasts = c.castsByKey[top[0]]?.casts || 0;
+    const bottomCasts = c.castsByKey[bottom[0]]?.casts || 0;
+    if (topCasts < 20 || bottomCasts < 20) continue;
     const diff = percentDiff(bottom[1], top[1]);
     if (diff > 0.25) {
-      const sampleCount = (c.castsByKey[top[0]]?.casts || 0) + (c.castsByKey[bottom[0]]?.casts || 0);
+      const sampleCount = topCasts + bottomCasts;
       insights.push({
         type: 'pattern',
-        message: `Strong pattern detected: ${c.label} '${top[0]}' outperforms '${bottom[0]}' by ${(diff * 100).toFixed(0)}%.`,
+        message: `Strong test signal: ${c.label} '${top[0]}' is outperforming '${bottom[0]}' in clean logged data by ${(diff * 100).toFixed(0)}%.`,
         confidence: confidenceFromSamples(sampleCount),
         supportingData: { dimension: c.label, top, bottom, diff }
       });
@@ -75,10 +75,30 @@ export const generateInsights = (stats: AggregatedStats): Insight[] => {
     }
   }
 
+  const contextualCandidates: Array<{ label: string; rates: Record<string, number>; castsByKey: Record<string, { casts: number }> }> = [
+    { label: 'water type', rates: waterRates, castsByKey: stats.byWaterType },
+    { label: 'river', rates: riverRates, castsByKey: stats.byRiverName },
+    { label: 'month', rates: monthRates, castsByKey: stats.byMonth }
+  ];
+
+  for (const c of contextualCandidates) {
+    if (Object.keys(c.rates).length < 1) continue;
+    const { top } = topAndBottom(c.rates);
+    if (!top) continue;
+    const sampleCount = c.castsByKey[top[0]]?.casts || 0;
+    if (sampleCount < 20) continue;
+    insights.push({
+      type: 'recommendation',
+      message: `Strongest stored ${c.label} context: '${top[0]}' is returning ${(top[1] * 100).toFixed(1)}% catch rate over ${sampleCount} casts.`,
+      confidence: confidenceFromSamples(sampleCount),
+      supportingData: { dimension: c.label, top }
+    });
+  }
+
   if (!insights.length) {
     insights.push({
       type: 'recommendation',
-      message: 'Not enough signal yet. Increase casts per condition and isolate one variable per experiment.',
+      message: 'Not enough clean signal yet. Add more complete sessions and isolate one variable per experiment.',
       confidence: 'low',
       supportingData: {}
     });

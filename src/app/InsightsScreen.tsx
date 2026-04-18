@@ -41,7 +41,22 @@ const renderChartRow = (label: string, value: number, max: number, color: string
 export const InsightsScreen = ({ navigation }: any) => {
   useTheme();
   const layout = useResponsiveLayout();
-  const { sessions, allSessions, experiments, allExperiments, allCatchEvents, groups, groupMemberships, sharePreferences, users, currentUser, currentHasPremiumAccess, savedFlies } = useAppStore();
+  const {
+    sessions,
+    allSessions,
+    experiments,
+    allExperiments,
+    allCatchEvents,
+    groups,
+    groupMemberships,
+    sharePreferences,
+    users,
+    currentUser,
+    currentHasPremiumAccess,
+    savedFlies,
+    getSessionIntegrity,
+    getExperimentIntegrity
+  } = useAppStore();
   const [insightsContext, setInsightsContext] = useState<InsightsContextMode>('mine');
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [selectedFriendUserId, setSelectedFriendUserId] = useState<number | null>(null);
@@ -95,6 +110,16 @@ export const InsightsScreen = ({ navigation }: any) => {
 
   const sourceSessions = insightsContext === 'mine' ? sessions : allSessions;
   const sourceExperiments = insightsContext === 'mine' ? experiments : allExperiments;
+  const cleanSourceSessions = useMemo(
+    () => sourceSessions.filter((session) => getSessionIntegrity(session.id).analyticsEligible),
+    [getSessionIntegrity, sourceSessions]
+  );
+  const cleanSourceExperiments = useMemo(
+    () => sourceExperiments.filter((experiment) => getExperimentIntegrity(experiment.id).analyticsEligible),
+    [getExperimentIntegrity, sourceExperiments]
+  );
+  const excludedSessionCount = sourceSessions.length - cleanSourceSessions.length;
+  const excludedExperimentCount = sourceExperiments.length - cleanSourceExperiments.length;
 
   const contextSessions = useMemo(
     () =>
@@ -103,10 +128,10 @@ export const InsightsScreen = ({ navigation }: any) => {
         mode: insightsContext,
         selectedGroupId,
         selectedFriendUserId,
-        sessions: sourceSessions,
+        sessions: cleanSourceSessions,
         sharePreferences
       }),
-    [currentUser?.id, insightsContext, selectedFriendUserId, selectedGroupId, sharePreferences, sourceSessions]
+    [cleanSourceSessions, currentUser?.id, insightsContext, selectedFriendUserId, selectedGroupId, sharePreferences]
   );
 
   const filteredSessions = useMemo(
@@ -138,10 +163,10 @@ export const InsightsScreen = ({ navigation }: any) => {
     () =>
       [
         'All',
-        ...[...new Set(sourceExperiments.flatMap((experiment) => getExperimentEntries(experiment).flatMap((entry) => entry.fishSpecies)))]
+        ...[...new Set(cleanSourceExperiments.flatMap((experiment) => getExperimentEntries(experiment).flatMap((entry) => entry.fishSpecies)))]
           .sort((left, right) => left.localeCompare(right))
       ] as string[],
-    [sourceExperiments]
+    [cleanSourceExperiments]
   );
   const flyOptions = useMemo(
     () =>
@@ -172,18 +197,18 @@ export const InsightsScreen = ({ navigation }: any) => {
         'All',
         ...[
           ...new Set(
-            sourceExperiments
+            cleanSourceExperiments
               .map((experiment) => experiment.hypothesis.trim())
               .filter((hypothesis) => !!hypothesis)
           )
         ].sort((left, right) => left.localeCompare(right))
       ] as string[],
-    [sourceExperiments]
+    [cleanSourceExperiments]
   );
 
   const contextualExperiments = useMemo(
-    () => filterExperimentsForInsightsContext(sourceExperiments, filteredSessionIds),
-    [filteredSessionIds, sourceExperiments]
+    () => filterExperimentsForInsightsContext(cleanSourceExperiments, filteredSessionIds),
+    [cleanSourceExperiments, filteredSessionIds]
   );
 
   const filteredExperiments = useMemo(
@@ -395,6 +420,11 @@ export const InsightsScreen = ({ navigation }: any) => {
               <Text style={{ color: '#d7f3ff' }}>
                 Sessions in view: {filteredSessions.length} | Catch records in view: {filteredCatchEvents.length}
               </Text>
+              {(excludedSessionCount > 0 || excludedExperimentCount > 0) ? (
+                <Text style={{ color: '#bde6f6' }}>
+                  Integrity filter excluded {excludedSessionCount} session{excludedSessionCount === 1 ? '' : 's'} and {excludedExperimentCount} experiment{excludedExperimentCount === 1 ? '' : 's'} that are legacy, incomplete, orphaned, archived, or pending cleanup.
+                </Text>
+              ) : null}
               {!!filteredSessions.length && (
                 <View style={{ gap: 6 }}>
                   <Text style={{ color: '#d7f3ff', fontWeight: '700' }}>Shared Sessions</Text>
@@ -422,7 +452,7 @@ export const InsightsScreen = ({ navigation }: any) => {
                   )}
                 </View>
               ) : (
-                <Text style={{ color: '#d7f3ff' }}>No species data matches the current filters yet.</Text>
+                <Text style={{ color: '#d7f3ff' }}>No clean catch data matches the current filters yet.</Text>
               )}
 
               {!!analytics.sizeBands.length && (

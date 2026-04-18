@@ -52,6 +52,7 @@ export interface Session {
   riverName?: string;
   hypothesis?: string;
   notes?: string;
+  legacyContextMissing?: boolean;
 }
 
 export interface SavedRiver {
