@@ -142,6 +142,76 @@ export const fetchRemoteSharedDataSnapshot = async (
       .map((row) => mapRemoteRigPreset(row, currentAuthUserId)),
     savedRivers: (savedRiversResponse.data ?? [])
       .filter((row) => row.owner_auth_user_id === currentAuthUserId)
-      .map((row) => mapRemoteSavedRiver(row, currentAuthUserId))
+      .map((row) => mapRemoteSavedRiver(row, currentAuthUserId)),
+    syncMetadataHints: [
+      ...sessionRows
+        .filter((row) => row.owner_auth_user_id === currentAuthUserId)
+        .map((row) => ({
+          entityType: 'session' as const,
+          localRecordId: sessionIdByRemoteId.get(row.id as string) ?? 0,
+          remoteRecordId: row.id as string
+        }))
+        .filter((hint) => hint.localRecordId !== 0),
+      ...sessionGroupShareRows
+        .filter((row) => row.owner_auth_user_id === currentAuthUserId)
+        .map((row) => {
+          const share = mapRemoteSessionGroupShare(row, currentAuthUserId, accessSnapshot.entityMaps, sessionIdByRemoteId);
+          return {
+            entityType: 'session_group_share' as const,
+            localRecordId: share.id,
+            remoteRecordId: row.id as string
+          };
+        }),
+      ...segmentRows
+        .filter((row) => row.owner_auth_user_id === currentAuthUserId)
+        .map((row) => ({
+          entityType: 'session_segment' as const,
+          localRecordId: segmentIdByRemoteId.get(row.id as string) ?? 0,
+          remoteRecordId: row.id as string
+        }))
+        .filter((hint) => hint.localRecordId !== 0),
+      ...catchRows
+        .filter((row) => row.owner_auth_user_id === currentAuthUserId)
+        .map((row) => ({
+          entityType: 'catch_event' as const,
+          localRecordId: mapRemoteCatchEvent(row, currentAuthUserId, accessSnapshot.entityMaps, sessionIdByRemoteId, segmentIdByRemoteId).id,
+          remoteRecordId: row.id as string
+        })),
+      ...experimentRows
+        .filter((row) => row.owner_auth_user_id === currentAuthUserId)
+        .map((row) => ({
+          entityType: 'experiment' as const,
+          localRecordId: mapRemoteExperiment(row, currentAuthUserId, accessSnapshot.entityMaps, sessionIdByRemoteId).id,
+          remoteRecordId: row.id as string
+        })),
+      ...(savedFliesResponse.data ?? [])
+        .filter((row) => row.owner_auth_user_id === currentAuthUserId)
+        .map((row) => ({
+          entityType: 'saved_setup' as const,
+          localRecordId: mapRemoteSavedFly(row, currentAuthUserId).id,
+          remoteRecordId: row.id as string
+        })),
+      ...(savedLeaderFormulasResponse.data ?? [])
+        .filter((row) => row.owner_auth_user_id === currentAuthUserId)
+        .map((row) => ({
+          entityType: 'saved_setup' as const,
+          localRecordId: mapRemoteLeaderFormula(row, currentAuthUserId).id,
+          remoteRecordId: row.id as string
+        })),
+      ...(savedRigPresetsResponse.data ?? [])
+        .filter((row) => row.owner_auth_user_id === currentAuthUserId)
+        .map((row) => ({
+          entityType: 'saved_setup' as const,
+          localRecordId: mapRemoteRigPreset(row, currentAuthUserId).id,
+          remoteRecordId: row.id as string
+        })),
+      ...(savedRiversResponse.data ?? [])
+        .filter((row) => row.owner_auth_user_id === currentAuthUserId)
+        .map((row) => ({
+          entityType: 'saved_setup' as const,
+          localRecordId: mapRemoteSavedRiver(row, currentAuthUserId).id,
+          remoteRecordId: row.id as string
+        }))
+    ]
   };
 };

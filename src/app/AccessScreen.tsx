@@ -87,6 +87,7 @@ export const AccessScreen = ({ navigation }: any) => {
     experiments,
     catchEvents,
     sessionSegments,
+    sessionGroupShares,
     savedFlies,
     savedLeaderFormulas,
     savedRigPresets,
@@ -394,14 +395,14 @@ export const AccessScreen = ({ navigation }: any) => {
     { key: 'rig_presets', label: 'Clear Rig Presets', description: 'Deletes this profile’s saved rig presets from local storage and shared sync.' },
     { key: 'rivers', label: 'Clear Saved Rivers', description: 'Deletes this profile’s saved rivers from local storage and shared sync.' },
     { key: 'groups', label: 'Clear Groups', description: 'Deletes groups this profile owns, leaves joined groups, and removes related sharing or invite records tied to this angler.' },
-    { key: 'all', label: 'Clear Everything', description: 'Deletes this profile’s owned sessions, experiments, saved setups, groups, and related synced records.', destructive: true }
+    { key: 'all', label: 'Clear Everything', description: 'Fresh-start reset for this angler. Keeps the signed-in account, but removes fishing history, saved setups, groups, invites, and shared access tied to this profile.', destructive: true }
   ];
 
   const simplifiedCleanupConfig: Array<{ key: UserDataCleanupCategory; label: string; description: string; destructive?: boolean }> = [
     { key: 'incomplete', label: 'Clear Incomplete Records', description: 'Removes unfinished draft experiments and incomplete session records that should not count as solid fishing data.' },
     { key: 'problem', label: 'Review Problem Records', description: 'Inspect stale or malformed records that are excluded from trusted insights before deleting them.' },
     { key: 'archived', label: 'Clear Archived Records', description: 'Permanently deletes archived experiment records that are already hidden from normal history and insights.' },
-    { key: 'all', label: 'Clear Everything', description: 'Deletes this profile’s owned sessions, experiments, saved setups, groups, and related synced records.', destructive: true }
+    { key: 'all', label: 'Clear Everything', description: 'Fresh-start reset for this angler. Keeps the signed-in account, but removes fishing history, saved setups, groups, invites, and shared access tied to this profile.', destructive: true }
   ];
 
   const buildCleanupPreview = (category: UserDataCleanupCategory) => {
@@ -431,9 +432,10 @@ export const AccessScreen = ({ navigation }: any) => {
       `${savedLeaderFormulas.length} saved leader formula${savedLeaderFormulas.length === 1 ? '' : 's'}`,
       `${savedRigPresets.length} saved rig preset${savedRigPresets.length === 1 ? '' : 's'}`,
       `${savedRivers.length} saved river${savedRivers.length === 1 ? '' : 's'}`,
-      `${allVisibleGroups.length} group connection${allVisibleGroups.length === 1 ? '' : 's'}`,
+      `${allVisibleGroups.length} group connection${allVisibleGroups.length === 1 ? '' : 's'} to remove or detach`,
       `${invites.length} invite${invites.length === 1 ? '' : 's'}`,
-      `${sponsoredAccess.length} sponsored access record${sponsoredAccess.length === 1 ? '' : 's'}`
+      `${sponsoredAccess.length} sponsored access record${sponsoredAccess.length === 1 ? '' : 's'}`,
+      `${sessionGroupShares.length} session share link${sessionGroupShares.length === 1 ? '' : 's'}`
     ];
   };
 

@@ -57,6 +57,7 @@ export const createStoreActions = ({
   activeUserId,
   currentUser,
   users,
+  sessions,
   savedFlies,
   savedLeaderFormulas,
   savedRigPresets,
@@ -68,9 +69,14 @@ export const createStoreActions = ({
   competitionParticipants,
   invites,
   sponsoredAccess,
+  catchEvents,
+  sessionSegments,
   experiments,
   sessionGroupShares,
   sessionMap,
+  competitionGroups,
+  competitionSessions,
+  competitionAssignments,
   remoteSession,
   ownerIdentityLinked,
   isAuthenticatedOwner,
@@ -91,6 +97,7 @@ export const createStoreActions = ({
   activeUserId: number | null;
   currentUser: AppStore['currentUser'];
   users: AppStore['users'];
+  sessions: AppStore['sessions'];
   savedFlies: AppStore['savedFlies'];
   savedLeaderFormulas: AppStore['savedLeaderFormulas'];
   savedRigPresets: AppStore['savedRigPresets'];
@@ -102,9 +109,14 @@ export const createStoreActions = ({
   competitionParticipants: AppStore['competitionParticipants'];
   invites: AppStore['invites'];
   sponsoredAccess: AppStore['sponsoredAccess'];
+  catchEvents: AppStore['catchEvents'];
+  sessionSegments: AppStore['sessionSegments'];
   experiments: AppStore['experiments'];
   sessionGroupShares: AppStore['sessionGroupShares'];
   sessionMap: Map<number, AppStore['sessions'][number]>;
+  competitionGroups: AppStore['competitionGroups'];
+  competitionSessions: AppStore['competitionSessions'];
+  competitionAssignments: AppStore['competitionAssignments'];
   remoteSession: AppStore['remoteSession'];
   ownerIdentityLinked: boolean;
   isAuthenticatedOwner: boolean;
@@ -244,8 +256,12 @@ export const createStoreActions = ({
     if (!remoteSession) {
       return startedAt;
     }
-    const loaded = await loadLocalAppData(userId);
     const archivedExperiments = await listExperiments(userId, { includeArchived: true });
+    const mergedSessions = sessions.filter((session) => session.userId === userId);
+    const mergedSessionSegments = sessionSegments.filter((segment) => segment.userId === userId);
+    const mergedCatchEvents = catchEvents.filter((event) => event.userId === userId);
+    const mergedExperiments = experiments.filter((experiment) => experiment.userId === userId);
+    const mergedSessionGroupShares = sessionGroupShares.filter((share) => share.userId === userId);
     const mergedGroups = groups;
     const mergedMemberships = groupMemberships.filter((membership) => membership.userId === userId);
     const mergedSharePreferences = sharePreferences.filter((preference) => preference.userId === userId);
@@ -253,6 +269,14 @@ export const createStoreActions = ({
       (invite) => invite.inviterUserId === userId || invite.acceptedByUserId === userId
     );
     const mergedCompetitions = competitions;
+    const mergedCompetitionGroups = competitionGroups;
+    const mergedCompetitionSessions = competitionSessions;
+    const mergedCompetitionParticipants = competitionParticipants;
+    const mergedCompetitionAssignments = competitionAssignments;
+    const mergedSavedFlies = savedFlies.filter((fly) => fly.userId === userId);
+    const mergedSavedLeaderFormulas = savedLeaderFormulas.filter((formula) => formula.userId === userId);
+    const mergedSavedRigPresets = savedRigPresets.filter((preset) => preset.userId === userId);
+    const mergedSavedRivers = savedRivers.filter((river) => river.userId === userId);
     const ownedGroupIds = mergedGroups.filter((group) => group.createdByUserId === userId).map((group) => group.id);
     const ownedCompetitionIds = mergedCompetitions
       .filter((competition) => competition.organizerUserId === userId)
@@ -261,14 +285,14 @@ export const createStoreActions = ({
     const normalizedCategories = categories.includes('all')
       ? ['experiments', 'sessions', 'drafts', 'flies', 'formulas', 'rig_presets', 'rivers', 'groups', 'incomplete', 'problem', 'archived'] as const
       : categories;
-    const loadedSessionMap = new Map(loaded.sessions.map((session) => [session.id, session]));
+    const loadedSessionMap = new Map(mergedSessions.map((session) => [session.id, session]));
     const loadedExperimentCountBySessionId = new Map<number, number>();
     const loadedCatchCountBySessionId = new Map<number, number>();
 
     archivedExperiments.forEach((experiment) => {
       loadedExperimentCountBySessionId.set(experiment.sessionId, (loadedExperimentCountBySessionId.get(experiment.sessionId) ?? 0) + 1);
     });
-    loaded.catchEvents.forEach((event) => {
+    mergedCatchEvents.forEach((event) => {
       loadedCatchCountBySessionId.set(event.sessionId, (loadedCatchCountBySessionId.get(event.sessionId) ?? 0) + 1);
     });
 
@@ -293,7 +317,7 @@ export const createStoreActions = ({
       for (const entry of mergedMemberships.filter((membership) => groupIdSet.has(membership.groupId))) {
         await queueDelete('group_membership', entry.id, { membershipId: entry.id, groupId: entry.groupId });
       }
-      for (const share of sessionGroupShares.filter((entry) => groupIdSet.has(entry.groupId))) {
+      for (const share of mergedSessionGroupShares.filter((entry) => groupIdSet.has(entry.groupId))) {
         await queueDelete('session_group_share', share.id, {
           sessionGroupShareId: share.id,
           sessionId: share.sessionId,
@@ -313,38 +337,38 @@ export const createStoreActions = ({
     }
 
     if (normalizedCategories.includes('sessions')) {
-      for (const event of loaded.catchEvents.filter((item) => item.userId === userId)) {
+      for (const event of mergedCatchEvents) {
         await queueDelete('catch_event', event.id, { catchEventId: event.id });
       }
-      for (const segment of loaded.sessionSegments.filter((item) => item.userId === userId)) {
+      for (const segment of mergedSessionSegments) {
         await queueDelete('session_segment', segment.id, { segmentId: segment.id });
       }
-      for (const experiment of archivedExperiments.filter((item) => item.userId === userId)) {
+      for (const experiment of mergedExperiments) {
         await queueDelete('experiment', experiment.id, { experimentId: experiment.id });
       }
-      for (const session of loaded.sessions.filter((item) => item.userId === userId)) {
+      for (const session of mergedSessions) {
         await queueDelete('session', session.id, { sessionId: session.id });
       }
-      for (const share of loaded.sessionGroupShares.filter((item) => item.userId === userId)) {
+      for (const share of mergedSessionGroupShares) {
         await queueDelete('session_group_share', share.id, {
           sessionGroupShareId: share.id,
           sessionId: share.sessionId,
           groupId: share.groupId
         });
       }
-      for (const assignment of loaded.competitionAssignments.filter((item) => item.userId === userId || ownedCompetitionIds.includes(item.competitionId))) {
+      for (const assignment of mergedCompetitionAssignments.filter((item) => item.userId === userId || ownedCompetitionIds.includes(item.competitionId))) {
         await queueDelete('competition_assignment', assignment.id, { assignmentId: assignment.id });
       }
-      for (const participant of loaded.competitionParticipants.filter((item) => item.userId === userId || ownedCompetitionIds.includes(item.competitionId))) {
+      for (const participant of mergedCompetitionParticipants.filter((item) => item.userId === userId || ownedCompetitionIds.includes(item.competitionId))) {
         await queueDelete('competition_participant', participant.id, { participantId: participant.id });
       }
-      for (const competitionSession of loaded.competitionSessions.filter((item) => ownedCompetitionIds.includes(item.competitionId))) {
+      for (const competitionSession of mergedCompetitionSessions.filter((item) => ownedCompetitionIds.includes(item.competitionId))) {
         await queueDelete('competition_session', competitionSession.id, { competitionSessionId: competitionSession.id });
       }
-      for (const competitionGroup of loaded.competitionGroups.filter((item) => ownedCompetitionIds.includes(item.competitionId))) {
+      for (const competitionGroup of mergedCompetitionGroups.filter((item) => ownedCompetitionIds.includes(item.competitionId))) {
         await queueDelete('competition_group', competitionGroup.id, { competitionGroupId: competitionGroup.id });
       }
-      for (const competition of loaded.competitions.filter((item) => item.organizerUserId === userId)) {
+      for (const competition of mergedCompetitions.filter((item) => item.organizerUserId === userId)) {
         await queueDelete('competition', competition.id, { competitionId: competition.id });
       }
     } else if (normalizedCategories.includes('experiments')) {
@@ -364,7 +388,7 @@ export const createStoreActions = ({
     }
 
     if (normalizedCategories.includes('incomplete')) {
-      const incompleteSessionIds = loaded.sessions
+      const incompleteSessionIds = mergedSessions
         .filter(
           (session) =>
             classifySessionIntegrity(session, 'active', {
@@ -373,10 +397,10 @@ export const createStoreActions = ({
             }).state === 'incomplete'
         )
         .map((session) => session.id);
-      for (const event of loaded.catchEvents.filter((event) => incompleteSessionIds.includes(event.sessionId))) {
+      for (const event of mergedCatchEvents.filter((event) => incompleteSessionIds.includes(event.sessionId))) {
         await queueDelete('catch_event', event.id, { catchEventId: event.id });
       }
-      for (const segment of loaded.sessionSegments.filter((segment) => incompleteSessionIds.includes(segment.sessionId))) {
+      for (const segment of mergedSessionSegments.filter((segment) => incompleteSessionIds.includes(segment.sessionId))) {
         await queueDelete('session_segment', segment.id, { segmentId: segment.id });
       }
       for (const experiment of archivedExperiments.filter((item) => item.userId === userId && (item.status === 'draft' || incompleteSessionIds.includes(item.sessionId)))) {
@@ -385,7 +409,7 @@ export const createStoreActions = ({
       for (const sessionId of incompleteSessionIds) {
         await queueDelete('session', sessionId, { sessionId });
       }
-      for (const share of loaded.sessionGroupShares.filter((item) => incompleteSessionIds.includes(item.sessionId))) {
+      for (const share of mergedSessionGroupShares.filter((item) => incompleteSessionIds.includes(item.sessionId))) {
         await queueDelete('session_group_share', share.id, {
           sessionGroupShareId: share.id,
           sessionId: share.sessionId,
@@ -395,7 +419,7 @@ export const createStoreActions = ({
     }
 
     if (normalizedCategories.includes('problem')) {
-      const problemSessionIds = loaded.sessions
+      const problemSessionIds = mergedSessions
         .filter((session) => {
           const integrity = classifySessionIntegrity(session, 'active', {
             experimentCount: loadedExperimentCountBySessionId.get(session.id) ?? 0,
@@ -404,10 +428,10 @@ export const createStoreActions = ({
           return integrity.state === 'legacy_unreviewed' || integrity.state === 'orphaned' || integrity.state === 'incomplete';
         })
         .map((session) => session.id);
-      for (const event of loaded.catchEvents.filter((event) => problemSessionIds.includes(event.sessionId))) {
+      for (const event of mergedCatchEvents.filter((event) => problemSessionIds.includes(event.sessionId))) {
         await queueDelete('catch_event', event.id, { catchEventId: event.id });
       }
-      for (const segment of loaded.sessionSegments.filter((segment) => problemSessionIds.includes(segment.sessionId))) {
+      for (const segment of mergedSessionSegments.filter((segment) => problemSessionIds.includes(segment.sessionId))) {
         await queueDelete('session_segment', segment.id, { segmentId: segment.id });
       }
       for (const experiment of archivedExperiments.filter((item) => {
@@ -419,7 +443,7 @@ export const createStoreActions = ({
       for (const sessionId of problemSessionIds) {
         await queueDelete('session', sessionId, { sessionId });
       }
-      for (const share of loaded.sessionGroupShares.filter((item) => problemSessionIds.includes(item.sessionId))) {
+      for (const share of mergedSessionGroupShares.filter((item) => problemSessionIds.includes(item.sessionId))) {
         await queueDelete('session_group_share', share.id, {
           sessionGroupShareId: share.id,
           sessionId: share.sessionId,
@@ -434,22 +458,22 @@ export const createStoreActions = ({
     }
 
     if (normalizedCategories.includes('flies')) {
-      for (const fly of loaded.savedFlies.filter((item) => item.userId === userId)) {
+      for (const fly of mergedSavedFlies) {
         await queueDelete('saved_setup', fly.id, { savedType: 'fly', savedFlyId: fly.id });
       }
     }
     if (normalizedCategories.includes('formulas')) {
-      for (const formula of loaded.savedLeaderFormulas.filter((item) => item.userId === userId)) {
+      for (const formula of mergedSavedLeaderFormulas) {
         await queueDelete('saved_setup', formula.id, { savedType: 'leader_formula', formulaId: formula.id });
       }
     }
     if (normalizedCategories.includes('rig_presets')) {
-      for (const preset of loaded.savedRigPresets.filter((item) => item.userId === userId)) {
+      for (const preset of mergedSavedRigPresets) {
         await queueDelete('saved_setup', preset.id, { savedType: 'rig_preset', presetId: preset.id });
       }
     }
     if (normalizedCategories.includes('rivers')) {
-      for (const river of loaded.savedRivers.filter((item) => item.userId === userId)) {
+      for (const river of mergedSavedRivers) {
         await queueDelete('saved_setup', river.id, { savedType: 'river', riverId: river.id });
       }
     }
@@ -459,10 +483,9 @@ export const createStoreActions = ({
 
   const queueSessionDeleteBundle = async (sessionIds: number[], options?: { includeLinkedExperiments?: boolean }) => {
     const includeLinkedExperiments = options?.includeLinkedExperiments ?? true;
-    const loaded = await loadLocalAppData(activeUserId);
-    const affectedCatchEvents = loaded.catchEvents.filter((event) => sessionIds.includes(event.sessionId));
-    const affectedSegments = loaded.sessionSegments.filter((segment) => sessionIds.includes(segment.sessionId));
-    const affectedSessionGroupShares = loaded.sessionGroupShares.filter((share) => sessionIds.includes(share.sessionId));
+    const affectedCatchEvents = catchEvents.filter((event) => sessionIds.includes(event.sessionId));
+    const affectedSegments = sessionSegments.filter((segment) => sessionIds.includes(segment.sessionId));
+    const affectedSessionGroupShares = sessionGroupShares.filter((share) => sessionIds.includes(share.sessionId));
     const affectedExperiments = includeLinkedExperiments
       ? experiments.filter((experiment) => sessionIds.includes(experiment.sessionId))
       : [];

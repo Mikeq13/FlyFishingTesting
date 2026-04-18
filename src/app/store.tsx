@@ -68,8 +68,13 @@ const isStructuralBackendError = (error: unknown) => {
   return code ? STRUCTURAL_BACKEND_ERROR_CODES.has(code) : false;
 };
 
+const isMissingRemoteTableError = (error: unknown, tableName: string) =>
+  getErrorCode(error) === 'PGRST205' && getErrorMessage(error).includes(`table 'public.${tableName}'`);
+
 const toStructuralBackendMessage = (error: unknown) =>
-  `Shared beta backend needs a schema or policy fix before cloud sync can continue. ${getErrorMessage(error)}`;
+  isMissingRemoteTableError(error, 'session_group_shares')
+    ? 'Shared beta backend needs the session group sharing migration before multi-group sync can continue.'
+    : `Shared beta backend needs a schema or policy fix before cloud sync can continue. ${getErrorMessage(error)}`;
 
 export const AppStoreProvider = ({ children }: { children: React.ReactNode }) => {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -417,7 +422,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         const remoteAccess = await fetchRemoteAccessSnapshot(remoteSession.authUserId);
         const remoteShared = await fetchRemoteSharedDataSnapshot(remoteSession.authUserId, remoteAccess);
         await Promise.all(
-          remoteAccess.syncMetadataHints.map((hint) =>
+          [...remoteAccess.syncMetadataHints, ...remoteShared.syncMetadataHints].map((hint) =>
             upsertSyncMetadataEntry({
               entityType: hint.entityType,
               localRecordId: hint.localRecordId,
@@ -1016,6 +1021,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       activeUserId,
     currentUser,
     users,
+    sessions,
     savedFlies,
     savedLeaderFormulas,
     savedRigPresets,
@@ -1027,9 +1033,14 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     competitionParticipants,
     invites,
     sponsoredAccess,
+    catchEvents,
+    sessionSegments,
     experiments,
     sessionGroupShares,
     sessionMap,
+    competitionGroups,
+    competitionSessions,
+    competitionAssignments,
     remoteSession,
     ownerIdentityLinked,
     isAuthenticatedOwner,

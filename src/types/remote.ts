@@ -159,4 +159,5 @@ export interface RemoteSharedDataSnapshot {
   savedLeaderFormulas: import('@/types/rig').LeaderFormula[];
   savedRigPresets: import('@/types/rig').RigPreset[];
   savedRivers: import('@/types/session').SavedRiver[];
+  syncMetadataHints: SyncMetadataHint[];
 }

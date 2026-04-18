@@ -205,6 +205,41 @@ export const fetchRemoteAccessSnapshot = async (
           entityType: 'sponsored_access' as const,
           localRecordId: access.id,
           remoteRecordId: row.id as string
+        })),
+      ...filteredCompetitions
+        .filter((row) => row.owner_auth_user_id === currentAuthUserId)
+        .map((row, index) => ({
+          entityType: 'competition' as const,
+          localRecordId: mappedCompetitions[index].id,
+          remoteRecordId: row.id as string
+        })),
+      ...filteredCompetitionGroups
+        .filter((row) => row.owner_auth_user_id === currentAuthUserId)
+        .map((row, index) => ({
+          entityType: 'competition_group' as const,
+          localRecordId: mappedCompetitionGroups[index].id,
+          remoteRecordId: row.id as string
+        })),
+      ...filteredCompetitionSessions
+        .filter((row) => row.owner_auth_user_id === currentAuthUserId)
+        .map((row, index) => ({
+          entityType: 'competition_session' as const,
+          localRecordId: mappedCompetitionSessions[index].id,
+          remoteRecordId: row.id as string
+        })),
+      ...allParticipantRows
+        .filter((row) => accessibleCompetitionIds.has(row.competition_id as string) && row.owner_auth_user_id === currentAuthUserId)
+        .map((row) => ({
+          entityType: 'competition_participant' as const,
+          localRecordId: mapRemoteCompetitionParticipant(row, currentAuthUserId, entityMaps).id,
+          remoteRecordId: row.id as string
+        })),
+      ...filteredCompetitionAssignments
+        .filter((row) => row.owner_auth_user_id === currentAuthUserId)
+        .map((row, index) => ({
+          entityType: 'competition_assignment' as const,
+          localRecordId: mappedCompetitionAssignments[index].id,
+          remoteRecordId: row.id as string
         }))
     ]
   };
