@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { UserDataCleanupCategory, useAppStore } from './store';
 import { parseLocalTimeInput } from '@/utils/dateTime';
@@ -12,6 +12,7 @@ import { SecuritySection } from '@/components/access/SecuritySection';
 import { LocalDataSection } from '@/components/access/LocalDataSection';
 import { GroupsSharingSection } from '@/components/access/GroupsSharingSection';
 import { CompetitionsSection } from '@/components/access/CompetitionsSection';
+import { CompetitionOrganizerSection } from '@/components/access/CompetitionOrganizerSection';
 import { OwnerControlsSection } from '@/components/access/OwnerControlsSection';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
@@ -19,9 +20,15 @@ import { StatusBanner } from '@/components/ui/StatusBanner';
 import { OptionChips } from '@/components/OptionChips';
 import { useResponsiveLayout } from '@/design/layout';
 import { useTheme } from '@/design/theme';
-import { hasSupabaseConfig } from '@/services/supabaseClient';
 
-type UtilitySectionKey = 'accountInfo' | 'appearance' | 'billing' | 'competitions' | 'dataManagement' | 'groups' | 'security' | 'ownerTools';
+type UtilitySectionKey = 'accountInfo' | 'appearance' | 'billing' | 'competitions' | 'dataManagement' | 'groups' | 'security' | 'powerTools' | 'ownerTools';
+
+const normalizeIdentityEmail = (email?: string | null) => email?.trim().toLowerCase() ?? null;
+
+const getManageableProfileScore = (user: { remoteAuthId?: string | null; email?: string | null; accessLevel: string; id: number }) => {
+  const accessRank = user.accessLevel === 'power_user' ? 4 : user.accessLevel === 'trial' ? 3 : user.accessLevel === 'subscriber' ? 2 : 1;
+  return (user.remoteAuthId ? 100 : 0) + (normalizeIdentityEmail(user.email) ? 10 : 0) + accessRank - user.id / 100000;
+};
 
 export const AccessScreen = ({ navigation }: any) => {
   const layout = useResponsiveLayout();
@@ -43,7 +50,6 @@ export const AccessScreen = ({ navigation }: any) => {
     mfaFactors,
     pendingTotpEnrollment,
     mfaAssuranceLevel,
-    isSyncEnabled,
     invites,
     sponsoredAccess,
     sendPasswordResetEmail,
@@ -101,6 +107,7 @@ export const AccessScreen = ({ navigation }: any) => {
     dataManagement: false,
     groups: false,
     security: false,
+    powerTools: false,
     ownerTools: false
   });
   const [competitionSchedule, setCompetitionSchedule] = React.useState([
@@ -137,7 +144,31 @@ export const AccessScreen = ({ navigation }: any) => {
         .filter((competition): competition is (typeof competitions)[number] => !!competition),
     [competitionParticipants, competitions, currentUser?.id]
   );
-  const canOrganizeCompetitions = currentUser?.role === 'owner' || currentUser?.accessLevel === 'power_user';
+  const canAccessPowerTools = currentUser?.role === 'owner' || currentUser?.accessLevel === 'power_user';
+  const organizerCompetitionList = React.useMemo(
+    () => competitions.filter((competition) => competition.organizerUserId === currentUser?.id),
+    [competitions, currentUser?.id]
+  );
+  const ownerAuthIdentity = ownerUser?.ownerLinkedAuthId ?? ownerUser?.remoteAuthId ?? null;
+  const ownerEmailIdentity = normalizeIdentityEmail(ownerUser?.ownerLinkedEmail ?? ownerUser?.email ?? null);
+  const manageableUsers = React.useMemo(() => {
+    const deduped = new Map<string, (typeof users)[number]>();
+
+    for (const user of users) {
+      if (user.role === 'owner') continue;
+      const normalizedEmail = normalizeIdentityEmail(user.email ?? user.ownerLinkedEmail ?? null);
+      if ((ownerAuthIdentity && user.remoteAuthId === ownerAuthIdentity) || (ownerEmailIdentity && normalizedEmail === ownerEmailIdentity) || user.id === ownerUser?.id) {
+        continue;
+      }
+      const key = user.remoteAuthId ? `auth:${user.remoteAuthId}` : normalizedEmail ? `email:${normalizedEmail}` : `local:${user.id}`;
+      const existing = deduped.get(key);
+      if (!existing || getManageableProfileScore(user) > getManageableProfileScore(existing)) {
+        deduped.set(key, user);
+      }
+    }
+
+    return Array.from(deduped.values()).sort((left, right) => left.name.localeCompare(right.name));
+  }, [ownerAuthIdentity, ownerEmailIdentity, ownerUser?.id, users]);
 
   const getAssignmentDraftKey = (competitionId: number, userId: number, competitionSessionId: number) =>
     `${competitionId}:${userId}:${competitionSessionId}`;
@@ -203,6 +234,11 @@ export const AccessScreen = ({ navigation }: any) => {
     if (isAuthenticatedOwner) return;
     setExpandedSections((current) => (current.ownerTools ? { ...current, ownerTools: false } : current));
   }, [isAuthenticatedOwner]);
+
+  React.useEffect(() => {
+    if (canAccessPowerTools) return;
+    setExpandedSections((current) => (current.powerTools ? { ...current, powerTools: false } : current));
+  }, [canAccessPowerTools]);
 
   if (!currentUser) {
     return (
@@ -478,17 +514,27 @@ export const AccessScreen = ({ navigation }: any) => {
     sectionKey: UtilitySectionKey;
     title: string;
     subtitle: string;
-    summary: React.ReactNode;
+    summary?: React.ReactNode;
     children: React.ReactNode;
   }) => (
     <SectionCard title={title} subtitle={subtitle} tone="light">
-      {!expandedSections[sectionKey] ? summary : null}
-      <AppButton
-        label={expandedSections[sectionKey] ? `Hide ${title}` : `Open ${title}`}
+      {!expandedSections[sectionKey] && summary ? summary : null}
+      <Pressable
         onPress={() => toggleSection(sectionKey)}
-        variant="ghost"
-        surfaceTone="light"
-      />
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingVertical: 6
+        }}
+      >
+        <Text style={{ color: theme.colors.textDarkSoft, fontWeight: '700' }}>
+          {expandedSections[sectionKey] ? 'Hide details' : 'Show details'}
+        </Text>
+        <Text style={{ color: theme.colors.textDark, fontSize: 18, fontWeight: '800' }}>
+          {expandedSections[sectionKey] ? '-' : '+'}
+        </Text>
+      </Pressable>
       {expandedSections[sectionKey] ? children : null}
     </SectionCard>
   );
@@ -519,7 +565,7 @@ export const AccessScreen = ({ navigation }: any) => {
         {renderCollapsibleCard({
           sectionKey: 'accountInfo',
           title: 'Account Information',
-          subtitle: 'Keep identity, signed-in email, and access type in one place instead of repeating them across the app.',
+          subtitle: 'Identity, signed-in email, and access type live here once so the rest of Settings can stay quieter.',
           summary: (
             <View
               style={{
@@ -556,7 +602,7 @@ export const AccessScreen = ({ navigation }: any) => {
         {renderCollapsibleCard({
           sectionKey: 'appearance',
           title: 'Appearance',
-          subtitle: 'Adjust the visual treatment for glare, desktop review, and day-to-day use.',
+          subtitle: 'Theme choices for glare, desktop review, and everyday use.',
           summary: (
             <InlineSummaryRow
               label="Current Theme"
@@ -570,7 +616,7 @@ export const AccessScreen = ({ navigation }: any) => {
         {renderCollapsibleCard({
           sectionKey: 'billing',
           title: 'Billing',
-          subtitle: 'See what this account can do right now without mixing billing, identity, and admin tools together.',
+          subtitle: 'Plan details stay here instead of repeating across account and admin tools.',
           summary: (
             <View
               style={{
@@ -592,48 +638,21 @@ export const AccessScreen = ({ navigation }: any) => {
         {renderCollapsibleCard({
           sectionKey: 'competitions',
           title: 'Competitions',
-          subtitle: 'Create competitions, join by code, and review assignments without leaving Settings.',
+          subtitle: 'Join by code, manage your own assignments, and jump into competition-only history.',
           summary: (
-            <View
-              style={{
-                gap: 8,
-                backgroundColor: theme.colors.nestedSurface,
-                borderRadius: 12,
-                padding: 12,
-                borderWidth: 1,
-                borderColor: theme.colors.nestedSurfaceBorder
-              }}
-            >
-              <InlineSummaryRow label="Competition History" value={joinedCompetitionList.length ? 'Open filtered competition results' : 'No competition history yet'} valueMuted={!joinedCompetitionList.length} tone="light" />
-            </View>
+            <InlineSummaryRow label="Competition History" value={joinedCompetitionList.length ? 'Open filtered competition results' : 'No competition history yet'} valueMuted={!joinedCompetitionList.length} tone="light" />
           ),
           children: (
             <CompetitionsSection
               currentUser={currentUser}
-              canOrganizeCompetitions={canOrganizeCompetitions}
-              users={users}
               competitionGroups={competitionGroups}
               competitionSessions={competitionSessions}
-              competitionParticipants={competitionParticipants}
               competitionAssignments={competitionAssignments}
-              newCompetitionName={newCompetitionName}
-              onNewCompetitionNameChange={setNewCompetitionName}
-              competitionGroupCount={competitionGroupCount}
-              onCompetitionGroupCountChange={setCompetitionGroupCount}
-              competitionSessionCount={competitionSessionCount}
-              onCompetitionSessionCountChange={setCompetitionSessionCount}
-              competitionSchedule={competitionSchedule}
-              onCompetitionScheduleChange={(index, next) =>
-                setCompetitionSchedule((current) =>
-                  current.map((entry, entryIndex) => (entryIndex === index ? { ...entry, ...next } : entry))
-                )
-              }
               competitionJoinCode={competitionJoinCode}
               onCompetitionJoinCodeChange={setCompetitionJoinCode}
               joinedCompetitionList={joinedCompetitionList}
               getDraftForAssignment={getDraftForAssignment}
               onUpdateAssignmentDraft={updateAssignmentDraft}
-              onCreateCompetition={saveCompetition}
               onJoinCompetition={handleJoinCompetition}
               onSaveAssignment={saveAssignment}
               onOpenCompetitionHistory={() => navigation.navigate('History', { modeFilter: 'competition' })}
@@ -662,7 +681,7 @@ export const AccessScreen = ({ navigation }: any) => {
         {renderCollapsibleCard({
           sectionKey: 'groups',
           title: 'Groups',
-          subtitle: 'Keep ordinary group joining separate from owner-managed power-user invites.',
+          subtitle: 'Normal group joining stays here, while owner-managed power-user invites stay clearly separated.',
           summary: (
             <View
               style={{
@@ -715,7 +734,7 @@ export const AccessScreen = ({ navigation }: any) => {
         {renderCollapsibleCard({
           sectionKey: 'security',
           title: 'Security',
-          subtitle: 'Keep recovery, MFA, sign-out, and owner verification separate from account information.',
+          subtitle: 'Recovery, MFA, sign-out, and owner verification live here instead of inside account details.',
           summary: (
             <View
               style={{
@@ -764,22 +783,53 @@ export const AccessScreen = ({ navigation }: any) => {
           )
         })}
 
+        {canAccessPowerTools
+          ? renderCollapsibleCard({
+              sectionKey: 'powerTools',
+              title: 'Power Tools',
+              subtitle: 'Competition organization is reserved for owner and power-user sessions so the standard path stays lighter.',
+              summary: organizerCompetitionList.length ? (
+                <InlineSummaryRow label="Organizer Competitions" value={`${organizerCompetitionList.length}`} tone="light" />
+              ) : undefined,
+              children: (
+                <CompetitionOrganizerSection
+                  users={users}
+                  organizerCompetitions={organizerCompetitionList}
+                  competitionGroups={competitionGroups}
+                  competitionSessions={competitionSessions}
+                  competitionParticipants={competitionParticipants}
+                  competitionAssignments={competitionAssignments}
+                  newCompetitionName={newCompetitionName}
+                  onNewCompetitionNameChange={setNewCompetitionName}
+                  competitionGroupCount={competitionGroupCount}
+                  onCompetitionGroupCountChange={setCompetitionGroupCount}
+                  competitionSessionCount={competitionSessionCount}
+                  onCompetitionSessionCountChange={setCompetitionSessionCount}
+                  competitionSchedule={competitionSchedule}
+                  onCompetitionScheduleChange={(index, next) =>
+                    setCompetitionSchedule((current) =>
+                      current.map((entry, entryIndex) => (entryIndex === index ? { ...entry, ...next } : entry))
+                    )
+                  }
+                  getDraftForAssignment={getDraftForAssignment}
+                  onUpdateAssignmentDraft={updateAssignmentDraft}
+                  onCreateCompetition={saveCompetition}
+                  onSaveAssignment={saveAssignment}
+                  embedded
+                />
+              )
+            })
+          : null}
+
         {isAuthenticatedOwner
           ? renderCollapsibleCard({
               sectionKey: 'ownerTools',
               title: 'Owner Tools',
-              subtitle: 'Keep tester access changes powerful, but separate from ordinary account settings.',
-              summary: (
-                <InlineSummaryRow
-                  label="Owner Session"
-                  value={ownerUser ? `${ownerUser.name} linked and signed in` : 'Owner signed in'}
-                  tone="light"
-                />
-              ),
+              subtitle: 'Grant power-user access, start a seven-day trial, or reset access without mixing in other settings.',
               children: (
                 <OwnerControlsSection
                   ownerUser={ownerUser}
-                  users={users}
+                  manageableUsers={manageableUsers}
                   onGrantPowerUser={(userId, userName) => runAdminAction(() => grantPowerUserAccess(userId), `${userName} now has power-user access.`)}
                   onStartTrial={(userId, userName) => runAdminAction(() => startTrialForUser(userId), `${userName} now has a 7-day trial.`)}
                   onResetAccess={(userId, userName) => runAdminAction(() => clearUserAccess(userId), `${userName} was reset to free access.`)}

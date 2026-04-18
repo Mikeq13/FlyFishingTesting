@@ -72,21 +72,6 @@ export const GroupsSharingSection = ({
 
   const content = (
     <>
-      <View
-        style={{
-          gap: 8,
-          backgroundColor: theme.colors.nestedSurface,
-          borderRadius: 12,
-          padding: 12,
-          borderWidth: 1,
-          borderColor: theme.colors.nestedSurfaceBorder
-        }}
-      >
-        <InlineSummaryRow label="Your Groups" value={`${joinedGroups.length}`} tone="light" />
-        <InlineSummaryRow label="Organized by You" value={`${organizerGroups.length}`} tone="light" />
-        <InlineSummaryRow label="Power User Invites" value={isAuthenticatedOwner ? 'Owner-managed from this screen' : 'Only the owner can create these'} valueMuted={!isAuthenticatedOwner} tone="light" />
-      </View>
-
       <View style={{ gap: 8 }}>
         <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 16 }}>Create or Join a Group</Text>
         <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>

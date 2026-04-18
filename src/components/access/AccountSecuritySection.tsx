@@ -52,7 +52,7 @@ export const AccountSecuritySection = ({
     <>
       <View
         style={{
-          gap: 8,
+          gap: 4,
           backgroundColor: theme.colors.nestedSurface,
           borderRadius: 12,
           padding: 12,

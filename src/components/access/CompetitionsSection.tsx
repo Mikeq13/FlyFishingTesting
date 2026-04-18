@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert, Text, TextInput, View } from 'react-native';
-import { Competition, CompetitionGroup, CompetitionParticipant, CompetitionSession, CompetitionSessionAssignment, CompetitionSessionRole } from '@/types/group';
+import { Competition, CompetitionGroup, CompetitionSession, CompetitionSessionAssignment, CompetitionSessionRole } from '@/types/group';
 import { UserProfile } from '@/types/user';
 import { AppButton } from '@/components/ui/AppButton';
 import { SectionCard } from '@/components/ui/SectionCard';
@@ -11,52 +11,28 @@ import { useTheme } from '@/design/theme';
 
 export const CompetitionsSection = ({
   currentUser,
-  canOrganizeCompetitions,
-  users,
   competitionGroups,
   competitionSessions,
-  competitionParticipants,
   competitionAssignments,
-  newCompetitionName,
-  onNewCompetitionNameChange,
-  competitionGroupCount,
-  onCompetitionGroupCountChange,
-  competitionSessionCount,
-  onCompetitionSessionCountChange,
-  competitionSchedule,
-  onCompetitionScheduleChange,
   competitionJoinCode,
   onCompetitionJoinCodeChange,
   joinedCompetitionList,
   getDraftForAssignment,
   onUpdateAssignmentDraft,
-  onCreateCompetition,
   onJoinCompetition,
   onSaveAssignment,
   onOpenCompetitionHistory,
   embedded = false
 }: {
   currentUser: UserProfile;
-  canOrganizeCompetitions: boolean;
-  users: UserProfile[];
   competitionGroups: CompetitionGroup[];
   competitionSessions: CompetitionSession[];
-  competitionParticipants: CompetitionParticipant[];
   competitionAssignments: CompetitionSessionAssignment[];
-  newCompetitionName: string;
-  onNewCompetitionNameChange: (value: string) => void;
-  competitionGroupCount: string;
-  onCompetitionGroupCountChange: (value: string) => void;
-  competitionSessionCount: string;
-  onCompetitionSessionCountChange: (value: string) => void;
-  competitionSchedule: Array<{ sessionNumber: number; startTime: string; endTime: string }>;
-  onCompetitionScheduleChange: (index: number, next: Partial<{ startTime: string; endTime: string }>) => void;
   competitionJoinCode: string;
   onCompetitionJoinCodeChange: (value: string) => void;
   joinedCompetitionList: Competition[];
   getDraftForAssignment: (competitionId: number, userId: number, competitionSessionId: number, fallback: { competitionGroupId: number | null; beat: string; role: CompetitionSessionRole }) => { competitionGroupId: number | null; beat: string; role: CompetitionSessionRole };
   onUpdateAssignmentDraft: (competitionId: number, userId: number, competitionSessionId: number, next: Partial<{ competitionGroupId: number | null; beat: string; role: CompetitionSessionRole }>) => void;
-  onCreateCompetition: () => Promise<void>;
   onJoinCompetition: () => Promise<void>;
   onSaveAssignment: (competitionId: number, userId: number, competitionSessionId: number, draft: { competitionGroupId: number | null; beat: string; role: CompetitionSessionRole }) => Promise<void>;
   onOpenCompetitionHistory: () => void;
@@ -86,62 +62,9 @@ export const CompetitionsSection = ({
       </View>
     </View>
 
-    {canOrganizeCompetitions ? (
-      <View style={{ gap: 8 }}>
-        <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 16 }}>Competition Organizer</Text>
-        <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-          Owners and power users can create competitions, define the schedule, and review assignments before the event starts.
-        </Text>
-        <FormField label="Competition Name" tone="light">
-          <TextInput value={newCompetitionName} onChangeText={onNewCompetitionNameChange} placeholder="Competition name" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
-        </FormField>
-        <OptionChips
-          label="Competition Groups"
-          options={['1', '2', '3', '4'] as const}
-          value={competitionGroupCount as '1' | '2' | '3' | '4'}
-          onChange={onCompetitionGroupCountChange}
-          tone="light"
-        />
-        <FormField label="Total Sessions" tone="light">
-          <TextInput value={competitionSessionCount} onChangeText={onCompetitionSessionCountChange} keyboardType="number-pad" placeholder="Session count" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
-        </FormField>
-        <View style={{ gap: 8 }}>
-          {competitionSchedule.map((session, index) => (
-            <View
-              key={session.sessionNumber}
-              style={{
-                gap: 6,
-                backgroundColor: theme.colors.nestedSurface,
-                borderRadius: theme.radius.md,
-                padding: 12,
-                borderWidth: 1,
-                borderColor: theme.colors.nestedSurfaceBorder
-              }}
-            >
-              <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>Session {index + 1}</Text>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <View style={{ flex: 1 }}>
-                  <FormField label="Start" tone="light">
-                    <TextInput value={session.startTime} onChangeText={(value) => onCompetitionScheduleChange(index, { startTime: value })} placeholder="08:00" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
-                  </FormField>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <FormField label="End" tone="light">
-                    <TextInput value={session.endTime} onChangeText={(value) => onCompetitionScheduleChange(index, { endTime: value })} placeholder="11:00" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
-                  </FormField>
-                </View>
-              </View>
-            </View>
-          ))}
-        </View>
-        <AppButton label="Create Competition" onPress={() => { onCreateCompetition().catch((error) => Alert.alert('Unable to create competition', error instanceof Error ? error.message : 'Please try again.')); }} surfaceTone="light" />
-      </View>
-    ) : null}
-
     {joinedCompetitionList.map((competition) => {
       const compGroups = competitionGroups.filter((item) => item.competitionId === competition.id);
       const compSessions = competitionSessions.filter((item) => item.competitionId === competition.id);
-      const participants = competitionParticipants.filter((participant) => participant.competitionId === competition.id);
       const assignments = competitionAssignments.filter((assignment) => assignment.competitionId === competition.id);
       return (
         <View
@@ -189,45 +112,6 @@ export const CompetitionsSection = ({
               );
             })}
           </View>
-          {canOrganizeCompetitions && competition.organizerUserId === currentUser.id ? (
-            <View style={{ gap: 8, marginTop: 6 }}>
-              <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>Organizer Review</Text>
-              <InlineSummaryRow label="Roster" value={`${participants.length} participants | ${new Set(assignments.map((assignment) => assignment.userId)).size} with assignments`} tone="light" />
-              {participants.map((participant) => {
-                const participantUser = users.find((user) => user.id === participant.userId);
-                return (
-                  <View
-                    key={participant.id}
-                    style={{
-                      gap: 8,
-                      backgroundColor: theme.colors.surfaceLightAlt,
-                      borderRadius: 12,
-                      padding: 10,
-                      borderWidth: 1,
-                      borderColor: theme.colors.borderLight
-                    }}
-                  >
-                    <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>{participantUser?.name ?? `Angler ${participant.userId}`}</Text>
-                    {compSessions.map((session) => {
-                      const existingAssignment = assignments.find((assignment) => assignment.userId === participant.userId && assignment.competitionSessionId === session.id);
-                      const draft = getDraftForAssignment(competition.id, participant.userId, session.id, { competitionGroupId: existingAssignment?.competitionGroupId ?? compGroups[0]?.id ?? null, beat: existingAssignment?.beat ?? '', role: existingAssignment?.role ?? 'fishing' });
-                      return (
-                        <View key={`${participant.id}-${session.id}`} style={{ gap: 8 }}>
-                          <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>Session {session.sessionNumber}</Text>
-                          <OptionChips label="Competition Group" options={compGroups.map((group) => `Group ${group.label}`)} value={compGroups.find((group) => group.id === draft.competitionGroupId) ? `Group ${compGroups.find((group) => group.id === draft.competitionGroupId)?.label}` : undefined} onChange={(value) => { const selectedGroup = compGroups.find((group) => `Group ${group.label}` === value); onUpdateAssignmentDraft(competition.id, participant.userId, session.id, { competitionGroupId: selectedGroup?.id ?? null }); }} tone="light" />
-                          <FormField label="Beat / Section" tone="light">
-                            <TextInput value={draft.beat} onChangeText={(value) => onUpdateAssignmentDraft(competition.id, participant.userId, session.id, { beat: value })} placeholder="Beat / section" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
-                          </FormField>
-                          <OptionChips label="Role" options={['fishing', 'controlling'] as const} value={draft.role} onChange={(role) => onUpdateAssignmentDraft(competition.id, participant.userId, session.id, { role })} tone="light" />
-                          <AppButton label="Save Review Edit" onPress={() => { onSaveAssignment(competition.id, participant.userId, session.id, draft).catch((error) => Alert.alert('Unable to save assignment', error instanceof Error ? error.message : 'Please try again.')); }} variant="tertiary" surfaceTone="light" />
-                        </View>
-                      );
-                    })}
-                  </View>
-                );
-              })}
-            </View>
-          ) : null}
         </View>
       );
     })}
