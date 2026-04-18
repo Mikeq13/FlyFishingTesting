@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { OptionChips } from '@/components/OptionChips';
 import { DepthSelector } from '@/components/DepthSelector';
@@ -19,7 +19,10 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { StatusBanner } from '@/components/ui/StatusBanner';
 import { AppButton } from '@/components/ui/AppButton';
+import { BottomSheetSurface } from '@/components/ui/BottomSheetSurface';
 import { useTheme } from '@/design/theme';
+
+type SetupSheetKey = 'leader' | 'rigging' | 'flies' | null;
 
 export const PracticeScreen = ({ route }: any) => {
   const { theme } = useTheme();
@@ -48,6 +51,7 @@ export const PracticeScreen = ({ route }: any) => {
   const [pendingCatchFly, setPendingCatchFly] = useState<FlySetup | null>(null);
   const [pendingCatchSpecies, setPendingCatchSpecies] = useState<TroutSpecies | null>(null);
   const [pendingCatchLength, setPendingCatchLength] = useState('');
+  const [activeSetupSheet, setActiveSetupSheet] = useState<SetupSheetKey>(null);
   const activeSegment = useMemo(
     () =>
       sessionSegments
@@ -95,6 +99,13 @@ export const PracticeScreen = ({ route }: any) => {
   }, [activeSegment]);
 
   const currentRigSetup = activeSegment?.rigSetup ?? createDefaultRigSetup(activeSegment?.flySnapshots ?? []);
+  const leaderSummary = currentRigSetup.leaderFormulaName ?? (currentRigSetup.leaderFormulaSectionsSnapshot.length ? 'Custom leader' : 'Not chosen');
+  const rigSummary = `${currentRigSetup.assignments.length} ${currentRigSetup.assignments.length === 1 ? 'fly' : 'flies'} | ${currentRigSetup.assignments.map((assignment) => assignment.position).join(' | ')}`;
+  const flySummary = currentRigSetup.assignments.length
+    ? currentRigSetup.assignments
+        .map((assignment) => `${assignment.position}: ${assignment.fly.name.trim() || 'No fly selected'}`)
+        .join(' | ')
+    : 'No flies selected yet';
 
   const saveFlyToLibrary = async (fly: FlySetup) => {
     const normalizedFly = { ...fly, name: fly.name.trim() };
@@ -196,6 +207,39 @@ export const PracticeScreen = ({ route }: any) => {
     ]);
   };
 
+  const renderSetupSummaryCard = ({
+    title,
+    subtitle,
+    summaryTitle,
+    summaryText,
+    buttonLabel,
+    sheetKey
+  }: {
+    title: string;
+    subtitle: string;
+    summaryTitle: string;
+    summaryText: string;
+    buttonLabel: string;
+    sheetKey: Exclude<SetupSheetKey, null>;
+  }) => (
+    <SectionCard title={title} subtitle={subtitle}>
+      <View
+        style={{
+          gap: 8,
+          borderRadius: theme.radius.md,
+          padding: 12,
+          backgroundColor: theme.colors.surfaceAlt,
+          borderWidth: 1,
+          borderColor: theme.colors.border
+        }}
+      >
+        <Text style={{ color: theme.colors.text, fontWeight: '800' }}>{summaryTitle}</Text>
+        <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>{summaryText}</Text>
+        <AppButton label={buttonLabel} onPress={() => setActiveSetupSheet(sheetKey)} variant="ghost" />
+      </View>
+    </SectionCard>
+  );
+
   return (
     <ScreenBackground>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
@@ -236,40 +280,32 @@ export const PracticeScreen = ({ route }: any) => {
           <AppButton label="Change Water" onPress={() => { changeWater().catch(console.error); }} disabled={timer.hasEnded} variant="secondary" />
         </SectionCard>
 
-        <RigSetupPanel
-          title="Rig Setup"
-          rigSetup={currentRigSetup}
-          flyCount={currentRigSetup.assignments.length}
-          onFlyCountChange={(nextCount) => {
-            updateActiveSegment(
-              setRigFlyCount(currentRigSetup, nextCount, {
-                clearPointFly: nextCount === 1 && currentRigSetup.assignments.length > 1
-              })
-            ).catch(console.error);
-          }}
-          savedLeaderFormulas={savedLeaderFormulas}
-          savedRigPresets={savedRigPresets}
-          onChange={(nextRigSetup) => {
-            updateActiveSegment(nextRigSetup).catch(console.error);
-          }}
-          onCreateLeaderFormula={saveLeaderFormula}
-          onCreateRigPreset={saveRigPreset}
-          onApplyRigPreset={(preset) => {
-            updateActiveSegment(applyRigPresetToRig(currentRigSetup, preset, { clearSinglePointFly: preset.flyCount === 1 })).catch(console.error);
-          }}
-          onDeleteLeaderFormula={deleteSavedLeaderFormula}
-          onDeleteRigPreset={deleteSavedRigPreset}
-        />
+        {renderSetupSummaryCard({
+          title: 'Leader',
+          subtitle: 'Adjust the current leader quickly without burying the practice flow under setup controls.',
+          summaryTitle: 'Current Leader',
+          summaryText: leaderSummary,
+          buttonLabel: 'Change Leader',
+          sheetKey: 'leader'
+        })}
 
-        <RigFlyManager
-          title="Fly Assignments"
-          rigSetup={currentRigSetup}
-          savedFlies={savedFlies}
-          onChange={(nextRigSetup) => {
-            updateActiveSegment(nextRigSetup).catch(console.error);
-          }}
-          onCreateFly={saveFlyToLibrary}
-        />
+        {renderSetupSummaryCard({
+          title: 'Rigging',
+          subtitle: 'Adjust fly count, rig preset, or tippet details in one focused step.',
+          summaryTitle: 'Current Rigging',
+          summaryText: rigSummary,
+          buttonLabel: 'Change Rigging',
+          sheetKey: 'rigging'
+        })}
+
+        {renderSetupSummaryCard({
+          title: 'Flies',
+          subtitle: 'Swap or add flies without pushing timer and catch logging off screen.',
+          summaryTitle: 'Current Flies',
+          summaryText: flySummary,
+          buttonLabel: 'Change Flies',
+          sheetKey: 'flies'
+        })}
 
         <SectionCard title="Log Catches" subtitle="Quick tap logging stays front and center while you practice.">
           {!currentRigSetup.assignments.length ? (
@@ -310,6 +346,96 @@ export const PracticeScreen = ({ route }: any) => {
           )}
         </SectionCard>
       </ScrollView>
+      <Modal visible={activeSetupSheet !== null} transparent animationType="slide" onRequestClose={() => setActiveSetupSheet(null)}>
+        <BottomSheetSurface
+          title={
+            activeSetupSheet === 'leader'
+              ? 'Change Leader'
+              : activeSetupSheet === 'rigging'
+                ? 'Change Rigging'
+                : 'Change Flies'
+          }
+          subtitle={
+            activeSetupSheet === 'leader'
+              ? 'Update the active segment leader in the foreground, then return right to practice.'
+              : activeSetupSheet === 'rigging'
+                ? 'Adjust rig count, preset, and tippet details without interrupting catch logging.'
+                : 'Replace flies or fill empty slots in one focused editor.'
+          }
+          onClose={() => setActiveSetupSheet(null)}
+        >
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 12 }}>
+            {activeSetupSheet === 'leader' ? (
+              <RigSetupPanel
+                title="Leader"
+                rigSetup={currentRigSetup}
+                flyCount={currentRigSetup.assignments.length}
+                editMode="leader"
+                forceEditorOpen
+                tone="light"
+                foregroundQuickAdd
+                savedLeaderFormulas={savedLeaderFormulas}
+                savedRigPresets={savedRigPresets}
+                onChange={(nextRigSetup) => {
+                  updateActiveSegment(nextRigSetup).catch(console.error);
+                }}
+                onCreateLeaderFormula={saveLeaderFormula}
+                onCreateRigPreset={saveRigPreset}
+                onApplyRigPreset={(preset) => {
+                  updateActiveSegment(applyRigPresetToRig(currentRigSetup, preset, { clearSinglePointFly: preset.flyCount === 1 })).catch(console.error);
+                }}
+                onDeleteLeaderFormula={deleteSavedLeaderFormula}
+                onDeleteRigPreset={deleteSavedRigPreset}
+              />
+            ) : null}
+            {activeSetupSheet === 'rigging' ? (
+              <RigSetupPanel
+                title="Rigging"
+                rigSetup={currentRigSetup}
+                flyCount={currentRigSetup.assignments.length}
+                onFlyCountChange={(nextCount) => {
+                  updateActiveSegment(
+                    setRigFlyCount(currentRigSetup, nextCount, {
+                      clearPointFly: nextCount === 1 && currentRigSetup.assignments.length > 1
+                    })
+                  ).catch(console.error);
+                }}
+                editMode="rig"
+                forceEditorOpen
+                tone="light"
+                foregroundQuickAdd
+                savedLeaderFormulas={savedLeaderFormulas}
+                savedRigPresets={savedRigPresets}
+                onChange={(nextRigSetup) => {
+                  updateActiveSegment(nextRigSetup).catch(console.error);
+                }}
+                onCreateLeaderFormula={saveLeaderFormula}
+                onCreateRigPreset={saveRigPreset}
+                onApplyRigPreset={(preset) => {
+                  updateActiveSegment(applyRigPresetToRig(currentRigSetup, preset, { clearSinglePointFly: preset.flyCount === 1 })).catch(console.error);
+                }}
+                onDeleteLeaderFormula={deleteSavedLeaderFormula}
+                onDeleteRigPreset={deleteSavedRigPreset}
+              />
+            ) : null}
+            {activeSetupSheet === 'flies' ? (
+              <RigFlyManager
+                title="Fly Assignments"
+                rigSetup={currentRigSetup}
+                savedFlies={savedFlies}
+                onChange={(nextRigSetup) => {
+                  updateActiveSegment(nextRigSetup).catch(console.error);
+                }}
+                onCreateFly={saveFlyToLibrary}
+                tone="light"
+                editorOnly
+                foregroundQuickAdd
+              />
+            ) : null}
+            <AppButton label="Done" onPress={() => setActiveSetupSheet(null)} />
+          </ScrollView>
+        </BottomSheetSurface>
+      </Modal>
       <PracticeCatchModal
         visible={pendingCatchFly !== null}
         title={`Log catch for ${pendingCatchFly?.name ?? 'Fly'}`}
