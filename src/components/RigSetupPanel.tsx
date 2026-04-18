@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { OptionChips } from './OptionChips';
 import { AddedTippetSection, LeaderFormula, RigPreset, RigSetup, TippetSize } from '@/types/rig';
 import { applyLeaderFormulaToRig, createRigPresetPayload } from '@/utils/rigSetup';
@@ -8,6 +8,7 @@ import { RigPresetEditor } from './RigPresetEditor';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { AppButton } from '@/components/ui/AppButton';
 import { useTheme } from '@/design/theme';
+import { ModalSurface } from '@/components/ui/ModalSurface';
 
 const TIPPET_SIZES: TippetSize[] = ['5x', '6x', '7x', '8x'];
 
@@ -27,6 +28,7 @@ interface RigSetupPanelProps {
   onApplyRigPreset: (preset: RigPreset) => void;
   onDeleteLeaderFormula?: (formulaId: number) => Promise<void>;
   onDeleteRigPreset?: (presetId: number) => Promise<void>;
+  foregroundQuickAdd?: boolean;
 }
 
 export const RigSetupPanel = ({
@@ -44,7 +46,8 @@ export const RigSetupPanel = ({
   onCreateRigPreset,
   onApplyRigPreset,
   onDeleteLeaderFormula,
-  onDeleteRigPreset
+  onDeleteRigPreset,
+  foregroundQuickAdd = false
 }: RigSetupPanelProps) => {
   const { theme } = useTheme();
   const isLightTone = tone === 'light';
@@ -181,7 +184,7 @@ export const RigSetupPanel = ({
 
               <AppButton label={showFormulaEditor ? 'Hide New Leader' : 'New Leader'} onPress={() => setShowFormulaEditor((current) => !current)} variant="tertiary" surfaceTone={isLightTone ? 'light' : 'dark'} />
 
-              {showFormulaEditor ? (
+              {showFormulaEditor && !foregroundQuickAdd ? (
                 <LeaderFormulaEditor
                   onSave={async (payload) => {
                     try {
@@ -201,7 +204,7 @@ export const RigSetupPanel = ({
             <>
               <AppButton label={showPresetEditor ? 'Hide New Rig' : 'New Rig'} onPress={() => setShowPresetEditor((current) => !current)} variant="ghost" surfaceTone={isLightTone ? 'light' : 'dark'} />
 
-              {showPresetEditor ? (
+              {showPresetEditor && !foregroundQuickAdd ? (
                 <RigPresetEditor
                   onSave={async (name) => {
                     try {
@@ -304,6 +307,38 @@ export const RigSetupPanel = ({
           {!forceEditorOpen ? <AppButton label="Hide Setup Details" onPress={closeSetupEditor} variant="ghost" surfaceTone={isLightTone ? 'light' : 'dark'} /> : null}
         </>
       ) : null}
+      <Modal visible={showFormulaEditor && foregroundQuickAdd} transparent animationType="fade" onRequestClose={() => setShowFormulaEditor(false)}>
+        <ModalSurface title="Quick Add Leader" subtitle="Save a new leader in the foreground, then return to this setup flow.">
+          <LeaderFormulaEditor
+            onSave={async (payload) => {
+              try {
+                const saved = await onCreateLeaderFormula(payload);
+                onChange(applyLeaderFormulaToRig(rigSetup, saved));
+                setShowFormulaEditor(false);
+                closeSetupEditor();
+              } catch (error) {
+                Alert.alert('Unable to save leader', error instanceof Error ? error.message : 'Please try again.');
+              }
+            }}
+          />
+          <AppButton label="Cancel" onPress={() => setShowFormulaEditor(false)} variant="ghost" surfaceTone="light" />
+        </ModalSurface>
+      </Modal>
+      <Modal visible={showPresetEditor && foregroundQuickAdd} transparent animationType="fade" onRequestClose={() => setShowPresetEditor(false)}>
+        <ModalSurface title="Quick Add Rig" subtitle="Save a rig preset in the foreground, then return to this setup flow.">
+          <RigPresetEditor
+            onSave={async (name) => {
+              try {
+                await onCreateRigPreset(createRigPresetPayload(rigSetup, name));
+                setShowPresetEditor(false);
+              } catch (error) {
+                Alert.alert('Unable to save rig preset', error instanceof Error ? error.message : 'Please try again.');
+              }
+            }}
+          />
+          <AppButton label="Cancel" onPress={() => setShowPresetEditor(false)} variant="ghost" surfaceTone="light" />
+        </ModalSurface>
+      </Modal>
     </SectionCard>
   );
 };
