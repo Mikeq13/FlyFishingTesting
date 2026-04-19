@@ -26,13 +26,13 @@ import { describeSessionShareIntent } from '@/utils/sessionSharing';
 
 const MODE_COPY: Record<SessionMode, { title: string; subtitle: string; button: string }> = {
   experiment: {
-    title: 'Journal Entry',
-    subtitle: 'What will you be discovering in your journal entry today?',
-    button: 'Begin Journal Entry'
+    title: 'Experiment Session',
+    subtitle: 'Set up a controlled comparison so each result stays clean and worth trusting later.',
+    button: 'Begin Experiment'
   },
   practice: {
     title: 'Practice Session',
-    subtitle: 'What kind of water are you getting reps on today?',
+    subtitle: 'Keep setup light, stay mobile, and log quick scouting feedback while you fish.',
     button: 'Begin Practice Session'
   },
   competition: {
@@ -52,7 +52,14 @@ export const SessionScreen = ({ navigation, route }: any) => {
     [sessionId, sessions]
   );
   const mode = (existingSession?.mode ?? route?.params?.mode ?? 'experiment') as SessionMode;
-  const modeCopy = MODE_COPY[mode] ?? MODE_COPY.experiment;
+  const modeCopy = useMemo(() => {
+    const baseCopy = MODE_COPY[mode] ?? MODE_COPY.experiment;
+    if (mode !== 'competition') return baseCopy;
+    return {
+      ...baseCopy,
+      subtitle: 'Keep assignment context tight so scoring and catch timing stay easy to track.'
+    };
+  }, [mode]);
   const isEditingExistingSession = !!existingSession;
   const activeUser = users.find((user) => user.id === activeUserId);
   const [waterType, setWaterType] = useState<WaterType>('run');
@@ -364,7 +371,9 @@ export const SessionScreen = ({ navigation, route }: any) => {
     const id = existingSession ? existingSession.id : await addSession(sessionPayload);
     if (existingSession) {
       await updateSessionEntry(existingSession.id, sessionPayload);
-      console.info('[problem-records] session resumed and saved', { sessionId: existingSession.id, mode });
+      if (__DEV__) {
+        console.info('[problem-records] session resumed and saved', { sessionId: existingSession.id, mode });
+      }
     }
     if (mode === 'competition' && selectedCompetitionId) {
       const assignment = await upsertCompetitionAssignment({

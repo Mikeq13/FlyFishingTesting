@@ -42,6 +42,7 @@ export const InsightsScreen = ({ navigation }: any) => {
     currentUser,
     currentHasPremiumAccess,
     sharedDataStatus,
+    syncStatus,
     remoteSession,
     savedFlies,
     getSessionIntegrity,
@@ -335,11 +336,21 @@ export const InsightsScreen = ({ navigation }: any) => {
           <>
             <ScreenHeader
               title="Insights"
-              subtitle="Review the strongest patterns in your data, your best flies, and where anglers overlap."
+              subtitle="Review the strongest patterns in your data, compare anglers with context, and keep technique in view only where it sharpens the read."
               eyebrow="Shared Learning"
             />
             {sharedDataSettling ? (
-              <StatusBanner tone="info" text="Shared groups and friend visibility are still loading from the beta backend. Group-based filters will unlock as soon as shared data is ready." />
+              <StatusBanner tone="info" text="Shared groups and friend comparisons are still loading. Group filters will unlock as soon as shared data is ready." />
+            ) : null}
+            {!sharedDataSettling && sharedDataStatus === 'error' ? (
+              <StatusBanner
+                tone="warning"
+                text={
+                  syncStatus.lastError
+                    ? `Shared insights are temporarily unavailable: ${syncStatus.lastError}`
+                    : 'Shared insights are temporarily unavailable right now. Your local insight history is still safe.'
+                }
+              />
             ) : null}
 
             <SectionCard title="View Context" subtitle="Switch between your own data, a shared group, or a friend comparison without losing trust in the numbers.">

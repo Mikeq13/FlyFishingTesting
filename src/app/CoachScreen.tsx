@@ -12,18 +12,12 @@ import { getExperimentEntries } from '@/utils/experimentEntries';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { AppButton } from '@/components/ui/AppButton';
-import { appTheme } from '@/design/theme';
+import { useTheme } from '@/design/theme';
 
 type CoachCard = {
   title: string;
   body: string;
   accent: string;
-};
-
-const subheadingStyle = {
-  fontSize: 18,
-  fontWeight: '700' as const,
-  color: appTheme.colors.text
 };
 
 const findLeader = (bucket: Record<string, number>) => {
@@ -35,6 +29,7 @@ const findLeader = (bucket: Record<string, number>) => {
 const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
 
 export const CoachScreen = () => {
+  const { theme } = useTheme();
   const navigation = useNavigation<any>();
   const { sessions, experiments, insights, topFlyRecords, currentHasPremiumAccess } = useAppStore();
   const [question, setQuestion] = useState('What does my data suggest I try next?');
@@ -164,7 +159,7 @@ export const CoachScreen = () => {
 
           <SectionCard title="Coach Intel" subtitle="Recommendation-first guidance pulled from your sessions, experiments, and top-fly history.">
             <View style={{ gap: 4 }}>
-              <Text style={{ color: 'rgba(226, 240, 248, 0.86)', lineHeight: 19 }}>
+              <Text style={{ color: theme.colors.textSoft, lineHeight: 19 }}>
                 Keep the strongest signals close at hand before you ask a deeper question.
               </Text>
             </View>
@@ -175,17 +170,17 @@ export const CoachScreen = () => {
                 style={{
                   borderRadius: 16,
                   padding: 14,
-                  backgroundColor: 'rgba(255,255,255,0.08)',
+                  backgroundColor: theme.colors.surfaceAlt,
                   borderWidth: 1,
-                  borderColor: 'rgba(255,255,255,0.1)',
+                  borderColor: theme.colors.border,
                   gap: 6
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <View style={{ width: 10, height: 10, borderRadius: 999, backgroundColor: card.accent }} />
-                  <Text style={{ color: '#f5fbff', fontSize: 16, fontWeight: '700' }}>{card.title}</Text>
+                  <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '700' }}>{card.title}</Text>
                 </View>
-                <Text style={{ color: 'rgba(230, 243, 248, 0.92)', lineHeight: 20 }}>{card.body}</Text>
+                <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>{card.body}</Text>
               </View>
             ))}
 
@@ -197,7 +192,7 @@ export const CoachScreen = () => {
 
           <SectionCard title="Ask About My Data" subtitle="Ask a specific question when you want the coach to explain what it sees in your journal.">
             <View style={{ gap: 4 }}>
-              <Text style={{ color: 'rgba(226, 240, 248, 0.86)', lineHeight: 19 }}>
+              <Text style={{ color: theme.colors.textSoft, lineHeight: 19 }}>
                 Keep prompts focused so the answer feels useful in the field, not generic.
               </Text>
             </View>
@@ -209,15 +204,15 @@ export const CoachScreen = () => {
               style={{
                 minHeight: 96,
                 borderWidth: 1,
-                borderColor: appTheme.colors.borderStrong,
+                borderColor: theme.colors.borderStrong,
                 padding: 12,
-                borderRadius: appTheme.radius.md,
-                backgroundColor: appTheme.colors.inputBg,
-                color: '#10212d',
+                borderRadius: theme.radius.md,
+                backgroundColor: theme.colors.inputBg,
+                color: theme.colors.inputText,
                 textAlignVertical: 'top'
               }}
               placeholder="Ask about your river, fly size, bead color, or what pattern to test next."
-              placeholderTextColor="rgba(16, 33, 45, 0.46)"
+              placeholderTextColor={theme.colors.inputPlaceholder}
             />
 
             <AppButton label="Ask AI Coach" onPress={() => setResponse(runCoach(question, context))} variant="tertiary" />
@@ -227,31 +222,31 @@ export const CoachScreen = () => {
                 style={{
                   gap: 10,
                   borderWidth: 1,
-                  borderColor: 'rgba(255,255,255,0.14)',
+                  borderColor: theme.colors.border,
                   borderRadius: 14,
                   padding: 14,
-                  backgroundColor: 'rgba(247, 252, 255, 0.96)'
+                  backgroundColor: theme.colors.surfaceLight
                 }}
               >
                 <View style={{ gap: 4 }}>
-                  <Text style={{ fontWeight: '700', color: '#10212d' }}>Summary</Text>
-                  <Text style={{ color: '#173241', lineHeight: 20 }}>{response.summary}</Text>
+                  <Text style={{ fontWeight: '700', color: theme.colors.textDark }}>Summary</Text>
+                  <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>{response.summary}</Text>
                 </View>
 
                 <View style={{ gap: 4 }}>
-                  <Text style={{ fontWeight: '700', color: '#10212d' }}>Evidence</Text>
+                  <Text style={{ fontWeight: '700', color: theme.colors.textDark }}>Evidence</Text>
                   {response.evidence.map((evidence, index) => (
-                    <Text key={`${evidence}-${index}`} style={{ color: '#173241', lineHeight: 19 }}>
+                    <Text key={`${evidence}-${index}`} style={{ color: theme.colors.textDarkSoft, lineHeight: 19 }}>
                       - {evidence}
                     </Text>
                   ))}
                 </View>
 
-                <Text style={{ color: '#173241', fontWeight: '700' }}>Confidence: {response.confidence}</Text>
+                <Text style={{ color: theme.colors.textDarkSoft, fontWeight: '700' }}>Confidence: {response.confidence}</Text>
 
                 <View style={{ gap: 4 }}>
-                  <Text style={{ fontWeight: '700', color: '#10212d' }}>Next Best Action</Text>
-                  <Text style={{ color: '#173241', lineHeight: 20 }}>{response.nextBestAction}</Text>
+                  <Text style={{ fontWeight: '700', color: theme.colors.textDark }}>Next Best Action</Text>
+                  <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>{response.nextBestAction}</Text>
                 </View>
               </View>
             )}

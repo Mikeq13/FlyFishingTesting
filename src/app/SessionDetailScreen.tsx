@@ -9,8 +9,10 @@ import { SectionCard } from '@/components/ui/SectionCard';
 import { AppButton } from '@/components/ui/AppButton';
 import { StatusBanner } from '@/components/ui/StatusBanner';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
+import { useTheme } from '@/design/theme';
 
 export const SessionDetailScreen = ({ route, navigation }: any) => {
+  const { theme } = useTheme();
   const { sessions, experiments, users, activeUserId, archiveExperiment, deleteExperiment, cleanupSyncStatus, getSyncRecordState, getExperimentIntegrity, getSessionIntegrity } = useAppStore();
   const sessionId = route?.params?.sessionId as number;
   const activeUser = users.find((user) => user.id === activeUserId);
@@ -78,11 +80,13 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
         )}
         {session && sessionIntegrity && sessionIntegrity.state !== 'valid' ? (
           <SectionCard title="Resume Session" subtitle="This session is still incomplete or otherwise excluded from trusted analytics." tone="light">
-            {sessionIntegrity.reason ? <Text style={{ color: '#486581' }}>{sessionIntegrity.reason}</Text> : null}
+            {sessionIntegrity.reason ? <Text style={{ color: theme.colors.textDarkSoft }}>{sessionIntegrity.reason}</Text> : null}
             <AppButton
               label="Resume Session"
               onPress={() => {
-                console.info('[problem-records] resume tapped from session detail', { sessionId: session.id });
+                if (__DEV__) {
+                  console.info('[problem-records] resume tapped from session detail', { sessionId: session.id });
+                }
                 navigation.navigate('Session', { sessionId: session.id, resumeSource: 'detail' });
               }}
               variant="secondary"
@@ -106,29 +110,29 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
           <View
             key={e.id}
             style={{
-              backgroundColor: 'rgba(255,255,255,0.72)',
-              borderRadius: 12,
+              backgroundColor: theme.colors.nestedSurface,
+              borderRadius: theme.radius.md,
               padding: 14,
               gap: 4,
               borderWidth: 1,
-              borderColor: 'rgba(16,42,67,0.08)'
+              borderColor: theme.colors.nestedSurfaceBorder
             }}
           >
-            <Text style={{ fontWeight: '800', color: '#102a43' }}>#{e.id} Status: {integrity.label}</Text>
+            <Text style={{ fontWeight: '800', color: theme.colors.textDark }}>#{e.id} Status: {integrity.label}</Text>
             {isCleanupPending ? <InlineSummaryRow label="Cleanup" value="Pending delete" tone="light" /> : null}
             {isCleanupFailed ? <InlineSummaryRow label="Cleanup" value="Delete needs retry" tone="light" /> : null}
-            {integrity.reason ? <Text style={{ color: '#486581' }}>{integrity.reason}</Text> : null}
+            {integrity.reason ? <Text style={{ color: theme.colors.textDarkSoft }}>{integrity.reason}</Text> : null}
             <InlineSummaryRow label="Outcome" value={e.outcome} tone="light" />
             <InlineSummaryRow label="Winner" value={e.winner} tone="light" />
             <InlineSummaryRow label="Hypothesis" value={e.hypothesis} tone="light" />
             <InlineSummaryRow label="Control Focus" value={e.controlFocus} tone="light" />
             {getExperimentEntries(e).map((entry) => (
               <View key={`${e.id}-${entry.slotId}`} style={{ gap: 2 }}>
-                <Text style={{ color: '#486581' }}>
+                <Text style={{ color: theme.colors.textDarkSoft }}>
                   {entry.label} {entry.fly.name || 'Unnamed'} (#{entry.fly.hookSize}, {entry.fly.beadColor}, {entry.fly.beadSizeMm}): {entry.catches}/{entry.casts}
                 </Text>
                 {!!entry.fishSizesInches.length && (
-                  <Text style={{ color: '#486581' }}>
+                  <Text style={{ color: theme.colors.textDarkSoft }}>
                     Fish log: {entry.fishSizesInches.map((size, fishIndex) => `${size}" ${entry.fishSpecies[fishIndex] ?? 'Trout'}`).join(', ')}
                   </Text>
                 )}

@@ -167,7 +167,9 @@ export const HistoryScreen = ({ navigation, route }: any) => {
           text: 'Delete Session',
           style: 'destructive',
           onPress: async () => {
-            console.info('[problem-records] delete confirmed from history', { sessionId });
+            if (__DEV__) {
+              console.info('[problem-records] delete confirmed from history', { sessionId });
+            }
             try {
               await deleteSessionRecord(sessionId, { includeLinkedExperiments: true });
               Alert.alert('Cleanup complete', 'Session and related records deleted.');
@@ -241,9 +243,16 @@ export const HistoryScreen = ({ navigation, route }: any) => {
               <Pressable
                 key={outcome}
                 onPress={() => setCleanupOutcome(outcome)}
-                style={{ backgroundColor: cleanupOutcome === outcome ? '#1d3557' : 'rgba(29,53,87,0.12)', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12 }}
+                style={{
+                  backgroundColor: cleanupOutcome === outcome ? theme.colors.primary : theme.colors.surfaceMuted,
+                  paddingVertical: 10,
+                  paddingHorizontal: 12,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: cleanupOutcome === outcome ? theme.colors.primary : theme.colors.border
+                }}
               >
-                <Text style={{ color: cleanupOutcome === outcome ? 'white' : '#102a43', fontWeight: '700', textTransform: 'capitalize' }}>{outcome}</Text>
+                <Text style={{ color: cleanupOutcome === outcome ? theme.colors.buttonText : theme.colors.textDark, fontWeight: '700', textTransform: 'capitalize' }}>{outcome}</Text>
               </Pressable>
             ))}
           </View>
@@ -252,9 +261,17 @@ export const HistoryScreen = ({ navigation, route }: any) => {
               <Pressable
                 key={action}
                 onPress={() => setCleanupAction(action)}
-                style={{ backgroundColor: cleanupAction === action ? '#8d0801' : 'rgba(141,8,1,0.12)', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, flex: 1 }}
+                style={{
+                  backgroundColor: cleanupAction === action ? theme.colors.danger : theme.colors.surfaceMuted,
+                  paddingVertical: 10,
+                  paddingHorizontal: 12,
+                  borderRadius: 12,
+                  flex: 1,
+                  borderWidth: 1,
+                  borderColor: cleanupAction === action ? theme.colors.danger : theme.colors.border
+                }}
               >
-                <Text style={{ color: cleanupAction === action ? 'white' : '#8d0801', fontWeight: '700', textAlign: 'center', textTransform: 'capitalize' }}>{action}</Text>
+                <Text style={{ color: cleanupAction === action ? theme.colors.buttonText : theme.colors.textDark, fontWeight: '700', textAlign: 'center', textTransform: 'capitalize' }}>{action}</Text>
               </Pressable>
             ))}
           </View>
@@ -262,7 +279,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
           <AppButton label={cleanupAction === 'archive' ? 'Archive Filtered Experiments' : 'Delete Filtered Experiments'} onPress={runCleanup} disabled={!cleanupCount} variant="danger" />
         </SectionCard>
 
-      {!filteredSessions.length ? <StatusBanner tone="info" text="No sessions found for the current filters." /> : null}
+      {!filteredSessions.length ? <StatusBanner tone="info" text="No trusted sessions match the current filters yet." /> : null}
 
       {filteredSessions.map((session) => {
         const sessionExperiments = experiments.filter((experiment) => experiment.sessionId === session.id);
@@ -277,7 +294,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
         const rate = totalCasts ? totalCatches / totalCasts : 0;
 
         return (
-          <SectionCard key={session.id} title={new Date(session.date).toLocaleString()} subtitle={`${session.waterType} water • ${session.depthRange}`} tone="light">
+          <SectionCard key={session.id} title={new Date(session.date).toLocaleString()} subtitle={`${session.waterType} water | ${session.depthRange}`} tone="light">
             <InlineSummaryRow label="Mode" value={modeSummaryLabel(session.mode)} tone="light" />
             <InlineSummaryRow label="Month" value={new Date(session.date).toLocaleString('en-US', { month: 'long' })} tone="light" />
             {session.riverName ? <InlineSummaryRow label="River" value={session.riverName} tone="light" /> : null}
@@ -439,7 +456,9 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                   <AppButton
                     label="Resume Session"
                     onPress={() => {
-                      console.info('[problem-records] resume tapped from history', { sessionId: session.id });
+                      if (__DEV__) {
+                        console.info('[problem-records] resume tapped from history', { sessionId: session.id });
+                      }
                       navigation.navigate('Session', { sessionId: session.id, resumeSource: 'history' });
                     }}
                     variant="secondary"

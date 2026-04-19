@@ -441,7 +441,9 @@ export const AccessScreen = ({ navigation }: any) => {
   };
 
   const openProblemRecordReview = React.useCallback(() => {
-    console.info('[problem-records] review opened from access');
+    if (__DEV__) {
+      console.info('[problem-records] review opened from access');
+    }
     setExpandedSections((current) => ({ ...current, dataManagement: true }));
   }, []);
 
@@ -614,7 +616,9 @@ export const AccessScreen = ({ navigation }: any) => {
           text: 'Delete Session',
           style: 'destructive',
           onPress: () => {
-            console.info('[problem-records] delete confirmed from access', { sessionId });
+            if (__DEV__) {
+              console.info('[problem-records] delete confirmed from access', { sessionId });
+            }
             runAdminAction(() => deleteSessionRecord(sessionId, { includeLinkedExperiments: true }), 'Session and related records deleted.').catch((error) => {
               const reason = error instanceof Error ? error.message : 'Please try again.';
               Alert.alert('Unable to finish action', reason);
@@ -947,7 +951,9 @@ export const AccessScreen = ({ navigation }: any) => {
                           <AppButton
                             label="Resume Session"
                             onPress={() => {
-                              console.info('[problem-records] resume tapped from access', { sessionId: session.id });
+                              if (__DEV__) {
+                                console.info('[problem-records] resume tapped from access', { sessionId: session.id });
+                              }
                               navigation.navigate('Session', { sessionId: session.id, resumeSource: 'access' });
                             }}
                             variant="secondary"
