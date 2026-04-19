@@ -67,7 +67,7 @@ export const SessionEnvironmentSection = ({
   onCompetitionLengthUnitChange
 }: SessionEnvironmentSectionProps) => {
   const { theme } = useTheme();
-  const formInputStyle = getFormInputStyle();
+  const formInputStyle = getFormInputStyle(theme);
 
   return (
   <View style={{ gap: 12, backgroundColor: theme.colors.surfaceAlt, padding: 14, borderRadius: 18, borderWidth: 1, borderColor: theme.colors.border }}>

@@ -6,12 +6,12 @@ export const getFormInputStyle = (themeOverride?: AppTheme): ViewStyle & TextSty
   const resolvedTheme = themeOverride ?? appTheme;
 
   return {
-  borderWidth: 1,
-  borderColor: resolvedTheme.colors.borderStrong,
-  padding: resolvedTheme.spacing.md,
-  borderRadius: resolvedTheme.radius.md,
-  backgroundColor: resolvedTheme.colors.inputBg,
-  color: resolvedTheme.colors.inputText
+    borderWidth: 1,
+    borderColor: resolvedTheme.colors.borderStrong,
+    padding: resolvedTheme.spacing.md,
+    borderRadius: resolvedTheme.radius.md,
+    backgroundColor: resolvedTheme.colors.inputBg,
+    color: resolvedTheme.colors.inputText
   };
 };
 

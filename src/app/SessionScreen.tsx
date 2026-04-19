@@ -99,7 +99,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
       ].sort((left, right) => left.localeCompare(right)),
     [experiments, sessions]
   );
-  const formInputStyle = getFormInputStyle();
+  const formInputStyle = getFormInputStyle(theme);
   const joinedGroupMemberships = useMemo(
     () => groupMemberships.filter((membership) => membership.userId === activeUserId),
     [activeUserId, groupMemberships]

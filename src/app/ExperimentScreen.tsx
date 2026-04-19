@@ -26,6 +26,7 @@ import { CatchCounter } from '@/components/CatchCounter';
 import { TECHNIQUES, WATER_TYPES } from '@/constants/options';
 import { Technique, WaterType } from '@/types/session';
 import { BottomSheetSurface } from '@/components/ui/BottomSheetSurface';
+import { formatSharedBackendError, getPendingSyncFeedback } from '@/utils/syncFeedback';
 
 const isDraftExperiment = (entries: ExperimentFlyEntry[]) =>
   entries.some((entry) => entry.casts <= 0 || !entry.fly.name.trim());
@@ -111,14 +112,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   const hydratedSourceKeyRef = useRef<string | null>(null);
   const draftRevisionRef = useRef(0);
   const latestSaveTokenRef = useRef(0);
-  const toFriendlySyncMessage = (error: unknown) => {
-    const rawMessage = error instanceof Error ? error.message : 'Please try again.';
-    const normalized = rawMessage.toLowerCase();
-    if (normalized.includes('502 bad gateway') || normalized.includes('bad gateway') || normalized.includes('<!doctype html')) {
-      return 'Shared beta backend is temporarily unavailable right now. Your experiment changes are still safe on this device.';
-    }
-    return rawMessage;
-  };
+  const syncFeedback = remoteSession ? getPendingSyncFeedback(syncStatus, 'experiment', 'experiment') : null;
 
   useEffect(() => {
     setCurrentRouteExperimentId(route.params?.experimentId);
@@ -430,7 +424,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
       setShowSavedExperimentActions(true);
       cancelCatchModal();
     } catch (error) {
-      Alert.alert('Unable to save experiment', toFriendlySyncMessage(error));
+      Alert.alert('Unable to save experiment', formatSharedBackendError(error, 'experiment'));
     } finally {
       setIsSaving(false);
     }
@@ -456,14 +450,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
             : activeExperimentId
               ? 'Draft changes autosave in the background while you keep fishing.'
               : 'The first meaningful change will create a draft automatically.';
-  const syncStatusText =
-    !remoteSession
-      ? null
-      : syncStatus.lastError
-        ? `Saved locally. Shared sync is temporarily unavailable: ${syncStatus.lastError}`
-        : syncStatus.pendingCount
-          ? 'Saved locally. Syncing the latest experiment changes to the shared backend now.'
-          : null;
+  const syncStatusText = activeExperimentId ? syncFeedback : null;
 
   const saveCurrentAndStartFresh = async (changes: { waterType?: WaterType; technique?: Technique }) => {
     if (visibleEntries.some((entry) => entry.catches > entry.casts)) {
@@ -485,7 +472,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
       setActiveSetupSheet(null);
       Alert.alert('Started a fresh experiment', 'The current experiment was saved and a fresh comparison is ready with the new context.');
     } catch (error) {
-      Alert.alert('Unable to change context', toFriendlySyncMessage(error));
+      Alert.alert('Unable to change context', formatSharedBackendError(error, 'experiment'));
     } finally {
       setIsSaving(false);
     }
@@ -518,7 +505,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
       markDraftDirty();
       setActiveSetupSheet(null);
     } catch (error) {
-      Alert.alert('Unable to update water type', toFriendlySyncMessage(error));
+      Alert.alert('Unable to update water type', formatSharedBackendError(error, 'experiment'));
     }
   };
 
@@ -532,7 +519,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
       markDraftDirty();
       setActiveSetupSheet(null);
     } catch (error) {
-      Alert.alert('Unable to update technique', toFriendlySyncMessage(error));
+      Alert.alert('Unable to update technique', formatSharedBackendError(error, 'experiment'));
     }
   };
 

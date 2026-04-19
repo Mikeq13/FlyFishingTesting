@@ -17,7 +17,7 @@ import { useTheme } from '@/design/theme';
 type CoachCard = {
   title: string;
   body: string;
-  accent: string;
+  accentTone: 'info' | 'success' | 'warning' | 'error' | 'neutral';
 };
 
 const findLeader = (bucket: Record<string, number>) => {
@@ -68,7 +68,7 @@ export const CoachScreen = () => {
       cards.push({
         title: 'Best Current Match',
         body: `${bestFly.name} (#${bestFly.hookSize}, ${beadSummary}) is your strongest saved signal right now at ${formatPercent(bestFly.rate)} over ${bestFly.casts} casts.`,
-        accent: '#7dd3fc'
+        accentTone: 'info'
       });
     }
 
@@ -76,13 +76,13 @@ export const CoachScreen = () => {
       cards.push({
         title: 'Try Next',
         body: `Your best overall context is ${bestWaterType[0]} water at ${bestDepth[0]}. If you're deciding where to start, that's the cleanest match from your journal so far.`,
-        accent: '#86efac'
+        accentTone: 'success'
       });
     } else if (bestWaterType) {
       cards.push({
         title: 'Try Next',
         body: `${bestWaterType[0]} is currently your most productive water type. That's a good place to keep building repeatable confidence.`,
-        accent: '#86efac'
+        accentTone: 'success'
       });
     }
 
@@ -91,7 +91,7 @@ export const CoachScreen = () => {
       cards.push({
         title: 'Rig Guidance',
         body: `Your ${countLabel} setups are currently converting best at ${formatPercent(bestFlyCount[1])}. That's a good rig size to lean on until the data says otherwise.`,
-        accent: '#fcd34d'
+        accentTone: 'warning'
       });
     }
 
@@ -100,7 +100,7 @@ export const CoachScreen = () => {
       cards.push({
         title: 'Area Of Opportunity',
         body: warningInsight.message,
-        accent: '#fca5a5'
+        accentTone: 'error'
       });
     }
 
@@ -109,7 +109,7 @@ export const CoachScreen = () => {
       cards.push({
         title: 'Thin Data',
         body: anomaly,
-        accent: '#c4b5fd'
+        accentTone: 'neutral'
       });
     }
 
@@ -117,12 +117,20 @@ export const CoachScreen = () => {
       cards.push({
         title: 'Coach Intel',
         body: 'You have the journal structure in place. Log a few more experiments and the coach will start turning your history into recommendations.',
-        accent: '#7dd3fc'
+        accentTone: 'info'
       });
     }
 
     return cards.slice(0, 5);
   }, [aggregates.byDepthRange, aggregates.byWaterType, context.anomalies, experiments, insights, topFlyRecords]);
+
+  const accentColorByTone = {
+    info: theme.colors.primary,
+    success: theme.colors.successBorder,
+    warning: theme.colors.warningBorder,
+    error: theme.colors.errorBorder,
+    neutral: theme.colors.tertiary
+  } as const;
 
   if (!currentHasPremiumAccess) {
     return (
@@ -177,7 +185,7 @@ export const CoachScreen = () => {
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <View style={{ width: 10, height: 10, borderRadius: 999, backgroundColor: card.accent }} />
+                  <View style={{ width: 10, height: 10, borderRadius: 999, backgroundColor: accentColorByTone[card.accentTone] }} />
                   <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '700' }}>{card.title}</Text>
                 </View>
                 <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>{card.body}</Text>

@@ -85,10 +85,10 @@ export const HomeScreen = ({ navigation }: any) => {
       </ScrollView>
       </KeyboardDismissView>
       <Modal visible={showSessionChooser} transparent animationType="fade" onRequestClose={() => setShowSessionChooser(false)}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(4, 18, 29, 0.76)', justifyContent: 'center', padding: 20 }}>
+        <View style={{ flex: 1, backgroundColor: theme.colors.overlay, justifyContent: 'center', padding: 20 }}>
           <View
             style={{
-              backgroundColor: theme.colors.surface,
+              backgroundColor: theme.colors.modalSurface,
               borderRadius: 22,
               padding: 18,
               gap: 12,
@@ -100,8 +100,8 @@ export const HomeScreen = ({ navigation }: any) => {
             }}
           >
             <View style={{ gap: 4 }}>
-              <Text style={{ color: theme.colors.text, fontSize: 24, fontWeight: '800' }}>What are you doing today?</Text>
-              <Text style={{ color: theme.colors.textMuted, lineHeight: 20 }}>
+              <Text style={{ color: theme.colors.textDark, fontSize: 24, fontWeight: '800' }}>What are you doing today?</Text>
+              <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
                 Choose the session style that best matches today’s water and how you want to log intel.
               </Text>
             </View>
@@ -111,16 +111,16 @@ export const HomeScreen = ({ navigation }: any) => {
                 key={option.mode}
                 onPress={() => beginSession(option.mode)}
                 style={{
-                backgroundColor: theme.colors.surfaceMuted,
+                backgroundColor: theme.colors.nestedSurface,
                 borderRadius: 16,
                 padding: 14,
                 borderWidth: 1,
-                borderColor: theme.colors.border,
+                borderColor: theme.colors.nestedSurfaceBorder,
                 gap: 4
               }}
               >
-                <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 17 }}>{option.title}</Text>
-                <Text style={{ color: theme.colors.textMuted, lineHeight: 19 }}>{option.description}</Text>
+                <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 17 }}>{option.title}</Text>
+                <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 19 }}>{option.description}</Text>
               </Pressable>
             ))}
 

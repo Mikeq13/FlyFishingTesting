@@ -20,6 +20,7 @@ import { InsightsContextMode } from '@/types/group';
 import { formatExactFlyOption, sizeBandLabel, toExactFlyKey } from './insightsHelpers';
 import { useResponsiveLayout } from '@/design/layout';
 import { useTheme } from '@/design/theme';
+import { formatSharedBackendError } from '@/utils/syncFeedback';
 import {
   filterExperimentsForInsightsContext,
   filterSessionsForInsightsContext,
@@ -352,8 +353,8 @@ export const InsightsScreen = ({ navigation }: any) => {
                 tone="warning"
                 text={
                   syncStatus.lastError
-                    ? `Shared insights are temporarily unavailable: ${syncStatus.lastError}`
-                    : 'Shared insights are temporarily unavailable right now. Your local insight history is still safe.'
+                    ? formatSharedBackendError(syncStatus.lastError, 'insights')
+                    : formatSharedBackendError(null, 'insights')
                 }
               />
             ) : null}
@@ -482,7 +483,7 @@ export const InsightsScreen = ({ navigation }: any) => {
                       `${species} (${analytics.totalSpeciesCount ? ((count / analytics.totalSpeciesCount) * 100).toFixed(0) : 0}%)`,
                       count,
                       analytics.maxSpeciesCount,
-                      '#2a9d8f'
+                      theme.colors.primary
                     )
                   )}
                 </View>
@@ -493,7 +494,7 @@ export const InsightsScreen = ({ navigation }: any) => {
               {!!analytics.sizeBands.length && (
                 <View style={{ gap: 8 }}>
                   <Text style={{ color: theme.colors.text, fontWeight: '700' }}>Fish size bands</Text>
-                  {analytics.sizeBands.map(([band, count]) => renderChartRow(band, count, analytics.maxSizeBandCount, '#4ea8de'))}
+                  {analytics.sizeBands.map(([band, count]) => renderChartRow(band, count, analytics.maxSizeBandCount, theme.colors.tertiary))}
                 </View>
               )}
             </SectionCard>

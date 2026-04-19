@@ -43,6 +43,7 @@ import { classifyExperimentIntegrity, classifyGroupIntegrity, classifySessionInt
 import { IntegritySummary } from '@/types/dataIntegrity';
 import { upsertSyncMetadataEntry } from '@/db/syncMetadataRepo';
 import { applySessionShareIds } from '@/utils/sessionSharing';
+import { formatSharedBackendError } from '@/utils/syncFeedback';
 
 export type { UserDataCleanupCategory };
 
@@ -64,11 +65,7 @@ const getErrorMessage = (error: unknown): string => {
         : null;
 
   if (rawMessage) {
-    const normalized = rawMessage.toLowerCase();
-    if (normalized.includes('502 bad gateway') || normalized.includes('bad gateway') || normalized.includes('<!doctype html')) {
-      return 'Shared beta backend is temporarily unavailable right now. Your local data is still safe, and cloud sync should recover once the service is back.';
-    }
-    return rawMessage;
+    return formatSharedBackendError(rawMessage, 'local_data');
   }
   return 'Unable to reach the shared beta backend right now.';
 };
@@ -85,6 +82,12 @@ const toStructuralBackendMessage = (error: unknown) =>
   isMissingRemoteTableError(error, 'session_group_shares')
     ? 'Shared beta backend needs the session group sharing migration before multi-group sync can continue.'
     : `Shared beta backend needs a schema or policy fix before cloud sync can continue. ${getErrorMessage(error)}`;
+
+const reportRuntimeIssue = (label: string, error: unknown) => {
+  if (__DEV__) {
+    console.info(`[runtime-trust] ${label}`, error);
+  }
+};
 
 export const AppStoreProvider = ({ children }: { children: React.ReactNode }) => {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -153,7 +156,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
 
   useEffect(() => {
     if (!isAuthenticatedOwner || !ownerUser || activeUserId === ownerUser.id) return;
-    selectActiveUser(ownerUser.id).catch(console.error);
+    selectActiveUser(ownerUser.id).catch((error) => reportRuntimeIssue('owner auto-select failed', error));
   }, [activeUserId, isAuthenticatedOwner, ownerUser]);
 
   const bootstrap = async () => {
@@ -432,7 +435,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         nextSavedRigPresets = mergeById(loaded.savedRigPresets, remoteShared.savedRigPresets);
         nextSavedRivers = mergeById(loaded.savedRivers, remoteShared.savedRivers);
       } catch (error) {
-        console.error(error);
+        reportRuntimeIssue('shared access bootstrap failed', error);
         if (isStructuralBackendError(error)) {
           setRemoteBackendBlocked(true);
           setLastSyncError(toStructuralBackendMessage(error));
@@ -714,11 +717,11 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   };
 
   useEffect(() => {
-    bootstrap().catch(console.error);
+    bootstrap().catch((error) => reportRuntimeIssue('local bootstrap failed', error));
   }, []);
 
   useEffect(() => {
-    refresh().catch(console.error);
+    refresh().catch((error) => reportRuntimeIssue('initial refresh failed', error));
   }, [activeUserId]);
 
   useEffect(() => {
@@ -744,7 +747,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         setAuthReady(true);
       })
       .catch((error) => {
-        console.error(error);
+        reportRuntimeIssue('auth-linked refresh failed', error);
         if (!mounted) return;
         setRemoteBackendBlocked(false);
         setRemoteBootstrapState('idle');
@@ -776,7 +779,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     getNotificationPermissionStatus()
       .then(setNotificationPermissionStatus)
       .catch((error) => {
-        console.error(error);
+        reportRuntimeIssue('shared snapshot refresh failed', error);
         setNotificationPermissionStatus('unknown');
       });
   }, []);
@@ -788,7 +791,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       getNotificationPermissionStatus()
         .then(setNotificationPermissionStatus)
         .catch((error) => {
-          console.error(error);
+          reportRuntimeIssue('shared-data hydration failed', error);
           setNotificationPermissionStatus('unknown');
         });
 
@@ -796,10 +799,10 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         setRemoteBackendBlocked(false);
         setRemoteBootstrapState(remoteSession ? 'loading_remote' : 'idle');
         if (currentUser) {
-          refresh(currentUser.id).catch(console.error);
+          refresh(currentUser.id).catch((error) => reportRuntimeIssue('app-state refresh failed', error));
         }
       } else if (remoteSession && currentUser && !isSyncing) {
-        flushSyncQueue().catch(console.error);
+        flushSyncQueue().catch((error) => reportRuntimeIssue('resume sync flush failed', error));
       }
     });
 
@@ -828,11 +831,11 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
 
       const [factors, assurance] = await Promise.all([
         listMfaFactors().catch((error) => {
-          console.error(error);
+          reportRuntimeIssue('mfa factor refresh failed', error);
           return { totp: [] as any[] };
         }),
         getMfaAssuranceLevel().catch((error) => {
-          console.error(error);
+          reportRuntimeIssue('mfa assurance refresh failed', error);
           return { currentLevel: 'aal1', nextLevel: 'aal1' } as const;
         })
       ]);
@@ -875,7 +878,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       await refresh(resolvedUserId);
       await flushSyncQueueWithUser(targetUser, remoteSession);
     })().catch((error) => {
-      console.error(error);
+      reportRuntimeIssue('notification permission refresh failed', error);
       importSeededRef.current = null;
       setRemoteBootstrapState('degraded');
     });
@@ -891,7 +894,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     if (!hasPendingEntries) return;
 
     const timeoutId = setTimeout(() => {
-      flushSyncQueue().catch(console.error);
+      flushSyncQueue().catch((error) => reportRuntimeIssue('sync queue flush retry failed', error));
     }, 600);
 
     return () => clearTimeout(timeoutId);
@@ -903,7 +906,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     if (!hasRetryableEntries) return;
 
     const intervalId = setInterval(() => {
-      flushSyncQueue().catch(console.error);
+      flushSyncQueue().catch((error) => reportRuntimeIssue('sync queue flush after enqueue failed', error));
     }, 15000);
 
     return () => clearInterval(intervalId);

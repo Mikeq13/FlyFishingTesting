@@ -22,6 +22,7 @@ import { StatusBanner } from '@/components/ui/StatusBanner';
 import { AppButton } from '@/components/ui/AppButton';
 import { BottomSheetSurface } from '@/components/ui/BottomSheetSurface';
 import { useTheme } from '@/design/theme';
+import { formatSharedBackendError, getPendingSyncFeedback } from '@/utils/syncFeedback';
 
 type SetupSheetKey = 'technique' | 'leader' | 'rigging' | 'flies' | null;
 
@@ -45,7 +46,9 @@ export const PracticeScreen = ({ route }: any) => {
     addSessionSegment,
     updateSessionSegmentEntry,
     addCatchEvent,
-    notificationPermissionStatus
+    notificationPermissionStatus,
+    remoteSession,
+    syncStatus
   } = useAppStore();
   const session = sessions.find((candidate) => candidate.id === sessionId) ?? null;
   const [isBootstrappingSegment, setIsBootstrappingSegment] = useState(false);
@@ -53,14 +56,7 @@ export const PracticeScreen = ({ route }: any) => {
   const [pendingCatchSpecies, setPendingCatchSpecies] = useState<TroutSpecies | null>(null);
   const [pendingCatchLength, setPendingCatchLength] = useState('');
   const [activeSetupSheet, setActiveSetupSheet] = useState<SetupSheetKey>(null);
-  const toFriendlySyncMessage = (error: unknown) => {
-    const rawMessage = error instanceof Error ? error.message : 'Please try again.';
-    const normalized = rawMessage.toLowerCase();
-    if (normalized.includes('502 bad gateway') || normalized.includes('bad gateway') || normalized.includes('<!doctype html')) {
-      return 'Shared beta backend is temporarily unavailable right now. Your practice changes are still safe on this device.';
-    }
-    return rawMessage;
-  };
+  const syncFeedback = remoteSession ? getPendingSyncFeedback(syncStatus, 'practice', 'practice') : null;
   const activeSegment = useMemo(
     () =>
       sessionSegments
@@ -155,7 +151,7 @@ export const PracticeScreen = ({ route }: any) => {
     return (
       <ScreenBackground>
         <View style={{ flex: 1, justifyContent: 'center', padding: 24 }}>
-          <Text style={{ color: '#f7fdff', textAlign: 'center' }}>Practice session not found.</Text>
+          <Text style={{ color: theme.colors.text, textAlign: 'center' }}>Practice session not found.</Text>
         </View>
       </ScreenBackground>
     );
@@ -271,6 +267,7 @@ export const PracticeScreen = ({ route }: any) => {
           subtitle="Stay light, change water fast, and log what is producing without breaking your rhythm."
           eyebrow={session.riverName ?? 'On-Water Workflow'}
         />
+        {syncFeedback ? <StatusBanner tone={syncStatus.lastError ? 'warning' : 'info'} text={syncFeedback} /> : null}
 
         {timer.activeAlertMinute ? (
           <StatusBanner tone="warning" text={`Time marker: ${timer.activeAlertMinute} minutes into your practice session.`} />
@@ -304,7 +301,7 @@ export const PracticeScreen = ({ route }: any) => {
             label="Change Water"
             onPress={() => {
               changeWater().catch((error) => {
-                Alert.alert('Unable to change water', toFriendlySyncMessage(error));
+                Alert.alert('Unable to change water', formatSharedBackendError(error, 'practice'));
               });
             }}
             disabled={timer.hasEnded}
@@ -418,7 +415,7 @@ export const PracticeScreen = ({ route }: any) => {
                   value={activeTechnique ?? null}
                   onChange={(value) => {
                     updateActiveTechnique(value as Technique).catch((error) => {
-                      Alert.alert('Unable to change technique', toFriendlySyncMessage(error));
+                      Alert.alert('Unable to change technique', formatSharedBackendError(error, 'practice'));
                     });
                   }}
                   tone="light"
@@ -438,14 +435,14 @@ export const PracticeScreen = ({ route }: any) => {
                 savedRigPresets={savedRigPresets}
                 onChange={(nextRigSetup) => {
                   updateActiveSegment(nextRigSetup).catch((error) => {
-                    Alert.alert('Unable to update leader', toFriendlySyncMessage(error));
+                    Alert.alert('Unable to update leader', formatSharedBackendError(error, 'practice'));
                   });
                 }}
                 onCreateLeaderFormula={saveLeaderFormula}
                 onCreateRigPreset={saveRigPreset}
                 onApplyRigPreset={(preset) => {
                   updateActiveSegment(applyRigPresetToRig(currentRigSetup, preset, { clearSinglePointFly: preset.flyCount === 1 })).catch((error) => {
-                    Alert.alert('Unable to apply rig preset', toFriendlySyncMessage(error));
+                    Alert.alert('Unable to apply rig preset', formatSharedBackendError(error, 'practice'));
                   });
                 }}
                 onDeleteLeaderFormula={deleteSavedLeaderFormula}
@@ -463,7 +460,7 @@ export const PracticeScreen = ({ route }: any) => {
                       clearPointFly: nextCount === 1 && currentRigSetup.assignments.length > 1
                     })
                   ).catch((error) => {
-                    Alert.alert('Unable to update rigging', toFriendlySyncMessage(error));
+                    Alert.alert('Unable to update rigging', formatSharedBackendError(error, 'practice'));
                   });
                 }}
                 editMode="rig"
@@ -474,14 +471,14 @@ export const PracticeScreen = ({ route }: any) => {
                 savedRigPresets={savedRigPresets}
                 onChange={(nextRigSetup) => {
                   updateActiveSegment(nextRigSetup).catch((error) => {
-                    Alert.alert('Unable to update rigging', toFriendlySyncMessage(error));
+                    Alert.alert('Unable to update rigging', formatSharedBackendError(error, 'practice'));
                   });
                 }}
                 onCreateLeaderFormula={saveLeaderFormula}
                 onCreateRigPreset={saveRigPreset}
                 onApplyRigPreset={(preset) => {
                   updateActiveSegment(applyRigPresetToRig(currentRigSetup, preset, { clearSinglePointFly: preset.flyCount === 1 })).catch((error) => {
-                    Alert.alert('Unable to apply rig preset', toFriendlySyncMessage(error));
+                    Alert.alert('Unable to apply rig preset', formatSharedBackendError(error, 'practice'));
                   });
                 }}
                 onDeleteLeaderFormula={deleteSavedLeaderFormula}
@@ -495,7 +492,7 @@ export const PracticeScreen = ({ route }: any) => {
                 savedFlies={savedFlies}
                 onChange={(nextRigSetup) => {
                   updateActiveSegment(nextRigSetup).catch((error) => {
-                    Alert.alert('Unable to update flies', toFriendlySyncMessage(error));
+                    Alert.alert('Unable to update flies', formatSharedBackendError(error, 'practice'));
                   });
                 }}
                 onCreateFly={saveFlyToLibrary}
@@ -524,7 +521,7 @@ export const PracticeScreen = ({ route }: any) => {
         }}
         onConfirm={() => {
           confirmPracticeCatch().catch((error) => {
-            Alert.alert('Unable to log catch', toFriendlySyncMessage(error));
+            Alert.alert('Unable to log catch', formatSharedBackendError(error, 'practice'));
           });
         }}
       />

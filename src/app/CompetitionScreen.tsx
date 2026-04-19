@@ -17,6 +17,7 @@ import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { ActionGroup } from '@/components/ui/ActionGroup';
 import { useTheme } from '@/design/theme';
 import { useResponsiveLayout } from '@/design/layout';
+import { formatSharedBackendError, getPendingSyncFeedback } from '@/utils/syncFeedback';
 
 const TROUT_SPECIES: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow', 'Tiger', 'Whitefish'];
 
@@ -24,19 +25,12 @@ export const CompetitionScreen = ({ route }: any) => {
   const { theme } = useTheme();
   const layout = useResponsiveLayout();
   const sessionId = route?.params?.sessionId as number;
-  const { sessions, allSessions, catchEvents, allCatchEvents, users, competitionAssignments, competitionGroups, competitionSessions, addCatchEvent, updateSessionEntry, upsertCompetitionAssignment, notificationPermissionStatus } = useAppStore();
+  const { sessions, allSessions, catchEvents, allCatchEvents, users, competitionAssignments, competitionGroups, competitionSessions, addCatchEvent, updateSessionEntry, upsertCompetitionAssignment, notificationPermissionStatus, remoteSession, syncStatus } = useAppStore();
   const session = sessions.find((candidate) => candidate.id === sessionId) ?? null;
   const [showCatchModal, setShowCatchModal] = useState(false);
   const [species, setSpecies] = useState<TroutSpecies>('Rainbow');
   const [lengthValue, setLengthValue] = useState('');
-  const toFriendlySyncMessage = (error: unknown) => {
-    const rawMessage = error instanceof Error ? error.message : 'Please try again.';
-    const normalized = rawMessage.toLowerCase();
-    if (normalized.includes('502 bad gateway') || normalized.includes('bad gateway') || normalized.includes('<!doctype html')) {
-      return 'Shared beta backend is temporarily unavailable right now. Your competition changes are still safe on this device.';
-    }
-    return rawMessage;
-  };
+  const syncFeedback = remoteSession ? getPendingSyncFeedback(syncStatus, 'competition', 'competition') : null;
   const competitionCatches = useMemo(
     () => catchEvents.filter((event) => event.sessionId === sessionId),
     [catchEvents, sessionId]
@@ -90,7 +84,7 @@ export const CompetitionScreen = ({ route }: any) => {
   const isCompetitionSummaryReady =
     !!competitionSummaryRows.length &&
     competitionSummaryRows.every((row) => row.status === 'finished' || row.status === 'controlling');
-  const formInputStyle = getFormInputStyle();
+  const formInputStyle = getFormInputStyle(theme);
 
   if (!session) {
     return (
@@ -159,6 +153,7 @@ export const CompetitionScreen = ({ route }: any) => {
           subtitle="Track every fish quickly with score-ready totals and a cleaner group summary view."
           eyebrow={`${currentCompetitionGroup ? `Group ${currentCompetitionGroup.label}` : 'Competition'}${session.competitionBeat ? ` • Beat ${session.competitionBeat}` : ''}${currentCompetitionSession ? ` • Session ${currentCompetitionSession.sessionNumber}` : ''}`}
         />
+        {syncFeedback ? <StatusBanner tone={syncStatus.lastError ? 'warning' : 'info'} text={syncFeedback} /> : null}
         <SectionCard title="Assignment" subtitle="Keep the critical comp details visible without crowding the screen.">
           {currentCompetitionGroup ? <InlineSummaryRow label="Assigned Group" value={currentCompetitionGroup.label} /> : null}
           {session.competitionBeat ? <InlineSummaryRow label="Beat" value={session.competitionBeat} /> : null}
@@ -270,7 +265,7 @@ export const CompetitionScreen = ({ route }: any) => {
               label="Save Fish"
               onPress={() => {
                 logCompetitionCatch().catch((error) => {
-                  Alert.alert('Unable to save fish', toFriendlySyncMessage(error));
+                  Alert.alert('Unable to save fish', formatSharedBackendError(error, 'competition'));
                 });
               }}
               disabled={competitionRequiresMeasurement && !(Number.isFinite(Number(lengthValue)) && Number(lengthValue) >= (competitionLengthUnit === 'cm' ? 20 : 200))}
