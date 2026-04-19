@@ -15,6 +15,7 @@ import { useTheme } from '@/design/theme';
 import { useResponsiveLayout } from '@/design/layout';
 import { getFormInputStyle } from '@/components/ui/FormField';
 import { buildSessionDeleteMessage, getSessionDeleteConsequences } from '@/utils/sessionDeleteConsequences';
+import { deriveExperimentStatus } from '@/engine/experimentStatus';
 
 export const HistoryScreen = ({ navigation, route }: any) => {
   const { theme } = useTheme();
@@ -311,6 +312,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                   const isCleanupPending = cleanupState === 'pending_delete';
                   const isCleanupFailed = cleanupState === 'failed_cleanup';
                   const entries = getExperimentEntries(experiment);
+                  const comparisonStatus = deriveExperimentStatus(entries);
                   const experimentCasts = entries.reduce((sum, entry) => sum + entry.casts, 0);
                   const experimentCatches = entries.reduce((sum, entry) => sum + entry.catches, 0);
                   const experimentRate = experimentCasts ? (experimentCatches / experimentCasts) * 100 : 0;
@@ -329,12 +331,14 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                     >
                       <InlineSummaryRow label="Hypothesis" value={experiment.hypothesis} tone="light" />
                       <InlineSummaryRow label="Control Focus" value={experiment.controlFocus} tone="light" />
+                      <InlineSummaryRow label="Experiment Water" value={experiment.waterType ?? session.waterType} tone="light" />
                       <InlineSummaryRow label="Technique" value={experiment.technique ?? session.startingTechnique ?? 'Technique not set'} tone="light" />
                       <InlineSummaryRow label="Status" value={getExperimentIntegrity(experiment.id).label} tone="light" />
                       {isCleanupPending ? <InlineSummaryRow label="Cleanup" value="Pending delete" tone="light" /> : null}
                       {isCleanupFailed ? <InlineSummaryRow label="Cleanup" value="Delete needs retry" tone="light" /> : null}
-                      <InlineSummaryRow label="Outcome" value={experiment.outcome} tone="light" />
-                      <InlineSummaryRow label="Winner" value={experiment.winner} tone="light" />
+                      <InlineSummaryRow label="Outcome" value={comparisonStatus.outcome} tone="light" />
+                      <InlineSummaryRow label="Winner" value={comparisonStatus.winner} tone="light" />
+                      <Text style={{ color: theme.colors.textDarkSoft }}>{comparisonStatus.comparison.summary}</Text>
                       <Text style={{ color: theme.colors.textDarkSoft }}>Flies: {entries.map((entry) => `${entry.fly.name || entry.label} (#${entry.fly.hookSize}, ${entry.fly.beadColor}, ${entry.fly.beadSizeMm})`).join(', ')}</Text>
                       <Text style={{ color: theme.colors.textDarkSoft }}>Catch rate: {experimentRate.toFixed(1)}%</Text>
                       {entries.some((entry) => entry.fishSizesInches.length) ? (

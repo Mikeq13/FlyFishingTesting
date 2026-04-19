@@ -244,6 +244,7 @@ create table if not exists public.experiments (
   session_id uuid not null references public.sessions(id) on delete cascade,
   hypothesis text not null,
   control_focus text not null,
+  water_type text,
   technique text,
   rig_setup_json jsonb,
   fly_entries_json jsonb not null,

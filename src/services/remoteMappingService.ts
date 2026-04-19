@@ -297,6 +297,7 @@ export const mapRemoteExperiment = (
   sessionId: sessionIdByRemoteId.get(row.session_id) ?? syntheticId(`session:${row.session_id}`),
   hypothesis: row.hypothesis,
   controlFocus: row.control_focus,
+  waterType: row.water_type ?? undefined,
   technique: row.technique ?? undefined,
   rigSetup: row.rig_setup_json ?? undefined,
   flyEntries: row.fly_entries_json ?? [],

@@ -41,5 +41,6 @@ where table_schema = 'public'
     (table_name = 'sessions' and column_name = 'starting_technique')
     or (table_name = 'session_segments' and column_name = 'technique')
     or (table_name = 'experiments' and column_name = 'technique')
+    or (table_name = 'experiments' and column_name = 'water_type')
   )
 order by table_name, column_name;

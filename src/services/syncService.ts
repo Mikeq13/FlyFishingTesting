@@ -389,6 +389,7 @@ const syncExperiment = async (context: SyncContext, experiment: Experiment) => {
     session_id: remoteSessionId,
     hypothesis: experiment.hypothesis,
     control_focus: experiment.controlFocus,
+    water_type: experiment.waterType ?? null,
     technique: experiment.technique ?? null,
     rig_setup_json: experiment.rigSetup ?? null,
     fly_entries_json: experiment.flyEntries,

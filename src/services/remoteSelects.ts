@@ -32,7 +32,7 @@ export const REMOTE_SHARED_SELECTS = {
   catchEvents:
     'id, owner_auth_user_id, local_record_id, session_id, segment_id, session_mode, fly_name, fly_snapshot_json, species, length_value, length_unit, caught_at, notes',
   experiments:
-    'id, owner_auth_user_id, local_record_id, session_id, hypothesis, control_focus, technique, rig_setup_json, fly_entries_json, control_fly_json, variant_fly_json, control_casts, control_catches, variant_casts, variant_catches, winner, outcome, status, confidence_score, archived_at',
+    'id, owner_auth_user_id, local_record_id, session_id, hypothesis, control_focus, water_type, technique, rig_setup_json, fly_entries_json, control_fly_json, variant_fly_json, control_casts, control_catches, variant_casts, variant_catches, winner, outcome, status, confidence_score, archived_at',
   savedFlies: 'id, owner_auth_user_id, local_record_id, payload_json',
   savedLeaderFormulas: 'id, owner_auth_user_id, local_record_id, payload_json',
   savedRigPresets: 'id, owner_auth_user_id, local_record_id, payload_json',

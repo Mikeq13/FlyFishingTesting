@@ -13,6 +13,7 @@ import { buildAggregates } from '@/engine/aggregationEngine';
 import { generateAnglerComparisons } from '@/engine/anglerComparisonEngine';
 import { generateInsights } from '@/engine/insightEngine';
 import { buildTopFlyInsights, buildTopFlyRecords } from '@/engine/topFlyEngine';
+import { buildExperimentComparisonRecords } from '@/engine/experimentComparisonEngine';
 import { getExperimentEntries } from '@/utils/experimentEntries';
 import { useAppStore } from './store';
 import { InsightsContextMode } from '@/types/group';
@@ -259,6 +260,10 @@ export const InsightsScreen = ({ navigation }: any) => {
     () => buildTopFlyInsights(filteredTopFlyRecords),
     [filteredTopFlyRecords]
   );
+  const comparisonRecords = useMemo(
+    () => buildExperimentComparisonRecords(filteredSessions, filteredExperiments),
+    [filteredExperiments, filteredSessions]
+  );
 
   const analytics = useMemo(() => {
     const speciesCounts = new Map<string, number>();
@@ -496,6 +501,45 @@ export const InsightsScreen = ({ navigation }: any) => {
             {filteredInsights.map((insight, idx) => (
               <InsightCard key={`${insight.type}-${idx}`} insight={insight} />
             ))}
+
+            {!!comparisonRecords.length && (
+              <SectionCard
+                title="Direct Experiment Comparisons"
+                subtitle="Keep head-to-head fly tests separate from broad top-fly rankings so direct winners do not blur into aggregate performance."
+                tone="light"
+              >
+                <View style={{ gap: 10 }}>
+                  {comparisonRecords.slice(0, 5).map((record) => (
+                    <View
+                      key={`comparison-${record.experimentId}`}
+                      style={{
+                        backgroundColor: theme.colors.nestedSurface,
+                        borderRadius: theme.radius.md,
+                        padding: 12,
+                        borderWidth: 1,
+                        borderColor: theme.colors.nestedSurfaceBorder,
+                        gap: 6
+                      }}
+                    >
+                      <Text style={{ color: theme.colors.textDark, fontWeight: '800' }}>
+                        {record.outcome === 'decisive'
+                          ? 'Decisive comparison'
+                          : record.outcome === 'tie'
+                            ? 'Tie comparison'
+                            : 'Inconclusive comparison'}
+                      </Text>
+                      <Text style={{ color: theme.colors.textDarkSoft }}>{record.summary}</Text>
+                      <Text style={{ color: theme.colors.textDarkSoft, fontSize: 12 }}>
+                        {record.baselineLabel}: {(record.baselineRate * 100).toFixed(1)}% over {record.baselineCasts} casts | {record.testLabel}: {(record.testRate * 100).toFixed(1)}% over {record.testCasts} casts
+                      </Text>
+                      <Text style={{ color: theme.colors.textDarkSoft, fontSize: 12 }}>
+                        {record.waterType ?? 'Water not set'} | {record.technique ?? 'Technique not set'}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </SectionCard>
+            )}
 
             {!!filteredTopFlyInsights.length && (
               <>

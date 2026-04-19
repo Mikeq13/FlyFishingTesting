@@ -1,6 +1,6 @@
 import { FlySetup } from './fly';
 import { RigSetup } from './rig';
-import { Technique } from './session';
+import { Technique, WaterType } from './session';
 
 export type ExperimentWinner = string;
 export type ExperimentOutcome = 'decisive' | 'tie' | 'inconclusive';
@@ -8,6 +8,19 @@ export type ExperimentStatus = 'draft' | 'complete';
 export type ExperimentFlyRole = 'baseline' | 'test';
 export type TroutSpecies = 'Brook' | 'Brown' | 'Cutthroat' | 'Rainbow' | 'Tiger' | 'Whitefish';
 export type ExperimentControlFocus = 'pattern' | 'fly type' | 'hook size' | 'tail' | 'collar' | 'body type' | 'bead size' | 'bead color' | 'number of flies';
+
+export interface ExperimentComparisonSummary {
+  baselineLabel: string;
+  testLabel: string;
+  baselineCasts: number;
+  testCasts: number;
+  baselineRate: number;
+  testRate: number;
+  rateGap: number;
+  baselineMeetsMinimumSample: boolean;
+  testMeetsMinimumSample: boolean;
+  summary: string;
+}
 
 export interface ExperimentFlyEntry {
   slotId: string;
@@ -27,6 +40,7 @@ export interface Experiment {
   sessionId: number;
   hypothesis: string;
   controlFocus: ExperimentControlFocus;
+  waterType?: WaterType;
   technique?: Technique;
   rigSetup?: RigSetup;
   flyEntries: ExperimentFlyEntry[];

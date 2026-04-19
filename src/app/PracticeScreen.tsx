@@ -53,6 +53,14 @@ export const PracticeScreen = ({ route }: any) => {
   const [pendingCatchSpecies, setPendingCatchSpecies] = useState<TroutSpecies | null>(null);
   const [pendingCatchLength, setPendingCatchLength] = useState('');
   const [activeSetupSheet, setActiveSetupSheet] = useState<SetupSheetKey>(null);
+  const toFriendlySyncMessage = (error: unknown) => {
+    const rawMessage = error instanceof Error ? error.message : 'Please try again.';
+    const normalized = rawMessage.toLowerCase();
+    if (normalized.includes('502 bad gateway') || normalized.includes('bad gateway') || normalized.includes('<!doctype html')) {
+      return 'Shared beta backend is temporarily unavailable right now. Your practice changes are still safe on this device.';
+    }
+    return rawMessage;
+  };
   const activeSegment = useMemo(
     () =>
       sessionSegments
@@ -292,7 +300,16 @@ export const PracticeScreen = ({ route }: any) => {
           <OptionChips label="Next Water Type" options={WATER_TYPES} value={nextWaterType} onChange={setNextWaterType} />
           <Text style={{ color: theme.colors.text, fontWeight: '700' }}>Next Water Depth</Text>
           <DepthSelector value={nextDepthRange} onChange={setNextDepthRange} />
-          <AppButton label="Change Water" onPress={() => { changeWater().catch(console.error); }} disabled={timer.hasEnded} variant="secondary" />
+          <AppButton
+            label="Change Water"
+            onPress={() => {
+              changeWater().catch((error) => {
+                Alert.alert('Unable to change water', toFriendlySyncMessage(error));
+              });
+            }}
+            disabled={timer.hasEnded}
+            variant="secondary"
+          />
         </SectionCard>
 
         {renderSetupSummaryCard({
@@ -400,7 +417,9 @@ export const PracticeScreen = ({ route }: any) => {
                   options={TECHNIQUES}
                   value={activeTechnique ?? null}
                   onChange={(value) => {
-                    updateActiveTechnique(value as Technique).catch(console.error);
+                    updateActiveTechnique(value as Technique).catch((error) => {
+                      Alert.alert('Unable to change technique', toFriendlySyncMessage(error));
+                    });
                   }}
                   tone="light"
                 />
@@ -418,12 +437,16 @@ export const PracticeScreen = ({ route }: any) => {
                 savedLeaderFormulas={savedLeaderFormulas}
                 savedRigPresets={savedRigPresets}
                 onChange={(nextRigSetup) => {
-                  updateActiveSegment(nextRigSetup).catch(console.error);
+                  updateActiveSegment(nextRigSetup).catch((error) => {
+                    Alert.alert('Unable to update leader', toFriendlySyncMessage(error));
+                  });
                 }}
                 onCreateLeaderFormula={saveLeaderFormula}
                 onCreateRigPreset={saveRigPreset}
                 onApplyRigPreset={(preset) => {
-                  updateActiveSegment(applyRigPresetToRig(currentRigSetup, preset, { clearSinglePointFly: preset.flyCount === 1 })).catch(console.error);
+                  updateActiveSegment(applyRigPresetToRig(currentRigSetup, preset, { clearSinglePointFly: preset.flyCount === 1 })).catch((error) => {
+                    Alert.alert('Unable to apply rig preset', toFriendlySyncMessage(error));
+                  });
                 }}
                 onDeleteLeaderFormula={deleteSavedLeaderFormula}
                 onDeleteRigPreset={deleteSavedRigPreset}
@@ -439,7 +462,9 @@ export const PracticeScreen = ({ route }: any) => {
                     setRigFlyCount(currentRigSetup, nextCount, {
                       clearPointFly: nextCount === 1 && currentRigSetup.assignments.length > 1
                     })
-                  ).catch(console.error);
+                  ).catch((error) => {
+                    Alert.alert('Unable to update rigging', toFriendlySyncMessage(error));
+                  });
                 }}
                 editMode="rig"
                 forceEditorOpen
@@ -448,12 +473,16 @@ export const PracticeScreen = ({ route }: any) => {
                 savedLeaderFormulas={savedLeaderFormulas}
                 savedRigPresets={savedRigPresets}
                 onChange={(nextRigSetup) => {
-                  updateActiveSegment(nextRigSetup).catch(console.error);
+                  updateActiveSegment(nextRigSetup).catch((error) => {
+                    Alert.alert('Unable to update rigging', toFriendlySyncMessage(error));
+                  });
                 }}
                 onCreateLeaderFormula={saveLeaderFormula}
                 onCreateRigPreset={saveRigPreset}
                 onApplyRigPreset={(preset) => {
-                  updateActiveSegment(applyRigPresetToRig(currentRigSetup, preset, { clearSinglePointFly: preset.flyCount === 1 })).catch(console.error);
+                  updateActiveSegment(applyRigPresetToRig(currentRigSetup, preset, { clearSinglePointFly: preset.flyCount === 1 })).catch((error) => {
+                    Alert.alert('Unable to apply rig preset', toFriendlySyncMessage(error));
+                  });
                 }}
                 onDeleteLeaderFormula={deleteSavedLeaderFormula}
                 onDeleteRigPreset={deleteSavedRigPreset}
@@ -465,7 +494,9 @@ export const PracticeScreen = ({ route }: any) => {
                 rigSetup={currentRigSetup}
                 savedFlies={savedFlies}
                 onChange={(nextRigSetup) => {
-                  updateActiveSegment(nextRigSetup).catch(console.error);
+                  updateActiveSegment(nextRigSetup).catch((error) => {
+                    Alert.alert('Unable to update flies', toFriendlySyncMessage(error));
+                  });
                 }}
                 onCreateFly={saveFlyToLibrary}
                 tone="light"
@@ -492,7 +523,9 @@ export const PracticeScreen = ({ route }: any) => {
           setPendingCatchLength('');
         }}
         onConfirm={() => {
-          confirmPracticeCatch().catch(console.error);
+          confirmPracticeCatch().catch((error) => {
+            Alert.alert('Unable to log catch', toFriendlySyncMessage(error));
+          });
         }}
       />
     </ScreenBackground>

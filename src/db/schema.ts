@@ -225,6 +225,7 @@ export const initDb = async (): Promise<void> => {
       session_id INTEGER NOT NULL,
       hypothesis TEXT NOT NULL,
       control_focus TEXT NOT NULL DEFAULT 'pattern',
+      water_type TEXT,
       technique TEXT,
       rig_setup_json TEXT,
       fly_entries_json TEXT,
@@ -458,6 +459,9 @@ export const initDb = async (): Promise<void> => {
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE experiments ADD COLUMN technique TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE experiments ADD COLUMN water_type TEXT;`);
   } catch {}
   try {
     await database.execAsync(`ALTER TABLE experiments ADD COLUMN archived_at TEXT;`);

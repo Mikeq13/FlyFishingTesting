@@ -29,6 +29,14 @@ export const CompetitionScreen = ({ route }: any) => {
   const [showCatchModal, setShowCatchModal] = useState(false);
   const [species, setSpecies] = useState<TroutSpecies>('Rainbow');
   const [lengthValue, setLengthValue] = useState('');
+  const toFriendlySyncMessage = (error: unknown) => {
+    const rawMessage = error instanceof Error ? error.message : 'Please try again.';
+    const normalized = rawMessage.toLowerCase();
+    if (normalized.includes('502 bad gateway') || normalized.includes('bad gateway') || normalized.includes('<!doctype html')) {
+      return 'Shared beta backend is temporarily unavailable right now. Your competition changes are still safe on this device.';
+    }
+    return rawMessage;
+  };
   const competitionCatches = useMemo(
     () => catchEvents.filter((event) => event.sessionId === sessionId),
     [catchEvents, sessionId]
@@ -88,7 +96,7 @@ export const CompetitionScreen = ({ route }: any) => {
     return (
       <ScreenBackground>
         <View style={{ flex: 1, justifyContent: 'center', padding: 24 }}>
-          <Text style={{ color: '#f7fdff', textAlign: 'center' }}>Competition session not found.</Text>
+          <Text style={{ color: theme.colors.text, textAlign: 'center' }}>Competition session not found.</Text>
         </View>
       </ScreenBackground>
     );
@@ -193,17 +201,17 @@ export const CompetitionScreen = ({ route }: any) => {
         {isCompetitionSummaryReady ? (
           <SectionCard title="Group Session Summary" subtitle="Once everyone in the group is done or controlling, the summary becomes official." tone="light">
             {competitionSummaryRows.map((row) => (
-              <View
-                key={row.assignment.id}
-                style={{
-                  backgroundColor: 'rgba(255,255,255,0.72)',
-                  borderRadius: theme.radius.md,
-                  padding: 12,
-                  gap: 4,
-                  borderWidth: 1,
-                  borderColor: theme.colors.borderLight
-                }}
-              >
+                    <View
+                      key={row.assignment.id}
+                      style={{
+                        backgroundColor: theme.colors.nestedSurface,
+                        borderRadius: theme.radius.md,
+                        padding: 12,
+                        gap: 4,
+                        borderWidth: 1,
+                        borderColor: theme.colors.nestedSurfaceBorder
+                      }}
+                    >
                 <Text style={{ color: theme.colors.textDark, fontWeight: '800' }}>{row.name}</Text>
                 <InlineSummaryRow label="Result" value={row.status === 'controlling' ? 'Controlling' : `${row.fishCount} fish`} tone="light" />
                 {session.competitionRequiresMeasurement && row.status !== 'controlling' ? (
@@ -261,7 +269,9 @@ export const CompetitionScreen = ({ route }: any) => {
             <AppButton
               label="Save Fish"
               onPress={() => {
-                logCompetitionCatch().catch(console.error);
+                logCompetitionCatch().catch((error) => {
+                  Alert.alert('Unable to save fish', toFriendlySyncMessage(error));
+                });
               }}
               disabled={competitionRequiresMeasurement && !(Number.isFinite(Number(lengthValue)) && Number(lengthValue) >= (competitionLengthUnit === 'cm' ? 20 : 200))}
             />

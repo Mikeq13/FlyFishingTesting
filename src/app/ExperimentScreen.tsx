@@ -19,6 +19,7 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { AppButton } from '@/components/ui/AppButton';
 import { StatusBanner } from '@/components/ui/StatusBanner';
 import { SectionCard } from '@/components/ui/SectionCard';
+import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { useTheme } from '@/design/theme';
 import { CastCounter } from '@/components/CastCounter';
 import { CatchCounter } from '@/components/CatchCounter';
@@ -62,9 +63,10 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     activeUserId,
     experiments,
     updateExperimentEntry,
-    updateSessionEntry,
     sessions,
-    refresh
+    refresh,
+    remoteSession,
+    syncStatus
   } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
   const sessionId: number = route.params.sessionId;
@@ -109,6 +111,14 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   const hydratedSourceKeyRef = useRef<string | null>(null);
   const draftRevisionRef = useRef(0);
   const latestSaveTokenRef = useRef(0);
+  const toFriendlySyncMessage = (error: unknown) => {
+    const rawMessage = error instanceof Error ? error.message : 'Please try again.';
+    const normalized = rawMessage.toLowerCase();
+    if (normalized.includes('502 bad gateway') || normalized.includes('bad gateway') || normalized.includes('<!doctype html')) {
+      return 'Shared beta backend is temporarily unavailable right now. Your experiment changes are still safe on this device.';
+    }
+    return rawMessage;
+  };
 
   useEffect(() => {
     setCurrentRouteExperimentId(route.params?.experimentId);
@@ -148,7 +158,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     setControlFocus(experiment.controlFocus ?? 'pattern');
     setFlyEntries(existingEntries);
     setRigSetup(getExperimentRigSetup(experiment));
-    setCurrentWaterType(session?.waterType ?? 'run');
+    setCurrentWaterType(experiment.waterType ?? session?.waterType ?? 'run');
     setCurrentTechnique(experiment.technique ?? session?.startingTechnique);
     setDraftExperimentId(experiment.status === 'draft' ? experiment.id : null);
     resetDraftTracking('saved');
@@ -224,9 +234,10 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         .find(({ check }) => !!check.warning) ?? null
     );
   }, [baselineIndex, controlFocus, visibleEntries]);
+  const comparisonStatus = useMemo(() => deriveExperimentStatus(visibleEntries), [visibleEntries]);
 
   const buildExperimentPayload = (nextStatus?: ExperimentStatus) => {
-    const status = deriveExperimentStatus(visibleEntries);
+    const status = comparisonStatus;
     const legacy = getLegacyExperimentFields(visibleEntries);
     const resolvedStatus = nextStatus ?? (isDraft ? 'draft' : 'complete');
     const isResolvedDraft = resolvedStatus === 'draft';
@@ -234,6 +245,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
       sessionId,
       hypothesis: session?.hypothesis || existingExperiment?.hypothesis || 'No hypothesis provided',
       controlFocus,
+      waterType: currentWaterType,
       technique: currentTechnique,
       rigSetup: syncRigSetupFromFlies(rigSetup, visibleEntries.map((entry) => entry.fly)),
       flyEntries: visibleEntries,
@@ -273,7 +285,6 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         })
         .catch((error) => {
           if (latestSaveTokenRef.current !== saveToken) return;
-          console.error(error);
           setDraftSaveState('save_failed');
         });
     }, 700);
@@ -315,18 +326,16 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   };
 
   const resetForNextExperiment = (overrides?: { waterType?: WaterType; technique?: Technique }) => {
-    const seededAssignments = session?.startingRigSetup?.assignments.slice(0, 3) ?? [];
-    const seededFlyCount = getFlyCount(seededAssignments.length || 2);
-    const seededEntries = createEmptyExperimentEntries(seededFlyCount, 0).map((entry, index) => ({
+    const seededEntries = createEmptyExperimentEntries(flyCount, baselineIndex).map((entry, index) => ({
       ...entry,
-      fly: seededAssignments[index]?.fly ?? entry.fly
+      fly: visibleEntries[index]?.fly ?? entry.fly
     }));
-    setFlyCount(seededFlyCount);
-    setBaselineIndex(0);
+    setFlyCount(flyCount);
+    setBaselineIndex(baselineIndex);
     setFlyEntries(seededEntries);
-    setRigSetup(session?.startingRigSetup ?? createDefaultRigSetup(seededEntries.map((entry) => entry.fly)));
-    setCurrentWaterType(overrides?.waterType ?? session?.waterType ?? 'run');
-    setCurrentTechnique(overrides?.technique ?? session?.startingTechnique);
+    setRigSetup(syncRigSetupFromFlies(rigSetup, seededEntries.map((entry) => entry.fly)));
+    setCurrentWaterType(overrides?.waterType ?? currentWaterType);
+    setCurrentTechnique(overrides?.technique ?? currentTechnique);
     setShowSavedExperimentActions(false);
     setPendingFishEntryIndex(null);
     setPendingFishSize(null);
@@ -420,6 +429,8 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
       resetDraftTracking('saved');
       setShowSavedExperimentActions(true);
       cancelCatchModal();
+    } catch (error) {
+      Alert.alert('Unable to save experiment', toFriendlySyncMessage(error));
     } finally {
       setIsSaving(false);
     }
@@ -428,7 +439,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   useEffect(() => {
     return () => {
       if (draftExperimentId || draftSaveState === 'dirty' || draftSaveState === 'saving' || draftSaveState === 'save_failed') {
-        refresh(activeUserId).catch(console.error);
+        refresh(activeUserId).catch(() => undefined);
       }
     };
   }, [activeUserId, draftExperimentId, draftSaveState, refresh]);
@@ -441,28 +452,18 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         : draftSaveState === 'saving'
           ? 'Saving the latest draft changes now.'
           : draftSaveState === 'save_failed'
-            ? 'Draft autosave failed. Keep fishing, then use Save Progress to retry.'
+            ? 'Draft autosave failed in the background. Your local changes are still on screen, and Save Progress will retry.'
             : activeExperimentId
               ? 'Draft changes autosave in the background while you keep fishing.'
               : 'The first meaningful change will create a draft automatically.';
-
-  const persistSessionWaterType = async (nextWaterType: WaterType) => {
-    setCurrentWaterType(nextWaterType);
-    if (!session) return;
-    await updateSessionEntry(session.id, {
-      ...session,
-      waterType: nextWaterType
-    });
-  };
-
-  const persistSessionTechnique = async (nextTechnique: Technique) => {
-    setCurrentTechnique(nextTechnique);
-    if (!session) return;
-    await updateSessionEntry(session.id, {
-      ...session,
-      startingTechnique: nextTechnique
-    });
-  };
+  const syncStatusText =
+    !remoteSession
+      ? null
+      : syncStatus.lastError
+        ? `Saved locally. Shared sync is temporarily unavailable: ${syncStatus.lastError}`
+        : syncStatus.pendingCount
+          ? 'Saved locally. Syncing the latest experiment changes to the shared backend now.'
+          : null;
 
   const saveCurrentAndStartFresh = async (changes: { waterType?: WaterType; technique?: Technique }) => {
     if (visibleEntries.some((entry) => entry.catches > entry.casts)) {
@@ -477,12 +478,6 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
       } else {
         await addExperiment(payload);
       }
-      if (changes.waterType) {
-        await persistSessionWaterType(changes.waterType);
-      }
-      if (changes.technique) {
-        await persistSessionTechnique(changes.technique);
-      }
       resetForNextExperiment({
         waterType: changes.waterType ?? currentWaterType,
         technique: changes.technique ?? currentTechnique
@@ -490,7 +485,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
       setActiveSetupSheet(null);
       Alert.alert('Started a fresh experiment', 'The current experiment was saved and a fresh comparison is ready with the new context.');
     } catch (error) {
-      Alert.alert('Unable to change context', error instanceof Error ? error.message : 'Please try again.');
+      Alert.alert('Unable to change context', toFriendlySyncMessage(error));
     } finally {
       setIsSaving(false);
     }
@@ -506,7 +501,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           text: 'Save And Start Fresh',
           style: 'destructive',
           onPress: () => {
-            saveCurrentAndStartFresh(changes).catch(console.error);
+            void saveCurrentAndStartFresh(changes);
           }
         }
       ]
@@ -519,9 +514,11 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
       return;
     }
     try {
-      await persistSessionWaterType(nextWaterType);
+      setCurrentWaterType(nextWaterType);
+      markDraftDirty();
+      setActiveSetupSheet(null);
     } catch (error) {
-      Alert.alert('Unable to update water type', error instanceof Error ? error.message : 'Please try again.');
+      Alert.alert('Unable to update water type', toFriendlySyncMessage(error));
     }
   };
 
@@ -531,10 +528,11 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
       return;
     }
     try {
-      await persistSessionTechnique(nextTechnique);
+      setCurrentTechnique(nextTechnique);
+      markDraftDirty();
       setActiveSetupSheet(null);
     } catch (error) {
-      Alert.alert('Unable to update technique', error instanceof Error ? error.message : 'Please try again.');
+      Alert.alert('Unable to update technique', toFriendlySyncMessage(error));
     }
   };
 
@@ -630,6 +628,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         {isDraft ? (
           <StatusBanner tone="warning" text="Draft mode: incomplete experiments can be saved now and finished later. Only invalid counts are blocked." />
         ) : null}
+        {syncStatusText ? <StatusBanner tone={syncStatus.lastError ? 'warning' : 'info'} text={syncStatusText} /> : null}
         {comparisonWarning?.check.warning ? (
           <StatusBanner
             tone="info"
@@ -674,19 +673,19 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         {renderExperimentSection({
           sectionKey: 'waterType',
           title: 'Water Type',
-          subtitle: 'Start from the session water type and change it quickly when the water changes.',
+          subtitle: 'Use the session as your broad outing, but keep each experiment water change on the experiment itself.',
           summary: `Current water type: ${currentWaterType}`,
           children: (
             <View style={{ gap: 10 }}>
               <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
-                This persists from the session setup, and changing it here updates the current session so the experiment stays aligned with the water you are actually fishing.
+                Before logging starts, you can change the experiment water type directly. After logging starts, the app saves the current comparison and starts a fresh experiment so the earlier result keeps its original context.
               </Text>
               <OptionChips
                 label="New Water Type"
                 options={WATER_TYPES}
                 value={currentWaterType}
                 onChange={(value) => {
-                  updateWaterType(value as WaterType).catch(console.error);
+                  void updateWaterType(value as WaterType);
                 }}
                 tone="light"
               />
@@ -747,6 +746,19 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         })}
 
         <SectionCard title="Results" subtitle="Record casts and catches without reopening the fly builder each time.">
+          <View
+            style={{
+              gap: 8,
+              borderRadius: theme.radius.md,
+              padding: 12,
+              backgroundColor: theme.colors.nestedSurface,
+              borderWidth: 1,
+              borderColor: theme.colors.nestedSurfaceBorder
+            }}
+          >
+            <InlineSummaryRow label="Comparison Status" value={comparisonStatus.outcome === 'decisive' ? 'Decisive' : comparisonStatus.outcome === 'tie' ? 'Tie' : 'Inconclusive'} tone="light" />
+            <InlineSummaryRow label="Current Read" value={comparisonStatus.comparison.summary} tone="light" />
+          </View>
           <View style={{ gap: 10 }}>
             {visibleEntries.map((entry, index) => (
               <View
@@ -830,7 +842,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                     : 'Save Experiment'
             }
             onPress={() => {
-              save().catch(console.error);
+              void save();
             }}
             disabled={isSaving}
           />
@@ -868,7 +880,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                   options={TECHNIQUES}
                   value={currentTechnique ?? null}
                   onChange={(value) => {
-                    updateTechnique(value as Technique).catch(console.error);
+                    void updateTechnique(value as Technique);
                   }}
                   tone="light"
                 />
