@@ -18,6 +18,7 @@ import { supabase } from './supabaseClient';
 import { LoadedLocalAppData } from './localAppDataService';
 import { deleteSyncMetadataEntry, getSyncMetadataEntry, upsertSyncMetadataEntry } from '@/db/syncMetadataRepo';
 import { updateSyncQueueEntry } from '@/db/syncRepo';
+import { normalizeIdentityName } from '@/utils/dataIdentity';
 
 type SyncContext = {
   currentUser: UserProfile;
@@ -48,7 +49,8 @@ const upsertOwnedRow = async (
   table: string,
   ownerAuthUserId: string,
   localRecordId: number,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
+  onConflict = 'owner_auth_user_id,local_record_id'
 ) => {
   const { data, error } = await supabase
     .from(table)
@@ -58,7 +60,7 @@ const upsertOwnedRow = async (
         local_record_id: localRecordId,
         ...payload
       },
-      { onConflict: 'owner_auth_user_id,local_record_id' }
+      { onConflict }
     )
     .select('id')
     .single();
@@ -339,7 +341,7 @@ const syncSessionGroupShare = async (context: SyncContext, share: SessionGroupSh
     session_id: remoteSessionId,
     group_id: remoteGroupId,
     created_at: share.createdAt
-  });
+  }, 'owner_auth_user_id,session_id,group_id');
   await recordSyncSuccess('session_group_share', share.id, remoteId);
   return remoteId;
 };
@@ -580,8 +582,9 @@ const syncSavedSetup = async (
   if (fly) {
     const remoteId = await upsertOwnedRow('saved_flies', context.remoteAuthUserId, fly.id, {
       payload_json: fly,
+      normalized_name: normalizeIdentityName(fly.name),
       created_at: fly.createdAt
-    });
+    }, 'owner_auth_user_id,normalized_name');
     await recordSyncSuccess('saved_fly', fly.id, remoteId);
     return;
   }
@@ -593,8 +596,9 @@ const syncSavedSetup = async (
   if (formula) {
     const remoteId = await upsertOwnedRow('saved_leader_formulas', context.remoteAuthUserId, formula.id, {
       payload_json: formula,
+      normalized_name: normalizeIdentityName(formula.name),
       created_at: formula.createdAt
-    });
+    }, 'owner_auth_user_id,normalized_name');
     await recordSyncSuccess('saved_leader_formula', formula.id, remoteId);
     return;
   }
@@ -606,8 +610,9 @@ const syncSavedSetup = async (
   if (preset) {
     const remoteId = await upsertOwnedRow('saved_rig_presets', context.remoteAuthUserId, preset.id, {
       payload_json: preset,
+      normalized_name: normalizeIdentityName(preset.name),
       created_at: preset.createdAt
-    });
+    }, 'owner_auth_user_id,normalized_name');
     await recordSyncSuccess('saved_rig_preset', preset.id, remoteId);
     return;
   }
@@ -619,8 +624,9 @@ const syncSavedSetup = async (
   if (river) {
     const remoteId = await upsertOwnedRow('saved_rivers', context.remoteAuthUserId, river.id, {
       name: river.name,
+      normalized_name: normalizeIdentityName(river.name),
       created_at: river.createdAt
-    });
+    }, 'owner_auth_user_id,normalized_name');
     await recordSyncSuccess('saved_river', river.id, remoteId);
     return;
   }

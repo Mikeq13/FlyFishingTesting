@@ -3,6 +3,7 @@ import { Experiment } from '@/types/experiment';
 import { deleteWebRows, insertWebRow, listWebRows, updateWebRows } from './webStore';
 import { getExperimentEntries } from '@/utils/experimentEntries';
 import { normalizeLegacyExperimentStatus } from '@/services/dataIntegrityService';
+import { dedupeDraftExperimentsByIdentity, getDraftExperimentIdentityKey } from '@/utils/dataIdentity';
 
 const WEB_EXPERIMENTS_KEY = 'fishing_lab.experiments';
 const WEB_EXPERIMENTS_ID_KEY = 'fishing_lab.experiments.nextId';
@@ -58,6 +59,50 @@ export const createExperiment = async (payload: Omit<Experiment, 'id'>): Promise
   return result.lastInsertRowId;
 };
 
+export const ensureDraftExperiment = async (payload: Omit<Experiment, 'id'>): Promise<{ id: number; created: boolean }> => {
+  if (payload.status !== 'draft') {
+    return { id: await createExperiment(payload), created: true };
+  }
+
+  if (isWeb) {
+    const existing = listWebRows<Experiment>(WEB_EXPERIMENTS_KEY).find(
+      (row) => getDraftExperimentIdentityKey(row) === getDraftExperimentIdentityKey(payload)
+    );
+    if (existing) {
+      updateWebRows<Experiment>(WEB_EXPERIMENTS_KEY, (rows) =>
+        rows.map((row) =>
+          row.id === existing.id
+            ? {
+                ...row,
+                ...payload
+              }
+            : row
+        )
+      );
+      return { id: existing.id, created: false };
+    }
+    return { id: insertWebRow<Experiment>(WEB_EXPERIMENTS_KEY, WEB_EXPERIMENTS_ID_KEY, payload), created: true };
+  }
+
+  const db = await getDb();
+  const [existing] = await db.getAllAsync<{ id: number }>(
+    `SELECT id FROM experiments
+     WHERE user_id = ?
+       AND session_id = ?
+       AND status = 'draft'
+       AND archived_at IS NULL
+     ORDER BY id DESC
+     LIMIT 1`,
+    payload.userId,
+    payload.sessionId
+  );
+  if (existing) {
+    await updateExperiment(existing.id, payload);
+    return { id: existing.id, created: false };
+  }
+  return { id: await createExperiment(payload), created: true };
+};
+
 export const updateExperiment = async (experimentId: number, payload: Omit<Experiment, 'id' | 'userId'>): Promise<void> => {
   if (isWeb) {
     updateWebRows<Experiment>(WEB_EXPERIMENTS_KEY, (rows) =>
@@ -106,8 +151,9 @@ export const listExperiments = async (userId: number, options: { includeArchived
     const normalizedRows = listWebRows<Experiment>(WEB_EXPERIMENTS_KEY)
       .filter((e) => e.userId === userId && (includeArchived || !e.archivedAt))
       .map(hydrateExperiment);
+    const dedupedRows = dedupeDraftExperimentsByIdentity(normalizedRows);
 
-    const rowsNeedingRepair = normalizedRows.filter((experiment) => experiment.legacyStatusMissing);
+    const rowsNeedingRepair = dedupedRows.filter((experiment) => experiment.legacyStatusMissing);
     if (rowsNeedingRepair.length) {
       updateWebRows<Experiment>(WEB_EXPERIMENTS_KEY, (rows) =>
         rows.map((row) => {
@@ -120,8 +166,12 @@ export const listExperiments = async (userId: number, options: { includeArchived
         })
       );
     }
-
-    return normalizedRows;
+    if (dedupedRows.length !== normalizedRows.length) {
+      updateWebRows<Experiment>(WEB_EXPERIMENTS_KEY, (rows) =>
+        dedupeDraftExperimentsByIdentity(rows.map(hydrateExperiment))
+      );
+    }
+    return dedupedRows;
   }
 
   const db = await getDb();
@@ -156,8 +206,9 @@ export const listExperiments = async (userId: number, options: { includeArchived
     archivedAt: r.archived_at ?? undefined,
     legacyStatusMissing: r.status == null
   })).map(hydrateExperiment);
+  const dedupedExperiments = dedupeDraftExperimentsByIdentity(experiments);
 
-  const rowsNeedingRepair = experiments.filter((experiment) => experiment.legacyStatusMissing);
+  const rowsNeedingRepair = dedupedExperiments.filter((experiment) => experiment.legacyStatusMissing);
   if (rowsNeedingRepair.length) {
     const repairDb = await getDb();
     await Promise.all(
@@ -167,7 +218,16 @@ export const listExperiments = async (userId: number, options: { includeArchived
     );
   }
 
-  return experiments;
+  if (dedupedExperiments.length !== experiments.length) {
+    const keepIds = new Set(dedupedExperiments.map((experiment) => experiment.id));
+    const duplicateIds = experiments.filter((experiment) => !keepIds.has(experiment.id)).map((experiment) => experiment.id);
+    if (duplicateIds.length) {
+      const placeholders = duplicateIds.map(() => '?').join(', ');
+      await db.runAsync(`DELETE FROM experiments WHERE id IN (${placeholders})`, ...duplicateIds);
+    }
+  }
+
+  return dedupedExperiments;
 };
 
 export const archiveExperiments = async (experimentIds: number[]): Promise<void> => {

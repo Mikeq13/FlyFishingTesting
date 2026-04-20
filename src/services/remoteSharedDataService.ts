@@ -15,6 +15,14 @@ import {
   mapRemoteSessionSegment
 } from './remoteMappingService';
 import { applySessionShareIds } from '@/utils/sessionSharing';
+import {
+  dedupeDraftExperimentsByIdentity,
+  dedupeSavedFliesByIdentity,
+  dedupeSavedLeaderFormulasByIdentity,
+  dedupeSavedRigPresetsByIdentity,
+  dedupeSavedRiversByIdentity,
+  dedupeSessionGroupSharesByIdentity
+} from '@/utils/dataIdentity';
 
 const dedupeById = <T extends { id: number }>(records: T[]) => [...new Map(records.map((record) => [record.id, record])).values()];
 
@@ -108,15 +116,37 @@ export const fetchRemoteSharedDataSnapshot = async (
     )
   );
   const visibleSessionIds = new Set(visibleSessions.map((session) => session.id));
-  const visibleSessionGroupShares = dedupeById(
-    accessibleSessionGroupShares.filter((share) => visibleSessionIds.has(share.sessionId))
+  const visibleSessionGroupShares = dedupeSessionGroupSharesByIdentity(
+    dedupeById(accessibleSessionGroupShares.filter((share) => visibleSessionIds.has(share.sessionId)))
   );
   const visibleSegments = accessibleSessionSegments.filter((segment) => visibleSessionIds.has(segment.sessionId));
   const visibleSegmentIds = new Set(visibleSegments.map((segment) => segment.id));
   const visibleCatchEvents = accessibleCatchEvents.filter(
     (event) => visibleSessionIds.has(event.sessionId) && (!event.segmentId || visibleSegmentIds.has(event.segmentId))
   );
-  const visibleExperiments = dedupeById(accessibleExperiments.filter((experiment) => visibleSessionIds.has(experiment.sessionId)));
+  const visibleExperiments = dedupeDraftExperimentsByIdentity(
+    dedupeById(accessibleExperiments.filter((experiment) => visibleSessionIds.has(experiment.sessionId)))
+  );
+  const ownedSavedFlies = dedupeSavedFliesByIdentity(
+    (savedFliesResponse.data ?? [])
+      .filter((row) => row.owner_auth_user_id === currentAuthUserId)
+      .map((row) => mapRemoteSavedFly(row, currentAuthUserId))
+  );
+  const ownedSavedLeaderFormulas = dedupeSavedLeaderFormulasByIdentity(
+    (savedLeaderFormulasResponse.data ?? [])
+      .filter((row) => row.owner_auth_user_id === currentAuthUserId)
+      .map((row) => mapRemoteLeaderFormula(row, currentAuthUserId))
+  );
+  const ownedSavedRigPresets = dedupeSavedRigPresetsByIdentity(
+    (savedRigPresetsResponse.data ?? [])
+      .filter((row) => row.owner_auth_user_id === currentAuthUserId)
+      .map((row) => mapRemoteRigPreset(row, currentAuthUserId))
+  );
+  const ownedSavedRivers = dedupeSavedRiversByIdentity(
+    (savedRiversResponse.data ?? [])
+      .filter((row) => row.owner_auth_user_id === currentAuthUserId)
+      .map((row) => mapRemoteSavedRiver(row, currentAuthUserId))
+  );
 
   return {
     ownedSessions: visibleSessions.filter((session) => session.userId === currentUserId),
@@ -129,20 +159,10 @@ export const fetchRemoteSharedDataSnapshot = async (
     accessibleCatchEvents: visibleCatchEvents,
     ownedExperiments: visibleExperiments.filter((experiment) => experiment.userId === currentUserId),
     accessibleExperiments: visibleExperiments,
-    savedFlies: (savedFliesResponse.data ?? [])
-      .filter((row) => row.owner_auth_user_id === currentAuthUserId)
-      .map((row) => mapRemoteSavedFly(row, currentAuthUserId)),
-    savedLeaderFormulas: (savedLeaderFormulasResponse.data ?? [])
-      .filter((row) => row.owner_auth_user_id === currentAuthUserId)
-      .map((row) =>
-      mapRemoteLeaderFormula(row, currentAuthUserId)
-    ),
-    savedRigPresets: (savedRigPresetsResponse.data ?? [])
-      .filter((row) => row.owner_auth_user_id === currentAuthUserId)
-      .map((row) => mapRemoteRigPreset(row, currentAuthUserId)),
-    savedRivers: (savedRiversResponse.data ?? [])
-      .filter((row) => row.owner_auth_user_id === currentAuthUserId)
-      .map((row) => mapRemoteSavedRiver(row, currentAuthUserId)),
+    savedFlies: ownedSavedFlies,
+    savedLeaderFormulas: ownedSavedLeaderFormulas,
+    savedRigPresets: ownedSavedRigPresets,
+    savedRivers: ownedSavedRivers,
     syncMetadataHints: [
       ...sessionRows
         .filter((row) => row.owner_auth_user_id === currentAuthUserId)

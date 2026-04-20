@@ -27,6 +27,7 @@ import { TECHNIQUES, WATER_TYPES } from '@/constants/options';
 import { Technique, WaterType } from '@/types/session';
 import { BottomSheetSurface } from '@/components/ui/BottomSheetSurface';
 import { formatSharedBackendError, getPendingSyncFeedback } from '@/utils/syncFeedback';
+import { getExperimentRigIdentitySignature } from '@/utils/dataIdentity';
 
 const isDraftExperiment = (entries: ExperimentFlyEntry[]) =>
   entries.some((entry) => entry.casts <= 0 || !entry.fly.name.trim());
@@ -229,6 +230,10 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     );
   }, [baselineIndex, controlFocus, visibleEntries]);
   const comparisonStatus = useMemo(() => deriveExperimentStatus(visibleEntries), [visibleEntries]);
+  const currentComparisonIdentity = useMemo(
+    () => getExperimentRigIdentitySignature(rigSetup, visibleEntries),
+    [rigSetup, visibleEntries]
+  );
 
   const buildExperimentPayload = (nextStatus?: ExperimentStatus) => {
     const status = comparisonStatus;
@@ -319,15 +324,29 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     }
   };
 
-  const resetForNextExperiment = (overrides?: { waterType?: WaterType; technique?: Technique }) => {
-    const seededEntries = createEmptyExperimentEntries(flyCount, baselineIndex).map((entry, index) => ({
-      ...entry,
-      fly: visibleEntries[index]?.fly ?? entry.fly
-    }));
-    setFlyCount(flyCount);
-    setBaselineIndex(baselineIndex);
+  const resetForNextExperiment = (overrides?: {
+    waterType?: WaterType;
+    technique?: Technique;
+    flyCount?: 1 | 2 | 3;
+    baselineIndex?: number;
+    flyEntries?: ExperimentFlyEntry[];
+    rigSetup?: RigSetup;
+  }) => {
+    const nextFlyCount = overrides?.flyCount ?? flyCount;
+    const nextBaselineIndex = Math.min(overrides?.baselineIndex ?? baselineIndex, nextFlyCount - 1);
+    const seededEntries =
+      overrides?.flyEntries ??
+      createEmptyExperimentEntries(nextFlyCount, nextBaselineIndex).map((entry, index) => ({
+        ...entry,
+        fly: visibleEntries[index]?.fly ?? entry.fly
+      }));
+    const nextRigSetup =
+      overrides?.rigSetup ??
+      syncRigSetupFromFlies(rigSetup, seededEntries.map((entry) => entry.fly));
+    setFlyCount(nextFlyCount);
+    setBaselineIndex(nextBaselineIndex);
     setFlyEntries(seededEntries);
-    setRigSetup(syncRigSetupFromFlies(rigSetup, seededEntries.map((entry) => entry.fly)));
+    setRigSetup(nextRigSetup);
     setCurrentWaterType(overrides?.waterType ?? currentWaterType);
     setCurrentTechnique(overrides?.technique ?? currentTechnique);
     setShowSavedExperimentActions(false);
@@ -340,21 +359,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   };
 
   const modifyAndContinue = () => {
-    setFlyEntries((current) =>
-      current.map((entry) => ({
-        ...entry,
-        casts: 0,
-        catches: 0,
-        fishSizesInches: [],
-        fishSpecies: [],
-        catchTimestamps: []
-      }))
-    );
-    setShowSavedExperimentActions(false);
-    setPendingFishEntryIndex(null);
-    setPendingFishSize(null);
-    setPendingFishSpecies(null);
-    markDraftDirty();
+    resetForNextExperiment();
   };
 
   const confirmCatch = () => {
@@ -452,7 +457,15 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
               : 'The first meaningful change will create a draft automatically.';
   const syncStatusText = activeExperimentId ? syncFeedback : null;
 
-  const saveCurrentAndStartFresh = async (changes: { waterType?: WaterType; technique?: Technique }) => {
+  const saveCurrentAndStartFresh = async (changes: {
+    waterType?: WaterType;
+    technique?: Technique;
+    flyCount?: 1 | 2 | 3;
+    baselineIndex?: number;
+    flyEntries?: ExperimentFlyEntry[];
+    rigSetup?: RigSetup;
+    successMessage?: string;
+  }) => {
     if (visibleEntries.some((entry) => entry.catches > entry.casts)) {
       Alert.alert('Invalid catch count', 'Catches cannot be greater than casts.');
       return;
@@ -467,10 +480,17 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
       }
       resetForNextExperiment({
         waterType: changes.waterType ?? currentWaterType,
-        technique: changes.technique ?? currentTechnique
+        technique: changes.technique ?? currentTechnique,
+        flyCount: changes.flyCount,
+        baselineIndex: changes.baselineIndex,
+        flyEntries: changes.flyEntries,
+        rigSetup: changes.rigSetup
       });
       setActiveSetupSheet(null);
-      Alert.alert('Started a fresh experiment', 'The current experiment was saved and a fresh comparison is ready with the new context.');
+      Alert.alert(
+        'Started a fresh experiment',
+        changes.successMessage ?? 'The current experiment was saved and a fresh comparison is ready with the new context.'
+      );
     } catch (error) {
       Alert.alert('Unable to change context', formatSharedBackendError(error, 'experiment'));
     } finally {
@@ -507,6 +527,60 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     } catch (error) {
       Alert.alert('Unable to update water type', formatSharedBackendError(error, 'experiment'));
     }
+  };
+
+  const buildEntriesForRigChange = (nextRigSetup: RigSetup, nextFlyCount: 1 | 2 | 3, nextBaselineIndex: number) =>
+    alignExperimentEntries(
+      flyEntries.map((entry, index) => ({
+        ...entry,
+        fly: nextRigSetup.assignments[index]?.fly ?? entry.fly
+      })),
+      nextFlyCount,
+      nextBaselineIndex
+    );
+
+  const applyComparisonIdentityChange = async (nextRigSetup: RigSetup) => {
+    const nextFlyCount = getFlyCount(nextRigSetup.assignments.length || 1);
+    const nextBaselineIndex = Math.min(baselineIndex, nextFlyCount - 1);
+    const nextEntries = buildEntriesForRigChange(nextRigSetup, nextFlyCount, nextBaselineIndex);
+    const nextIdentity = getExperimentRigIdentitySignature(nextRigSetup, nextEntries.slice(0, nextFlyCount));
+
+    if (hasMeaningfulLogging && nextIdentity !== currentComparisonIdentity) {
+      Alert.alert(
+        'Start a fresh experiment?',
+        'Changing the fly lineup after logging began would mix two different comparisons. Save this experiment and start a new draft with the updated flies instead.',
+        [
+          { text: 'Keep Current Comparison', style: 'cancel' },
+          {
+            text: 'Save And Start Fresh',
+            style: 'destructive',
+            onPress: () => {
+              void saveCurrentAndStartFresh({
+                flyCount: nextFlyCount,
+                baselineIndex: nextBaselineIndex,
+                flyEntries: nextEntries.map((entry) => ({
+                  ...entry,
+                  casts: 0,
+                  catches: 0,
+                  fishSizesInches: [],
+                  fishSpecies: [],
+                  catchTimestamps: []
+                })),
+                rigSetup: nextRigSetup,
+                successMessage: 'The previous experiment was saved, and a fresh comparison was started with the updated fly lineup.'
+              });
+            }
+          }
+        ]
+      );
+      return;
+    }
+
+    setBaselineIndex(nextBaselineIndex);
+    setFlyEntries(nextEntries);
+    setFlyCount(nextFlyCount);
+    setRigSetup(nextRigSetup);
+    markDraftDirty();
   };
 
   const updateTechnique = async (nextTechnique: Technique) => {
@@ -928,8 +1002,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                 savedLeaderFormulas={savedLeaderFormulas}
                 savedRigPresets={savedRigPresets}
                 onChange={(next) => {
-                  setRigSetup(next);
-                  markDraftDirty();
+                  void applyComparisonIdentityChange(next);
                 }}
                 onCreateLeaderFormula={async (payload) => {
                   const id = await addSavedLeaderFormula(payload);
@@ -951,9 +1024,8 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                   };
                 }}
                 onApplyRigPreset={(preset) => {
-                  setFlyCount(getFlyCount(preset.flyCount));
-                  setRigSetup((current) => applyRigPresetToRig(current, preset, { clearSinglePointFly: false }));
-                  markDraftDirty();
+                  const nextRigSetup = applyRigPresetToRig(rigSetup, preset, { clearSinglePointFly: false });
+                  void applyComparisonIdentityChange(nextRigSetup);
                 }}
                 onDeleteLeaderFormula={deleteSavedLeaderFormula}
                 onDeleteRigPreset={deleteSavedRigPreset}
@@ -968,19 +1040,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                 editorOnly
                 foregroundQuickAdd
                 onChange={(nextRigSetup) => {
-                  setRigSetup(nextRigSetup);
-                  setFlyEntries((current) =>
-                    alignExperimentEntries(
-                      current.map((entry, index) => ({
-                        ...entry,
-                        fly: nextRigSetup.assignments[index]?.fly ?? entry.fly
-                      })),
-                      nextRigSetup.assignments.length as 1 | 2 | 3,
-                      baselineIndex
-                    )
-                  );
-                  setFlyCount(getFlyCount(nextRigSetup.assignments.length || 1));
-                  markDraftDirty();
+                  void applyComparisonIdentityChange(nextRigSetup);
                 }}
                 onCreateFly={saveFlyToLibrary}
               />

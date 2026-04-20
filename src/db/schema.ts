@@ -281,6 +281,7 @@ export const initDb = async (): Promise<void> => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       name TEXT NOT NULL,
+      normalized_name TEXT,
       intent TEXT NOT NULL,
       hook_size INTEGER NOT NULL DEFAULT 16,
       bead_size_mm REAL NOT NULL,
@@ -297,6 +298,7 @@ export const initDb = async (): Promise<void> => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       name TEXT NOT NULL,
+      normalized_name TEXT,
       created_at TEXT NOT NULL,
       FOREIGN KEY(user_id) REFERENCES users(id)
     )`,
@@ -304,6 +306,7 @@ export const initDb = async (): Promise<void> => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       name TEXT NOT NULL,
+      normalized_name TEXT,
       sections_json TEXT NOT NULL,
       created_at TEXT NOT NULL,
       FOREIGN KEY(user_id) REFERENCES users(id)
@@ -312,6 +315,7 @@ export const initDb = async (): Promise<void> => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       name TEXT NOT NULL,
+      normalized_name TEXT,
       preset_json TEXT NOT NULL,
       created_at TEXT NOT NULL,
       FOREIGN KEY(user_id) REFERENCES users(id)
@@ -473,8 +477,69 @@ export const initDb = async (): Promise<void> => {
     await database.execAsync(`ALTER TABLE sessions ADD COLUMN session_mode TEXT NOT NULL DEFAULT 'experiment';`);
   } catch {}
   try {
+    await database.execAsync(`ALTER TABLE saved_flies ADD COLUMN normalized_name TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE saved_rivers ADD COLUMN normalized_name TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE saved_leader_formulas ADD COLUMN normalized_name TEXT;`);
+  } catch {}
+  try {
+    await database.execAsync(`ALTER TABLE saved_rig_presets ADD COLUMN normalized_name TEXT;`);
+  } catch {}
+  try {
     await database.execAsync(`ALTER TABLE saved_flies ADD COLUMN hook_size INTEGER NOT NULL DEFAULT 16;`);
   } catch {}
+  await database.execAsync(`UPDATE saved_flies SET normalized_name = lower(trim(name)) WHERE normalized_name IS NULL OR normalized_name = '';`);
+  await database.execAsync(`UPDATE saved_rivers SET normalized_name = lower(trim(name)) WHERE normalized_name IS NULL OR normalized_name = '';`);
+  await database.execAsync(`UPDATE saved_leader_formulas SET normalized_name = lower(trim(name)) WHERE normalized_name IS NULL OR normalized_name = '';`);
+  await database.execAsync(`UPDATE saved_rig_presets SET normalized_name = lower(trim(name)) WHERE normalized_name IS NULL OR normalized_name = '';`);
+  await database.execAsync(`DELETE FROM saved_flies
+    WHERE id NOT IN (
+      SELECT MAX(id)
+      FROM saved_flies
+      GROUP BY user_id, normalized_name
+    );`);
+  await database.execAsync(`DELETE FROM saved_rivers
+    WHERE id NOT IN (
+      SELECT MAX(id)
+      FROM saved_rivers
+      GROUP BY user_id, normalized_name
+    );`);
+  await database.execAsync(`DELETE FROM saved_leader_formulas
+    WHERE id NOT IN (
+      SELECT MAX(id)
+      FROM saved_leader_formulas
+      GROUP BY user_id, normalized_name
+    );`);
+  await database.execAsync(`DELETE FROM saved_rig_presets
+    WHERE id NOT IN (
+      SELECT MAX(id)
+      FROM saved_rig_presets
+      GROUP BY user_id, normalized_name
+    );`);
+  await database.execAsync(`DELETE FROM session_group_shares
+    WHERE id NOT IN (
+      SELECT MAX(id)
+      FROM session_group_shares
+      GROUP BY user_id, session_id, group_id
+    );`);
+  await database.execAsync(`DELETE FROM experiments
+    WHERE status = 'draft'
+      AND archived_at IS NULL
+      AND id NOT IN (
+        SELECT MAX(id)
+        FROM experiments
+        WHERE status = 'draft' AND archived_at IS NULL
+        GROUP BY user_id, session_id
+      );`);
+  await database.execAsync(`CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_flies_user_normalized_name ON saved_flies(user_id, normalized_name);`);
+  await database.execAsync(`CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_rivers_user_normalized_name ON saved_rivers(user_id, normalized_name);`);
+  await database.execAsync(`CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_leader_formulas_user_normalized_name ON saved_leader_formulas(user_id, normalized_name);`);
+  await database.execAsync(`CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_rig_presets_user_normalized_name ON saved_rig_presets(user_id, normalized_name);`);
+  await database.execAsync(`CREATE UNIQUE INDEX IF NOT EXISTS idx_session_group_shares_user_session_group ON session_group_shares(user_id, session_id, group_id);`);
+  await database.execAsync(`CREATE UNIQUE INDEX IF NOT EXISTS idx_experiments_user_session_active_draft ON experiments(user_id, session_id) WHERE status = 'draft' AND archived_at IS NULL;`);
   try {
     await database.execAsync(`ALTER TABLE saved_flies ADD COLUMN bug_family TEXT NOT NULL DEFAULT 'mayfly';`);
   } catch {}

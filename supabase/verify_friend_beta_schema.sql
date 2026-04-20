@@ -42,5 +42,21 @@ where table_schema = 'public'
     or (table_name = 'session_segments' and column_name = 'technique')
     or (table_name = 'experiments' and column_name = 'technique')
     or (table_name = 'experiments' and column_name = 'water_type')
+    or (table_name = 'saved_flies' and column_name = 'normalized_name')
+    or (table_name = 'saved_leader_formulas' and column_name = 'normalized_name')
+    or (table_name = 'saved_rig_presets' and column_name = 'normalized_name')
+    or (table_name = 'saved_rivers' and column_name = 'normalized_name')
   )
 order by table_name, column_name;
+
+select indexname, indexdef
+from pg_indexes
+where schemaname = 'public'
+  and indexname in (
+    'idx_saved_flies_owner_normalized_name',
+    'idx_saved_leader_formulas_owner_normalized_name',
+    'idx_saved_rig_presets_owner_normalized_name',
+    'idx_saved_rivers_owner_normalized_name',
+    'idx_experiments_owner_session_active_draft'
+  )
+order by indexname;

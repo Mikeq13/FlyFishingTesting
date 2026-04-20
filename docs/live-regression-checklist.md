@@ -12,6 +12,10 @@ Use this checklist before calling a build "trusted" for beta testing. The goal i
   Start an experiment, log meaningful casts or catches, then change water or technique and confirm the app prompts the angler to save and start fresh instead of mixing contexts.
 - Experiment context persistence:
   Save and start fresh after a water or technique change, refresh the app, and confirm the older experiment still shows its original water and technique while the new experiment shows the updated context.
+- Experiment fly-lineup fork protection:
+  Start an experiment, log meaningful casts, then change flies or rig count and confirm the app saves the current comparison and starts exactly one fresh draft instead of blending the old and new comparison into one record.
+- Saved library idempotency:
+  Save the same river, fly, leader formula, or rig preset more than once with casing or spacing variations and confirm the app keeps one canonical saved item.
 - Clear Everything:
   Run `Clear Everything`, refresh, relaunch, and confirm fishing history, saved setups, groups, invites, and shares do not reappear for that angler.
 - Shared-data cold open:
@@ -27,6 +31,8 @@ Use this checklist before calling a build "trusted" for beta testing. The goal i
   Archive or delete a record, refresh, and confirm pending cleanup stays hidden while syncing and failed cleanup states are surfaced clearly.
 - Post-refresh trust:
   If a change looked saved immediately, refresh or relaunch and confirm the same state is still present. Any mismatch between immediate and refreshed state should be treated as a trust bug.
+- Duplicate-proof analytics:
+  Reproduce a save, modify-and-continue, and save-and-start-fresh loop, then confirm History, Session Detail, and Insights do not show duplicate rivers, duplicate experiments, or inflated catch totals.
 
 ## Mode-Specific UX
 

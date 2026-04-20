@@ -1,11 +1,11 @@
 import { createTrialWindow } from '@/engine/entitlementEngine';
 import { isWithinDateRange } from '@/utils/dateRange';
-import { archiveExperiments, createExperiment, deleteExperiments, listExperiments, updateExperiment } from '@/db/experimentRepo';
+import { archiveExperiments, createExperiment, deleteExperiments, ensureDraftExperiment, listExperiments, updateExperiment } from '@/db/experimentRepo';
 import { createUser, listUsers, updateUser as updateLocalUser } from '@/db/userRepo';
-import { createSavedFly } from '@/db/savedFlyRepo';
-import { createSavedLeaderFormula, deleteSavedLeaderFormula } from '@/db/savedLeaderFormulaRepo';
-import { createSavedRigPreset, deleteSavedRigPreset } from '@/db/savedRigPresetRepo';
-import { createSavedRiver } from '@/db/savedRiverRepo';
+import { ensureSavedFly } from '@/db/savedFlyRepo';
+import { deleteSavedLeaderFormula, ensureSavedLeaderFormula } from '@/db/savedLeaderFormulaRepo';
+import { deleteSavedRigPreset, ensureSavedRigPreset } from '@/db/savedRigPresetRepo';
+import { ensureSavedRiver } from '@/db/savedRiverRepo';
 import { createSession, deleteSessions, updateSession } from '@/db/sessionRepo';
 import { deleteSessionGroupSharesForSessions } from '@/db/sessionGroupShareRepo';
 import { createSessionSegment, deleteSessionSegmentsForSessions, updateSessionSegment } from '@/db/sessionSegmentRepo';
@@ -813,23 +813,27 @@ export const createStoreActions = ({
     return id;
   },
   addSavedFly: async (payload) => {
-    assertActiveUser();
-    if (!activeUserId) throw new Error('No active user selected.');
-    ensureUniqueSavedName(savedFlies, payload.name, 'Fly');
-    const id = await createSavedFly({ ...payload, name: payload.name.trim(), userId: activeUserId });
-    await trackSyncChange('saved_fly', 'create', id, payload);
-    await refresh(activeUserId);
-    return id;
-  },
+      assertActiveUser();
+      if (!activeUserId) throw new Error('No active user selected.');
+      const ensured = await ensureSavedFly({ ...payload, name: payload.name.trim(), userId: activeUserId });
+      if (!ensured.created) {
+        return ensured.id;
+      }
+      await trackSyncChange('saved_fly', 'create', ensured.id, payload);
+      await refresh(activeUserId);
+      return ensured.id;
+    },
   addSavedLeaderFormula: async (payload) => {
-    assertActiveUser();
-    if (!activeUserId) throw new Error('No active user selected.');
-    ensureUniqueSavedName(savedLeaderFormulas, payload.name, 'Leader');
-    const id = await createSavedLeaderFormula({ ...payload, name: payload.name.trim(), userId: activeUserId });
-    await trackSyncChange('saved_leader_formula', 'create', id, payload);
-    await refresh(activeUserId);
-    return id;
-  },
+      assertActiveUser();
+      if (!activeUserId) throw new Error('No active user selected.');
+      const ensured = await ensureSavedLeaderFormula({ ...payload, name: payload.name.trim(), userId: activeUserId });
+      if (!ensured.created) {
+        return ensured.id;
+      }
+      await trackSyncChange('saved_leader_formula', 'create', ensured.id, payload);
+      await refresh(activeUserId);
+      return ensured.id;
+    },
   deleteSavedLeaderFormula: async (formulaId) => {
     await deleteSavedLeaderFormula(formulaId);
     const startedAt = new Date().toISOString();
@@ -838,14 +842,16 @@ export const createStoreActions = ({
     await refresh(activeUserId);
   },
   addSavedRigPreset: async (payload) => {
-    assertActiveUser();
-    if (!activeUserId) throw new Error('No active user selected.');
-    ensureUniqueSavedName(savedRigPresets, payload.name, 'Rig preset');
-    const id = await createSavedRigPreset({ ...payload, name: payload.name.trim(), userId: activeUserId });
-    await trackSyncChange('saved_rig_preset', 'create', id, payload);
-    await refresh(activeUserId);
-    return id;
-  },
+      assertActiveUser();
+      if (!activeUserId) throw new Error('No active user selected.');
+      const ensured = await ensureSavedRigPreset({ ...payload, name: payload.name.trim(), userId: activeUserId });
+      if (!ensured.created) {
+        return ensured.id;
+      }
+      await trackSyncChange('saved_rig_preset', 'create', ensured.id, payload);
+      await refresh(activeUserId);
+      return ensured.id;
+    },
   deleteSavedRigPreset: async (presetId) => {
     await deleteSavedRigPreset(presetId);
     const startedAt = new Date().toISOString();
@@ -854,14 +860,16 @@ export const createStoreActions = ({
     await refresh(activeUserId);
   },
   addSavedRiver: async (name) => {
-    assertActiveUser();
-    if (!activeUserId) throw new Error('No active user selected.');
-    ensureUniqueSavedName(savedRivers, name, 'River');
-    const id = await createSavedRiver({ userId: activeUserId, name: name.trim() });
-    await trackSyncChange('saved_river', 'create', id, { name });
-    await refresh(activeUserId);
-    return id;
-  },
+      assertActiveUser();
+      if (!activeUserId) throw new Error('No active user selected.');
+      const ensured = await ensureSavedRiver({ userId: activeUserId, name: name.trim() });
+      if (!ensured.created) {
+        return ensured.id;
+      }
+      await trackSyncChange('saved_river', 'create', ensured.id, { name });
+      await refresh(activeUserId);
+      return ensured.id;
+    },
   createGroup: async (name) => {
     assertActiveUser();
     if (!activeUserId) throw new Error('No active user selected.');
@@ -1254,20 +1262,23 @@ export const createStoreActions = ({
     if (!sessionMap.has(payload.sessionId)) {
       throw new Error('Choose a valid session before saving an experiment.');
     }
-    const normalizedPayload = {
-      ...payload,
-      status:
-        payload.status === 'complete'
-          ? normalizeLegacyExperimentStatus({ ...(payload as any), id: 0, userId: activeUserId, archivedAt: undefined, legacyStatusMissing: false })
-          : payload.status
-    };
-    const id = await createExperiment({ ...normalizedPayload, userId: activeUserId });
-    await trackSyncChange('experiment', 'create', id, normalizedPayload);
-    if (options?.refresh !== false) {
-      await refresh();
-    }
-    return id;
-  },
+      const normalizedPayload = {
+        ...payload,
+        status:
+          payload.status === 'complete'
+            ? normalizeLegacyExperimentStatus({ ...(payload as any), id: 0, userId: activeUserId, archivedAt: undefined, legacyStatusMissing: false })
+            : payload.status
+      };
+      const ensured =
+        normalizedPayload.status === 'draft'
+          ? await ensureDraftExperiment({ ...normalizedPayload, userId: activeUserId })
+          : { id: await createExperiment({ ...normalizedPayload, userId: activeUserId }), created: true };
+      await trackSyncChange('experiment', ensured.created ? 'create' : 'update', ensured.id, normalizedPayload);
+      if (options?.refresh !== false) {
+        await refresh();
+      }
+      return ensured.id;
+    },
   updateExperimentEntry: async (experimentId, payload, options) => {
     assertActiveUser();
     if (!sessionMap.has(payload.sessionId)) {

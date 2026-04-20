@@ -262,41 +262,61 @@ create table if not exists public.experiments (
   unique (owner_auth_user_id, local_record_id)
 );
 
+create unique index if not exists idx_experiments_owner_session_active_draft
+  on public.experiments(owner_auth_user_id, session_id)
+  where status = 'draft' and archived_at is null;
+
 create table if not exists public.saved_flies (
   id uuid primary key default gen_random_uuid(),
   owner_auth_user_id uuid not null references public.profiles(id) on delete cascade,
   local_record_id bigint,
   payload_json jsonb not null,
+  normalized_name text,
   created_at timestamptz not null default now(),
   unique (owner_auth_user_id, local_record_id)
 );
+
+create unique index if not exists idx_saved_flies_owner_normalized_name
+  on public.saved_flies(owner_auth_user_id, normalized_name);
 
 create table if not exists public.saved_leader_formulas (
   id uuid primary key default gen_random_uuid(),
   owner_auth_user_id uuid not null references public.profiles(id) on delete cascade,
   local_record_id bigint,
   payload_json jsonb not null,
+  normalized_name text,
   created_at timestamptz not null default now(),
   unique (owner_auth_user_id, local_record_id)
 );
+
+create unique index if not exists idx_saved_leader_formulas_owner_normalized_name
+  on public.saved_leader_formulas(owner_auth_user_id, normalized_name);
 
 create table if not exists public.saved_rig_presets (
   id uuid primary key default gen_random_uuid(),
   owner_auth_user_id uuid not null references public.profiles(id) on delete cascade,
   local_record_id bigint,
   payload_json jsonb not null,
+  normalized_name text,
   created_at timestamptz not null default now(),
   unique (owner_auth_user_id, local_record_id)
 );
+
+create unique index if not exists idx_saved_rig_presets_owner_normalized_name
+  on public.saved_rig_presets(owner_auth_user_id, normalized_name);
 
 create table if not exists public.saved_rivers (
   id uuid primary key default gen_random_uuid(),
   owner_auth_user_id uuid not null references public.profiles(id) on delete cascade,
   local_record_id bigint,
   name text not null,
+  normalized_name text,
   created_at timestamptz not null default now(),
   unique (owner_auth_user_id, local_record_id)
 );
+
+create unique index if not exists idx_saved_rivers_owner_normalized_name
+  on public.saved_rivers(owner_auth_user_id, normalized_name);
 
 alter table public.profiles enable row level security;
 alter table public.groups enable row level security;

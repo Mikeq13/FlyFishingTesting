@@ -44,6 +44,14 @@ import { IntegritySummary } from '@/types/dataIntegrity';
 import { upsertSyncMetadataEntry } from '@/db/syncMetadataRepo';
 import { applySessionShareIds } from '@/utils/sessionSharing';
 import { formatSharedBackendError } from '@/utils/syncFeedback';
+import {
+  dedupeDraftExperimentsByIdentity,
+  dedupeSavedFliesByIdentity,
+  dedupeSavedLeaderFormulasByIdentity,
+  dedupeSavedRigPresetsByIdentity,
+  dedupeSavedRiversByIdentity,
+  dedupeSessionGroupSharesByIdentity
+} from '@/utils/dataIdentity';
 
 export type { UserDataCleanupCategory };
 
@@ -176,6 +184,35 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     });
     return [...map.values()];
   };
+
+  const canonicalizeDuplicateProneState = ({
+    sessionGroupShares,
+    allSessionGroupShares,
+    experiments,
+    allExperiments,
+    savedFlies,
+    savedLeaderFormulas,
+    savedRigPresets,
+    savedRivers
+  }: {
+    sessionGroupShares: SessionGroupShare[];
+    allSessionGroupShares: SessionGroupShare[];
+    experiments: Experiment[];
+    allExperiments: Experiment[];
+    savedFlies: SavedFly[];
+    savedLeaderFormulas: LeaderFormula[];
+    savedRigPresets: RigPreset[];
+    savedRivers: SavedRiver[];
+  }) => ({
+    sessionGroupShares: dedupeSessionGroupSharesByIdentity(sessionGroupShares),
+    allSessionGroupShares: dedupeSessionGroupSharesByIdentity(allSessionGroupShares),
+    experiments: dedupeDraftExperimentsByIdentity(experiments),
+    allExperiments: dedupeDraftExperimentsByIdentity(allExperiments),
+    savedFlies: dedupeSavedFliesByIdentity(savedFlies),
+    savedLeaderFormulas: dedupeSavedLeaderFormulasByIdentity(savedLeaderFormulas),
+    savedRigPresets: dedupeSavedRigPresetsByIdentity(savedRigPresets),
+    savedRivers: dedupeSavedRiversByIdentity(savedRivers)
+  });
 
   const suppressPendingDeletes = <T extends { id: number }>(
     records: T[],
@@ -478,6 +515,27 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     nextSavedLeaderFormulas = suppressPendingDeletes(nextSavedLeaderFormulas, loaded.syncQueue, ['saved_leader_formula']);
     nextSavedRigPresets = suppressPendingDeletes(nextSavedRigPresets, loaded.syncQueue, ['saved_rig_preset']);
     nextSavedRivers = suppressPendingDeletes(nextSavedRivers, loaded.syncQueue, ['saved_river']);
+
+    const canonicalizedState = canonicalizeDuplicateProneState({
+      sessionGroupShares: nextSessionGroupShares,
+      allSessionGroupShares: nextAllSessionGroupShares,
+      experiments: nextExperiments,
+      allExperiments: nextAllExperiments,
+      savedFlies: nextSavedFlies,
+      savedLeaderFormulas: nextSavedLeaderFormulas,
+      savedRigPresets: nextSavedRigPresets,
+      savedRivers: nextSavedRivers
+    });
+    nextSessionGroupShares = canonicalizedState.sessionGroupShares;
+    nextAllSessionGroupShares = canonicalizedState.allSessionGroupShares;
+    nextExperiments = canonicalizedState.experiments;
+    nextAllExperiments = canonicalizedState.allExperiments;
+    nextSavedFlies = canonicalizedState.savedFlies;
+    nextSavedLeaderFormulas = canonicalizedState.savedLeaderFormulas;
+    nextSavedRigPresets = canonicalizedState.savedRigPresets;
+    nextSavedRivers = canonicalizedState.savedRivers;
+    nextSessions = applySessionShareIds(nextSessions, nextSessionGroupShares);
+    nextAllSessions = applySessionShareIds(nextAllSessions, nextAllSessionGroupShares);
 
     setUsers(nextUsers);
     setSessions(nextSessions);

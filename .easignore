@@ -1,0 +1,11 @@
+.git
+node_modules
+.expo
+.vercel
+dist
+docs
+public
+supabase
+.env
+.env.local
+.env*.local
