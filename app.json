@@ -15,7 +15,8 @@
       "supportsTablet": true,
       "usesAppleSignIn": false,
       "infoPlist": {
-        "NSUserNotificationsUsageDescription": "Fishing Lab uses notifications for practice and competition reminders during beta testing."
+        "NSUserNotificationsUsageDescription": "Fishing Lab uses notifications for practice and competition reminders during beta testing.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -39,7 +40,13 @@
     "plugins": [
       "expo-dev-client",
       "expo-notifications",
-      "expo-sqlite"
-    ]
+      "expo-sqlite",
+      "expo-web-browser"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "582851fa-e3e8-40c3-8abd-5e4dea948600"
+      }
+    }
   }
 }
