@@ -50,9 +50,22 @@ Use this checklist before calling a build "trusted" for beta testing. The goal i
 - Light-surface consistency:
   Confirm cards, filter lists, modals, and inline summaries use the same surface hierarchy and do not fall back to legacy static colors.
 
+## Pre-Build Release Checks
+
+- Canonical repo:
+  Build only from `C:\dev\FlyFishingTesting` and confirm `git status` is clean before running EAS.
+- Theme guardrail:
+  Run `npm run check:theme-hardcoding` and confirm the only remaining raw color values live in `src/design/theme.ts`.
+- Supabase schema verification:
+  Run `supabase/verify_friend_beta_schema.sql` against the live project and confirm the normalized-name columns plus the duplicate-proofing indexes exist before tester builds.
+- Publishable key path:
+  Confirm local `.env.local` and any EAS build-time envs use `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, not the disabled legacy anon key.
+- Preview build target:
+  Use the `preview` profile for direct-install field testing unless TestFlight/App Store distribution is specifically needed.
 ## Sign-Off Notes
 
 - Build or commit tested:
 - Date tested:
 - Tester:
 - Pass / follow-up items:
+

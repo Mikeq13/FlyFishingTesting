@@ -62,6 +62,8 @@ type ThemeBackground = {
   topGlow: string;
   bottomGlow: string;
   texture: string;
+  textureBorderTop: string;
+  textureBorderBottom: string;
 };
 
 type ThemeLayout = {
@@ -178,7 +180,9 @@ export const themeRegistry: Record<ThemeId, AppTheme> = {
       overlay: 'rgba(7, 18, 26, 0.66)',
       topGlow: 'rgba(105, 184, 204, 0.08)',
       bottomGlow: 'rgba(45, 79, 109, 0.12)',
-      texture: 'rgba(255,255,255,0.018)'
+      texture: 'rgba(255,255,255,0.018)',
+      textureBorderTop: 'rgba(255,255,255,0.03)',
+      textureBorderBottom: 'rgba(255,255,255,0.02)'
     },
     layout: sharedLayout
   },
@@ -243,7 +247,9 @@ export const themeRegistry: Record<ThemeId, AppTheme> = {
       overlay: 'rgba(1, 6, 10, 0.82)',
       topGlow: 'rgba(125, 211, 252, 0.04)',
       bottomGlow: 'rgba(34, 197, 168, 0.06)',
-      texture: 'rgba(255,255,255,0.012)'
+      texture: 'rgba(255,255,255,0.012)',
+      textureBorderTop: 'rgba(255,255,255,0.03)',
+      textureBorderBottom: 'rgba(255,255,255,0.02)'
     },
     layout: sharedLayout
   },
@@ -308,7 +314,9 @@ export const themeRegistry: Record<ThemeId, AppTheme> = {
       overlay: 'rgba(236, 243, 247, 0.82)',
       topGlow: 'rgba(116, 177, 201, 0.08)',
       bottomGlow: 'rgba(70, 130, 156, 0.06)',
-      texture: 'rgba(255,255,255,0.0)'
+      texture: 'rgba(255,255,255,0.0)',
+      textureBorderTop: 'rgba(16,42,67,0.06)',
+      textureBorderBottom: 'rgba(16,42,67,0.04)'
     },
     layout: sharedLayout
   }
@@ -394,3 +402,4 @@ export const buttonBackground = (variant: ButtonVariant, disabled?: boolean) => 
 
 export const buttonTextColor = (variant: ButtonVariant) =>
   variant === 'ghost' ? appTheme.colors.ghostButtonText : appTheme.colors.buttonText;
+

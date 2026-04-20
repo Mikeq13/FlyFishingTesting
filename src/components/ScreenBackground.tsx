@@ -36,7 +36,16 @@ export const ScreenBackground = ({ children }: { children: React.ReactNode }) =>
           ]}
         />
         <View style={[styles.overlay, { backgroundColor: background.overlay }]} />
-        <View style={[styles.texture, { backgroundColor: background.texture }]} />
+        <View
+          style={[
+            styles.texture,
+            {
+              backgroundColor: background.texture,
+              borderTopColor: background.textureBorderTop,
+              borderBottomColor: background.textureBorderBottom
+            }
+          ]}
+        />
       </ImageBackground>
       <SafeAreaView edges={['top', 'bottom']} style={[styles.container, minHeight ? { minHeight } : null]}>
         {children}
@@ -101,9 +110,7 @@ const styles = StyleSheet.create({
   texture: {
     ...StyleSheet.absoluteFillObject,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.03)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.02)'
+    borderBottomWidth: 1
   },
   container: {
     flex: 1
