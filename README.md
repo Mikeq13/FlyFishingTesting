@@ -6,7 +6,7 @@ Use a local, untracked `.env.local` file for Expo client configuration:
 
 ```env
 EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 ```
 
 Important rules:
@@ -17,7 +17,8 @@ Important rules:
   - `app.json`
   - source files
   - any `EXPO_PUBLIC_*` variable
-- The Supabase anon key is expected to live in the client bundle. Security comes from Supabase Auth, strong RLS, and identity-backed ownership checks.
+- The Supabase publishable key is expected to live in the client bundle. Security comes from Supabase Auth, strong RLS, and identity-backed ownership checks.
+- After all clients are switched to the publishable key, keep the legacy `anon` key disabled.
 
 After changing `.env.local`, restart Expo with cache clear:
 
@@ -47,7 +48,7 @@ Before running native auth, sync, magic link, or shared-data tests, set real val
 
 ```env
 EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 ```
 
 Then restart Expo with cache clear:

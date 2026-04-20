@@ -651,7 +651,7 @@ export const createStoreActions = ({
   setActiveUserId: selectActiveUser,
   signInWithMagicLink: async (email) => {
     if (!hasSupabaseConfig) {
-      throw new Error('Supabase is not configured yet. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY first.');
+      throw new Error('Supabase is not configured yet. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY first.');
     }
     setAuthStatus('authenticating');
     try {
@@ -664,7 +664,7 @@ export const createStoreActions = ({
   },
   signUpWithPassword: async ({ email, password, name }) => {
     if (!hasSupabaseConfig) {
-      throw new Error('Supabase is not configured yet. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY first.');
+      throw new Error('Supabase is not configured yet. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY first.');
     }
     setAuthStatus('authenticating');
     try {
@@ -683,7 +683,7 @@ export const createStoreActions = ({
   },
   signInWithPassword: async ({ email, password }) => {
     if (!hasSupabaseConfig) {
-      throw new Error('Supabase is not configured yet. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY first.');
+      throw new Error('Supabase is not configured yet. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY first.');
     }
     setAuthStatus('authenticating');
     try {
