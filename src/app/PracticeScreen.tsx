@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { OptionChips } from '@/components/OptionChips';
@@ -55,8 +55,10 @@ export const PracticeScreen = ({ route, navigation }: any) => {
   const [pendingCatchFly, setPendingCatchFly] = useState<FlySetup | null>(null);
   const [pendingCatchSpecies, setPendingCatchSpecies] = useState<TroutSpecies | null>(null);
   const [pendingCatchLength, setPendingCatchLength] = useState('');
+  const [isSavingCatch, setIsSavingCatch] = useState(false);
   const [activeSetupSheet, setActiveSetupSheet] = useState<SetupSheetKey>(null);
   const [reviewPromptShown, setReviewPromptShown] = useState(false);
+  const catchSubmitLockedRef = useRef(false);
   const syncFeedback = remoteSession ? getPendingSyncFeedback(syncStatus, 'practice', 'practice') : null;
   const activeSegment = useMemo(
     () =>
@@ -220,23 +222,30 @@ export const PracticeScreen = ({ route, navigation }: any) => {
   };
 
   const confirmPracticeCatch = async () => {
-    if (!activeSegment || !pendingCatchFly || !pendingCatchSpecies) return;
+    if (catchSubmitLockedRef.current || !activeSegment || !pendingCatchFly || !pendingCatchSpecies) return;
+    catchSubmitLockedRef.current = true;
+    setIsSavingCatch(true);
     const parsedLength = Number(pendingCatchLength);
-    await addCatchEvent({
-      sessionId: session.id,
-      segmentId: activeSegment.id,
-      mode: 'practice',
-      flyName: pendingCatchFly.name,
-      flySnapshot: pendingCatchFly,
-      species: pendingCatchSpecies,
-      lengthValue:
-        session.practiceMeasurementEnabled && Number.isFinite(parsedLength) && parsedLength > 0 ? parsedLength : undefined,
-      lengthUnit: session.practiceLengthUnit ?? 'in',
-      caughtAt: new Date().toISOString()
-    });
-    setPendingCatchFly(null);
-    setPendingCatchSpecies(null);
-    setPendingCatchLength('');
+    try {
+      await addCatchEvent({
+        sessionId: session.id,
+        segmentId: activeSegment.id,
+        mode: 'practice',
+        flyName: pendingCatchFly.name,
+        flySnapshot: pendingCatchFly,
+        species: pendingCatchSpecies,
+        lengthValue:
+          session.practiceMeasurementEnabled && Number.isFinite(parsedLength) && parsedLength > 0 ? parsedLength : undefined,
+        lengthUnit: session.practiceLengthUnit ?? 'in',
+        caughtAt: new Date().toISOString()
+      });
+      setPendingCatchFly(null);
+      setPendingCatchSpecies(null);
+      setPendingCatchLength('');
+    } finally {
+      catchSubmitLockedRef.current = false;
+      setIsSavingCatch(false);
+    }
   };
 
   const endSessionEarly = () => {
@@ -553,7 +562,9 @@ export const PracticeScreen = ({ route, navigation }: any) => {
         selectedLength={pendingCatchLength}
         onSelectSpecies={setPendingCatchSpecies}
         onSelectLength={setPendingCatchLength}
+        isSubmitting={isSavingCatch}
         onCancel={() => {
+          if (isSavingCatch) return;
           setPendingCatchFly(null);
           setPendingCatchSpecies(null);
           setPendingCatchLength('');

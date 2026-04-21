@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { OptionChips } from '@/components/OptionChips';
@@ -35,6 +35,8 @@ export const CompetitionScreen = ({ route }: any) => {
   const [showCatchModal, setShowCatchModal] = useState(false);
   const [species, setSpecies] = useState<TroutSpecies>('Rainbow');
   const [lengthValue, setLengthValue] = useState('');
+  const [isSavingCatch, setIsSavingCatch] = useState(false);
+  const catchSubmitLockedRef = useRef(false);
   const syncFeedback = remoteSession ? getPendingSyncFeedback(syncStatus, 'competition', 'competition') : null;
   const competitionCatches = useMemo(
     () => catchEvents.filter((event) => event.sessionId === sessionId),
@@ -102,6 +104,9 @@ export const CompetitionScreen = ({ route }: any) => {
   }
 
   const logCompetitionCatch = async () => {
+    if (catchSubmitLockedRef.current) {
+      return;
+    }
     if (session.competitionRole === 'controlling') {
       return;
     }
@@ -112,16 +117,23 @@ export const CompetitionScreen = ({ route }: any) => {
       return;
     }
 
-    await addCatchEvent({
-      sessionId: session.id,
-      mode: 'competition',
-      species,
-      lengthValue: competitionRequiresMeasurement ? parsedLength : undefined,
-      lengthUnit: competitionLengthUnit,
-      caughtAt: new Date().toISOString()
-    });
-    setShowCatchModal(false);
-    setLengthValue('');
+    catchSubmitLockedRef.current = true;
+    setIsSavingCatch(true);
+    try {
+      await addCatchEvent({
+        sessionId: session.id,
+        mode: 'competition',
+        species,
+        lengthValue: competitionRequiresMeasurement ? parsedLength : undefined,
+        lengthUnit: competitionLengthUnit,
+        caughtAt: new Date().toISOString()
+      });
+      setShowCatchModal(false);
+      setLengthValue('');
+    } finally {
+      catchSubmitLockedRef.current = false;
+      setIsSavingCatch(false);
+    }
   };
 
   const endSessionEarly = () => {
@@ -268,15 +280,15 @@ export const CompetitionScreen = ({ route }: any) => {
           )}
           <ActionGroup direction="horizontal">
             <AppButton
-              label="Save Fish"
+              label={isSavingCatch ? 'Saving...' : 'Save Fish'}
               onPress={() => {
                 logCompetitionCatch().catch((error) => {
                   Alert.alert('Unable to save fish', formatSharedBackendError(error, 'competition'));
                 });
               }}
-              disabled={competitionRequiresMeasurement && !(Number.isFinite(Number(lengthValue)) && Number(lengthValue) >= (competitionLengthUnit === 'cm' ? 20 : 200))}
+              disabled={isSavingCatch || (competitionRequiresMeasurement && !(Number.isFinite(Number(lengthValue)) && Number(lengthValue) >= (competitionLengthUnit === 'cm' ? 20 : 200)))}
             />
-            <AppButton label="Cancel" onPress={() => setShowCatchModal(false)} variant="ghost" />
+            <AppButton label="Cancel" onPress={() => { if (!isSavingCatch) setShowCatchModal(false); }} variant="ghost" disabled={isSavingCatch} />
           </ActionGroup>
         </ModalSurface>
       </Modal>

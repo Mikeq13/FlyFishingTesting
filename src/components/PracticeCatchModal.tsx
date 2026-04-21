@@ -15,6 +15,7 @@ interface PracticeCatchModalProps {
   measurementEnabled?: boolean;
   lengthUnit?: CatchLengthUnit;
   selectedLength?: string;
+  isSubmitting?: boolean;
   onSelectSpecies: (species: TroutSpecies) => void;
   onSelectLength?: (value: string) => void;
   onCancel: () => void;
@@ -28,6 +29,7 @@ export const PracticeCatchModal = ({
   measurementEnabled = false,
   lengthUnit = 'in',
   selectedLength = '',
+  isSubmitting = false,
   onSelectSpecies,
   onSelectLength,
   onCancel,
@@ -77,10 +79,10 @@ export const PracticeCatchModal = ({
         ) : null}
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <View style={{ flex: 1 }}>
-            <AppButton label="Cancel" onPress={onCancel} variant="neutral" surfaceTone="modal" />
+            <AppButton label="Cancel" onPress={onCancel} variant="neutral" surfaceTone="modal" disabled={isSubmitting} />
           </View>
           <View style={{ flex: 1 }}>
-            <AppButton label="Save Catch" onPress={onConfirm} disabled={selectedSpecies === null} surfaceTone="modal" />
+            <AppButton label={isSubmitting ? 'Saving...' : 'Save Catch'} onPress={onConfirm} disabled={selectedSpecies === null || isSubmitting} surfaceTone="modal" />
           </View>
         </View>
     </ModalSurface>
