@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import { useTheme } from '@/design/theme';
+import { SurfaceTone, useTheme } from '@/design/theme';
 
 export const InlineSummaryRow = ({
   label,
@@ -11,15 +11,40 @@ export const InlineSummaryRow = ({
   label: string;
   value: string;
   valueMuted?: boolean;
-  tone?: 'dark' | 'light';
+  tone?: SurfaceTone;
 }) => {
   const { theme } = useTheme();
+  const useThemeElevatedPalette = tone === 'light' && theme.id !== 'daylight_light';
+  const labelColor =
+    tone === 'modal'
+      ? theme.colors.modalTextSoft
+      : tone === 'light'
+        ? useThemeElevatedPalette
+          ? theme.colors.textSoft
+          : theme.colors.textDarkSoft
+        : theme.colors.textSoft;
+  const valueColor =
+    tone === 'modal'
+      ? valueMuted
+        ? theme.colors.modalTextSoft
+        : theme.colors.modalText
+      : tone === 'light'
+        ? useThemeElevatedPalette
+          ? valueMuted
+            ? theme.colors.textSoft
+            : theme.colors.text
+          : valueMuted
+            ? theme.colors.textDarkSoft
+            : theme.colors.textDark
+        : valueMuted
+          ? theme.colors.textMuted
+          : theme.colors.text;
 
   return (
     <View style={{ gap: 2 }}>
       <Text
         style={{
-          color: tone === 'light' ? theme.colors.textDarkSoft : theme.colors.textSoft,
+          color: labelColor,
           fontWeight: '700'
         }}
       >
@@ -27,14 +52,7 @@ export const InlineSummaryRow = ({
       </Text>
       <Text
         style={{
-          color:
-            tone === 'light'
-              ? valueMuted
-                ? theme.colors.textDarkSoft
-                : theme.colors.textDark
-              : valueMuted
-                ? theme.colors.textMuted
-                : theme.colors.text,
+          color: valueColor,
           fontWeight: '600'
         }}
       >

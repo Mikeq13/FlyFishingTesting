@@ -26,6 +26,16 @@ import {
 
 const dedupeById = <T extends { id: number }>(records: T[]) => [...new Map(records.map((record) => [record.id, record])).values()];
 
+const describeRemoteSchemaDrift = (error: { code?: string; message?: string; details?: string | null; hint?: string | null }) => {
+  const detail = [error.message, error.details, error.hint].filter(Boolean).join(' | ');
+  return {
+    ...error,
+    message:
+      'Remote schema is out of date for shared bootstrap. Apply the pending Supabase experiments migration(s).' +
+      (detail ? ' ' + detail : '')
+  };
+};
+
 export const fetchRemoteSharedDataSnapshot = async (
   currentAuthUserId: string,
   accessSnapshot: RemoteAccessSnapshot
@@ -63,8 +73,13 @@ export const fetchRemoteSharedDataSnapshot = async (
     savedRigPresetsResponse,
     savedRiversResponse
   ];
-  const error = responses.find((response) => response.error)?.error;
-  if (error) throw error;
+const error = responses.find((response) => response.error)?.error;
+  if (error) {
+    if (error.code === '42703' && error.message?.includes('experiments.')) {
+      throw describeRemoteSchemaDrift(error);
+    }
+    throw error;
+  }
 
   const sessionRows = sessionsResponse.data ?? [];
   const sessionGroupShareRows = sessionGroupSharesResponse.data ?? [];
@@ -235,3 +250,5 @@ export const fetchRemoteSharedDataSnapshot = async (
     ]
   };
 };
+
+

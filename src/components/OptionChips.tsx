@@ -1,22 +1,24 @@
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { useTheme } from '@/design/theme';
+import { SurfaceTone, useTheme } from '@/design/theme';
 
 interface OptionChipsProps<T extends string> {
   label: string;
   options: readonly T[];
   value?: T | null;
   onChange: (value: T) => void;
-  tone?: 'dark' | 'light';
+  tone?: SurfaceTone;
   disabled?: boolean;
 }
 
 export const OptionChips = <T extends string>({ label, options, value, onChange, tone = 'dark', disabled = false }: OptionChipsProps<T>) => {
   const { theme } = useTheme();
+  const useThemeElevatedPalette = tone === 'light' && theme.id !== 'daylight_light';
+  const labelColor = tone === 'light' ? (useThemeElevatedPalette ? theme.colors.text : theme.colors.textDark) : tone === 'modal' ? theme.colors.modalText : theme.colors.text;
 
   return (
     <View style={{ gap: 8 }}>
-      <Text style={{ color: tone === 'light' ? theme.colors.textDark : theme.colors.text, fontWeight: '800' }}>{label}</Text>
+      <Text style={{ color: labelColor, fontWeight: '800' }}>{label}</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         {options.map((option, index) => (
           <Pressable

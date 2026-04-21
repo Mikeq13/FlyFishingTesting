@@ -40,14 +40,36 @@ where table_schema = 'public'
   and (
     (table_name = 'sessions' and column_name = 'starting_technique')
     or (table_name = 'session_segments' and column_name = 'technique')
+    or (table_name = 'experiments' and column_name = 'control_focus')
     or (table_name = 'experiments' and column_name = 'technique')
     or (table_name = 'experiments' and column_name = 'water_type')
+    or (table_name = 'experiments' and column_name = 'rig_setup_json')
+    or (table_name = 'experiments' and column_name = 'fly_entries_json')
+    or (table_name = 'experiments' and column_name = 'outcome')
+    or (table_name = 'experiments' and column_name = 'status')
+    or (table_name = 'experiments' and column_name = 'archived_at')
     or (table_name = 'saved_flies' and column_name = 'normalized_name')
     or (table_name = 'saved_leader_formulas' and column_name = 'normalized_name')
     or (table_name = 'saved_rig_presets' and column_name = 'normalized_name')
     or (table_name = 'saved_rivers' and column_name = 'normalized_name')
   )
 order by table_name, column_name;
+
+select column_name, data_type
+from information_schema.columns
+where table_schema = 'public'
+  and table_name = 'experiments'
+  and column_name in (
+    'control_focus',
+    'water_type',
+    'technique',
+    'rig_setup_json',
+    'fly_entries_json',
+    'outcome',
+    'status',
+    'archived_at'
+  )
+order by column_name;
 
 select indexname, indexdef
 from pg_indexes

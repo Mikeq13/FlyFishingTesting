@@ -24,6 +24,11 @@ const TROUT_SPECIES: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow',
 export const CompetitionScreen = ({ route }: any) => {
   const { theme } = useTheme();
   const layout = useResponsiveLayout();
+  const isDaylightTheme = theme.id === 'daylight_light';
+  const elevatedTextColor = isDaylightTheme ? theme.colors.textDark : theme.colors.text;
+  const elevatedSoftTextColor = isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft;
+  const elevatedNestedSurface = isDaylightTheme ? theme.colors.nestedSurface : theme.colors.surface;
+  const elevatedNestedBorder = isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.borderStrong;
   const sessionId = route?.params?.sessionId as number;
   const { sessions, allSessions, catchEvents, allCatchEvents, users, competitionAssignments, competitionGroups, competitionSessions, addCatchEvent, updateSessionEntry, upsertCompetitionAssignment, notificationPermissionStatus, remoteSession, syncStatus } = useAppStore();
   const session = sessions.find((candidate) => candidate.id === sessionId) ?? null;
@@ -183,13 +188,14 @@ export const CompetitionScreen = ({ route }: any) => {
           {competitionRequiresMeasurement ? (
             <InlineSummaryRow label="Total Length" value={`${Math.round(totalLengthDisplay)} ${competitionLengthUnit}`} tone="light" />
           ) : (
-            <Text style={{ color: theme.colors.textDarkSoft }}>This session is counting fish only. No length entry required.</Text>
+            <Text style={{ color: elevatedSoftTextColor }}>This session is counting fish only. No length entry required.</Text>
           )}
           <AppButton
             label={session.competitionRole === 'controlling' ? 'Controlling This Session' : 'Log Competition Fish'}
             onPress={() => setShowCatchModal(true)}
             disabled={timer.hasEnded || session.competitionRole === 'controlling'}
             variant="tertiary"
+            surfaceTone="light"
           />
         </SectionCard>
 
@@ -199,15 +205,15 @@ export const CompetitionScreen = ({ route }: any) => {
                     <View
                       key={row.assignment.id}
                       style={{
-                        backgroundColor: theme.colors.nestedSurface,
+                        backgroundColor: elevatedNestedSurface,
                         borderRadius: theme.radius.md,
                         padding: 12,
                         gap: 4,
                         borderWidth: 1,
-                        borderColor: theme.colors.nestedSurfaceBorder
+                        borderColor: elevatedNestedBorder
                       }}
                     >
-                <Text style={{ color: theme.colors.textDark, fontWeight: '800' }}>{row.name}</Text>
+                <Text style={{ color: elevatedTextColor, fontWeight: '800' }}>{row.name}</Text>
                 <InlineSummaryRow label="Result" value={row.status === 'controlling' ? 'Controlling' : `${row.fishCount} fish`} tone="light" />
                 {session.competitionRequiresMeasurement && row.status !== 'controlling' ? (
                   <InlineSummaryRow label="Measured Length" value={`${Math.round(row.totalLength)} ${competitionLengthUnit}`} tone="light" />
@@ -222,10 +228,10 @@ export const CompetitionScreen = ({ route }: any) => {
 
         <SectionCard title="Catch Times" subtitle="Each logged fish stays easy to verify by time and measurement." tone="light">
           {!competitionCatches.length ? (
-            <Text style={{ color: theme.colors.textDarkSoft }}>No competition fish logged yet.</Text>
+            <Text style={{ color: elevatedSoftTextColor }}>No competition fish logged yet.</Text>
           ) : (
             competitionCatches.map((event) => (
-              <Text key={event.id} style={{ color: theme.colors.textDarkSoft }}>
+              <Text key={event.id} style={{ color: elevatedSoftTextColor }}>
                 {new Date(event.caughtAt).toLocaleTimeString()} - {event.species || 'Fish'}
                 {event.lengthValue ? ` - ${event.lengthValue} ${event.lengthUnit}` : ''}
               </Text>

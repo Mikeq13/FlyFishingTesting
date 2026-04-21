@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, TextStyle, View, ViewStyle } from 'react-native';
-import { AppTheme, appTheme, useTheme } from '@/design/theme';
+import { AppTheme, appTheme, SurfaceTone, useTheme } from '@/design/theme';
 
 export const getFormInputStyle = (themeOverride?: AppTheme): ViewStyle & TextStyle => {
   const resolvedTheme = themeOverride ?? appTheme;
@@ -25,18 +25,21 @@ export const FormField = ({
   label: string;
   helper?: string | null;
   error?: string | null;
-  tone?: 'dark' | 'light';
+  tone?: SurfaceTone;
   children: React.ReactNode;
 }) => {
   const { theme } = useTheme();
+  const useThemeElevatedPalette = tone === 'light' && theme.id !== 'daylight_light';
+  const labelColor = tone === 'modal' ? theme.colors.modalText : tone === 'light' ? (useThemeElevatedPalette ? theme.colors.text : theme.colors.textDark) : theme.colors.text;
+  const helperColor = tone === 'modal' ? theme.colors.modalTextSoft : tone === 'light' ? (useThemeElevatedPalette ? theme.colors.textSoft : theme.colors.textDarkSoft) : theme.colors.textSoft;
 
   return (
     <View style={{ gap: theme.spacing.xs }}>
-      <Text style={{ color: tone === 'light' ? theme.colors.textDark : theme.colors.text, fontWeight: '800' }}>{label}</Text>
+      <Text style={{ color: labelColor, fontWeight: '800' }}>{label}</Text>
       {children}
       {error ? <Text style={{ color: theme.colors.errorText }}>{error}</Text> : null}
       {!error && helper ? (
-        <Text style={{ color: tone === 'light' ? theme.colors.textDarkSoft : theme.colors.textSoft, lineHeight: 19 }}>
+        <Text style={{ color: helperColor, lineHeight: 19 }}>
           {helper}
         </Text>
       ) : null}

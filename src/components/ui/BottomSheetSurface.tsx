@@ -32,7 +32,7 @@ export const BottomSheetSurface = ({
           borderTopLeftRadius: theme.radius.xl,
           borderTopRightRadius: theme.radius.xl,
           borderWidth: 1,
-          borderColor: theme.colors.borderStrong,
+          borderColor: theme.colors.modalBorder,
           padding: theme.spacing.lg,
           paddingBottom: theme.spacing.xl,
           backgroundColor: theme.colors.modalSurface,
@@ -46,13 +46,13 @@ export const BottomSheetSurface = ({
             width: 48,
             height: 4,
             borderRadius: theme.radius.pill,
-            backgroundColor: theme.colors.borderStrong,
+            backgroundColor: theme.colors.modalBorder,
             alignSelf: 'center'
           }}
         />
         <View style={{ gap: theme.spacing.xs }}>
-          <Text style={{ fontWeight: '800', fontSize: 20, color: theme.colors.textDark }}>{title}</Text>
-          {subtitle ? <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>{subtitle}</Text> : null}
+          <Text style={{ fontWeight: '800', fontSize: 20, color: theme.colors.modalText }}>{title}</Text>
+          {subtitle ? <Text style={{ color: theme.colors.modalTextSoft, lineHeight: 20 }}>{subtitle}</Text> : null}
         </View>
         {children}
       </View>

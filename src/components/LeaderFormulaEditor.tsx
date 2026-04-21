@@ -3,13 +3,14 @@ import { Text, TextInput, View } from 'react-native';
 import { LeaderFormulaSection } from '@/types/rig';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { AppButton } from '@/components/ui/AppButton';
-import { useTheme } from '@/design/theme';
+import { SurfaceTone, useTheme } from '@/design/theme';
 
 interface LeaderFormulaEditorProps {
   onSave: (payload: { name: string; sections: LeaderFormulaSection[] }) => Promise<void>;
+  tone?: SurfaceTone;
 }
 
-export const LeaderFormulaEditor = ({ onSave }: LeaderFormulaEditorProps) => {
+export const LeaderFormulaEditor = ({ onSave, tone = 'light' }: LeaderFormulaEditorProps) => {
   const { theme } = useTheme();
   const [name, setName] = useState('');
   const [sections, setSections] = useState<LeaderFormulaSection[]>([
@@ -24,13 +25,13 @@ export const LeaderFormulaEditor = ({ onSave }: LeaderFormulaEditorProps) => {
   );
 
   return (
-    <SectionCard title="Save Leader" subtitle="Save the mono formula from fly line to tippet ring without leaving the current flow." tone="light">
+    <SectionCard title="Save Leader" subtitle="Save the mono formula from fly line to tippet ring without leaving the current flow." tone={tone}>
       <TextInput
         value={name}
         onChangeText={setName}
         placeholder="Leader name"
         placeholderTextColor={theme.colors.inputPlaceholder}
-        style={{ borderWidth: 1, borderColor: theme.colors.borderStrong, padding: 12, borderRadius: theme.radius.md, backgroundColor: theme.colors.inputBg, color: theme.colors.textDark }}
+        style={{ borderWidth: 1, borderColor: tone === 'modal' ? theme.colors.modalNestedBorder : theme.colors.borderStrong, padding: 12, borderRadius: theme.radius.md, backgroundColor: theme.colors.inputBg, color: theme.colors.inputText }}
       />
 
       {sections.map((section, index) => (
@@ -72,6 +73,7 @@ export const LeaderFormulaEditor = ({ onSave }: LeaderFormulaEditorProps) => {
               label="Remove Section"
               onPress={() => setSections((current) => current.filter((_, entryIndex) => entryIndex !== index).map((entry, entryIndex) => ({ ...entry, order: entryIndex })))}
               variant="danger"
+              surfaceTone={tone}
             />
           ) : null}
         </View>
@@ -83,12 +85,14 @@ export const LeaderFormulaEditor = ({ onSave }: LeaderFormulaEditorProps) => {
           setSections((current) => [...current, { order: current.length, materialLabel: '', lengthFeet: 0 }])
         }
         variant="secondary"
+        surfaceTone={tone}
       />
 
       <AppButton
         label="Save Leader"
         onPress={() => onSave({ name: name.trim(), sections: sections.map((section, index) => ({ ...section, order: index })) })}
         disabled={!canSave}
+        surfaceTone={tone}
       />
     </SectionCard>
   );

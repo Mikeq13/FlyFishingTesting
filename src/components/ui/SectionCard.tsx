@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import { useTheme } from '@/design/theme';
+import { SurfaceTone, useTheme } from '@/design/theme';
 
 export const SectionCard = ({
   title,
@@ -10,27 +10,34 @@ export const SectionCard = ({
 }: {
   title?: string;
   subtitle?: string;
-  tone?: 'dark' | 'light';
+  tone?: SurfaceTone;
   children: React.ReactNode;
 }) => {
   const { theme } = useTheme();
+  const isModalTone = tone === 'modal';
+  const isLightTone = tone === 'light';
+  const useThemeElevatedPalette = isLightTone && theme.id !== 'daylight_light';
+  const backgroundColor = tone === 'dark' ? theme.colors.surface : isModalTone ? theme.colors.modalSurfaceAlt : useThemeElevatedPalette ? theme.colors.surfaceAlt : theme.colors.surfaceLight;
+  const borderColor = tone === 'dark' ? theme.colors.border : isModalTone ? theme.colors.modalNestedBorder : useThemeElevatedPalette ? theme.colors.borderStrong : theme.colors.borderLight;
+  const titleColor = tone === 'dark' ? theme.colors.text : isModalTone ? theme.colors.modalText : useThemeElevatedPalette ? theme.colors.text : theme.colors.textDark;
+  const subtitleColor = tone === 'dark' ? theme.colors.textMuted : isModalTone ? theme.colors.modalTextSoft : useThemeElevatedPalette ? theme.colors.textSoft : theme.colors.textDarkSoft;
 
   return (
     <View
       style={{
         gap: theme.spacing.sm,
-        backgroundColor: tone === 'dark' ? theme.colors.surface : theme.colors.surfaceLight,
+        backgroundColor,
         borderRadius: theme.radius.lg,
         padding: theme.spacing.lg,
         borderWidth: 1,
-        borderColor: tone === 'dark' ? theme.colors.border : theme.colors.borderLight
+        borderColor
       }}
     >
       {title ? (
         <View style={{ gap: theme.spacing.xs }}>
           <Text
             style={{
-              color: tone === 'dark' ? theme.colors.text : theme.colors.textDark,
+              color: titleColor,
               fontWeight: '800',
               fontSize: 18
             }}
@@ -38,7 +45,7 @@ export const SectionCard = ({
             {title}
           </Text>
           {subtitle ? (
-            <Text style={{ color: tone === 'dark' ? theme.colors.textMuted : theme.colors.textDarkSoft, lineHeight: 20 }}>
+            <Text style={{ color: subtitleColor, lineHeight: 20 }}>
               {subtitle}
             </Text>
           ) : null}

@@ -4,6 +4,7 @@ import { OptionChips } from '@/components/OptionChips';
 import { DEPTH_RANGES, MONTHS, TECHNIQUES, WATER_TYPES } from '@/constants/options';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { AppButton } from '@/components/ui/AppButton';
+import { SelectableListPanel } from '@/components/ui/SelectableListPanel';
 import { useTheme } from '@/design/theme';
 
 interface InsightsFilterPanelProps {
@@ -101,49 +102,31 @@ export const InsightsFilterPanel = ({
     {!!riverOptions.length && (
       <>
         <AppButton label={showRiverChoices ? 'Hide Rivers' : 'Choose River'} onPress={onToggleRiverChoices} variant="secondary" />
-        {showRiverChoices && (
-          <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: theme.colors.borderStrong, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceLight }}>
-            <Pressable onPress={onClearRiver} style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.borderLight }}>
-              <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>All rivers</Text>
-            </Pressable>
-            {riverOptions.map((river) => (
-              <Pressable
-                key={river}
-                onPress={() => onSelectRiver(river)}
-                style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.borderLight }}
-              >
-                <Text style={{ color: theme.colors.textDark, fontWeight: '600' }}>{river}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        )}
+        {showRiverChoices ? (
+          <SelectableListPanel
+            items={[
+              { key: '__all_rivers__', label: 'All rivers', onPress: onClearRiver },
+              ...riverOptions.map((river) => ({ key: river, label: river, onPress: () => onSelectRiver(river) }))
+            ]}
+          />
+        ) : null}
       </>
     )}
 
     {hypothesisOptions.length > 1 && (
       <View style={{ gap: 6 }}>
         <AppButton label={showHypothesisChoices ? 'Hide Experiment Questions' : 'Choose Experiment Question'} onPress={onToggleHypothesisChoices} variant="secondary" />
-        {showHypothesisChoices && (
-          <ScrollView style={{ maxHeight: 220, borderWidth: 1, borderColor: theme.colors.borderStrong, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceLight }}>
-            <Pressable
-              onPress={onClearHypothesis}
-              style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.borderLight }}
-            >
-              <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>All experiment questions</Text>
-            </Pressable>
-            {hypothesisOptions
-              .filter((option) => option !== 'All')
-              .map((option) => (
-                <Pressable
-                  key={option}
-                  onPress={() => onSelectHypothesis(option)}
-                  style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.borderLight }}
-                >
-                  <Text style={{ color: theme.colors.textDark, fontWeight: '600' }}>{option}</Text>
-                </Pressable>
-              ))}
-          </ScrollView>
-        )}
+        {showHypothesisChoices ? (
+          <SelectableListPanel
+            maxHeight={220}
+            items={[
+              { key: '__all_hypotheses__', label: 'All experiment questions', onPress: onClearHypothesis },
+              ...hypothesisOptions
+                .filter((option) => option !== 'All')
+                .map((option) => ({ key: option, label: option, onPress: () => onSelectHypothesis(option) }))
+            ]}
+          />
+        ) : null}
         <Text style={{ color: theme.colors.textSoft }}>
           Selected experiment question: {hypothesisFilter || 'All experiment questions'}
         </Text>
@@ -187,29 +170,21 @@ export const InsightsFilterPanel = ({
           onPress={onToggleFlyChoices}
           variant="secondary"
         />
-        {showFlyChoices && (
-          <ScrollView style={{ maxHeight: 220, borderWidth: 1, borderColor: theme.colors.borderStrong, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceLight }}>
-            <Pressable
-              onPress={onClearFly}
-              style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.borderLight }}
-            >
-              <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>
-                {flyFilterMode === 'exact' ? 'All detailed flies' : 'All fly patterns'}
-              </Text>
-            </Pressable>
-            {(flyFilterMode === 'exact' ? exactFlyOptions : flyOptions)
-              .filter((option) => option !== 'All')
-              .map((option) => (
-                <Pressable
-                  key={option}
-                  onPress={() => onSelectFly(option)}
-                  style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.borderLight }}
-                >
-                  <Text style={{ color: theme.colors.textDark, fontWeight: '600' }}>{option}</Text>
-                </Pressable>
-              ))}
-          </ScrollView>
-        )}
+        {showFlyChoices ? (
+          <SelectableListPanel
+            maxHeight={220}
+            items={[
+              {
+                key: '__all_flies__',
+                label: flyFilterMode === 'exact' ? 'All detailed flies' : 'All fly patterns',
+                onPress: onClearFly
+              },
+              ...(flyFilterMode === 'exact' ? exactFlyOptions : flyOptions)
+                .filter((option) => option !== 'All')
+                .map((option) => ({ key: option, label: option, onPress: () => onSelectFly(option) }))
+            ]}
+          />
+        ) : null}
         <Text style={{ color: theme.colors.textSoft }}>
           {flyFilterMode === 'exact'
             ? `Selected detailed fly: ${flyFilter || 'All detailed flies'}`

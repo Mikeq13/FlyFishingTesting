@@ -36,6 +36,7 @@ export const HomeScreen = ({ navigation }: any) => {
   const { currentHasPremiumAccess, currentUser, remoteSession } = useAppStore();
   const { theme } = useTheme();
   const layout = useResponsiveLayout();
+  const isDaylightTheme = theme.id === 'daylight_light';
   const [showSessionChooser, setShowSessionChooser] = React.useState(false);
   const shouldCenterContent = Platform.OS !== 'web' && !layout.isCompactLayout;
   const contentContainerStyle = layout.buildScrollContentStyle({
@@ -100,8 +101,8 @@ export const HomeScreen = ({ navigation }: any) => {
             }}
           >
             <View style={{ gap: 4 }}>
-              <Text style={{ color: theme.colors.textDark, fontSize: 24, fontWeight: '800' }}>What are you doing today?</Text>
-              <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+              <Text style={{ color: theme.colors.modalText, fontSize: 24, fontWeight: '800' }}>What are you doing today?</Text>
+              <Text style={{ color: theme.colors.modalTextSoft, lineHeight: 20 }}>
                 Choose the session style that best matches today’s water and how you want to log intel.
               </Text>
             </View>
@@ -111,20 +112,20 @@ export const HomeScreen = ({ navigation }: any) => {
                 key={option.mode}
                 onPress={() => beginSession(option.mode)}
                 style={{
-                backgroundColor: theme.colors.nestedSurface,
+                backgroundColor: isDaylightTheme ? theme.colors.nestedSurface : theme.colors.modalNestedSurface,
                 borderRadius: 16,
                 padding: 14,
                 borderWidth: 1,
-                borderColor: theme.colors.nestedSurfaceBorder,
+                borderColor: isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.modalNestedBorder,
                 gap: 4
               }}
               >
-                <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 17 }}>{option.title}</Text>
-                <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 19 }}>{option.description}</Text>
+                <Text style={{ color: isDaylightTheme ? theme.colors.textDark : theme.colors.modalText, fontWeight: '800', fontSize: 17 }}>{option.title}</Text>
+                <Text style={{ color: isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.modalTextSoft, lineHeight: 19 }}>{option.description}</Text>
               </Pressable>
             ))}
 
-            <AppButton label="Cancel" onPress={() => setShowSessionChooser(false)} variant="ghost" />
+            <AppButton label="Cancel" onPress={() => setShowSessionChooser(false)} variant="ghost" surfaceTone="modal" />
           </View>
         </View>
       </Modal>

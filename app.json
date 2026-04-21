@@ -1,52 +1,47 @@
 {
-  "expo": {
-    "name": "Fishing Lab",
-    "slug": "fishing-lab",
-    "scheme": "fishinglab",
-    "version": "1.0.0",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "orientation": "default",
-    "userInterfaceStyle": "light",
-    "ios": {
-      "bundleIdentifier": "com.fishinglab.app",
-      "buildNumber": "1",
-      "supportsTablet": true,
-      "usesAppleSignIn": false,
-      "infoPlist": {
-        "NSUserNotificationsUsageDescription": "Fishing Lab uses notifications for practice and competition reminders during beta testing.",
-        "ITSAppUsesNonExemptEncryption": false
-      }
-    },
-    "android": {
-      "package": "com.fishinglab.app",
-      "versionCode": 1,
-      "permissions": [
-        "android.permission.POST_NOTIFICATIONS",
-        "android.permission.VIBRATE"
-      ]
-    },
-    "web": {
-      "name": "Fishing Lab",
-      "shortName": "Fish Lab",
-      "description": "A Fly Fishing Journal designed to help you improve with insights and coaching.",
-      "display": "standalone",
-      "startUrl": "/",
-      "orientation": "any",
-      "themeColor": "#0b3d5c",
-      "backgroundColor": "#08161f"
-    },
-    "plugins": [
-      "expo-dev-client",
-      "expo-notifications",
-      "expo-sqlite",
-      "expo-web-browser"
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "582851fa-e3e8-40c3-8abd-5e4dea948600"
-      }
-    }
-  }
+    "expo":  {
+                 "name":  "Fishing Lab",
+                 "slug":  "fishing-lab",
+                 "scheme":  "fishinglab",
+                 "version":  "1.0.0",
+                 "orientation":  "default",
+                 "userInterfaceStyle":  "light",
+                 "ios":  {
+                             "bundleIdentifier":  "com.fishinglab.app",
+                             "supportsTablet":  true,
+                             "usesAppleSignIn":  false,
+                             "infoPlist":  {
+                                               "NSUserNotificationsUsageDescription":  "Fishing Lab uses notifications for practice and competition reminders during beta testing.",
+                                               "ITSAppUsesNonExemptEncryption":  false
+                                           }
+                         },
+                 "android":  {
+                                 "package":  "com.fishinglab.app",
+                                 "permissions":  [
+                                                     "android.permission.POST_NOTIFICATIONS",
+                                                     "android.permission.VIBRATE"
+                                                 ]
+                             },
+                 "web":  {
+                             "name":  "Fishing Lab",
+                             "shortName":  "Fish Lab",
+                             "description":  "A Fly Fishing Journal designed to help you improve with insights and coaching.",
+                             "display":  "standalone",
+                             "startUrl":  "/",
+                             "orientation":  "any",
+                             "themeColor":  "#0b3d5c",
+                             "backgroundColor":  "#08161f"
+                         },
+                 "plugins":  [
+                                 "expo-dev-client",
+                                 "expo-notifications",
+                                 "expo-sqlite",
+                                 "expo-web-browser"
+                             ],
+                 "extra":  {
+                               "eas":  {
+                                           "projectId":  "582851fa-e3e8-40c3-8abd-5e4dea948600"
+                                       }
+                           }
+             }
 }

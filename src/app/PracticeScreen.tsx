@@ -408,7 +408,7 @@ export const PracticeScreen = ({ route }: any) => {
         >
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 12 }}>
             {activeSetupSheet === 'technique' ? (
-              <SectionCard title="Technique" subtitle="Use the same active session and switch methods without leaving the water flow." tone="light">
+              <SectionCard title="Technique" subtitle="Use the same active session and switch methods without leaving the water flow." tone="modal">
                 <OptionChips
                   label="Technique"
                   options={TECHNIQUES}
@@ -418,7 +418,7 @@ export const PracticeScreen = ({ route }: any) => {
                       Alert.alert('Unable to change technique', formatSharedBackendError(error, 'practice'));
                     });
                   }}
-                  tone="light"
+                  tone="modal"
                 />
               </SectionCard>
             ) : null}
@@ -429,7 +429,7 @@ export const PracticeScreen = ({ route }: any) => {
                 flyCount={currentRigSetup.assignments.length}
                 editMode="leader"
                 forceEditorOpen
-                tone="light"
+                tone="modal"
                 foregroundQuickAdd
                 savedLeaderFormulas={savedLeaderFormulas}
                 savedRigPresets={savedRigPresets}
@@ -465,7 +465,7 @@ export const PracticeScreen = ({ route }: any) => {
                 }}
                 editMode="rig"
                 forceEditorOpen
-                tone="light"
+                tone="modal"
                 foregroundQuickAdd
                 savedLeaderFormulas={savedLeaderFormulas}
                 savedRigPresets={savedRigPresets}
@@ -496,7 +496,7 @@ export const PracticeScreen = ({ route }: any) => {
                   });
                 }}
                 onCreateFly={saveFlyToLibrary}
-                tone="light"
+                tone="modal"
                 editorOnly
                 foregroundQuickAdd
               />

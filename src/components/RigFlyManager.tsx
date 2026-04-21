@@ -7,7 +7,7 @@ import { clearRigAssignmentFly, createEmptyFly, getRigPositionsForCount, replace
 import { OptionChips } from './OptionChips';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { AppButton } from '@/components/ui/AppButton';
-import { useTheme } from '@/design/theme';
+import { SurfaceTone, useTheme } from '@/design/theme';
 import { ModalSurface } from '@/components/ui/ModalSurface';
 
 const sameFly = (left: FlySetup, right: FlySetup) =>
@@ -28,7 +28,7 @@ interface RigFlyManagerProps {
   savedFlies: SavedFly[];
   onChange: (nextRigSetup: RigSetup) => void;
   onCreateFly: (fly: FlySetup) => Promise<void>;
-  tone?: 'dark' | 'light';
+  tone?: SurfaceTone;
   editorOnly?: boolean;
   foregroundQuickAdd?: boolean;
 }
@@ -54,6 +54,13 @@ export const RigFlyManager = ({
   const allowedPositions = getRigPositionsForCount(selectedAssignments.length || 1);
   const previousSignature = useRef(`${selectedAssignments.length}:${selectedAssignments.map((assignment) => assignment.fly.name).join('|')}`);
   const isLightTone = tone === 'light';
+  const isModalTone = tone === 'modal';
+  const primaryTextColor = isLightTone ? theme.colors.textDark : isModalTone ? theme.colors.modalText : theme.colors.text;
+  const secondaryTextColor = isLightTone ? theme.colors.textDarkSoft : isModalTone ? theme.colors.modalTextSoft : theme.colors.textSoft;
+  const listBackground = isModalTone ? theme.colors.modalSurfaceAlt : theme.colors.surfaceLight;
+  const listBorder = isModalTone ? theme.colors.modalNestedBorder : theme.colors.borderStrong;
+  const nestedBackground = isLightTone ? theme.colors.nestedSurface : isModalTone ? theme.colors.modalNestedSurface : theme.colors.surfaceMuted;
+  const nestedBorder = isLightTone ? theme.colors.nestedSurfaceBorder : isModalTone ? theme.colors.modalNestedBorder : 'transparent';
 
   useEffect(() => {
     const currentSignature = `${selectedAssignments.length}:${selectedAssignments.map((assignment) => assignment.fly.name).join('|')}`;
@@ -72,8 +79,12 @@ export const RigFlyManager = ({
 
   const openChooserForIndex = (index: number) => {
     setTargetAssignmentIndex(index);
-    setShowSavedFlyList(true);
     setShowAddFly(false);
+    if (foregroundQuickAdd) {
+      setShowSavedFlyList(false);
+      return;
+    }
+    setShowSavedFlyList(true);
   };
 
   const assignFlyAtIndex = (index: number, fly: FlySetup) => {
@@ -89,6 +100,11 @@ export const RigFlyManager = ({
     setDraftFly(createEmptyFly());
   };
 
+  const closeForegroundPicker = () => {
+    setTargetAssignmentIndex(null);
+    setShowSavedFlyList(false);
+  };
+
   const renderAssignmentCard = (assignment: RigFlyAssignment, index: number) => (
     <View
       key={`assignment-${assignment.position}-${assignment.fly.name || 'empty'}-${index}`}
@@ -96,15 +112,15 @@ export const RigFlyManager = ({
         gap: 8,
         borderRadius: theme.radius.md,
         padding: 10,
-        backgroundColor: isLightTone ? theme.colors.nestedSurface : theme.colors.surfaceMuted,
+        backgroundColor: nestedBackground,
         borderWidth: isLightTone ? 1 : 0,
-        borderColor: isLightTone ? theme.colors.nestedSurfaceBorder : 'transparent'
+        borderColor: nestedBorder
       }}
     >
-      <Text style={{ color: isLightTone ? theme.colors.textDark : theme.colors.text, fontWeight: '700' }}>
+      <Text style={{ color: primaryTextColor, fontWeight: '700' }}>
         {assignment.position}
       </Text>
-      <Text style={{ color: isLightTone ? theme.colors.textDarkSoft : theme.colors.textSoft }}>
+      <Text style={{ color: secondaryTextColor }}>
         {assignment.fly.name.trim()
           ? `${assignment.fly.name} #${assignment.fly.hookSize} | ${assignment.fly.beadColor} | ${assignment.fly.beadSizeMm}`
           : 'No fly selected yet'}
@@ -113,7 +129,7 @@ export const RigFlyManager = ({
         label="Fly Position"
         options={allowedPositions}
         value={assignment.position}
-        tone={isLightTone ? 'light' : 'dark'}
+        tone={tone}
         onChange={(value) =>
           onChange(
             syncRigAssignments(
@@ -128,20 +144,20 @@ export const RigFlyManager = ({
           label={assignment.fly.name.trim() ? 'Choose Existing Fly' : 'Choose Existing Fly'}
           onPress={() => openChooserForIndex(index)}
           variant="tertiary"
-          surfaceTone={isLightTone ? 'light' : 'dark'}
+          surfaceTone={tone}
         />
         <AppButton
           label={assignment.fly.name.trim() ? 'Quick Add Replacement' : 'Quick Add Fly'}
           onPress={() => openQuickAddForIndex(index)}
           variant="secondary"
-          surfaceTone={isLightTone ? 'light' : 'dark'}
+          surfaceTone={tone}
         />
         {assignment.fly.name.trim() ? (
-          <AppButton label="Clear Fly" onPress={() => onChange(clearRigAssignmentFly(rigSetup, index))} variant="danger" surfaceTone={isLightTone ? 'light' : 'dark'} />
+          <AppButton label="Clear Fly" onPress={() => onChange(clearRigAssignmentFly(rigSetup, index))} variant="danger" surfaceTone={tone} />
         ) : null}
       </View>
       {targetAssignmentIndex === index ? (
-        <Text style={{ color: isLightTone ? theme.colors.textDarkSoft : theme.colors.textSoft }}>
+        <Text style={{ color: secondaryTextColor }}>
           {showAddFly ? 'Build a fly for this slot in the foreground editor.' : 'Choose a saved fly for this slot below.'}
         </Text>
       ) : null}
@@ -153,9 +169,9 @@ export const RigFlyManager = ({
       {!editorOnly && !showFlyManager && selectedAssignments.length ? (
         <View style={{ gap: 8 }}>
           {selectedAssignments.map((assignment, index) => (
-            <View key={`summary-${assignment.position}-${assignment.fly.name || 'empty'}-${index}`} style={{ gap: 6, borderRadius: theme.radius.md, padding: 10, backgroundColor: isLightTone ? theme.colors.nestedSurface : theme.colors.surfaceMuted, borderWidth: isLightTone ? 1 : 0, borderColor: isLightTone ? theme.colors.nestedSurfaceBorder : 'transparent' }}>
-              <Text style={{ color: isLightTone ? theme.colors.textDark : theme.colors.text, fontWeight: '700' }}>{assignment.position}</Text>
-              <Text style={{ color: isLightTone ? theme.colors.textDarkSoft : theme.colors.textSoft }}>
+            <View key={`summary-${assignment.position}-${assignment.fly.name || 'empty'}-${index}`} style={{ gap: 6, borderRadius: theme.radius.md, padding: 10, backgroundColor: nestedBackground, borderWidth: isLightTone ? 1 : 0, borderColor: nestedBorder }}>
+              <Text style={{ color: primaryTextColor, fontWeight: '700' }}>{assignment.position}</Text>
+              <Text style={{ color: secondaryTextColor }}>
                 {assignment.fly.name.trim()
                   ? `${assignment.fly.name} #${assignment.fly.hookSize} | ${assignment.fly.beadColor} | ${assignment.fly.beadSizeMm}`
                   : 'No fly selected yet'}
@@ -167,7 +183,7 @@ export const RigFlyManager = ({
                   openChooserForIndex(index);
                 }}
                 variant="ghost"
-                surfaceTone={isLightTone ? 'light' : 'dark'}
+                surfaceTone={tone}
               />
             </View>
           ))}
@@ -176,15 +192,15 @@ export const RigFlyManager = ({
 
       {showFlyManager ? (
         <>
-      <Text style={{ color: isLightTone ? theme.colors.textDark : theme.colors.textMuted, fontWeight: '700' }}>
+      <Text style={{ color: tone === 'dark' ? theme.colors.textMuted : secondaryTextColor, fontWeight: '700' }}>
         Current Flies
       </Text>
       {!selectedAssignments.length ? (
-        <Text style={{ color: isLightTone ? theme.colors.textDarkSoft : theme.colors.textSoft }}>No flies selected for this rig yet.</Text>
+        <Text style={{ color: secondaryTextColor }}>No flies selected for this rig yet.</Text>
       ) : (
         selectedAssignments.map((assignment, index) => renderAssignmentCard(assignment, index))
       )}
-      {!!sortedSavedFlies.length && targetAssignmentIndex !== null ? (
+      {!foregroundQuickAdd && !!sortedSavedFlies.length && targetAssignmentIndex !== null ? (
         <>
           {!editorOnly ? (
             <AppButton
@@ -194,11 +210,11 @@ export const RigFlyManager = ({
                 if (!showSavedFlyList) setShowAddFly(false);
               }}
               variant="secondary"
-              surfaceTone={isLightTone ? 'light' : 'dark'}
+              surfaceTone={tone}
             />
           ) : null}
           {showSavedFlyList ? (
-            <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: theme.colors.borderStrong, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceLight }}>
+            <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: listBorder, borderRadius: theme.radius.md, backgroundColor: listBackground }}>
               {sortedSavedFlies.map((savedFly) => {
                 const selected = selectedAssignments.some((assignment) => sameFly(assignment.fly, savedFly));
                 return (
@@ -217,6 +233,24 @@ export const RigFlyManager = ({
             </ScrollView>
           ) : null}
         </>
+      ) : null}
+
+      {!foregroundQuickAdd && !sortedSavedFlies.length && targetAssignmentIndex !== null && !showAddFly ? (
+        <View
+          style={{
+            gap: 6,
+            borderRadius: theme.radius.md,
+            padding: 12,
+            backgroundColor: theme.colors.surfaceLight,
+            borderWidth: 1,
+            borderColor: theme.colors.borderStrong
+          }}
+        >
+          <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>No saved flies for this angler yet</Text>
+          <Text style={{ color: theme.colors.textDarkSoft }}>
+            Build a fly for this slot in the foreground editor, then save it to the current angler&apos;s library when you want to reuse it later.
+          </Text>
+        </View>
       ) : null}
 
       {targetAssignmentIndex !== null && showAddFly && !foregroundQuickAdd ? (
@@ -246,11 +280,12 @@ export const RigFlyManager = ({
             }
           }}
           confirmLabel="Use This Fly"
+          tone={tone}
         />
       ) : null}
 
       {!editorOnly && selectedAssignments.some((assignment) => assignment.fly.name.trim()) ? (
-        <AppButton label="Hide Fly Details" onPress={() => setShowFlyManager(false)} variant="ghost" surfaceTone={isLightTone ? 'light' : 'dark'} />
+        <AppButton label="Hide Fly Details" onPress={() => setShowFlyManager(false)} variant="ghost" surfaceTone={tone} />
       ) : null}
         </>
       ) : null}
@@ -287,8 +322,80 @@ export const RigFlyManager = ({
               }
             }}
             confirmLabel="Use This Fly"
+            tone="modal"
           />
-          <AppButton label="Cancel" onPress={() => setShowAddFly(false)} variant="ghost" surfaceTone="light" />
+          <AppButton label="Cancel" onPress={() => setShowAddFly(false)} variant="ghost" surfaceTone="modal" />
+        </ModalSurface>
+      </Modal>
+      <Modal visible={targetAssignmentIndex !== null && !showAddFly && foregroundQuickAdd} transparent animationType="fade" onRequestClose={closeForegroundPicker}>
+        <ModalSurface
+          title={`Choose Existing Fly For ${targetAssignmentIndex !== null ? selectedAssignments[targetAssignmentIndex]?.position ?? 'Slot' : 'Slot'}`}
+          subtitle="Pick from the current angler's saved flies, or quick-add a new one without leaving this setup flow."
+        >
+          {sortedSavedFlies.length ? (
+            <ScrollView
+              style={{
+                maxHeight: 260,
+                borderWidth: 1,
+                borderColor: theme.colors.modalNestedBorder,
+                borderRadius: theme.radius.md,
+                backgroundColor: theme.colors.modalSurfaceAlt
+              }}
+            >
+              {sortedSavedFlies.map((savedFly, index) => {
+                const selected = selectedAssignments.some((assignment) => sameFly(assignment.fly, savedFly));
+                return (
+                  <Pressable
+                    key={savedFly.id}
+                    onPress={() => {
+                      if (targetAssignmentIndex !== null) {
+                        assignFlyAtIndex(targetAssignmentIndex, { ...savedFly });
+                      }
+                    }}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 12,
+                      borderBottomWidth: index === sortedSavedFlies.length - 1 ? 0 : 1,
+                      borderBottomColor: theme.colors.borderLight,
+                      backgroundColor: selected ? theme.colors.chipSelectedBg : 'transparent'
+                    }}
+                  >
+                    <Text style={{ color: primaryTextColor, fontWeight: '700' }}>{savedFly.name}</Text>
+                    <Text style={{ color: secondaryTextColor, fontSize: 12 }}>
+                      {savedFly.bugFamily} | {savedFly.bugStage} | #{savedFly.hookSize} | {savedFly.beadColor}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          ) : (
+            <View
+              style={{
+                gap: 8,
+                borderRadius: theme.radius.md,
+                padding: 12,
+                backgroundColor: theme.colors.modalSurfaceAlt,
+                borderWidth: 1,
+                borderColor: theme.colors.modalNestedBorder
+              }}
+            >
+              <Text style={{ color: theme.colors.modalText, fontWeight: '700' }}>No saved flies for this angler yet</Text>
+              <Text style={{ color: theme.colors.modalTextSoft }}>
+                This picker only shows the current angler&apos;s personal fly library. Quick-add a fly below if you want to use one now.
+              </Text>
+            </View>
+          )}
+          <AppButton
+            label={selectedAssignments[targetAssignmentIndex ?? 0]?.fly.name.trim() ? 'Quick Add Replacement' : 'Quick Add Fly'}
+            onPress={() => {
+              if (targetAssignmentIndex !== null) {
+                openQuickAddForIndex(targetAssignmentIndex);
+              }
+            }}
+            variant="secondary"
+            surfaceTone="modal"
+          />
+          <AppButton label="Cancel" onPress={closeForegroundPicker} variant="ghost" surfaceTone="modal" />
         </ModalSurface>
       </Modal>
     </SectionCard>

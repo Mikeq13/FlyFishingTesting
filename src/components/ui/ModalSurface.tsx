@@ -21,7 +21,7 @@ export const ModalSurface = ({
         style={{
           gap: theme.spacing.md,
           borderWidth: 1,
-          borderColor: theme.colors.borderStrong,
+          borderColor: theme.colors.modalBorder,
           borderRadius: theme.radius.xl,
           padding: theme.spacing.lg,
           backgroundColor: theme.colors.modalSurface,
@@ -31,8 +31,8 @@ export const ModalSurface = ({
         }}
       >
         <View style={{ gap: theme.spacing.xs }}>
-          <Text style={{ fontWeight: '800', fontSize: 20, color: theme.colors.textDark }}>{title}</Text>
-          {subtitle ? <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>{subtitle}</Text> : null}
+          <Text style={{ fontWeight: '800', fontSize: 20, color: theme.colors.modalText }}>{title}</Text>
+          {subtitle ? <Text style={{ color: theme.colors.modalTextSoft, lineHeight: 20 }}>{subtitle}</Text> : null}
         </View>
         {children}
       </View>

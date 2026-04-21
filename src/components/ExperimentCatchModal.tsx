@@ -39,43 +39,43 @@ export const ExperimentCatchModal = ({
     >
 
         <View style={{ gap: 8 }}>
-          <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>Species</Text>
+          <Text style={{ color: theme.colors.modalText, fontWeight: '700' }}>Species</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {TROUT_SPECIES_OPTIONS.map((species) => (
               <Pressable
                 key={species}
                 onPress={() => onSelectSpecies(species)}
                 style={{
-                  backgroundColor: selectedSpecies === species ? theme.colors.primary : theme.colors.surfaceMuted,
+                  backgroundColor: selectedSpecies === species ? theme.colors.primary : theme.colors.modalSurfaceAlt,
                   paddingVertical: 10,
                   paddingHorizontal: 12,
                   borderRadius: theme.radius.md,
                   borderWidth: 1,
-                  borderColor: selectedSpecies === species ? theme.colors.borderStrong : theme.colors.borderLight
+                  borderColor: selectedSpecies === species ? theme.colors.modalBorder : theme.colors.modalNestedBorder
                 }}
               >
-                <Text style={{ color: selectedSpecies === species ? theme.colors.buttonText : theme.colors.textDark, fontWeight: '700' }}>{species}</Text>
+                <Text style={{ color: selectedSpecies === species ? theme.colors.buttonText : theme.colors.modalText, fontWeight: '700' }}>{species}</Text>
               </Pressable>
             ))}
           </View>
         </View>
 
         <View style={{ gap: 8 }}>
-          <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>Length</Text>
+          <Text style={{ color: theme.colors.modalText, fontWeight: '700' }}>Length</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {FISH_SIZE_OPTIONS.map((size) => (
               <Pressable
                 key={size}
                 onPress={() => onSelectSize(size)}
                 style={{
-                  backgroundColor: selectedSize === size ? theme.colors.secondary : theme.colors.surfaceMuted,
+                  backgroundColor: selectedSize === size ? theme.colors.secondary : theme.colors.modalSurfaceAlt,
                   paddingVertical: 10,
                   paddingHorizontal: 12,
                   borderRadius: theme.radius.md,
                   minWidth: 58
                 }}
               >
-                <Text style={{ color: selectedSize === size ? theme.colors.buttonText : theme.colors.textDark, textAlign: 'center', fontWeight: '700' }}>{size}"</Text>
+                <Text style={{ color: selectedSize === size ? theme.colors.buttonText : theme.colors.modalText, textAlign: 'center', fontWeight: '700' }}>{size}"</Text>
               </Pressable>
             ))}
           </View>
@@ -83,10 +83,10 @@ export const ExperimentCatchModal = ({
 
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <View style={{ flex: 1 }}>
-            <AppButton label="Cancel" onPress={onCancel} variant="neutral" />
+            <AppButton label="Cancel" onPress={onCancel} variant="neutral" surfaceTone="modal" />
           </View>
           <View style={{ flex: 1 }}>
-            <AppButton label="Save Catch" onPress={onConfirm} disabled={selectedSpecies === null} />
+            <AppButton label="Save Catch" onPress={onConfirm} disabled={selectedSpecies === null} surfaceTone="modal" />
           </View>
         </View>
     </ModalSurface>

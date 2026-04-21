@@ -191,13 +191,13 @@ export const PracticeSetupSection = ({
         >
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 12 }}>
             {activeSetupSheet === 'technique' ? (
-              <SectionCard title="Technique" subtitle="Keep approach changes fast and obvious before you adjust the rest of the setup." tone="light">
+              <SectionCard title="Technique" subtitle="Keep approach changes fast and obvious before you adjust the rest of the setup." tone="modal">
                 <OptionChips
                   label="Technique"
                   options={TECHNIQUES}
                   value={technique ?? null}
                   onChange={(value) => onTechniqueChange(value as Technique)}
-                  tone="light"
+                  tone="modal"
                 />
               </SectionCard>
             ) : null}
@@ -208,7 +208,7 @@ export const PracticeSetupSection = ({
                 flyCount={rigSetup.assignments.length}
                 editMode="leader"
                 forceEditorOpen
-                tone="light"
+                tone="modal"
                 foregroundQuickAdd
                 savedLeaderFormulas={savedLeaderFormulas}
                 savedRigPresets={savedRigPresets}
@@ -228,7 +228,7 @@ export const PracticeSetupSection = ({
                 onFlyCountChange={onFlyCountChange}
                 editMode="rig"
                 forceEditorOpen
-                tone="light"
+                tone="modal"
                 foregroundQuickAdd
                 savedLeaderFormulas={savedLeaderFormulas}
                 savedRigPresets={savedRigPresets}
@@ -247,7 +247,7 @@ export const PracticeSetupSection = ({
                 savedFlies={savedFlies}
                 onChange={onRigSetupChange}
                 onCreateFly={onCreateFly}
-                tone="light"
+                tone="modal"
                 editorOnly
                 foregroundQuickAdd
               />

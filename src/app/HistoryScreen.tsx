@@ -11,6 +11,7 @@ import { SectionCard } from '@/components/ui/SectionCard';
 import { AppButton } from '@/components/ui/AppButton';
 import { StatusBanner } from '@/components/ui/StatusBanner';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
+import { SelectableListPanel } from '@/components/ui/SelectableListPanel';
 import { useTheme } from '@/design/theme';
 import { useResponsiveLayout } from '@/design/layout';
 import { getFormInputStyle } from '@/components/ui/FormField';
@@ -20,6 +21,9 @@ import { deriveExperimentStatus } from '@/engine/experimentStatus';
 export const HistoryScreen = ({ navigation, route }: any) => {
   const { theme } = useTheme();
   const layout = useResponsiveLayout();
+  const isDaylightTheme = theme.id === 'daylight_light';
+  const elevatedTextColor = isDaylightTheme ? theme.colors.textDark : theme.colors.text;
+  const elevatedSoftTextColor = isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft;
   const { sessions, experiments, catchEvents, sessionSegments, users, activeUserId, archiveExperiment, deleteExperiment, deleteSessionRecord, cleanupExperimentsForCurrentUser, cleanupSyncStatus, getSyncRecordState, getExperimentIntegrity, getSessionIntegrity } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
   const initialModeFilter = route?.params?.modeFilter;
@@ -199,25 +203,28 @@ export const HistoryScreen = ({ navigation, route }: any) => {
           {!!riverOptions.length && (
             <>
               <AppButton label={showRiverChoices ? 'Hide Rivers' : 'Choose River'} onPress={() => setShowRiverChoices((current) => !current)} variant="secondary" />
-              {showRiverChoices && (
-                <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: theme.colors.borderStrong, borderRadius: theme.radius.md, backgroundColor: theme.colors.surfaceLight }}>
-                  <Pressable onPress={() => { setRiverFilter(''); setShowRiverChoices(false); }} style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.borderLight }}>
-                    <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>All rivers</Text>
-                  </Pressable>
-                  {riverOptions.map((river) => (
-                    <Pressable
-                      key={river}
-                      onPress={() => {
+              {showRiverChoices ? (
+                <SelectableListPanel
+                  items={[
+                    {
+                      key: '__all_rivers__',
+                      label: 'All rivers',
+                      onPress: () => {
+                        setRiverFilter('');
+                        setShowRiverChoices(false);
+                      }
+                    },
+                    ...riverOptions.map((river) => ({
+                      key: river,
+                      label: river,
+                      onPress: () => {
                         setRiverFilter(river);
                         setShowRiverChoices(false);
-                      }}
-                      style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.borderLight }}
-                    >
-                      <Text style={{ color: theme.colors.textDark, fontWeight: '600' }}>{river}</Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              )}
+                      }
+                    }))
+                  ]}
+                />
+              ) : null}
             </>
           )}
           <OptionChips label="Month" options={MONTHS} value={monthFilter || null} onChange={setMonthFilter} />
@@ -253,7 +260,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                   borderColor: cleanupOutcome === outcome ? theme.colors.primary : theme.colors.border
                 }}
               >
-                <Text style={{ color: cleanupOutcome === outcome ? theme.colors.buttonText : theme.colors.textDark, fontWeight: '700', textTransform: 'capitalize' }}>{outcome}</Text>
+                <Text style={{ color: cleanupOutcome === outcome ? theme.colors.buttonText : elevatedTextColor, fontWeight: '700', textTransform: 'capitalize' }}>{outcome}</Text>
               </Pressable>
             ))}
           </View>
@@ -272,11 +279,11 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                   borderColor: cleanupAction === action ? theme.colors.danger : theme.colors.border
                 }}
               >
-                <Text style={{ color: cleanupAction === action ? theme.colors.buttonText : theme.colors.textDark, fontWeight: '700', textAlign: 'center', textTransform: 'capitalize' }}>{action}</Text>
+                <Text style={{ color: cleanupAction === action ? theme.colors.buttonText : elevatedTextColor, fontWeight: '700', textAlign: 'center', textTransform: 'capitalize' }}>{action}</Text>
               </Pressable>
             ))}
           </View>
-          <Text style={{ color: theme.colors.textDarkSoft }}>Matching experiments: {cleanupCount}</Text>
+          <Text style={{ color: elevatedSoftTextColor }}>Matching experiments: {cleanupCount}</Text>
           <AppButton label={cleanupAction === 'archive' ? 'Archive Filtered Experiments' : 'Delete Filtered Experiments'} onPress={runCleanup} disabled={!cleanupCount} variant="danger" />
         </SectionCard>
 
@@ -306,7 +313,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
 
             {!!sessionExperiments.length && (
               <View style={{ marginTop: 4, gap: 4 }}>
-                <Text style={{ fontWeight: '700', color: theme.colors.textDark }}>Experiment history</Text>
+                <Text style={{ fontWeight: '700', color: elevatedTextColor }}>Experiment history</Text>
                 {sessionExperiments.map((experiment) => {
                   const cleanupState = getSyncRecordState('experiment', experiment.id);
                   const isCleanupPending = cleanupState === 'pending_delete';
@@ -338,11 +345,11 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                       {isCleanupFailed ? <InlineSummaryRow label="Cleanup" value="Delete needs retry" tone="light" /> : null}
                       <InlineSummaryRow label="Outcome" value={comparisonStatus.outcome} tone="light" />
                       <InlineSummaryRow label="Winner" value={comparisonStatus.winner} tone="light" />
-                      <Text style={{ color: theme.colors.textDarkSoft }}>{comparisonStatus.comparison.summary}</Text>
-                      <Text style={{ color: theme.colors.textDarkSoft }}>Flies: {entries.map((entry) => `${entry.fly.name || entry.label} (#${entry.fly.hookSize}, ${entry.fly.beadColor}, ${entry.fly.beadSizeMm})`).join(', ')}</Text>
-                      <Text style={{ color: theme.colors.textDarkSoft }}>Catch rate: {experimentRate.toFixed(1)}%</Text>
+                      <Text style={{ color: elevatedSoftTextColor }}>{comparisonStatus.comparison.summary}</Text>
+                      <Text style={{ color: elevatedSoftTextColor }}>Flies: {entries.map((entry) => `${entry.fly.name || entry.label} (#${entry.fly.hookSize}, ${entry.fly.beadColor}, ${entry.fly.beadSizeMm})`).join(', ')}</Text>
+                      <Text style={{ color: elevatedSoftTextColor }}>Catch rate: {experimentRate.toFixed(1)}%</Text>
                       {entries.some((entry) => entry.fishSizesInches.length) ? (
-                        <Text style={{ color: theme.colors.textDarkSoft }}>
+                        <Text style={{ color: elevatedSoftTextColor }}>
                           Fish log: {entries
                             .flatMap((entry) =>
                               entry.fishSizesInches.map(
@@ -354,19 +361,19 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                       ) : null}
                       <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
                         <View style={{ flex: 1 }}>
-                          <AppButton label="Edit" onPress={() => navigation.navigate('Experiment', { sessionId: session.id, experimentId: experiment.id })} variant="secondary" disabled={isCleanupPending} />
+                          <AppButton label="Edit" onPress={() => navigation.navigate('Experiment', { sessionId: session.id, experimentId: experiment.id })} variant="secondary" disabled={isCleanupPending} surfaceTone="light" />
                         </View>
                         {experiment.status !== 'draft' ? (
                           <View style={{ flex: 1 }}>
-                            <AppButton label={isCleanupPending ? 'Archiving...' : 'Archive'} onPress={() => runSingleExperimentCleanup(experiment.id, 'archive')} variant="neutral" disabled={isCleanupPending} />
+                            <AppButton label={isCleanupPending ? 'Archiving...' : 'Archive'} onPress={() => runSingleExperimentCleanup(experiment.id, 'archive')} variant="neutral" disabled={isCleanupPending} surfaceTone="light" />
                           </View>
                         ) : null}
                         <View style={{ flex: 1 }}>
-                          <AppButton label={isCleanupPending ? 'Deleting...' : isCleanupFailed ? 'Retry Delete' : experiment.status === 'draft' ? 'Delete Incomplete' : 'Delete'} onPress={() => runSingleExperimentCleanup(experiment.id, 'delete')} variant="danger" disabled={isCleanupPending} />
+                          <AppButton label={isCleanupPending ? 'Deleting...' : isCleanupFailed ? 'Retry Delete' : experiment.status === 'draft' ? 'Delete Incomplete' : 'Delete'} onPress={() => runSingleExperimentCleanup(experiment.id, 'delete')} variant="danger" disabled={isCleanupPending} surfaceTone="light" />
                         </View>
                       </View>
                       {experiment.status === 'draft' ? (
-                        <Text style={{ color: theme.colors.textDarkSoft, marginTop: 6 }}>
+                        <Text style={{ color: elevatedSoftTextColor, marginTop: 6 }}>
                           Incomplete entries can be edited if you remember the missing details, or removed if they are no longer useful.
                         </Text>
                       ) : null}
@@ -405,8 +412,8 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                 <InlineSummaryRow label="Hypothesis" value={experiment.hypothesis || 'No saved hypothesis'} tone="light" />
                 <InlineSummaryRow label="Technique" value={experiment.technique ?? 'Technique not set'} tone="light" />
                 <InlineSummaryRow label="Status" value={integrity.label} tone="light" />
-                {integrity.reason ? <Text style={{ color: theme.colors.textDarkSoft }}>{integrity.reason}</Text> : null}
-                <Text style={{ color: theme.colors.textDarkSoft }}>
+                {integrity.reason ? <Text style={{ color: elevatedSoftTextColor }}>{integrity.reason}</Text> : null}
+                <Text style={{ color: elevatedSoftTextColor }}>
                   Flies: {entries.map((entry) => entry.fly.name || entry.label).join(', ')}
                 </Text>
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
@@ -452,9 +459,9 @@ export const HistoryScreen = ({ navigation, route }: any) => {
             >
               <InlineSummaryRow label="Session" value={new Date(session.date).toLocaleString()} tone="light" />
               <InlineSummaryRow label="Status" value={getSessionIntegrity(session.id).label} tone="light" />
-              {getSessionIntegrity(session.id).reason ? (
-                <Text style={{ color: theme.colors.textDarkSoft }}>{getSessionIntegrity(session.id).reason}</Text>
-              ) : null}
+                {getSessionIntegrity(session.id).reason ? (
+                <Text style={{ color: elevatedSoftTextColor }}>{getSessionIntegrity(session.id).reason}</Text>
+                ) : null}
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
                 <View style={{ flex: 1 }}>
                   <AppButton
@@ -466,10 +473,11 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                       navigation.navigate('Session', { sessionId: session.id, resumeSource: 'history' });
                     }}
                     variant="secondary"
+                    surfaceTone="light"
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <AppButton label="Delete Session" onPress={() => runProblemSessionCleanup(session.id)} variant="danger" />
+                  <AppButton label="Delete Session" onPress={() => runProblemSessionCleanup(session.id)} variant="danger" surfaceTone="light" />
                 </View>
               </View>
             </View>

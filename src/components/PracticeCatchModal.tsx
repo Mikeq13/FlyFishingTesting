@@ -42,45 +42,45 @@ export const PracticeCatchModal = ({
       subtitle="Choose the trout species. The app will timestamp the catch automatically for catch-rate insights later."
     >
         <View style={{ gap: 8 }}>
-          <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>Species</Text>
+          <Text style={{ color: theme.colors.modalText, fontWeight: '700' }}>Species</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {TROUT_SPECIES_OPTIONS.map((species) => (
               <Pressable
                 key={species}
                 onPress={() => onSelectSpecies(species)}
                 style={{
-                  backgroundColor: selectedSpecies === species ? theme.colors.primary : theme.colors.surfaceMuted,
+                  backgroundColor: selectedSpecies === species ? theme.colors.primary : theme.colors.modalSurfaceAlt,
                   paddingVertical: 10,
                   paddingHorizontal: 12,
                   borderRadius: theme.radius.md,
                   borderWidth: 1,
-                  borderColor: selectedSpecies === species ? theme.colors.borderStrong : theme.colors.borderLight
+                  borderColor: selectedSpecies === species ? theme.colors.modalBorder : theme.colors.modalNestedBorder
                 }}
               >
-                <Text style={{ color: selectedSpecies === species ? theme.colors.buttonText : theme.colors.textDark, fontWeight: '700' }}>{species}</Text>
+                <Text style={{ color: selectedSpecies === species ? theme.colors.buttonText : theme.colors.modalText, fontWeight: '700' }}>{species}</Text>
               </Pressable>
             ))}
           </View>
         </View>
         {measurementEnabled ? (
           <View style={{ gap: 8 }}>
-            <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>Optional length ({lengthUnit})</Text>
+            <Text style={{ color: theme.colors.modalText, fontWeight: '700' }}>Optional length ({lengthUnit})</Text>
             <TextInput
               value={selectedLength}
               onChangeText={onSelectLength}
               keyboardType="decimal-pad"
               placeholder={`Length in ${lengthUnit}`}
               placeholderTextColor={theme.colors.inputPlaceholder}
-              style={{ borderWidth: 1, borderColor: theme.colors.borderStrong, padding: 12, borderRadius: theme.radius.md, backgroundColor: theme.colors.inputBg, color: theme.colors.textDark }}
+              style={{ borderWidth: 1, borderColor: theme.colors.modalNestedBorder, padding: 12, borderRadius: theme.radius.md, backgroundColor: theme.colors.inputBg, color: theme.colors.inputText }}
             />
           </View>
         ) : null}
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <View style={{ flex: 1 }}>
-            <AppButton label="Cancel" onPress={onCancel} variant="neutral" />
+            <AppButton label="Cancel" onPress={onCancel} variant="neutral" surfaceTone="modal" />
           </View>
           <View style={{ flex: 1 }}>
-            <AppButton label="Save Catch" onPress={onConfirm} disabled={selectedSpecies === null} />
+            <AppButton label="Save Catch" onPress={onConfirm} disabled={selectedSpecies === null} surfaceTone="modal" />
           </View>
         </View>
     </ModalSurface>

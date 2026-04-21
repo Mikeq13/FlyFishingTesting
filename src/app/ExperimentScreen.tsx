@@ -935,7 +935,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         >
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 12 }}>
             {activeSetupSheet === 'technique' ? (
-              <SectionCard title="Technique" subtitle="Switch methods without losing your place in the experiment." tone="light">
+              <SectionCard title="Technique" subtitle="Switch methods without losing your place in the experiment." tone="modal">
                 <OptionChips
                   label="Technique"
                   options={TECHNIQUES}
@@ -943,7 +943,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                   onChange={(value) => {
                     void updateTechnique(value as Technique);
                   }}
-                  tone="light"
+                  tone="modal"
                 />
               </SectionCard>
             ) : null}
@@ -954,7 +954,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                 flyCount={visibleEntries.length}
                 editMode="leader"
                 forceEditorOpen
-                tone="light"
+                tone="modal"
                 foregroundQuickAdd
                 savedLeaderFormulas={savedLeaderFormulas}
                 savedRigPresets={savedRigPresets}
@@ -997,7 +997,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                 }}
                 editMode="rig"
                 forceEditorOpen
-                tone="light"
+                tone="modal"
                 foregroundQuickAdd
                 savedLeaderFormulas={savedLeaderFormulas}
                 savedRigPresets={savedRigPresets}
@@ -1036,7 +1036,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                 title="Flies"
                 rigSetup={rigSetup}
                 savedFlies={savedFlies}
-                tone="light"
+                tone="modal"
                 editorOnly
                 foregroundQuickAdd
                 onChange={(nextRigSetup) => {

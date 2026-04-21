@@ -3,6 +3,7 @@ import { getAppSetting, setAppSetting } from '@/db/settingsRepo';
 
 export type ThemeId = 'default_professional' | 'high_contrast' | 'daylight_light';
 export type ButtonVariant = 'primary' | 'secondary' | 'tertiary' | 'neutral' | 'danger' | 'ghost';
+export type SurfaceTone = 'dark' | 'light' | 'modal';
 
 type ThemeColors = {
   bg: string;
@@ -49,6 +50,12 @@ type ThemeColors = {
   buttonText: string;
   ghostButtonText: string;
   modalSurface: string;
+  modalSurfaceAlt: string;
+  modalBorder: string;
+  modalText: string;
+  modalTextSoft: string;
+  modalNestedSurface: string;
+  modalNestedBorder: string;
   nestedSurface: string;
   nestedSurfaceBorder: string;
   texture: string;
@@ -166,7 +173,13 @@ export const themeRegistry: Record<ThemeId, AppTheme> = {
       inputPlaceholder: '#516776',
       buttonText: '#f8fcff',
       ghostButtonText: '#f8fcff',
-      modalSurface: 'rgba(247,252,254,0.98)',
+      modalSurface: 'rgba(12, 26, 38, 0.98)',
+      modalSurfaceAlt: 'rgba(17, 34, 48, 0.96)',
+      modalBorder: 'rgba(142, 199, 220, 0.28)',
+      modalText: '#f4fbff',
+      modalTextSoft: '#c7dce7',
+      modalNestedSurface: 'rgba(255,255,255,0.06)',
+      modalNestedBorder: 'rgba(190, 220, 234, 0.2)',
       nestedSurface: '#eff6fa',
       nestedSurfaceBorder: 'rgba(16,42,67,0.12)',
       texture: 'rgba(255,255,255,0.02)',
@@ -233,7 +246,13 @@ export const themeRegistry: Record<ThemeId, AppTheme> = {
       inputPlaceholder: '#526471',
       buttonText: '#ffffff',
       ghostButtonText: '#ffffff',
-      modalSurface: '#ffffff',
+      modalSurface: 'rgba(7, 14, 20, 0.99)',
+      modalSurfaceAlt: 'rgba(13, 24, 33, 0.98)',
+      modalBorder: 'rgba(255,255,255,0.3)',
+      modalText: '#ffffff',
+      modalTextSoft: '#d6ebf5',
+      modalNestedSurface: 'rgba(255,255,255,0.08)',
+      modalNestedBorder: 'rgba(255,255,255,0.22)',
       nestedSurface: '#f4fbff',
       nestedSurfaceBorder: 'rgba(16,42,67,0.16)',
       texture: 'rgba(255,255,255,0.012)',
@@ -301,6 +320,12 @@ export const themeRegistry: Record<ThemeId, AppTheme> = {
       buttonText: '#ffffff',
       ghostButtonText: '#102a43',
       modalSurface: '#ffffff',
+      modalSurfaceAlt: '#f3f8fb',
+      modalBorder: 'rgba(16,42,67,0.18)',
+      modalText: '#102a43',
+      modalTextSoft: '#446177',
+      modalNestedSurface: '#f3f8fb',
+      modalNestedBorder: 'rgba(16,42,67,0.12)',
       nestedSurface: '#f3f8fb',
       nestedSurfaceBorder: 'rgba(16,42,67,0.12)',
       texture: 'rgba(255,255,255,0.0)',
