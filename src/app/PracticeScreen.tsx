@@ -26,7 +26,7 @@ import { formatSharedBackendError, getPendingSyncFeedback } from '@/utils/syncFe
 
 type SetupSheetKey = 'technique' | 'leader' | 'rigging' | 'flies' | null;
 
-export const PracticeScreen = ({ route }: any) => {
+export const PracticeScreen = ({ route, navigation }: any) => {
   const { theme } = useTheme();
   const sessionId = route?.params?.sessionId as number;
   const {
@@ -56,6 +56,7 @@ export const PracticeScreen = ({ route }: any) => {
   const [pendingCatchSpecies, setPendingCatchSpecies] = useState<TroutSpecies | null>(null);
   const [pendingCatchLength, setPendingCatchLength] = useState('');
   const [activeSetupSheet, setActiveSetupSheet] = useState<SetupSheetKey>(null);
+  const [reviewPromptShown, setReviewPromptShown] = useState(false);
   const syncFeedback = remoteSession ? getPendingSyncFeedback(syncStatus, 'practice', 'practice') : null;
   const activeSegment = useMemo(
     () =>
@@ -109,6 +110,37 @@ export const PracticeScreen = ({ route }: any) => {
     setNextWaterType(activeSegment.waterType);
     setNextDepthRange(activeSegment.depthRange);
   }, [activeSegment]);
+
+  const finalizePracticeSession = async (targetSession: NonNullable<typeof session>, endedAt: string) => {
+    if (activeSegment) {
+      await updateSessionSegmentEntry(activeSegment.id, buildSessionSegmentUpdatePayload(activeSegment, { endedAt }));
+    }
+    await updateSessionEntry(targetSession.id, buildSessionUpdatePayload(targetSession, { endedAt }));
+  };
+
+  useEffect(() => {
+    if (!session || session.endedAt || reviewPromptShown) return;
+    if (timer.remainingSeconds !== 0) return;
+    const activeSession = session;
+
+    setReviewPromptShown(true);
+    const endedAt = new Date().toISOString();
+    const finishAndPrompt = async () => {
+      await finalizePracticeSession(activeSession, endedAt);
+      Alert.alert('Practice timer complete', 'Your planned practice time is up. Review this session now, or come back from History later.', [
+        { text: 'Later', style: 'cancel' },
+        {
+          text: 'Review Session',
+          onPress: () => navigation.navigate('PracticeReview', { sessionId: activeSession.id })
+        }
+      ]);
+    };
+
+    finishAndPrompt().catch((error) => {
+      setReviewPromptShown(false);
+      Alert.alert('Unable to finish practice session', formatSharedBackendError(error, 'practice'));
+    });
+  }, [finalizePracticeSession, navigation, reviewPromptShown, session, timer.remainingSeconds]);
 
   const currentRigSetup = activeSegment?.rigSetup ?? createDefaultRigSetup(activeSegment?.flySnapshots ?? []);
   const activeTechnique = activeSegment?.technique ?? session?.startingTechnique;
@@ -212,15 +244,19 @@ export const PracticeScreen = ({ route }: any) => {
 
     Alert.alert('End Session Early?', 'This will stop the timer and cancel any remaining reminders for this practice session.', [
       { text: 'Keep Fishing', style: 'cancel' },
-      {
-        text: 'End Session',
-        style: 'destructive',
-        onPress: async () => {
-          const endedAt = new Date().toISOString();
-          if (activeSegment) {
-            await updateSessionSegmentEntry(activeSegment.id, buildSessionSegmentUpdatePayload(activeSegment, { endedAt }));
-          }
-          await updateSessionEntry(session.id, buildSessionUpdatePayload(session, { endedAt }));
+        {
+          text: 'End Session',
+          style: 'destructive',
+          onPress: async () => {
+            const endedAt = new Date().toISOString();
+            await finalizePracticeSession(session, endedAt);
+            Alert.alert('Practice session ended', 'Review this session now, or come back from History later.', [
+              { text: 'Later', style: 'cancel' },
+              {
+                text: 'Review Session',
+                onPress: () => navigation.navigate('PracticeReview', { sessionId: session.id })
+              }
+            ]);
         }
       }
     ]);
@@ -288,6 +324,9 @@ export const PracticeScreen = ({ route }: any) => {
           ) : null}
           {!timer.hasEnded ? (
             <AppButton label="End Session Early" onPress={endSessionEarly} variant="danger" />
+          ) : null}
+          {(timer.hasEnded || timer.remainingSeconds === 0) ? (
+            <AppButton label="Review Session" onPress={() => navigation.navigate('PracticeReview', { sessionId: session.id })} variant="secondary" />
           ) : null}
         </SectionCard>
 

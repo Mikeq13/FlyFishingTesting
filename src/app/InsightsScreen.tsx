@@ -14,6 +14,7 @@ import { generateAnglerComparisons } from '@/engine/anglerComparisonEngine';
 import { generateInsights } from '@/engine/insightEngine';
 import { buildTopFlyInsights, buildTopFlyRecords } from '@/engine/topFlyEngine';
 import { buildExperimentComparisonRecords } from '@/engine/experimentComparisonEngine';
+import { buildContextPerformanceRecords, buildExactSetupInsightRecords, buildSetupInsights } from '@/engine/setupInsightEngine';
 import { getExperimentEntries } from '@/utils/experimentEntries';
 import { useAppStore } from './store';
 import { InsightsContextMode } from '@/types/group';
@@ -30,6 +31,11 @@ import {
 
 export const InsightsScreen = ({ navigation }: any) => {
   const { theme } = useTheme();
+  const isDaylightTheme = theme.id === 'daylight_light';
+  const elevatedTextColor = isDaylightTheme ? theme.colors.textDark : theme.colors.text;
+  const elevatedSoftTextColor = isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft;
+  const elevatedSurface = isDaylightTheme ? theme.colors.nestedSurface : theme.colors.surfaceAlt;
+  const elevatedBorder = isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.borderStrong;
   const layout = useResponsiveLayout();
   const {
     sessions,
@@ -68,10 +74,11 @@ export const InsightsScreen = ({ navigation }: any) => {
   const [showHypothesisChoices, setShowHypothesisChoices] = useState(false);
   const modeSummaryLabel = (mode: 'practice' | 'experiment' | 'competition') =>
     mode === 'practice' ? 'Practice scouting' : mode === 'experiment' ? 'Experiment comparison' : 'Competition scorekeeping';
-  const sharedDataSettling = !!remoteSession && sharedDataStatus === 'loading';
+  const hasSharedContextData = groups.length > 0 || groupMemberships.length > 0;
+  const sharedDataSettling = !!remoteSession && sharedDataStatus === 'loading' && !hasSharedContextData;
   const joinedGroups = useMemo(
-    () => (sharedDataSettling ? [] : getJoinedGroupsForUser(currentUser?.id, groups, groupMemberships)),
-    [currentUser?.id, groupMemberships, groups, sharedDataSettling]
+    () => getJoinedGroupsForUser(currentUser?.id, groups, groupMemberships),
+    [currentUser?.id, groupMemberships, groups]
   );
 
   React.useEffect(() => {
@@ -260,6 +267,18 @@ export const InsightsScreen = ({ navigation }: any) => {
   const filteredTopFlyInsights = useMemo(
     () => buildTopFlyInsights(filteredTopFlyRecords),
     [filteredTopFlyRecords]
+  );
+  const exactSetupRecords = useMemo(
+    () => buildExactSetupInsightRecords(filteredSessions, filteredExperiments),
+    [filteredExperiments, filteredSessions]
+  );
+  const contextPerformanceRecords = useMemo(
+    () => buildContextPerformanceRecords(filteredSessions, filteredExperiments),
+    [filteredExperiments, filteredSessions]
+  );
+  const setupInsights = useMemo(
+    () => buildSetupInsights(exactSetupRecords, contextPerformanceRecords),
+    [contextPerformanceRecords, exactSetupRecords]
   );
   const comparisonRecords = useMemo(
     () => buildExperimentComparisonRecords(filteredSessions, filteredExperiments),
@@ -503,6 +522,15 @@ export const InsightsScreen = ({ navigation }: any) => {
               <InsightCard key={`${insight.type}-${idx}`} insight={insight} />
             ))}
 
+            {!!setupInsights.length && (
+              <>
+                <Text style={{ fontSize: 20, fontWeight: '800', marginTop: 4, marginBottom: 2, color: theme.colors.text }}>Decision-Ready Setups</Text>
+                {setupInsights.map((insight, idx) => (
+                  <InsightCard key={`setup-insight-${idx}`} insight={insight} />
+                ))}
+              </>
+            )}
+
             {!!comparisonRecords.length && (
               <SectionCard
                 title="Direct Experiment Comparisons"
@@ -514,26 +542,26 @@ export const InsightsScreen = ({ navigation }: any) => {
                     <View
                       key={`comparison-${record.experimentId}`}
                       style={{
-                        backgroundColor: theme.colors.nestedSurface,
+                        backgroundColor: elevatedSurface,
                         borderRadius: theme.radius.md,
                         padding: 12,
                         borderWidth: 1,
-                        borderColor: theme.colors.nestedSurfaceBorder,
+                        borderColor: elevatedBorder,
                         gap: 6
                       }}
                     >
-                      <Text style={{ color: theme.colors.textDark, fontWeight: '800' }}>
+                      <Text style={{ color: elevatedTextColor, fontWeight: '800' }}>
                         {record.outcome === 'decisive'
                           ? 'Decisive comparison'
                           : record.outcome === 'tie'
                             ? 'Tie comparison'
                             : 'Inconclusive comparison'}
                       </Text>
-                      <Text style={{ color: theme.colors.textDarkSoft }}>{record.summary}</Text>
-                      <Text style={{ color: theme.colors.textDarkSoft, fontSize: 12 }}>
+                      <Text style={{ color: elevatedSoftTextColor }}>{record.summary}</Text>
+                      <Text style={{ color: elevatedSoftTextColor, fontSize: 12 }}>
                         {record.baselineLabel}: {(record.baselineRate * 100).toFixed(1)}% over {record.baselineCasts} casts | {record.testLabel}: {(record.testRate * 100).toFixed(1)}% over {record.testCasts} casts
                       </Text>
-                      <Text style={{ color: theme.colors.textDarkSoft, fontSize: 12 }}>
+                      <Text style={{ color: elevatedSoftTextColor, fontSize: 12 }}>
                         {record.waterType ?? 'Water not set'} | {record.technique ?? 'Technique not set'}
                       </Text>
                     </View>
@@ -600,6 +628,79 @@ export const InsightsScreen = ({ navigation }: any) => {
                   ))}
                 </View>
               </>
+            )}
+
+            {!!exactSetupRecords.length && (
+              <SectionCard
+                title="Best Exact Setups"
+                subtitle="These records combine exact fly configuration with the logged water, depth, technique, and rig context that actually produced fish."
+                tone="light"
+              >
+                <View style={{ gap: 10 }}>
+                  {exactSetupRecords.slice(0, 5).map((record) => (
+                    <View
+                      key={record.label}
+                      style={{
+                        backgroundColor: elevatedSurface,
+                        borderRadius: theme.radius.md,
+                        padding: 12,
+                        borderWidth: 1,
+                        borderColor: elevatedBorder,
+                        gap: 4
+                      }}
+                    >
+                      <Text style={{ color: elevatedTextColor, fontWeight: '800' }}>{record.flyLabel}</Text>
+                      <Text style={{ color: elevatedSoftTextColor }}>
+                        {record.waterType} | {record.depthRange} | {record.technique}
+                      </Text>
+                      <Text style={{ color: elevatedSoftTextColor }}>{record.rigLabel}</Text>
+                      <Text style={{ color: elevatedSoftTextColor }}>
+                        {(record.rate * 100).toFixed(1)}% catch rate over {record.casts} casts across {record.sessionCount} session{record.sessionCount === 1 ? '' : 's'}
+                      </Text>
+                      {!!record.rivers.length ? (
+                        <Text style={{ color: elevatedSoftTextColor, fontSize: 12 }}>
+                          Rivers: {record.rivers.slice(0, 3).join(', ')}
+                        </Text>
+                      ) : null}
+                    </View>
+                  ))}
+                </View>
+              </SectionCard>
+            )}
+
+            {!!contextPerformanceRecords.length && (
+              <SectionCard
+                title="Context Performance Combos"
+                subtitle="Use these grouped water, depth, technique, and rig combinations to see where performance is strongest across the shared context you selected."
+                tone="light"
+              >
+                <View style={{ gap: 10 }}>
+                  {contextPerformanceRecords.slice(0, 5).map((record) => (
+                    <View
+                      key={record.label}
+                      style={{
+                        backgroundColor: elevatedSurface,
+                        borderRadius: theme.radius.md,
+                        padding: 12,
+                        borderWidth: 1,
+                        borderColor: elevatedBorder,
+                        gap: 4
+                      }}
+                    >
+                      <Text style={{ color: elevatedTextColor, fontWeight: '800' }}>
+                        {record.waterType} | {record.depthRange} | {record.technique}
+                      </Text>
+                      <Text style={{ color: elevatedSoftTextColor }}>{record.rigLabel}</Text>
+                      <Text style={{ color: elevatedSoftTextColor }}>
+                        {(record.rate * 100).toFixed(1)}% catch rate over {record.casts} casts
+                      </Text>
+                      <Text style={{ color: elevatedSoftTextColor, fontSize: 12 }}>
+                        Flies seen here: {record.flyLabels.slice(0, 4).join(', ')}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </SectionCard>
             )}
 
             {!!contextComparisons.length && (

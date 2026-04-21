@@ -15,6 +15,7 @@ import { CompetitionsSection } from '@/components/access/CompetitionsSection';
 import { CompetitionOrganizerSection } from '@/components/access/CompetitionOrganizerSection';
 import { OwnerControlsSection } from '@/components/access/OwnerControlsSection';
 import { RemoteTesterOnboardingSection } from '@/components/access/RemoteTesterOnboardingSection';
+import { BackendDiagnosticsSection } from '@/components/access/BackendDiagnosticsSection';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { StatusBanner } from '@/components/ui/StatusBanner';
@@ -41,6 +42,9 @@ const ONBOARDING_NOTE_KEY = 'tester_onboarding.note';
 export const AccessScreen = ({ navigation }: any) => {
   const layout = useResponsiveLayout();
   const { theme, themeId, setThemeId, themeOptions } = useTheme();
+  const isDaylightTheme = theme.id === 'daylight_light';
+  const elevatedTextColor = isDaylightTheme ? theme.colors.textDark : theme.colors.text;
+  const elevatedSoftTextColor = isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft;
   const {
     users,
     ownerUser,
@@ -49,6 +53,7 @@ export const AccessScreen = ({ navigation }: any) => {
     currentHasPremiumAccess,
     syncStatus,
     cleanupSyncStatus,
+    backendDiagnostics,
     sharedDataStatus,
     notificationPermissionStatus,
     authStatus,
@@ -79,6 +84,7 @@ export const AccessScreen = ({ navigation }: any) => {
     deleteExperiment,
     deleteSessionRecord,
     refresh,
+    flushSyncQueue,
     getSyncRecordState,
     getSessionIntegrity,
     getExperimentIntegrity,
@@ -149,7 +155,8 @@ export const AccessScreen = ({ navigation }: any) => {
   const [assignmentDrafts, setAssignmentDrafts] = React.useState<Record<string, { competitionGroupId: number | null; beat: string; role: CompetitionSessionRole }>>({});
   const [powerToolsSections, setPowerToolsSections] = React.useState({
     competitionOrganizer: false,
-    userManagement: false
+    userManagement: false,
+    backendDiagnostics: false
   });
   const currentUserSessions = React.useMemo(() => sessions.filter((session) => session.userId === currentUser?.id), [currentUser?.id, sessions]);
   const currentUserExperiments = React.useMemo(() => experiments.filter((experiment) => experiment.userId === currentUser?.id), [currentUser?.id, experiments]);
@@ -338,7 +345,7 @@ export const AccessScreen = ({ navigation }: any) => {
 
   React.useEffect(() => {
     if (canAccessPowerTools) return;
-    setPowerToolsSections({ competitionOrganizer: false, userManagement: false });
+    setPowerToolsSections({ competitionOrganizer: false, userManagement: false, backendDiagnostics: false });
   }, [canAccessPowerTools]);
 
   React.useEffect(() => {
@@ -664,7 +671,7 @@ export const AccessScreen = ({ navigation }: any) => {
       <InlineSummaryRow label="Current Plan" value={currentEntitlementLabel} tone="light" />
       <InlineSummaryRow label="Premium Features" value={currentHasPremiumAccess ? 'Enabled' : 'Locked'} valueMuted={!currentHasPremiumAccess} tone="light" />
       <InlineSummaryRow label="Billing Status" value={currentHasPremiumAccess ? 'Premium features available' : 'Free access active'} valueMuted={!currentHasPremiumAccess} tone="light" />
-      <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+      <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
         Billing is the one place that explains what this account can access right now. Account identity, security, and sync details stay in their own spaces.
       </Text>
     </>
@@ -684,7 +691,7 @@ export const AccessScreen = ({ navigation }: any) => {
           }
         }}
       />
-      <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+      <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
         `Default Professional` stays balanced, `High Contrast` is best outside, and `Daylight Light` is easiest to review on web or desktop.
       </Text>
     </>
@@ -731,10 +738,10 @@ export const AccessScreen = ({ navigation }: any) => {
           paddingVertical: 6
         }}
       >
-        <Text style={{ color: theme.colors.textDarkSoft, fontWeight: '700' }}>
+        <Text style={{ color: elevatedSoftTextColor, fontWeight: '700' }}>
           {expandedSections[sectionKey] ? 'Hide details' : 'Show details'}
         </Text>
-        <Text style={{ color: theme.colors.textDark, fontSize: 18, fontWeight: '800' }}>
+        <Text style={{ color: elevatedTextColor, fontSize: 18, fontWeight: '800' }}>
           {expandedSections[sectionKey] ? '-' : '+'}
         </Text>
       </Pressable>
@@ -760,9 +767,9 @@ export const AccessScreen = ({ navigation }: any) => {
         gap: 8,
         borderRadius: theme.radius.md,
         padding: 12,
-        backgroundColor: theme.colors.nestedSurface,
+        backgroundColor: isDaylightTheme ? theme.colors.nestedSurface : theme.colors.surfaceAlt,
         borderWidth: 1,
-        borderColor: theme.colors.nestedSurfaceBorder
+        borderColor: isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.borderStrong
       }}
     >
       <Pressable
@@ -775,10 +782,10 @@ export const AccessScreen = ({ navigation }: any) => {
         }}
       >
         <View style={{ flex: 1, gap: 4 }}>
-          <Text style={{ color: theme.colors.textDark, fontWeight: '800' }}>{title}</Text>
-          <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 18 }}>{subtitle}</Text>
+          <Text style={{ color: elevatedTextColor, fontWeight: '800' }}>{title}</Text>
+          <Text style={{ color: elevatedSoftTextColor, lineHeight: 18 }}>{subtitle}</Text>
         </View>
-        <Text style={{ color: theme.colors.textDark, fontSize: 18, fontWeight: '800' }}>
+        <Text style={{ color: elevatedTextColor, fontSize: 18, fontWeight: '800' }}>
           {expanded ? '-' : '+'}
         </Text>
       </Pressable>
@@ -811,7 +818,7 @@ export const AccessScreen = ({ navigation }: any) => {
           title: 'Account Information',
           subtitle: 'Identity, signed-in email, and access type live here once so the rest of Settings can stay quieter.',
           summary: (
-            <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+            <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
               {currentUser.name} - {remoteSession?.email ?? 'Not signed in'} - {currentEntitlementLabel}
             </Text>
           ),
@@ -852,7 +859,7 @@ export const AccessScreen = ({ navigation }: any) => {
           title: 'Billing',
           subtitle: 'Plan details stay here instead of repeating across account and admin tools.',
           summary: (
-            <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+            <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
               {currentEntitlementLabel} - {currentHasPremiumAccess ? 'Premium features enabled' : 'Free access active'}
             </Text>
           ),
@@ -889,7 +896,7 @@ export const AccessScreen = ({ navigation }: any) => {
           sectionKey: 'dataManagement',
           title: 'Data Management',
           subtitle: 'Keep cleanup and profile maintenance tools nearby without leaving them open all the time.',
-          summary: <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>Cleanup and local profile maintenance for {currentUser.name}.</Text>,
+          summary: <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>Cleanup and local profile maintenance for {currentUser.name}.</Text>,
           children: (
             <View style={{ gap: 10 }}>
               {sharedDataSettling ? (
@@ -908,7 +915,7 @@ export const AccessScreen = ({ navigation }: any) => {
                 >
                   {problemSessions.length || problemExperiments.length || problemGroups.length ? (
                     <>
-                      <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+                      <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
                         {problemSessions.length} problem session{problemSessions.length === 1 ? '' : 's'}, {problemExperiments.length} problem experiment{problemExperiments.length === 1 ? '' : 's'}, and {problemGroups.length} problem group{problemGroups.length === 1 ? '' : 's'} are currently excluded from trusted insights.
                       </Text>
                       <AppButton
@@ -919,7 +926,7 @@ export const AccessScreen = ({ navigation }: any) => {
                       />
                     </>
                   ) : (
-                    <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+                    <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
                       No problem records to review.
                     </Text>
                   )}
@@ -944,7 +951,7 @@ export const AccessScreen = ({ navigation }: any) => {
                       <InlineSummaryRow label="Session" value={new Date(session.date).toLocaleString()} tone="light" />
                       <InlineSummaryRow label="Status" value={getSessionIntegrity(session.id).label} tone="light" />
                       {getSessionIntegrity(session.id).reason ? (
-                        <Text style={{ color: theme.colors.textDarkSoft }}>{getSessionIntegrity(session.id).reason}</Text>
+                        <Text style={{ color: elevatedSoftTextColor }}>{getSessionIntegrity(session.id).reason}</Text>
                       ) : null}
                       <View style={{ flexDirection: 'row', gap: 8 }}>
                         <View style={{ flex: 1 }}>
@@ -981,7 +988,7 @@ export const AccessScreen = ({ navigation }: any) => {
                       <InlineSummaryRow label="Experiment" value={experiment.hypothesis || `Experiment #${experiment.id}`} tone="light" />
                       <InlineSummaryRow label="Status" value={getExperimentIntegrity(experiment.id).label} tone="light" />
                       {getExperimentIntegrity(experiment.id).reason ? (
-                        <Text style={{ color: theme.colors.textDarkSoft }}>{getExperimentIntegrity(experiment.id).reason}</Text>
+                        <Text style={{ color: elevatedSoftTextColor }}>{getExperimentIntegrity(experiment.id).reason}</Text>
                       ) : null}
                       <View style={{ flexDirection: 'row', gap: 8 }}>
                         <View style={{ flex: 1 }}>
@@ -1022,7 +1029,7 @@ export const AccessScreen = ({ navigation }: any) => {
                       <InlineSummaryRow label="Group" value={group.name || `Group #${group.id}`} tone="light" />
                       <InlineSummaryRow label="Status" value={getGroupIntegrity(group.id).label} tone="light" />
                       {getGroupIntegrity(group.id).reason ? (
-                        <Text style={{ color: theme.colors.textDarkSoft }}>{getGroupIntegrity(group.id).reason}</Text>
+                        <Text style={{ color: elevatedSoftTextColor }}>{getGroupIntegrity(group.id).reason}</Text>
                       ) : null}
                       <View style={{ flexDirection: 'row', gap: 8 }}>
                         <View style={{ flex: 1 }}>
@@ -1053,7 +1060,7 @@ export const AccessScreen = ({ navigation }: any) => {
           title: 'Groups',
           subtitle: 'Normal group joining stays here, while owner-managed power-user invites stay clearly separated.',
           summary: (
-            <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+            <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
               {sharedDataSettling
                 ? 'Shared groups are still loading from the beta backend.'
                 : `${joinedGroups.length} active groups - ${problemGroups.length} problem group${problemGroups.length === 1 ? '' : 's'} - ${isAuthenticatedOwner ? 'owner invites here' : 'owner-only invites'}`}
@@ -1105,7 +1112,7 @@ export const AccessScreen = ({ navigation }: any) => {
           title: 'Security',
           subtitle: 'Recovery, MFA, sign-out, and owner verification live here instead of inside account details.',
           summary: (
-            <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+            <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
               {remoteSession?.emailVerifiedAt ? 'Verified email' : authStatus === 'pending_verification' ? 'Email verification pending' : 'Email not verified'} - {mfaFactors.length ? `${mfaFactors.length} MFA factor${mfaFactors.length === 1 ? '' : 's'}` : 'No MFA yet'}
             </Text>
           ),
@@ -1181,6 +1188,20 @@ export const AccessScreen = ({ navigation }: any) => {
                     )
                   })}
                   {renderNestedCollapsibleSection({
+                    title: 'Backend Diagnostics',
+                    subtitle: 'Verify schema readiness, sync health, and env wiring before trusting shared beta data or cutting new builds.',
+                    expanded: powerToolsSections.backendDiagnostics,
+                    onToggle: () => togglePowerToolsSection('backendDiagnostics'),
+                    children: (
+                      <BackendDiagnosticsSection
+                        diagnostics={backendDiagnostics}
+                        onRetryBootstrap={() => refresh(currentUser.id)}
+                        onRetrySync={flushSyncQueue}
+                        embedded
+                      />
+                    )
+                  })}
+                  {renderNestedCollapsibleSection({
                     title: 'User Management',
                     subtitle: isAuthenticatedOwner
                       ? 'Grant power-user access, start trials, reset access, and keep tester install links in one owner-only section.'
@@ -1210,7 +1231,7 @@ export const AccessScreen = ({ navigation }: any) => {
                         />
                       </>
                     ) : (
-                      <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+                      <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
                         Sign in as the owner account to manage tester access and saved onboarding links.
                       </Text>
                     )

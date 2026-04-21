@@ -237,7 +237,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
           <AppButton label="Clear Technique Filter" onPress={() => setTechniqueFilter('')} variant="ghost" />
         </SectionCard>
 
-        <SectionCard title="Cleanup Experiments" subtitle="Archive or delete old results without making the rest of history harder to scan." tone="light">
+        <SectionCard title="Cleanup Experiments" subtitle="Archive or delete old results without making the rest of history harder to scan.">
           {cleanupSyncStatus.pendingDeleteCount ? (
             <StatusBanner tone="info" text={`${cleanupSyncStatus.pendingDeleteCount} delete action${cleanupSyncStatus.pendingDeleteCount === 1 ? ' is' : 's are'} still syncing. Items stay hidden while cleanup finishes.`} />
           ) : null}
@@ -302,14 +302,21 @@ export const HistoryScreen = ({ navigation, route }: any) => {
         const rate = totalCasts ? totalCatches / totalCasts : 0;
 
         return (
-          <SectionCard key={session.id} title={new Date(session.date).toLocaleString()} subtitle={`${session.waterType} water | ${session.depthRange}`} tone="light">
-            <InlineSummaryRow label="Mode" value={modeSummaryLabel(session.mode)} tone="light" />
-            <InlineSummaryRow label="Month" value={new Date(session.date).toLocaleString('en-US', { month: 'long' })} tone="light" />
-            {session.riverName ? <InlineSummaryRow label="River" value={session.riverName} tone="light" /> : null}
-            {session.startingTechnique ? <InlineSummaryRow label="Technique" value={session.startingTechnique} tone="light" /> : null}
-            {session.hypothesis ? <InlineSummaryRow label="Session Hypothesis" value={session.hypothesis} tone="light" /> : null}
-            <InlineSummaryRow label="Session Catch Rate" value={`${(rate * 100).toFixed(1)}%`} tone="light" />
-            <InlineSummaryRow label="Experiments Logged" value={`${sessionExperiments.length}`} tone="light" />
+          <SectionCard key={session.id} title={new Date(session.date).toLocaleString()} subtitle={`${session.waterType} water | ${session.depthRange}`}>
+            <InlineSummaryRow label="Mode" value={modeSummaryLabel(session.mode)} />
+            <InlineSummaryRow label="Month" value={new Date(session.date).toLocaleString('en-US', { month: 'long' })} />
+            {session.riverName ? <InlineSummaryRow label="River" value={session.riverName} /> : null}
+            {session.startingTechnique ? <InlineSummaryRow label="Technique" value={session.startingTechnique} /> : null}
+            {session.hypothesis ? <InlineSummaryRow label="Session Hypothesis" value={session.hypothesis} /> : null}
+            <InlineSummaryRow label="Session Catch Rate" value={`${(rate * 100).toFixed(1)}%`} />
+            <InlineSummaryRow label="Experiments Logged" value={`${sessionExperiments.length}`} />
+            {session.mode === 'practice' ? (
+              <AppButton
+                label="Review Practice Session"
+                onPress={() => navigation.navigate('PracticeReview', { sessionId: session.id })}
+                variant="secondary"
+              />
+            ) : null}
 
             {!!sessionExperiments.length && (
               <View style={{ marginTop: 4, gap: 4 }}>
@@ -328,23 +335,23 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                     <View
                       key={experiment.id}
                       style={{
-                        backgroundColor: theme.colors.nestedSurface,
+                        backgroundColor: theme.colors.surfaceAlt,
                         borderRadius: theme.radius.md,
                         padding: 10,
                         gap: 4,
                         borderWidth: 1,
-                        borderColor: theme.colors.nestedSurfaceBorder
+                        borderColor: theme.colors.borderStrong
                       }}
                     >
-                      <InlineSummaryRow label="Hypothesis" value={experiment.hypothesis} tone="light" />
-                      <InlineSummaryRow label="Control Focus" value={experiment.controlFocus} tone="light" />
-                      <InlineSummaryRow label="Experiment Water" value={experiment.waterType ?? session.waterType} tone="light" />
-                      <InlineSummaryRow label="Technique" value={experiment.technique ?? session.startingTechnique ?? 'Technique not set'} tone="light" />
-                      <InlineSummaryRow label="Status" value={getExperimentIntegrity(experiment.id).label} tone="light" />
-                      {isCleanupPending ? <InlineSummaryRow label="Cleanup" value="Pending delete" tone="light" /> : null}
-                      {isCleanupFailed ? <InlineSummaryRow label="Cleanup" value="Delete needs retry" tone="light" /> : null}
-                      <InlineSummaryRow label="Outcome" value={comparisonStatus.outcome} tone="light" />
-                      <InlineSummaryRow label="Winner" value={comparisonStatus.winner} tone="light" />
+                      <InlineSummaryRow label="Hypothesis" value={experiment.hypothesis} />
+                      <InlineSummaryRow label="Control Focus" value={experiment.controlFocus} />
+                      <InlineSummaryRow label="Experiment Water" value={experiment.waterType ?? session.waterType} />
+                      <InlineSummaryRow label="Technique" value={experiment.technique ?? session.startingTechnique ?? 'Technique not set'} />
+                      <InlineSummaryRow label="Status" value={getExperimentIntegrity(experiment.id).label} />
+                      {isCleanupPending ? <InlineSummaryRow label="Cleanup" value="Pending delete" /> : null}
+                      {isCleanupFailed ? <InlineSummaryRow label="Cleanup" value="Delete needs retry" /> : null}
+                      <InlineSummaryRow label="Outcome" value={comparisonStatus.outcome} />
+                      <InlineSummaryRow label="Winner" value={comparisonStatus.winner} />
                       <Text style={{ color: elevatedSoftTextColor }}>{comparisonStatus.comparison.summary}</Text>
                       <Text style={{ color: elevatedSoftTextColor }}>Flies: {entries.map((entry) => `${entry.fly.name || entry.label} (#${entry.fly.hookSize}, ${entry.fly.beadColor}, ${entry.fly.beadSizeMm})`).join(', ')}</Text>
                       <Text style={{ color: elevatedSoftTextColor }}>Catch rate: {experimentRate.toFixed(1)}%</Text>
@@ -361,15 +368,15 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                       ) : null}
                       <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
                         <View style={{ flex: 1 }}>
-                          <AppButton label="Edit" onPress={() => navigation.navigate('Experiment', { sessionId: session.id, experimentId: experiment.id })} variant="secondary" disabled={isCleanupPending} surfaceTone="light" />
+                          <AppButton label="Edit" onPress={() => navigation.navigate('Experiment', { sessionId: session.id, experimentId: experiment.id })} variant="secondary" disabled={isCleanupPending} />
                         </View>
                         {experiment.status !== 'draft' ? (
                           <View style={{ flex: 1 }}>
-                            <AppButton label={isCleanupPending ? 'Archiving...' : 'Archive'} onPress={() => runSingleExperimentCleanup(experiment.id, 'archive')} variant="neutral" disabled={isCleanupPending} surfaceTone="light" />
+                            <AppButton label={isCleanupPending ? 'Archiving...' : 'Archive'} onPress={() => runSingleExperimentCleanup(experiment.id, 'archive')} variant="neutral" disabled={isCleanupPending} />
                           </View>
                         ) : null}
                         <View style={{ flex: 1 }}>
-                          <AppButton label={isCleanupPending ? 'Deleting...' : isCleanupFailed ? 'Retry Delete' : experiment.status === 'draft' ? 'Delete Incomplete' : 'Delete'} onPress={() => runSingleExperimentCleanup(experiment.id, 'delete')} variant="danger" disabled={isCleanupPending} surfaceTone="light" />
+                          <AppButton label={isCleanupPending ? 'Deleting...' : isCleanupFailed ? 'Retry Delete' : experiment.status === 'draft' ? 'Delete Incomplete' : 'Delete'} onPress={() => runSingleExperimentCleanup(experiment.id, 'delete')} variant="danger" disabled={isCleanupPending} />
                         </View>
                       </View>
                       {experiment.status === 'draft' ? (
@@ -390,7 +397,6 @@ export const HistoryScreen = ({ navigation, route }: any) => {
         <SectionCard
           title="Legacy Orphaned Experiments"
           subtitle="These older experiment records no longer have a valid session, but you can still clean them up."
-          tone="light"
         >
           {orphanedExperiments.map((experiment) => {
             const cleanupState = getSyncRecordState('experiment', experiment.id);
@@ -401,17 +407,17 @@ export const HistoryScreen = ({ navigation, route }: any) => {
               <View
                 key={`orphan-${experiment.id}`}
                 style={{
-                  backgroundColor: theme.colors.nestedSurface,
+                  backgroundColor: theme.colors.surfaceAlt,
                   borderRadius: theme.radius.md,
                   padding: 10,
                   gap: 4,
                   borderWidth: 1,
-                  borderColor: theme.colors.nestedSurfaceBorder
+                  borderColor: theme.colors.borderStrong
                 }}
               >
-                <InlineSummaryRow label="Hypothesis" value={experiment.hypothesis || 'No saved hypothesis'} tone="light" />
-                <InlineSummaryRow label="Technique" value={experiment.technique ?? 'Technique not set'} tone="light" />
-                <InlineSummaryRow label="Status" value={integrity.label} tone="light" />
+                <InlineSummaryRow label="Hypothesis" value={experiment.hypothesis || 'No saved hypothesis'} />
+                <InlineSummaryRow label="Technique" value={experiment.technique ?? 'Technique not set'} />
+                <InlineSummaryRow label="Status" value={integrity.label} />
                 {integrity.reason ? <Text style={{ color: elevatedSoftTextColor }}>{integrity.reason}</Text> : null}
                 <Text style={{ color: elevatedSoftTextColor }}>
                   Flies: {entries.map((entry) => entry.fly.name || entry.label).join(', ')}
@@ -443,22 +449,21 @@ export const HistoryScreen = ({ navigation, route }: any) => {
         <SectionCard
           title="Incomplete Or Problem Sessions"
           subtitle="These sessions are excluded from trusted analytics, but you can still review or remove them here."
-          tone="light"
         >
           {problemSessions.map((session) => (
             <View
               key={`problem-session-${session.id}`}
               style={{
-                backgroundColor: theme.colors.nestedSurface,
+                backgroundColor: theme.colors.surfaceAlt,
                 borderRadius: theme.radius.md,
                 padding: 10,
                 gap: 4,
                 borderWidth: 1,
-                borderColor: theme.colors.nestedSurfaceBorder
+                borderColor: theme.colors.borderStrong
               }}
             >
-              <InlineSummaryRow label="Session" value={new Date(session.date).toLocaleString()} tone="light" />
-              <InlineSummaryRow label="Status" value={getSessionIntegrity(session.id).label} tone="light" />
+              <InlineSummaryRow label="Session" value={new Date(session.date).toLocaleString()} />
+              <InlineSummaryRow label="Status" value={getSessionIntegrity(session.id).label} />
                 {getSessionIntegrity(session.id).reason ? (
                 <Text style={{ color: elevatedSoftTextColor }}>{getSessionIntegrity(session.id).reason}</Text>
                 ) : null}
@@ -473,11 +478,10 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                       navigation.navigate('Session', { sessionId: session.id, resumeSource: 'history' });
                     }}
                     variant="secondary"
-                    surfaceTone="light"
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <AppButton label="Delete Session" onPress={() => runProblemSessionCleanup(session.id)} variant="danger" surfaceTone="light" />
+                  <AppButton label="Delete Session" onPress={() => runProblemSessionCleanup(session.id)} variant="danger" />
                 </View>
               </View>
             </View>

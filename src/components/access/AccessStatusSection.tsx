@@ -36,18 +36,23 @@ export const AccessStatusSection = ({
   isAuthenticatedOwner: boolean;
 }) => {
   const { theme } = useTheme();
+  const isDaylightTheme = theme.id === 'daylight_light';
+  const elevatedTextColor = isDaylightTheme ? theme.colors.textDark : theme.colors.text;
+  const elevatedSoftTextColor = isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft;
+  const elevatedSurface = isDaylightTheme ? theme.colors.nestedSurface : theme.colors.surfaceAlt;
+  const elevatedBorder = isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.borderStrong;
 
   return (
   <SectionCard title="Billing & Access" subtitle="Your sync state, remote sign-in, and account access details live here." tone="light">
-    <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 22 }}>{currentUserName}</Text>
+    <Text style={{ color: elevatedTextColor, fontWeight: '800', fontSize: 22 }}>{currentUserName}</Text>
     <View
       style={{
         gap: 8,
-        backgroundColor: theme.colors.nestedSurface,
+        backgroundColor: elevatedSurface,
         borderRadius: 12,
         padding: 12,
         borderWidth: 1,
-        borderColor: theme.colors.nestedSurfaceBorder
+        borderColor: elevatedBorder
       }}
     >
       <InlineSummaryRow label="Status" value={currentEntitlementLabel} tone="light" />
@@ -75,7 +80,7 @@ export const AccessStatusSection = ({
           : 'Signing in enables shared sync, but it does not turn this angler into an owner or grant admin access.'
       }
     />
-    <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+    <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
       Shared sync, invites, competitions, and tester sponsorship belong to the signed-in account instead of a generic local profile.
     </Text>
   </SectionCard>

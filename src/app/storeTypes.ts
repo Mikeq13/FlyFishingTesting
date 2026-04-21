@@ -21,6 +21,7 @@ import {
   PendingTotpEnrollment,
   RemoteSessionSnapshot,
   SponsoredAccess,
+  BackendDiagnosticsSnapshot,
   SyncCleanupState,
   SyncQueueEntry,
   SyncStatusSnapshot,
@@ -80,6 +81,7 @@ export interface AppStore {
   syncQueue: SyncQueueEntry[];
   syncStatus: SyncStatusSnapshot;
   cleanupSyncStatus: CleanupSyncStatus;
+  backendDiagnostics: BackendDiagnosticsSnapshot;
   sharedDataStatus: SharedDataStatus;
   notificationPermissionStatus: NotificationPermissionStatus;
   authStatus: AuthStatus;

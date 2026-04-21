@@ -11,7 +11,8 @@
                     "build:web":  "expo export --platform web",
                     "typecheck":  "tsc --noEmit",
                     "check:theme-hardcoding":  "node scripts/check-theme-hardcoding.js",
-                    "verify:prebuild":  "npm run typecheck \u0026\u0026 npm run check:theme-hardcoding"
+                    "check:backend-config":  "node scripts/check-backend-config.js",
+                    "verify:prebuild":  "npm run typecheck \u0026\u0026 npm run check:theme-hardcoding \u0026\u0026 npm run check:backend-config"
                 },
     "dependencies":  {
                          "@expo/metro-runtime":  "~6.1.2",

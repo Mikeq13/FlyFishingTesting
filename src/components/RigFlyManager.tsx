@@ -45,7 +45,7 @@ export const RigFlyManager = ({
 }: RigFlyManagerProps) => {
   const { theme } = useTheme();
   const [showSavedFlyList, setShowSavedFlyList] = useState(editorOnly);
-  const [showAddFly, setShowAddFly] = useState(false);
+  const [editorMode, setEditorMode] = useState<'new' | 'adjust' | null>(null);
   const [showFlyManager, setShowFlyManager] = useState(() => editorOnly || !rigSetup.assignments.some((assignment) => assignment.fly.name.trim()));
   const [draftFly, setDraftFly] = useState<FlySetup>(createEmptyFly());
   const [targetAssignmentIndex, setTargetAssignmentIndex] = useState<number | null>(null);
@@ -79,7 +79,7 @@ export const RigFlyManager = ({
 
   const openChooserForIndex = (index: number) => {
     setTargetAssignmentIndex(index);
-    setShowAddFly(false);
+    setEditorMode(null);
     if (foregroundQuickAdd) {
       setShowSavedFlyList(false);
       return;
@@ -91,18 +91,23 @@ export const RigFlyManager = ({
     onChange(replaceRigAssignmentFly(rigSetup, index, fly));
     setTargetAssignmentIndex(null);
     setShowSavedFlyList(false);
+    setEditorMode(null);
+    if (!editorOnly) {
+      setShowFlyManager(true);
+    }
   };
 
-  const openQuickAddForIndex = (index: number) => {
+  const openFlyEditorForIndex = (index: number, mode: 'new' | 'adjust') => {
     setTargetAssignmentIndex(index);
-    setShowAddFly(true);
+    setEditorMode(mode);
     setShowSavedFlyList(false);
-    setDraftFly(createEmptyFly());
+    setDraftFly(mode === 'adjust' ? { ...selectedAssignments[index].fly } : createEmptyFly());
   };
 
   const closeForegroundPicker = () => {
     setTargetAssignmentIndex(null);
     setShowSavedFlyList(false);
+    setEditorMode(null);
   };
 
   const renderAssignmentCard = (assignment: RigFlyAssignment, index: number) => (
@@ -141,24 +146,31 @@ export const RigFlyManager = ({
       />
       <View style={{ gap: 8 }}>
         <AppButton
-          label={assignment.fly.name.trim() ? 'Choose Existing Fly' : 'Choose Existing Fly'}
+          label="Saved Flies"
           onPress={() => openChooserForIndex(index)}
           variant="tertiary"
           surfaceTone={tone}
         />
-        <AppButton
-          label={assignment.fly.name.trim() ? 'Quick Add Replacement' : 'Quick Add Fly'}
-          onPress={() => openQuickAddForIndex(index)}
-          variant="secondary"
-          surfaceTone={tone}
-        />
+        {assignment.fly.name.trim() ? (
+          <AppButton
+            label="Adjust Current Fly"
+            onPress={() => openFlyEditorForIndex(index, 'adjust')}
+            variant="secondary"
+            surfaceTone={tone}
+          />
+        ) : null}
+        <AppButton label="New Fly" onPress={() => openFlyEditorForIndex(index, 'new')} variant="secondary" surfaceTone={tone} />
         {assignment.fly.name.trim() ? (
           <AppButton label="Clear Fly" onPress={() => onChange(clearRigAssignmentFly(rigSetup, index))} variant="danger" surfaceTone={tone} />
         ) : null}
       </View>
       {targetAssignmentIndex === index ? (
         <Text style={{ color: secondaryTextColor }}>
-          {showAddFly ? 'Build a fly for this slot in the foreground editor.' : 'Choose a saved fly for this slot below.'}
+          {editorMode === 'new'
+            ? 'Build a new fly for this slot in the foreground editor.'
+            : editorMode === 'adjust'
+              ? 'Tune hook size or bead/weight for the current fly without replacing the rest of its setup.'
+              : 'Choose a saved fly for this slot below.'}
         </Text>
       ) : null}
     </View>
@@ -204,10 +216,10 @@ export const RigFlyManager = ({
         <>
           {!editorOnly ? (
             <AppButton
-              label={showSavedFlyList ? 'Hide Existing Flies' : 'Existing Fly'}
+              label={showSavedFlyList ? 'Hide Saved Flies' : 'Saved Flies'}
               onPress={() => {
                 setShowSavedFlyList((current) => !current);
-                if (!showSavedFlyList) setShowAddFly(false);
+                if (!showSavedFlyList) setEditorMode(null);
               }}
               variant="secondary"
               surfaceTone={tone}
@@ -235,7 +247,7 @@ export const RigFlyManager = ({
         </>
       ) : null}
 
-      {!foregroundQuickAdd && !sortedSavedFlies.length && targetAssignmentIndex !== null && !showAddFly ? (
+      {!foregroundQuickAdd && !sortedSavedFlies.length && targetAssignmentIndex !== null && editorMode === null ? (
         <View
           style={{
             gap: 6,
@@ -253,9 +265,9 @@ export const RigFlyManager = ({
         </View>
       ) : null}
 
-      {targetAssignmentIndex !== null && showAddFly && !foregroundQuickAdd ? (
+      {targetAssignmentIndex !== null && editorMode !== null && !foregroundQuickAdd ? (
         <FlySelector
-          title={`Fly For ${selectedAssignments[targetAssignmentIndex]?.position ?? 'Slot'}`}
+          title={`${editorMode === 'adjust' ? 'Adjust Fly For' : 'New Fly For'} ${selectedAssignments[targetAssignmentIndex]?.position ?? 'Slot'}`}
           value={draftFly}
           savedFlies={[]}
           onChange={setDraftFly}
@@ -263,7 +275,7 @@ export const RigFlyManager = ({
             try {
               await onCreateFly(draftFly);
               assignFlyAtIndex(targetAssignmentIndex, draftFly);
-              setShowAddFly(false);
+              setEditorMode(null);
               setDraftFly(createEmptyFly());
               if (!editorOnly) {
                 setShowFlyManager(false);
@@ -275,12 +287,13 @@ export const RigFlyManager = ({
           onConfirm={() => {
             if (targetAssignmentIndex !== null) {
               assignFlyAtIndex(targetAssignmentIndex, draftFly);
-              setShowAddFly(false);
+              setEditorMode(null);
               setDraftFly(createEmptyFly());
             }
           }}
-          confirmLabel="Use This Fly"
+          confirmLabel={editorMode === 'adjust' ? 'Apply Adjustments' : 'Use This Fly'}
           tone={tone}
+          fieldMode={editorMode === 'adjust' ? 'adjust' : 'full'}
         />
       ) : null}
 
@@ -289,13 +302,17 @@ export const RigFlyManager = ({
       ) : null}
         </>
       ) : null}
-      <Modal visible={targetAssignmentIndex !== null && showAddFly && foregroundQuickAdd} transparent animationType="fade" onRequestClose={() => setShowAddFly(false)}>
+      <Modal visible={targetAssignmentIndex !== null && editorMode !== null && foregroundQuickAdd} transparent animationType="fade" onRequestClose={() => setEditorMode(null)}>
         <ModalSurface
-          title={`Quick Add Fly For ${targetAssignmentIndex !== null ? selectedAssignments[targetAssignmentIndex]?.position ?? 'Slot' : 'Slot'}`}
-          subtitle="Build the fly in the foreground, then return to the same setup flow."
+          title={`${editorMode === 'adjust' ? 'Adjust Fly For' : 'New Fly For'} ${targetAssignmentIndex !== null ? selectedAssignments[targetAssignmentIndex]?.position ?? 'Slot' : 'Slot'}`}
+          subtitle={
+            editorMode === 'adjust'
+              ? 'Tune the current fly in the foreground, then return to the same setup flow.'
+              : 'Build the fly in the foreground, then return to the same setup flow.'
+          }
         >
           <FlySelector
-            title="New Fly"
+            title={editorMode === 'adjust' ? 'Adjust Current Fly' : 'New Fly'}
             value={draftFly}
             savedFlies={[]}
             onChange={setDraftFly}
@@ -305,7 +322,7 @@ export const RigFlyManager = ({
                 if (targetAssignmentIndex !== null) {
                   assignFlyAtIndex(targetAssignmentIndex, draftFly);
                 }
-                setShowAddFly(false);
+                setEditorMode(null);
                 setDraftFly(createEmptyFly());
                 if (!editorOnly) {
                   setShowFlyManager(false);
@@ -317,20 +334,21 @@ export const RigFlyManager = ({
             onConfirm={() => {
               if (targetAssignmentIndex !== null) {
                 assignFlyAtIndex(targetAssignmentIndex, draftFly);
-                setShowAddFly(false);
+                setEditorMode(null);
                 setDraftFly(createEmptyFly());
               }
             }}
-            confirmLabel="Use This Fly"
+            confirmLabel={editorMode === 'adjust' ? 'Apply Adjustments' : 'Use This Fly'}
             tone="modal"
+            fieldMode={editorMode === 'adjust' ? 'adjust' : 'full'}
           />
-          <AppButton label="Cancel" onPress={() => setShowAddFly(false)} variant="ghost" surfaceTone="modal" />
+          <AppButton label="Cancel" onPress={() => setEditorMode(null)} variant="ghost" surfaceTone="modal" />
         </ModalSurface>
       </Modal>
-      <Modal visible={targetAssignmentIndex !== null && !showAddFly && foregroundQuickAdd} transparent animationType="fade" onRequestClose={closeForegroundPicker}>
+      <Modal visible={targetAssignmentIndex !== null && editorMode === null && foregroundQuickAdd} transparent animationType="fade" onRequestClose={closeForegroundPicker}>
         <ModalSurface
-          title={`Choose Existing Fly For ${targetAssignmentIndex !== null ? selectedAssignments[targetAssignmentIndex]?.position ?? 'Slot' : 'Slot'}`}
-          subtitle="Pick from the current angler's saved flies, or quick-add a new one without leaving this setup flow."
+          title={`Saved Flies For ${targetAssignmentIndex !== null ? selectedAssignments[targetAssignmentIndex]?.position ?? 'Slot' : 'Slot'}`}
+          subtitle="Pick from the current angler's saved flies for this slot."
         >
           {sortedSavedFlies.length ? (
             <ScrollView
@@ -381,20 +399,10 @@ export const RigFlyManager = ({
             >
               <Text style={{ color: theme.colors.modalText, fontWeight: '700' }}>No saved flies for this angler yet</Text>
               <Text style={{ color: theme.colors.modalTextSoft }}>
-                This picker only shows the current angler&apos;s personal fly library. Quick-add a fly below if you want to use one now.
+                This picker only shows the current angler&apos;s personal fly library.
               </Text>
             </View>
           )}
-          <AppButton
-            label={selectedAssignments[targetAssignmentIndex ?? 0]?.fly.name.trim() ? 'Quick Add Replacement' : 'Quick Add Fly'}
-            onPress={() => {
-              if (targetAssignmentIndex !== null) {
-                openQuickAddForIndex(targetAssignmentIndex);
-              }
-            }}
-            variant="secondary"
-            surfaceTone="modal"
-          />
           <AppButton label="Cancel" onPress={closeForegroundPicker} variant="ghost" surfaceTone="modal" />
         </ModalSurface>
       </Modal>

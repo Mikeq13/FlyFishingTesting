@@ -24,7 +24,7 @@ import { createTrialWindow, getEntitlementLabel, hasPremiumAccess } from '@/engi
 import { generateInsights } from '@/engine/insightEngine';
 import { buildTopFlyInsights, buildTopFlyRecords, TopFlyRecord } from '@/engine/topFlyEngine';
 import { AccessLevel, SubscriptionStatus } from '@/types/user';
-import { AuthStatus, CleanupSyncStatus, Invite, MfaFactorSummary, PendingTotpEnrollment, RemoteSessionSnapshot, SponsoredAccess, SyncCleanupState, SyncQueueEntry, SyncStatusSnapshot } from '@/types/remote';
+import { AuthStatus, BackendDiagnosticsSnapshot, CleanupSyncStatus, EnvConfigDiagnostics, Invite, MfaFactorSummary, PendingTotpEnrollment, RemoteSchemaDiagnostics, RemoteSessionSnapshot, SponsoredAccess, SyncCleanupState, SyncQueueEntry, SyncStatusSnapshot } from '@/types/remote';
 import {
   bootstrapLocalApp,
   enqueueLocalSyncChange,
@@ -35,6 +35,7 @@ import { hasSupabaseConfig } from '@/services/supabaseClient';
 import { syncQueueToSupabase } from '@/services/syncService';
 import { fetchRemoteAccessSnapshot } from '@/services/remoteAccessService';
 import { fetchRemoteSharedDataSnapshot } from '@/services/remoteSharedDataService';
+import { verifyRemoteSchemaCompatibility } from '@/services/remoteCompatibilityService';
 import { createStoreActions } from '@/app/storeActions';
 import { AppStore, UserDataCleanupCategory } from '@/app/storeTypes';
 import { NotificationPermissionStatus, SharedDataStatus } from '@/types/appState';
@@ -52,6 +53,7 @@ import {
   dedupeSavedRiversByIdentity,
   dedupeSessionGroupSharesByIdentity
 } from '@/utils/dataIdentity';
+import { summarizeSyncFailures } from '@/services/syncDiagnosticsService';
 
 export type { UserDataCleanupCategory };
 
@@ -91,9 +93,30 @@ const toStructuralBackendMessage = (error: unknown) =>
     ? 'Shared beta backend needs the session group sharing migration before multi-group sync can continue.'
     : `Shared beta backend needs a schema or policy fix before cloud sync can continue. ${getErrorMessage(error)}`;
 
+const normalizeRuntimeIssue = (label: string, error: unknown) => {
+  if (!error || typeof error !== 'object') {
+    return error;
+  }
+
+  const message = getErrorMessage(error);
+  const normalizedMessage = formatSharedBackendError(message, 'local_data');
+
+  if (normalizedMessage !== message) {
+    return {
+      code: getErrorCode(error) ?? null,
+      message: normalizedMessage
+    };
+  }
+
+  return {
+    code: getErrorCode(error) ?? null,
+    message
+  };
+};
+
 const reportRuntimeIssue = (label: string, error: unknown) => {
   if (__DEV__) {
-    console.info(`[runtime-trust] ${label}`, error);
+    console.info(`[runtime-trust] ${label}`, normalizeRuntimeIssue(label, error));
   }
 };
 
@@ -133,6 +156,12 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const [notificationPermissionStatus, setNotificationPermissionStatus] = useState<NotificationPermissionStatus>('unknown');
   const [activeUserId, setActiveUserId] = useState<number | null>(null);
   const [remoteBackendBlocked, setRemoteBackendBlocked] = useState(false);
+  const [remoteSchemaDiagnostics, setRemoteSchemaDiagnostics] = useState<RemoteSchemaDiagnostics>({
+    status: 'idle',
+    checkedAt: null,
+    message: null,
+    checks: []
+  });
   const [mfaFactors, setMfaFactors] = useState<MfaFactorSummary[]>([]);
   const [pendingTotpEnrollment, setPendingTotpEnrollment] = useState<PendingTotpEnrollment | null>(null);
   const [mfaAssuranceLevel, setMfaAssuranceLevel] = useState<'aal1' | 'aal2' | 'unknown'>('unknown');
@@ -175,6 +204,47 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     } finally {
       setLocalBootstrapReady(true);
     }
+  };
+
+  const envDiagnostics = useMemo<EnvConfigDiagnostics>(() => {
+    const hasUrl = Boolean(process.env.EXPO_PUBLIC_SUPABASE_URL);
+    const hasPublishableKey = Boolean(process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+    const hasLegacyAnonKey = Boolean(process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY);
+    if (hasLegacyAnonKey) {
+      return {
+        status: 'legacy_key_detected',
+        message: 'Legacy anon key detected. Use only EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY for public auth configuration.',
+        hasUrl,
+        hasPublishableKey,
+        hasLegacyAnonKey
+      };
+    }
+    if (!hasUrl || !hasPublishableKey) {
+      return {
+        status: 'missing',
+        message: 'Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY in this runtime.',
+        hasUrl,
+        hasPublishableKey,
+        hasLegacyAnonKey
+      };
+    }
+    return {
+      status: 'valid',
+      message: 'Publishable key path is configured for this runtime.',
+      hasUrl,
+      hasPublishableKey,
+      hasLegacyAnonKey
+    };
+  }, []);
+
+  const checkRemoteSchemaCompatibility = async () => {
+    setRemoteSchemaDiagnostics((current) => ({
+      ...current,
+      status: 'checking'
+    }));
+    const diagnostics = await verifyRemoteSchemaCompatibility();
+    setRemoteSchemaDiagnostics(diagnostics);
+    return diagnostics;
   };
 
   const mergeById = <T extends { id: number }>(primary: T[], incoming: T[]) => {
@@ -425,52 +495,65 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
 
     const includeRemote = options?.includeRemote ?? true;
 
-    if (hasSupabaseConfig && remoteSession && !remoteBackendBlocked && includeRemote) {
+    if (hasSupabaseConfig && remoteSession && includeRemote) {
       setRemoteBootstrapState('loading_remote');
       setSharedDataStatus('loading');
       try {
-        const remoteAccess = await fetchRemoteAccessSnapshot(remoteSession.authUserId);
-        const remoteShared = await fetchRemoteSharedDataSnapshot(remoteSession.authUserId, remoteAccess);
-        await Promise.all(
-          [...remoteAccess.syncMetadataHints, ...remoteShared.syncMetadataHints].map((hint) =>
-            upsertSyncMetadataEntry({
-              entityType: hint.entityType,
-              localRecordId: hint.localRecordId,
-              remoteRecordId: hint.remoteRecordId,
-              lastSyncedAt: new Date().toISOString(),
-              pendingImport: false
-            })
-          )
-        );
-        setLastSyncError(null);
-        setSharedDataStatus('ready');
-        setRemoteBootstrapState('ready');
+        const schemaDiagnostics = await checkRemoteSchemaCompatibility();
+        if (schemaDiagnostics.status === 'incompatible') {
+          setRemoteBackendBlocked(true);
+          setLastSyncError(schemaDiagnostics.message ?? 'Shared beta backend schema is out of date.');
+          setSharedDataStatus('error');
+          setRemoteBootstrapState('degraded');
+        } else if (schemaDiagnostics.status === 'error') {
+          setLastSyncError(schemaDiagnostics.message ?? 'Could not verify shared beta backend schema.');
+          setSharedDataStatus('error');
+          setRemoteBootstrapState('degraded');
+        } else {
+          const remoteAccess = await fetchRemoteAccessSnapshot(remoteSession.authUserId);
+          const remoteShared = await fetchRemoteSharedDataSnapshot(remoteSession.authUserId, remoteAccess);
+          await Promise.all(
+            [...remoteAccess.syncMetadataHints, ...remoteShared.syncMetadataHints].map((hint) =>
+              upsertSyncMetadataEntry({
+                entityType: hint.entityType,
+                localRecordId: hint.localRecordId,
+                remoteRecordId: hint.remoteRecordId,
+                lastSyncedAt: new Date().toISOString(),
+                pendingImport: false
+              })
+            )
+          );
+          setLastSyncError(null);
+          setRemoteBackendBlocked(false);
+          setSharedDataStatus('ready');
+          setRemoteBootstrapState('ready');
 
-        nextUsers = mergeById(loaded.users, remoteAccess.users);
-        nextGroups = mergeById(loaded.groups, remoteAccess.groups);
-        nextGroupMemberships = mergeById(loaded.groupMemberships, remoteAccess.groupMemberships);
-        nextSharePreferences = mergeById(loaded.sharePreferences, remoteAccess.sharePreferences);
-        nextInvites = mergeById(loaded.invites, remoteAccess.invites);
-        nextSponsoredAccess = mergeById(loaded.sponsoredAccess, remoteAccess.sponsoredAccess);
-        nextCompetitions = mergeById(loaded.competitions, remoteAccess.competitions);
-        nextCompetitionGroups = mergeById(loaded.competitionGroups, remoteAccess.competitionGroups);
-        nextCompetitionSessions = mergeById(loaded.competitionSessions, remoteAccess.competitionSessions);
-        nextCompetitionParticipants = mergeById(loaded.competitionParticipants, remoteAccess.competitionParticipants);
-        nextCompetitionAssignments = mergeById(loaded.competitionAssignments, remoteAccess.competitionAssignments);
+          nextUsers = mergeById(loaded.users, remoteAccess.users);
+          nextGroups = mergeById(loaded.groups, remoteAccess.groups);
+          nextGroupMemberships = mergeById(loaded.groupMemberships, remoteAccess.groupMemberships);
+          nextSharePreferences = mergeById(loaded.sharePreferences, remoteAccess.sharePreferences);
+          nextInvites = mergeById(loaded.invites, remoteAccess.invites);
+          nextSponsoredAccess = mergeById(loaded.sponsoredAccess, remoteAccess.sponsoredAccess);
+          nextCompetitions = mergeById(loaded.competitions, remoteAccess.competitions);
+          nextCompetitionGroups = mergeById(loaded.competitionGroups, remoteAccess.competitionGroups);
+          nextCompetitionSessions = mergeById(loaded.competitionSessions, remoteAccess.competitionSessions);
+          nextCompetitionParticipants = mergeById(loaded.competitionParticipants, remoteAccess.competitionParticipants);
+          nextCompetitionAssignments = mergeById(loaded.competitionAssignments, remoteAccess.competitionAssignments);
 
-        nextSessionGroupShares = mergeById(loaded.sessionGroupShares, remoteShared.ownedSessionGroupShares);
-        nextAllSessionGroupShares = mergeById(loaded.sessionGroupShares, remoteShared.accessibleSessionGroupShares);
-        nextSessions = applySessionShareIds(mergeById(loaded.sessions, remoteShared.ownedSessions), nextSessionGroupShares);
-        nextAllSessions = applySessionShareIds(mergeById(loaded.allSessions, remoteShared.accessibleSessions), nextAllSessionGroupShares);
-        nextSessionSegments = mergeById(loaded.sessionSegments, remoteShared.ownedSessionSegments);
-        nextCatchEvents = mergeById(loaded.catchEvents, remoteShared.ownedCatchEvents);
-        nextAllCatchEvents = mergeById(loaded.allCatchEvents, remoteShared.accessibleCatchEvents);
-        nextExperiments = mergeById(loaded.experiments, remoteShared.ownedExperiments);
-        nextAllExperiments = mergeById(loaded.allExperiments, remoteShared.accessibleExperiments);
-        nextSavedFlies = mergeById(loaded.savedFlies, remoteShared.savedFlies);
-        nextSavedLeaderFormulas = mergeById(loaded.savedLeaderFormulas, remoteShared.savedLeaderFormulas);
-        nextSavedRigPresets = mergeById(loaded.savedRigPresets, remoteShared.savedRigPresets);
-        nextSavedRivers = mergeById(loaded.savedRivers, remoteShared.savedRivers);
+          nextSessionGroupShares = mergeById(loaded.sessionGroupShares, remoteShared.ownedSessionGroupShares);
+          nextAllSessionGroupShares = mergeById(loaded.sessionGroupShares, remoteShared.accessibleSessionGroupShares);
+          nextSessions = applySessionShareIds(mergeById(loaded.sessions, remoteShared.ownedSessions), nextSessionGroupShares);
+          nextAllSessions = applySessionShareIds(mergeById(loaded.allSessions, remoteShared.accessibleSessions), nextAllSessionGroupShares);
+          nextSessionSegments = mergeById(loaded.sessionSegments, remoteShared.ownedSessionSegments);
+          nextCatchEvents = mergeById(loaded.catchEvents, remoteShared.ownedCatchEvents);
+          nextAllCatchEvents = mergeById(loaded.allCatchEvents, remoteShared.accessibleCatchEvents);
+          nextExperiments = mergeById(loaded.experiments, remoteShared.ownedExperiments);
+          nextAllExperiments = mergeById(loaded.allExperiments, remoteShared.accessibleExperiments);
+          nextSavedFlies = mergeById(loaded.savedFlies, remoteShared.savedFlies);
+          nextSavedLeaderFormulas = mergeById(loaded.savedLeaderFormulas, remoteShared.savedLeaderFormulas);
+          nextSavedRigPresets = mergeById(loaded.savedRigPresets, remoteShared.savedRigPresets);
+          nextSavedRivers = mergeById(loaded.savedRivers, remoteShared.savedRivers);
+        }
       } catch (error) {
         reportRuntimeIssue('shared access bootstrap failed', error);
         if (isStructuralBackendError(error)) {
@@ -578,12 +661,23 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     }
 
     if (remoteBackendBlocked) {
-      throw new Error('Shared beta backend needs a schema or policy fix before sync can continue.');
+      const schemaDiagnostics = await checkRemoteSchemaCompatibility();
+      if (schemaDiagnostics.status === 'compatible') {
+        setRemoteBackendBlocked(false);
+      } else {
+        throw new Error(schemaDiagnostics.message ?? 'Shared beta backend needs a schema or policy fix before sync can continue.');
+      }
     }
 
     setIsSyncing(true);
     setLastSyncError(null);
     try {
+      const schemaDiagnostics = await checkRemoteSchemaCompatibility();
+      if (schemaDiagnostics.status !== 'compatible') {
+        setRemoteBackendBlocked(schemaDiagnostics.status === 'incompatible');
+        setLastSyncError(schemaDiagnostics.message ?? 'Shared beta backend schema is not ready for sync.');
+        throw new Error(schemaDiagnostics.message ?? 'Shared beta backend schema is not ready for sync.');
+      }
       const loaded = await loadLocalAppData(user.id);
       await syncQueueToSupabase(
         {
@@ -987,6 +1081,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     const pendingCount = syncQueue.filter((entry) => entry.status === 'pending').length;
     const failedCount = syncQueue.filter((entry) => entry.status === 'failed').length;
     const syncedEntries = syncQueue.filter((entry) => entry.status === 'synced');
+    const failureSummaries = summarizeSyncFailures(syncQueue);
     const lastSyncedAt = syncedEntries
       .map((entry) => entry.syncedAt ?? null)
       .filter((value): value is string => !!value)
@@ -998,7 +1093,8 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       failedCount,
       syncedCount: syncedEntries.length,
       lastSyncedAt,
-      lastError: lastSyncError
+      lastError: lastSyncError,
+      failureSummaries
     };
   }, [isSyncing, lastSyncError, syncQueue]);
   const cleanupSyncStatus = useMemo<CleanupSyncStatus>(() => {
@@ -1010,6 +1106,26 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       lastFailedDeleteMessage: failedDeleteEntries[0]?.errorMessage ?? null
     };
   }, [syncQueue]);
+  const backendDiagnostics = useMemo<BackendDiagnosticsSnapshot>(
+    () => ({
+      projectHost: process.env.EXPO_PUBLIC_SUPABASE_URL
+        ? (() => {
+            try {
+              return new URL(process.env.EXPO_PUBLIC_SUPABASE_URL).host;
+            } catch {
+              return process.env.EXPO_PUBLIC_SUPABASE_URL ?? null;
+            }
+          })()
+        : null,
+      authConnected: !!remoteSession,
+      bootstrapState: remoteBootstrapState,
+      sharedDataStatus,
+      syncStatus,
+      schema: remoteSchemaDiagnostics,
+      env: envDiagnostics
+    }),
+    [envDiagnostics, remoteBootstrapState, remoteSchemaDiagnostics, remoteSession, sharedDataStatus, syncStatus]
+  );
 
   const trackSyncChange = async (
     entityType: SyncQueueEntry['entityType'],
@@ -1128,6 +1244,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         syncQueue,
         syncStatus,
         cleanupSyncStatus,
+        backendDiagnostics,
         sharedDataStatus,
         notificationPermissionStatus,
         authStatus,

@@ -29,6 +29,7 @@ interface RigSetupPanelProps {
   onDeleteLeaderFormula?: (formulaId: number) => Promise<void>;
   onDeleteRigPreset?: (presetId: number) => Promise<void>;
   foregroundQuickAdd?: boolean;
+  presentationMode?: 'setup' | 'change';
 }
 
 export const RigSetupPanel = ({
@@ -47,7 +48,8 @@ export const RigSetupPanel = ({
   onApplyRigPreset,
   onDeleteLeaderFormula,
   onDeleteRigPreset,
-  foregroundQuickAdd = false
+  foregroundQuickAdd = false,
+  presentationMode = 'change'
 }: RigSetupPanelProps) => {
   const { theme } = useTheme();
   const isLightTone = tone === 'light';
@@ -62,8 +64,11 @@ export const RigSetupPanel = ({
   const [showFormulaEditor, setShowFormulaEditor] = useState(false);
   const [showPresetList, setShowPresetList] = useState(false);
   const [showPresetEditor, setShowPresetEditor] = useState(false);
+  const [showPresetSaveStep, setShowPresetSaveStep] = useState(false);
+  const [presetDraftName, setPresetDraftName] = useState('');
   const [showSetupEditor, setShowSetupEditor] = useState(true);
   const [editTarget, setEditTarget] = useState<'all' | 'leader' | 'rig'>(editMode);
+  const showSetupModeRigBuilder = presentationMode !== 'setup' || showPresetEditor;
   const sortedFormulas = useMemo(() => [...savedLeaderFormulas].sort((left, right) => left.name.localeCompare(right.name)), [savedLeaderFormulas]);
   const sortedPresets = useMemo(() => [...savedRigPresets].sort((left, right) => left.name.localeCompare(right.name)), [savedRigPresets]);
   const hasConfiguredLeader = !!rigSetup.leaderFormulaName || rigSetup.leaderFormulaSectionsSnapshot.length > 0;
@@ -90,6 +95,8 @@ export const RigSetupPanel = ({
     setShowFormulaEditor(false);
     setShowPresetList(false);
     setShowPresetEditor(false);
+    setShowPresetSaveStep(false);
+    setPresetDraftName('');
   };
 
   return (
@@ -150,7 +157,7 @@ export const RigSetupPanel = ({
             <>
               {!!sortedFormulas.length ? (
                 <>
-                  <AppButton label={showFormulaList ? 'Hide Existing Leaders' : 'Existing Leader'} onPress={() => setShowFormulaList((current) => !current)} variant="secondary" surfaceTone={tone} />
+                  <AppButton label={showFormulaList ? 'Hide Saved Leaders' : presentationMode === 'setup' ? 'Saved Leaders' : 'Existing Leader'} onPress={() => setShowFormulaList((current) => !current)} variant="secondary" surfaceTone={tone} />
                   {showFormulaList ? (
                     <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: listBorder, borderRadius: theme.radius.md, backgroundColor: listBackground }}>
                       {sortedFormulas.map((formula) => (
@@ -189,7 +196,7 @@ export const RigSetupPanel = ({
                 </>
               ) : null}
 
-              <AppButton label={showFormulaEditor ? 'Hide New Leader' : 'New Leader'} onPress={() => setShowFormulaEditor((current) => !current)} variant="tertiary" surfaceTone={tone} />
+              <AppButton label={showFormulaEditor ? 'Hide New Leader' : 'Build New Leader'} onPress={() => setShowFormulaEditor((current) => !current)} variant="tertiary" surfaceTone={tone} />
 
               {showFormulaEditor && !foregroundQuickAdd ? (
                 <LeaderFormulaEditor
@@ -210,25 +217,24 @@ export const RigSetupPanel = ({
 
           {(editMode !== 'leader' && (editTarget === 'all' || editTarget === 'rig')) ? (
             <>
-              <AppButton label={showPresetEditor ? 'Hide New Rig' : 'New Rig'} onPress={() => setShowPresetEditor((current) => !current)} variant="ghost" surfaceTone={tone} />
-
-              {showPresetEditor && !foregroundQuickAdd ? (
-                <RigPresetEditor
-                  tone={tone}
-                  onSave={async (name) => {
-                    try {
-                      await onCreateRigPreset(createRigPresetPayload(rigSetup, name));
-                      setShowPresetEditor(false);
-                    } catch (error) {
-                      Alert.alert('Unable to save rig preset', error instanceof Error ? error.message : 'Please try again.');
-                    }
-                  }}
-                />
-              ) : null}
-
               {!!sortedPresets.length ? (
                 <>
-                  <AppButton label={showPresetList ? 'Hide Existing Rigs' : 'Existing Rig'} onPress={() => setShowPresetList((current) => !current)} variant="secondary" surfaceTone={tone} />
+                  <AppButton
+                    label={showPresetList ? 'Hide Saved Rigs' : 'Saved Rigs'}
+                    onPress={() => {
+                      setShowPresetList((current) => {
+                        const next = !current;
+                        if (next && presentationMode === 'setup') {
+                          setShowPresetEditor(false);
+                          setShowPresetSaveStep(false);
+                          setPresetDraftName('');
+                        }
+                        return next;
+                      });
+                    }}
+                    variant="secondary"
+                    surfaceTone={tone}
+                  />
                   {showPresetList ? (
                     <ScrollView style={{ maxHeight: 180, borderWidth: 1, borderColor: listBorder, borderRadius: theme.radius.md, backgroundColor: listBackground }}>
                       {sortedPresets.map((preset) => (
@@ -264,7 +270,59 @@ export const RigSetupPanel = ({
                 </>
               ) : null}
 
-              {onFlyCountChange ? (
+              <AppButton
+                label={showPresetEditor ? 'Hide New Rig Builder' : 'Build New Rig'}
+                onPress={() => {
+                  setShowPresetEditor((current) => {
+                    const next = !current;
+                    if (next && presentationMode === 'setup') {
+                      setShowPresetList(false);
+                      setShowPresetSaveStep(false);
+                      setPresetDraftName('');
+                    }
+                    return next;
+                  });
+                }}
+                variant="ghost"
+                surfaceTone={tone}
+              />
+
+              {showPresetEditor ? (
+                <>
+                  {presentationMode === 'setup' ? (
+                    <View
+                      style={{
+                        gap: 8,
+                        borderRadius: theme.radius.md,
+                        padding: 12,
+                        backgroundColor: nestedBackground,
+                        borderWidth: isLightTone ? 1 : 0,
+                        borderColor: nestedBorder
+                      }}
+                    >
+                      <Text style={{ color: primaryTextColor, fontWeight: '700' }}>Starting rig baseline</Text>
+                      <Text style={{ color: secondaryTextColor }}>
+                        Leader to point, {flyCount} {flyCount === 1 ? 'fly' : 'flies'}{rigSetup.assignments.length ? ` | ${rigSetup.assignments.map((assignment) => assignment.position).join(' | ')}` : ''}.
+                      </Text>
+                    </View>
+                  ) : null}
+                  {foregroundQuickAdd && presentationMode !== 'setup' && (
+                    <RigPresetEditor
+                      tone={tone}
+                      onSave={async (name) => {
+                        try {
+                          await onCreateRigPreset(createRigPresetPayload(rigSetup, name));
+                          setShowPresetEditor(false);
+                        } catch (error) {
+                          Alert.alert('Unable to save rig preset', error instanceof Error ? error.message : 'Please try again.');
+                        }
+                      }}
+                    />
+                  )}
+                </>
+              ) : null}
+
+              {showSetupModeRigBuilder && onFlyCountChange ? (
                 <OptionChips
                   label="Fly Count"
                   options={['1', '2', '3'] as const}
@@ -274,7 +332,8 @@ export const RigSetupPanel = ({
                 />
               ) : null}
 
-              <View style={{ gap: 8 }}>
+              {showSetupModeRigBuilder ? (
+                <View style={{ gap: 8 }}>
                 {rigSetup.addedTippetSections.map((section, index) => (
                   <View key={`${section.label}-${index}`} style={{ gap: 8, borderRadius: theme.radius.md, padding: 10, backgroundColor: nestedBackground, borderWidth: isLightTone ? 1 : 0, borderColor: nestedBorder }}>
                     <Text style={{ color: primaryTextColor, fontWeight: '700' }}>{section.label}</Text>
@@ -309,7 +368,41 @@ export const RigSetupPanel = ({
                     />
                   </View>
                 ))}
-              </View>
+                </View>
+              ) : null}
+
+              {presentationMode === 'setup' && showSetupModeRigBuilder ? (
+                <>
+                  {showPresetSaveStep ? (
+                    <RigPresetEditor
+                      tone={tone}
+                      initialName={presetDraftName}
+                      onNameChange={setPresetDraftName}
+                      submitLabel="Save Rig"
+                      onCancel={() => {
+                        setShowPresetSaveStep(false);
+                        setPresetDraftName('');
+                      }}
+                      onSave={async (name) => {
+                        try {
+                          await onCreateRigPreset(createRigPresetPayload(rigSetup, name));
+                          setShowPresetSaveStep(false);
+                          setPresetDraftName('');
+                        } catch (error) {
+                          Alert.alert('Unable to save rig preset', error instanceof Error ? error.message : 'Please try again.');
+                        }
+                      }}
+                    />
+                  ) : (
+                    <AppButton
+                      label="Save Rig"
+                      onPress={() => setShowPresetSaveStep(true)}
+                      variant="secondary"
+                      surfaceTone={tone}
+                    />
+                  )}
+                </>
+              ) : null}
             </>
           ) : null}
 
@@ -334,8 +427,8 @@ export const RigSetupPanel = ({
           <AppButton label="Cancel" onPress={() => setShowFormulaEditor(false)} variant="ghost" surfaceTone="modal" />
         </ModalSurface>
       </Modal>
-      <Modal visible={showPresetEditor && foregroundQuickAdd} transparent animationType="fade" onRequestClose={() => setShowPresetEditor(false)}>
-        <ModalSurface title="Quick Add Rig" subtitle="Save a rig preset in the foreground, then return to this setup flow.">
+      <Modal visible={showPresetEditor && foregroundQuickAdd && presentationMode !== 'setup'} transparent animationType="fade" onRequestClose={() => setShowPresetEditor(false)}>
+        <ModalSurface title={presentationMode === 'setup' ? 'Build New Rig' : 'Quick Add Rig'} subtitle={presentationMode === 'setup' ? 'Build today’s starting rig and save it for future use if you want it again.' : 'Save a rig preset in the foreground, then return to this setup flow.'}>
           <RigPresetEditor
             tone="modal"
             onSave={async (name) => {

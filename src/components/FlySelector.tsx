@@ -15,6 +15,7 @@ interface FlySelectorProps {
   onConfirm?: () => void;
   confirmLabel?: string;
   tone?: SurfaceTone;
+  fieldMode?: 'full' | 'adjust';
 }
 
 interface ChipGroupProps<T extends string | number> {
@@ -58,12 +59,23 @@ const ChipGroup = <T extends string | number>({ label, options, selected, onSele
   );
 };
 
-export const FlySelector = ({ title, value, savedFlies, onChange, onSave, onConfirm, confirmLabel = 'Use This Fly', tone = 'light' }: FlySelectorProps) => {
+export const FlySelector = ({
+  title,
+  value,
+  savedFlies,
+  onChange,
+  onSave,
+  onConfirm,
+  confirmLabel = 'Use This Fly',
+  tone = 'light',
+  fieldMode = 'full'
+}: FlySelectorProps) => {
   const { theme } = useTheme();
   const [showSavedFlyList, setShowSavedFlyList] = useState(false);
   const sortedSavedFlies = useMemo(() => [...savedFlies].sort((a, b) => a.name.localeCompare(b.name)), [savedFlies]);
   const availableStages = INSECT_STAGES_BY_TYPE[value.bugFamily];
   const hasNamedFly = !!value.name.trim();
+  const isAdjustMode = fieldMode === 'adjust';
   const isModalTone = tone === 'modal';
   const useThemeElevatedPalette = tone === 'light' && theme.id !== 'daylight_light';
   const bodyTextColor = tone === 'light' ? (useThemeElevatedPalette ? theme.colors.text : theme.colors.textDark) : isModalTone ? theme.colors.modalText : theme.colors.text;
@@ -73,10 +85,9 @@ export const FlySelector = ({ title, value, savedFlies, onChange, onSave, onConf
 
   return (
     <SectionCard title={title} subtitle="Choose a saved fly or build one quickly without leaving the current flow." tone={tone}>
-
       {!!sortedSavedFlies.length && (
         <View style={{ gap: 6 }}>
-          <AppButton label={showSavedFlyList ? 'Hide Existing Flies' : 'Existing Fly'} onPress={() => setShowSavedFlyList((current) => !current)} variant="secondary" surfaceTone={tone} />
+          <AppButton label={showSavedFlyList ? 'Hide Saved Flies' : 'Saved Flies'} onPress={() => setShowSavedFlyList((current) => !current)} variant="secondary" surfaceTone={tone} />
           {showSavedFlyList && (
             <View style={{ borderWidth: 1, borderColor: panelBorder, borderRadius: theme.radius.md, backgroundColor: panelBackground }}>
               {sortedSavedFlies.map((fly) => (
@@ -118,15 +129,35 @@ export const FlySelector = ({ title, value, savedFlies, onChange, onSave, onConf
         placeholderTextColor={theme.colors.inputPlaceholder}
         style={{ borderWidth: 1, borderColor: panelBorder, padding: 12, borderRadius: theme.radius.md, backgroundColor: theme.colors.inputBg, color: theme.colors.inputText }}
       />
-      <ChipGroup label="Fly Type" options={FLY_INTENTS} selected={value.intent} onSelect={(intent) => onChange({ ...value, intent })} tone={tone} />
+      {isAdjustMode ? (
+        <View
+          style={{
+            gap: 8,
+            borderRadius: theme.radius.md,
+            padding: 12,
+            borderWidth: 1,
+            borderColor: panelBorder,
+            backgroundColor: panelBackground
+          }}
+        >
+          <Text style={{ color: bodyTextColor, fontWeight: '700' }}>Adjust the same fly without replacing the rest of its setup.</Text>
+          <Text style={{ color: bodySoftColor, lineHeight: 20 }}>
+            Keep the same fly pattern and tune the hook or bead/weight so the current experiment can continue cleanly.
+          </Text>
+        </View>
+      ) : (
+        <>
+          <ChipGroup label="Fly Type" options={FLY_INTENTS} selected={value.intent} onSelect={(intent) => onChange({ ...value, intent })} tone={tone} />
+          <ChipGroup label="Body Type" options={BODY_TYPES} selected={value.bodyType} onSelect={(bodyType) => onChange({ ...value, bodyType })} tone={tone} />
+          <ChipGroup label={BUG_FAMILY_LABEL} options={INSECT_TYPES} selected={value.bugFamily} onSelect={(bugFamily) => onChange({ ...value, bugFamily, bugStage: INSECT_STAGES_BY_TYPE[bugFamily][0] })} tone={tone} />
+          <ChipGroup label={BUG_STAGE_LABEL} options={availableStages} selected={availableStages.includes(value.bugStage) ? value.bugStage : availableStages[0]} onSelect={(bugStage) => onChange({ ...value, bugStage })} tone={tone} />
+          <ChipGroup label="Tail" options={TAIL_TYPES} selected={value.tail} onSelect={(tail) => onChange({ ...value, tail })} tone={tone} />
+          <ChipGroup label="Collar" options={COLLAR_TYPES} selected={value.collar} onSelect={(collar) => onChange({ ...value, collar })} tone={tone} />
+        </>
+      )}
       <ChipGroup label="Hook Size" options={HOOK_SIZES} selected={value.hookSize ?? 16} onSelect={(hookSize) => onChange({ ...value, hookSize })} tone={tone} />
       <ChipGroup label="Bead Size" options={BEAD_SIZES_MM} selected={value.beadSizeMm} onSelect={(beadSizeMm) => onChange({ ...value, beadSizeMm })} tone={tone} />
       <ChipGroup label="Bead Color" options={BEAD_COLORS} selected={value.beadColor} onSelect={(beadColor) => onChange({ ...value, beadColor })} tone={tone} />
-      <ChipGroup label="Body Type" options={BODY_TYPES} selected={value.bodyType} onSelect={(bodyType) => onChange({ ...value, bodyType })} tone={tone} />
-      <ChipGroup label={BUG_FAMILY_LABEL} options={INSECT_TYPES} selected={value.bugFamily} onSelect={(bugFamily) => onChange({ ...value, bugFamily, bugStage: INSECT_STAGES_BY_TYPE[bugFamily][0] })} tone={tone} />
-      <ChipGroup label={BUG_STAGE_LABEL} options={availableStages} selected={availableStages.includes(value.bugStage) ? value.bugStage : availableStages[0]} onSelect={(bugStage) => onChange({ ...value, bugStage })} tone={tone} />
-      <ChipGroup label="Tail" options={TAIL_TYPES} selected={value.tail} onSelect={(tail) => onChange({ ...value, tail })} tone={tone} />
-      <ChipGroup label="Collar" options={COLLAR_TYPES} selected={value.collar} onSelect={(collar) => onChange({ ...value, collar })} tone={tone} />
 
       {onConfirm ? <AppButton label={confirmLabel} onPress={onConfirm} disabled={!hasNamedFly} surfaceTone={tone} /> : null}
       <AppButton label="Save To Fly Library" onPress={onSave} surfaceTone={tone} />

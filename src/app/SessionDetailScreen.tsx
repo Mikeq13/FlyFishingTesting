@@ -166,6 +166,9 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
         })}
         </SectionCard>
 
+        {session?.mode === 'practice' ? (
+          <AppButton label="Review Practice Session" onPress={() => navigation.navigate('PracticeReview', { sessionId })} variant="secondary" />
+        ) : null}
         <AppButton label="Add Another Experiment" onPress={() => navigation.navigate('Experiment', { sessionId })} />
         <AppButton label="View Insights" onPress={() => navigation.navigate('Insights')} variant="secondary" />
         <AppButton label="Back Home" onPress={() => navigation.navigate('Home')} variant="tertiary" />

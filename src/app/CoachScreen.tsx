@@ -30,6 +30,9 @@ const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
 
 export const CoachScreen = () => {
   const { theme } = useTheme();
+  const isDaylightTheme = theme.id === 'daylight_light';
+  const elevatedTextColor = isDaylightTheme ? theme.colors.textDark : theme.colors.text;
+  const elevatedSoftTextColor = isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft;
   const navigation = useNavigation<any>();
   const { sessions, experiments, insights, topFlyRecords, currentHasPremiumAccess } = useAppStore();
   const [question, setQuestion] = useState('What does my data suggest I try next?');
@@ -223,7 +226,7 @@ export const CoachScreen = () => {
               placeholderTextColor={theme.colors.inputPlaceholder}
             />
 
-            <AppButton label="Ask AI Coach" onPress={() => setResponse(runCoach(question, context))} variant="tertiary" />
+            <AppButton label="Ask AI Coach" onPress={() => setResponse(runCoach(question, context))} variant="tertiary" surfaceTone="light" />
 
             {response && (
               <View
@@ -233,28 +236,28 @@ export const CoachScreen = () => {
                   borderColor: theme.colors.border,
                   borderRadius: 14,
                   padding: 14,
-                  backgroundColor: theme.colors.surfaceLight
+                  backgroundColor: theme.colors.surfaceAlt
                 }}
               >
                 <View style={{ gap: 4 }}>
-                  <Text style={{ fontWeight: '700', color: theme.colors.textDark }}>Summary</Text>
-                  <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>{response.summary}</Text>
+                  <Text style={{ fontWeight: '700', color: elevatedTextColor }}>Summary</Text>
+                  <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>{response.summary}</Text>
                 </View>
 
                 <View style={{ gap: 4 }}>
-                  <Text style={{ fontWeight: '700', color: theme.colors.textDark }}>Evidence</Text>
+                  <Text style={{ fontWeight: '700', color: elevatedTextColor }}>Evidence</Text>
                   {response.evidence.map((evidence, index) => (
-                    <Text key={`${evidence}-${index}`} style={{ color: theme.colors.textDarkSoft, lineHeight: 19 }}>
+                    <Text key={`${evidence}-${index}`} style={{ color: elevatedSoftTextColor, lineHeight: 19 }}>
                       - {evidence}
                     </Text>
                   ))}
                 </View>
 
-                <Text style={{ color: theme.colors.textDarkSoft, fontWeight: '700' }}>Confidence: {response.confidence}</Text>
+                <Text style={{ color: elevatedSoftTextColor, fontWeight: '700' }}>Confidence: {response.confidence}</Text>
 
                 <View style={{ gap: 4 }}>
-                  <Text style={{ fontWeight: '700', color: theme.colors.textDark }}>Next Best Action</Text>
-                  <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>{response.nextBestAction}</Text>
+                  <Text style={{ fontWeight: '700', color: elevatedTextColor }}>Next Best Action</Text>
+                  <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>{response.nextBestAction}</Text>
                 </View>
               </View>
             )}

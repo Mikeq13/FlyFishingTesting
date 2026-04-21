@@ -532,6 +532,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
               onPracticeMeasurementEnabledChange={setPracticeMeasurementEnabled}
               onPracticeLengthUnitChange={setPracticeLengthUnit}
               foregroundEditing
+              presentationMode="setup"
             />
           ) : null}
           {mode !== 'competition' && !!joinedGroups.length ? (

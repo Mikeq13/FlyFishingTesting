@@ -114,12 +114,59 @@ export interface SyncStatusSnapshot {
   syncedCount: number;
   lastSyncedAt?: string | null;
   lastError?: string | null;
+  failureSummaries: SyncFailureSummary[];
 }
 
 export interface CleanupSyncStatus {
   pendingDeleteCount: number;
   failedDeleteCount: number;
   lastFailedDeleteMessage?: string | null;
+}
+
+export type SyncFailureCategory = 'schema' | 'auth' | 'permission' | 'transient' | 'unknown';
+
+export interface SyncFailureSummary {
+  queueEntryId: number;
+  entityType: SyncEntityType;
+  operation: SyncOperation;
+  recordId?: number | null;
+  category: SyncFailureCategory;
+  message: string;
+  createdAt: string;
+}
+
+export type RemoteSchemaCompatibilityStatus = 'idle' | 'checking' | 'compatible' | 'incompatible' | 'error';
+
+export interface RemoteSchemaCheck {
+  key: string;
+  label: string;
+  status: 'ok' | 'incompatible' | 'error';
+  message?: string | null;
+}
+
+export interface RemoteSchemaDiagnostics {
+  status: RemoteSchemaCompatibilityStatus;
+  checkedAt?: string | null;
+  message?: string | null;
+  checks: RemoteSchemaCheck[];
+}
+
+export interface EnvConfigDiagnostics {
+  status: 'valid' | 'missing' | 'legacy_key_detected';
+  message: string;
+  hasUrl: boolean;
+  hasPublishableKey: boolean;
+  hasLegacyAnonKey: boolean;
+}
+
+export interface BackendDiagnosticsSnapshot {
+  projectHost?: string | null;
+  authConnected: boolean;
+  bootstrapState: 'idle' | 'resolving_local' | 'loading_remote' | 'ready' | 'degraded';
+  sharedDataStatus: import('@/types/appState').SharedDataStatus;
+  syncStatus: SyncStatusSnapshot;
+  schema: RemoteSchemaDiagnostics;
+  env: EnvConfigDiagnostics;
 }
 
 export interface RemoteEntityMaps {

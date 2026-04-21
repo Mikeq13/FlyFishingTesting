@@ -51,6 +51,11 @@ export const RemoteTesterOnboardingSection = ({
 }) => {
   const { theme } = useTheme();
   const formInputStyle = getFormInputStyle();
+  const isDaylightTheme = theme.id === 'daylight_light';
+  const elevatedTextColor = isDaylightTheme ? theme.colors.textDark : theme.colors.text;
+  const elevatedSoftTextColor = isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft;
+  const elevatedSurface = isDaylightTheme ? theme.colors.nestedSurface : theme.colors.surfaceAlt;
+  const elevatedBorder = isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.borderStrong;
   const testerInviteMessage = buildTesterInviteMessage({
     iosUrl: iosPreviewUrl,
     androidUrl: androidPreviewUrl,
@@ -77,7 +82,7 @@ export const RemoteTesterOnboardingSection = ({
 
   const content = (
     <>
-      <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+      <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
         Keep your current iPhone preview link, Android APK link, and any group or invite code here so you can send one clean tester message without rebuilding the instructions every time.
       </Text>
       <FormField label="iPhone Preview Link" tone="light">
@@ -127,15 +132,15 @@ export const RemoteTesterOnboardingSection = ({
       <View
         style={{
           gap: 8,
-          backgroundColor: theme.colors.nestedSurface,
+          backgroundColor: elevatedSurface,
           borderRadius: 12,
           padding: 12,
           borderWidth: 1,
-          borderColor: theme.colors.nestedSurfaceBorder
+          borderColor: elevatedBorder
         }}
       >
-        <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>Preview Message</Text>
-        <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>{testerInviteMessage}</Text>
+        <Text style={{ color: elevatedTextColor, fontWeight: '700' }}>Preview Message</Text>
+        <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>{testerInviteMessage}</Text>
       </View>
     </>
   );

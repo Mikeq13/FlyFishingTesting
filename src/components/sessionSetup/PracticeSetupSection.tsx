@@ -36,6 +36,7 @@ interface PracticeSetupSectionProps {
   onPracticeMeasurementEnabledChange: (value: boolean) => void;
   onPracticeLengthUnitChange: (value: PracticeLengthUnit) => void;
   foregroundEditing?: boolean;
+  presentationMode?: 'setup' | 'change';
 }
 
 export const PracticeSetupSection = ({
@@ -59,7 +60,8 @@ export const PracticeSetupSection = ({
   onDeleteRigPreset,
   onPracticeMeasurementEnabledChange,
   onPracticeLengthUnitChange,
-  foregroundEditing = false
+  foregroundEditing = false,
+  presentationMode = 'change'
 }: PracticeSetupSectionProps) => {
   const { theme } = useTheme();
   const [activeSetupSheet, setActiveSetupSheet] = useState<SetupSheetKey>(null);
@@ -142,25 +144,25 @@ export const PracticeSetupSection = ({
       {renderSummaryCard({
         heading: 'Technique',
         summary: technique ?? 'Not chosen',
-        buttonLabel: 'Change Technique',
+        buttonLabel: presentationMode === 'setup' ? 'Choose Technique' : 'Change Technique',
         sheetKey: 'technique'
       })}
       {renderSummaryCard({
         heading: 'Leader',
         summary: leaderSummary,
-        buttonLabel: 'Change Leader',
+        buttonLabel: presentationMode === 'setup' ? 'Select Leader' : 'Change Leader',
         sheetKey: 'leader'
       })}
       {renderSummaryCard({
         heading: 'Rigging',
         summary: rigSummary,
-        buttonLabel: 'Change Rigging',
+        buttonLabel: presentationMode === 'setup' ? 'Select Rig' : 'Change Rigging',
         sheetKey: 'rigging'
       })}
       {renderSummaryCard({
         heading: 'Flies',
         summary: flySummary,
-        buttonLabel: 'Change Flies',
+        buttonLabel: presentationMode === 'setup' ? 'Select Flies' : 'Change Flies',
         sheetKey: 'flies'
       })}
       {showMeasurementControls ? (
@@ -174,18 +176,38 @@ export const PracticeSetupSection = ({
       <Modal visible={activeSetupSheet !== null} transparent animationType="fade" onRequestClose={() => setActiveSetupSheet(null)}>
         <BottomSheetSurface
           title={
-            activeSetupSheet === 'leader'
-              ? 'Change Leader'
-              : activeSetupSheet === 'rigging'
-                ? 'Change Rigging'
-                : 'Change Flies'
+            activeSetupSheet === 'technique'
+              ? presentationMode === 'setup'
+                ? 'Choose Technique'
+                : 'Change Technique'
+              : activeSetupSheet === 'leader'
+                ? presentationMode === 'setup'
+                  ? 'Select Leader'
+                  : 'Change Leader'
+                : activeSetupSheet === 'rigging'
+                  ? presentationMode === 'setup'
+                    ? 'Select Rig'
+                    : 'Change Rigging'
+                  : presentationMode === 'setup'
+                    ? 'Select Flies'
+                    : 'Change Flies'
           }
           subtitle={
-            activeSetupSheet === 'leader'
-              ? 'Swap leader setup in the foreground, then return right to session setup.'
-              : activeSetupSheet === 'rigging'
-                ? 'Adjust fly count, preset, and tippet details without reopening a long setup stack.'
-                : 'Replace flies or fill empty slots in one focused editor.'
+            activeSetupSheet === 'technique'
+              ? presentationMode === 'setup'
+                ? 'Choose the approach you want to start with today, then return right to session setup.'
+                : 'Keep approach changes fast and obvious before you adjust the rest of the setup.'
+              : activeSetupSheet === 'leader'
+                ? presentationMode === 'setup'
+                  ? 'Select the leader you want to start with today, or build a fresh one without leaving setup.'
+                  : 'Swap leader setup in the foreground, then return right to session setup.'
+                : activeSetupSheet === 'rigging'
+                  ? presentationMode === 'setup'
+                    ? 'Choose a saved rig or build a new one for today’s starting setup.'
+                    : 'Adjust fly count, preset, and tippet details without reopening a long setup stack.'
+                  : presentationMode === 'setup'
+                    ? 'Choose saved flies or build the flies you want to start the day with.'
+                    : 'Replace flies or fill empty slots in one focused editor.'
           }
           onClose={() => setActiveSetupSheet(null)}
         >
@@ -210,6 +232,7 @@ export const PracticeSetupSection = ({
                 forceEditorOpen
                 tone="modal"
                 foregroundQuickAdd
+                presentationMode={presentationMode}
                 savedLeaderFormulas={savedLeaderFormulas}
                 savedRigPresets={savedRigPresets}
                 onChange={onRigSetupChange}
@@ -230,6 +253,7 @@ export const PracticeSetupSection = ({
                 forceEditorOpen
                 tone="modal"
                 foregroundQuickAdd
+                presentationMode={presentationMode}
                 savedLeaderFormulas={savedLeaderFormulas}
                 savedRigPresets={savedRigPresets}
                 onChange={onRigSetupChange}

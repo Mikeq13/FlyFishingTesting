@@ -67,13 +67,20 @@ export const CompetitionOrganizerSection = ({
 }) => {
   const { theme } = useTheme();
   const formInputStyle = getFormInputStyle();
+  const isDaylightTheme = theme.id === 'daylight_light';
+  const elevatedTextColor = isDaylightTheme ? theme.colors.textDark : theme.colors.text;
+  const elevatedSoftTextColor = isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft;
+  const elevatedSurface = isDaylightTheme ? theme.colors.nestedSurface : theme.colors.surfaceAlt;
+  const elevatedBorder = isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.borderStrong;
+  const nestedElevatedSurface = isDaylightTheme ? theme.colors.surfaceLightAlt : theme.colors.surface;
+  const nestedElevatedBorder = isDaylightTheme ? theme.colors.borderLight : theme.colors.borderStrong;
 
   const content = (
     <>
       {!embedded ? (
         <View style={{ gap: 8 }}>
-          <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 16 }}>Competition Organizer</Text>
-          <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+          <Text style={{ color: elevatedTextColor, fontWeight: '800', fontSize: 16 }}>Competition Organizer</Text>
+          <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
             Create competitions, shape the session schedule, and review assignments without surfacing organizer controls to every angler.
           </Text>
         </View>
@@ -98,14 +105,14 @@ export const CompetitionOrganizerSection = ({
             key={session.sessionNumber}
             style={{
               gap: 6,
-              backgroundColor: theme.colors.nestedSurface,
+              backgroundColor: elevatedSurface,
               borderRadius: theme.radius.md,
               padding: 12,
               borderWidth: 1,
-              borderColor: theme.colors.nestedSurfaceBorder
+              borderColor: elevatedBorder
             }}
           >
-            <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>Session {index + 1}</Text>
+            <Text style={{ color: elevatedTextColor, fontWeight: '700' }}>Session {index + 1}</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <View style={{ flex: 1 }}>
                 <FormField label="Start" tone="light">
@@ -133,14 +140,14 @@ export const CompetitionOrganizerSection = ({
             key={competition.id}
             style={{
               gap: 8,
-              backgroundColor: theme.colors.nestedSurface,
+              backgroundColor: elevatedSurface,
               borderRadius: 14,
               padding: 12,
               borderWidth: 1,
-              borderColor: theme.colors.nestedSurfaceBorder
+              borderColor: elevatedBorder
             }}
           >
-            <Text style={{ color: theme.colors.textDark, fontWeight: '800' }}>{competition.name}</Text>
+            <Text style={{ color: elevatedTextColor, fontWeight: '800' }}>{competition.name}</Text>
             <InlineSummaryRow label="Join Code" value={competition.joinCode} tone="light" />
             <InlineSummaryRow label="Roster" value={`${participants.length} participants | ${new Set(assignments.map((assignment) => assignment.userId)).size} with assignments`} tone="light" />
             {participants.map((participant) => {
@@ -150,14 +157,14 @@ export const CompetitionOrganizerSection = ({
                   key={participant.id}
                   style={{
                     gap: 8,
-                    backgroundColor: theme.colors.surfaceLightAlt,
+                    backgroundColor: nestedElevatedSurface,
                     borderRadius: 12,
                     padding: 10,
                     borderWidth: 1,
-                    borderColor: theme.colors.borderLight
+                    borderColor: nestedElevatedBorder
                   }}
                 >
-                  <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>{participantUser?.name ?? `Angler ${participant.userId}`}</Text>
+                  <Text style={{ color: elevatedTextColor, fontWeight: '700' }}>{participantUser?.name ?? `Angler ${participant.userId}`}</Text>
                   {compSessions.map((session) => {
                     const existingAssignment = assignments.find((assignment) => assignment.userId === participant.userId && assignment.competitionSessionId === session.id);
                     const draft = getDraftForAssignment(competition.id, participant.userId, session.id, {
@@ -167,7 +174,7 @@ export const CompetitionOrganizerSection = ({
                     });
                     return (
                       <View key={`${participant.id}-${session.id}`} style={{ gap: 8 }}>
-                        <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>Session {session.sessionNumber}</Text>
+                        <Text style={{ color: elevatedTextColor, fontWeight: '700' }}>Session {session.sessionNumber}</Text>
                         <OptionChips
                           label="Competition Group"
                           options={compGroups.map((group) => `Group ${group.label}`)}

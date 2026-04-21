@@ -38,6 +38,11 @@ export const AccountSecuritySection = ({
 }) => {
   const { theme } = useTheme();
   const formInputStyle = getFormInputStyle();
+  const isDaylightTheme = theme.id === 'daylight_light';
+  const elevatedTextColor = isDaylightTheme ? theme.colors.textDark : theme.colors.text;
+  const elevatedSoftTextColor = isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft;
+  const elevatedSurface = isDaylightTheme ? theme.colors.nestedSurface : theme.colors.surfaceAlt;
+  const elevatedBorder = isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.borderStrong;
   const [editExpanded, setEditExpanded] = React.useState(false);
 
   const runAction = async (action: () => Promise<void>, successTitle: string, successMessage: string) => {
@@ -56,11 +61,11 @@ export const AccountSecuritySection = ({
       <View
         style={{
           gap: 4,
-          backgroundColor: theme.colors.nestedSurface,
+          backgroundColor: elevatedSurface,
           borderRadius: 12,
           padding: 12,
           borderWidth: 1,
-          borderColor: theme.colors.nestedSurfaceBorder
+          borderColor: elevatedBorder
         }}
       >
         <InlineSummaryRow label="Active Angler" value={currentUserName} tone="light" />
@@ -82,9 +87,9 @@ export const AccountSecuritySection = ({
             gap: 8,
             borderRadius: 12,
             padding: 12,
-            backgroundColor: theme.colors.nestedSurface,
+            backgroundColor: elevatedSurface,
             borderWidth: 1,
-            borderColor: theme.colors.nestedSurfaceBorder
+            borderColor: elevatedBorder
           }}
         >
           <Pressable
@@ -92,12 +97,12 @@ export const AccountSecuritySection = ({
             style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}
           >
             <View style={{ flex: 1, gap: 4 }}>
-              <Text style={{ color: theme.colors.textDark, fontWeight: '800' }}>Edit Account</Text>
-              <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 18 }}>
+              <Text style={{ color: elevatedTextColor, fontWeight: '800' }}>Edit Account</Text>
+              <Text style={{ color: elevatedSoftTextColor, lineHeight: 18 }}>
                 Update your account name or email without leaving this section open all the time.
               </Text>
             </View>
-            <Text style={{ color: theme.colors.textDark, fontSize: 18, fontWeight: '800' }}>{editExpanded ? '-' : '+'}</Text>
+            <Text style={{ color: elevatedTextColor, fontSize: 18, fontWeight: '800' }}>{editExpanded ? '-' : '+'}</Text>
           </Pressable>
           {editExpanded ? (
             <>

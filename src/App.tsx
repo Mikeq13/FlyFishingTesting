@@ -14,6 +14,7 @@ import { InsightsScreen } from './app/InsightsScreen';
 import { HistoryScreen } from './app/HistoryScreen';
 import { CoachScreen } from './app/CoachScreen';
 import { SessionDetailScreen } from './app/SessionDetailScreen';
+import { PracticeReviewScreen } from './app/PracticeReviewScreen';
 import { AccessScreen } from './app/AccessScreen';
 import { useAppStore } from './app/store';
 import { ensureNotificationHandler } from './utils/sessionNotifications';
@@ -73,6 +74,7 @@ const AppNavigator = () => {
             <Stack.Screen name="Practice" component={PracticeScreen} />
             <Stack.Screen name="Competition" component={CompetitionScreen} />
             <Stack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: 'Session' }} />
+            <Stack.Screen name="PracticeReview" component={PracticeReviewScreen} options={{ title: 'Practice Review' }} />
             <Stack.Screen name="Insights" component={InsightsScreen} />
             <Stack.Screen name="History" component={HistoryScreen} />
             <Stack.Screen name="Coach" component={CoachScreen} />

@@ -78,12 +78,15 @@ export const GroupsSharingSection = ({
 }) => {
   const { theme } = useTheme();
   const formInputStyle = getFormInputStyle();
+  const isDaylightTheme = theme.id === 'daylight_light';
+  const elevatedTextColor = isDaylightTheme ? theme.colors.textDark : theme.colors.text;
+  const elevatedSoftTextColor = isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft;
 
   const content = (
     <>
       <View style={{ gap: 8 }}>
-        <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 16 }}>Create or Join a Group</Text>
-        <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+        <Text style={{ color: elevatedTextColor, fontWeight: '800', fontSize: 16 }}>Create or Join a Group</Text>
+        <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
           A group code joins an existing crew. It does not automatically grant sponsored power-user access.
         </Text>
       </View>
@@ -104,8 +107,8 @@ export const GroupsSharingSection = ({
       </View>
 
       <View style={{ gap: 8 }}>
-        <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 16 }}>Accept Power User Invite</Text>
-        <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+        <Text style={{ color: elevatedTextColor, fontWeight: '800', fontSize: 16 }}>Accept Power User Invite</Text>
+        <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
           Use a power-user invite code when the owner has granted sponsored beta access tied to a group.
         </Text>
         <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -122,8 +125,8 @@ export const GroupsSharingSection = ({
 
       {isAuthenticatedOwner ? (
         <View style={{ gap: 8 }}>
-          <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 16 }}>Power User Invite</Text>
-          <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+          <Text style={{ color: elevatedTextColor, fontWeight: '800', fontSize: 16 }}>Power User Invite</Text>
+          <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
             Generate a sponsored power-user invite for another tester. This joins them to a specific group and unlocks the beta access you are granting.
           </Text>
           {organizerGroups.length ? (
@@ -145,7 +148,7 @@ export const GroupsSharingSection = ({
               <AppButton label="Create Power User Invite" onPress={() => { onCreateInvite().catch((error) => Alert.alert('Unable to create invite', error instanceof Error ? error.message : 'Please try again.')); }} surfaceTone="light" />
             </>
           ) : (
-            <Text style={{ color: theme.colors.textDarkSoft }}>
+            <Text style={{ color: elevatedSoftTextColor }}>
               Create or organize a group first before sending a power-user invite.
             </Text>
           )}
@@ -172,11 +175,11 @@ export const GroupsSharingSection = ({
               borderColor: theme.colors.nestedSurfaceBorder
             }}
           >
-            <Text style={{ color: theme.colors.textDark, fontWeight: '800' }}>{group.name}</Text>
+            <Text style={{ color: elevatedTextColor, fontWeight: '800' }}>{group.name}</Text>
             <InlineSummaryRow label="Join Code" value={group.joinCode} tone="light" />
             <InlineSummaryRow label="Role" value={membership?.role ?? 'member'} tone="light" />
             {isCleanupPending ? (
-              <Text style={{ color: theme.colors.textDarkSoft }}>
+              <Text style={{ color: elevatedSoftTextColor }}>
                 Cleanup pending: this group is being removed from your active view while shared delete finishes syncing.
               </Text>
             ) : null}
@@ -265,7 +268,7 @@ export const GroupsSharingSection = ({
 
       {isAuthenticatedOwner && invites.length ? (
         <View style={{ gap: 8 }}>
-          <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>Power User Invites</Text>
+          <Text style={{ color: elevatedTextColor, fontWeight: '700' }}>Power User Invites</Text>
           {invites.map((invite) => {
             const group = groups.find((entry) => entry.id === invite.targetGroupId);
             const inviter = users.find((entry) => entry.id === invite.inviterUserId);
@@ -281,7 +284,7 @@ export const GroupsSharingSection = ({
                   borderColor: theme.colors.nestedSurfaceBorder
                 }}
               >
-                <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>{group?.name ?? 'Unknown group'}</Text>
+                <Text style={{ color: elevatedTextColor, fontWeight: '700' }}>{group?.name ?? 'Unknown group'}</Text>
                 <InlineSummaryRow label="Invite Code" value={invite.inviteCode} tone="light" />
                 <InlineSummaryRow label="Sent By" value={inviter?.name ?? `Angler ${invite.inviterUserId}`} tone="light" />
                 <InlineSummaryRow label="Status" value={invite.status} tone="light" />
@@ -293,7 +296,7 @@ export const GroupsSharingSection = ({
 
       {isAuthenticatedOwner && sponsoredAccess.length ? (
         <View style={{ gap: 8 }}>
-          <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>Sponsored Power User Access</Text>
+          <Text style={{ color: elevatedTextColor, fontWeight: '700' }}>Sponsored Power User Access</Text>
           {sponsoredAccess.map((entry) => {
             const group = groups.find((groupEntry) => groupEntry.id === entry.targetGroupId);
             const sponsor = users.find((user) => user.id === entry.sponsorUserId);
@@ -310,7 +313,7 @@ export const GroupsSharingSection = ({
                   borderColor: theme.colors.nestedSurfaceBorder
                 }}
               >
-                <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>{sponsored?.name ?? `Angler ${entry.sponsoredUserId}`}</Text>
+                <Text style={{ color: elevatedTextColor, fontWeight: '700' }}>{sponsored?.name ?? `Angler ${entry.sponsoredUserId}`}</Text>
                 <InlineSummaryRow label="Sponsor" value={sponsor?.name ?? `Angler ${entry.sponsorUserId}`} tone="light" />
                 <InlineSummaryRow label="Group" value={group?.name ?? 'Unknown group'} tone="light" />
                 <InlineSummaryRow label="Status" value={entry.active ? 'Active' : 'Revoked'} valueMuted={!entry.active} tone="light" />

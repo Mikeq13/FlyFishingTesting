@@ -16,6 +16,7 @@ export const BottomSheetSurface = ({
 }) => {
   const { theme } = useTheme();
   const layout = useResponsiveLayout();
+  const maxSheetHeight = Math.min(layout.height * 0.86, layout.height - theme.spacing.lg * 2);
 
   return (
     <View
@@ -38,7 +39,8 @@ export const BottomSheetSurface = ({
           backgroundColor: theme.colors.modalSurface,
           width: '100%',
           alignSelf: 'center',
-          maxWidth: layout.modalMaxWidth
+          maxWidth: layout.modalMaxWidth,
+          maxHeight: maxSheetHeight
         }}
       >
         <View

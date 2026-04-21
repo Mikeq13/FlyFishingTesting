@@ -22,23 +22,30 @@ export const OwnerControlsSection = ({
   embedded?: boolean;
 }) => {
   const { theme } = useTheme();
+  const isDaylightTheme = theme.id === 'daylight_light';
+  const elevatedTextColor = isDaylightTheme ? theme.colors.textDark : theme.colors.text;
+  const elevatedSoftTextColor = isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft;
+  const elevatedSurface = isDaylightTheme ? theme.colors.nestedSurface : theme.colors.surfaceAlt;
+  const elevatedBorder = isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.borderStrong;
+  const nestedElevatedSurface = isDaylightTheme ? theme.colors.surfaceLightAlt : theme.colors.surface;
+  const nestedElevatedBorder = isDaylightTheme ? theme.colors.borderLight : theme.colors.borderStrong;
 
   const content = (
   <>
-    {ownerUser ? <Text style={{ color: theme.colors.textDarkSoft }}>Only the linked owner account can grant power-user access, start a seven-day trial, or reset someone back to free access.</Text> : null}
+    {ownerUser ? <Text style={{ color: elevatedSoftTextColor }}>Only the linked owner account can grant power-user access, start a seven-day trial, or reset someone back to free access.</Text> : null}
     {!manageableUsers.length ? (
       <View
         style={{
           gap: theme.spacing.sm,
-          backgroundColor: theme.colors.nestedSurface,
+          backgroundColor: nestedElevatedSurface,
           borderRadius: theme.radius.lg,
           padding: theme.spacing.lg,
           borderWidth: 1,
-          borderColor: theme.colors.nestedSurfaceBorder
+          borderColor: nestedElevatedBorder
         }}
       >
-        <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>No tester accounts to manage yet.</Text>
-        <Text style={{ color: theme.colors.textDarkSoft }}>When another angler signs in on this beta backend, they will appear here once instead of duplicating across stale local rows.</Text>
+        <Text style={{ color: elevatedTextColor, fontWeight: '700' }}>No tester accounts to manage yet.</Text>
+        <Text style={{ color: elevatedSoftTextColor }}>When another angler signs in on this beta backend, they will appear here once instead of duplicating across stale local rows.</Text>
       </View>
     ) : null}
     {manageableUsers.map((user) => (
@@ -46,14 +53,14 @@ export const OwnerControlsSection = ({
         key={user.id}
         style={{
           gap: theme.spacing.sm,
-          backgroundColor: theme.colors.nestedSurface,
+          backgroundColor: nestedElevatedSurface,
           borderRadius: theme.radius.lg,
           padding: theme.spacing.lg,
           borderWidth: 1,
-          borderColor: theme.colors.nestedSurfaceBorder
+          borderColor: nestedElevatedBorder
         }}
       >
-        <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 18 }}>{user.name}</Text>
+        <Text style={{ color: elevatedTextColor, fontWeight: '800', fontSize: 18 }}>{user.name}</Text>
         <ActionGroup>
           <AppButton label="Grant Power User" onPress={() => { onGrantPowerUser(user.id, user.name).catch(console.error); }} surfaceTone="light" />
           <AppButton label="Start 7-Day Trial" onPress={() => { onStartTrial(user.id, user.name).catch(console.error); }} variant="secondary" surfaceTone="light" />

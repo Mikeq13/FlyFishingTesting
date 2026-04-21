@@ -309,6 +309,45 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     markDraftDirty();
   };
 
+  const isSameFlyTuningChange = (nextRigSetup: RigSetup, nextEntries: ExperimentFlyEntry[], nextFlyCount: 1 | 2 | 3) => {
+    if (nextFlyCount !== visibleEntries.length || nextRigSetup.assignments.length !== rigSetup.assignments.length) {
+      return false;
+    }
+
+    const currentRigContext = JSON.stringify({
+      leaderFormulaId: rigSetup.leaderFormulaId ?? null,
+      leaderFormulaName: rigSetup.leaderFormulaName ?? null,
+      leaderFormulaSectionsSnapshot: rigSetup.leaderFormulaSectionsSnapshot,
+      addedTippetSections: rigSetup.addedTippetSections,
+      positions: rigSetup.assignments.map((assignment) => assignment.position)
+    });
+    const nextRigContext = JSON.stringify({
+      leaderFormulaId: nextRigSetup.leaderFormulaId ?? null,
+      leaderFormulaName: nextRigSetup.leaderFormulaName ?? null,
+      leaderFormulaSectionsSnapshot: nextRigSetup.leaderFormulaSectionsSnapshot,
+      addedTippetSections: nextRigSetup.addedTippetSections,
+      positions: nextRigSetup.assignments.map((assignment) => assignment.position)
+    });
+
+    if (currentRigContext !== nextRigContext) {
+      return false;
+    }
+
+    return visibleEntries.every((entry, index) => {
+      const nextEntry = nextEntries[index];
+      if (!nextEntry) return false;
+      return (
+        entry.fly.name === nextEntry.fly.name &&
+        entry.fly.intent === nextEntry.fly.intent &&
+        entry.fly.bodyType === nextEntry.fly.bodyType &&
+        entry.fly.bugFamily === nextEntry.fly.bugFamily &&
+        entry.fly.bugStage === nextEntry.fly.bugStage &&
+        entry.fly.tail === nextEntry.fly.tail &&
+        entry.fly.collar === nextEntry.fly.collar
+      );
+    });
+  };
+
   const saveFlyToLibrary = async (fly: FlySetup) => {
     const normalizedName = fly.name.trim();
 
@@ -515,9 +554,34 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     );
   };
 
+  const requestWaterTypeChoice = (nextWaterType: WaterType) => {
+    Alert.alert(
+      'Update water type?',
+      'The water changed after logging began. You can keep this experiment going with the new water type, or save this comparison and start a fresh one so the earlier result keeps its original context.',
+      [
+        { text: 'Keep Current Water Type', style: 'cancel' },
+        {
+          text: 'Continue Current Experiment',
+          onPress: () => {
+            setCurrentWaterType(nextWaterType);
+            markDraftDirty();
+            setActiveSetupSheet(null);
+          }
+        },
+        {
+          text: 'Save And Start Fresh',
+          style: 'destructive',
+          onPress: () => {
+            void saveCurrentAndStartFresh({ waterType: nextWaterType });
+          }
+        }
+      ]
+    );
+  };
+
   const updateWaterType = async (nextWaterType: WaterType) => {
     if (hasMeaningfulLogging && nextWaterType !== currentWaterType) {
-      requestFreshContext({ waterType: nextWaterType });
+      requestWaterTypeChoice(nextWaterType);
       return;
     }
     try {
@@ -544,8 +608,9 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     const nextBaselineIndex = Math.min(baselineIndex, nextFlyCount - 1);
     const nextEntries = buildEntriesForRigChange(nextRigSetup, nextFlyCount, nextBaselineIndex);
     const nextIdentity = getExperimentRigIdentitySignature(nextRigSetup, nextEntries.slice(0, nextFlyCount));
+    const tuningOnlyChange = nextIdentity !== currentComparisonIdentity && isSameFlyTuningChange(nextRigSetup, nextEntries, nextFlyCount);
 
-    if (hasMeaningfulLogging && nextIdentity !== currentComparisonIdentity) {
+    if (hasMeaningfulLogging && nextIdentity !== currentComparisonIdentity && !tuningOnlyChange) {
       Alert.alert(
         'Start a fresh experiment?',
         'Changing the fly lineup after logging began would mix two different comparisons. Save this experiment and start a new draft with the updated flies instead.',
@@ -715,7 +780,6 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                   setControlFocus(value as ExperimentControlFocus);
                   markDraftDirty();
                 }}
-                tone="light"
               />
               <OptionChips
                 label="Cast Step"
@@ -725,7 +789,6 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                   setCastStep(Number(value) as 5 | 10);
                   markDraftDirty();
                 }}
-                tone="light"
               />
             </View>
           )
@@ -739,7 +802,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           children: (
             <View style={{ gap: 10 }}>
               <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
-                Before logging starts, you can change the experiment water type directly. After logging starts, the app saves the current comparison and starts a fresh experiment so the earlier result keeps its original context.
+                Before logging starts, you can change the experiment water type directly. After logging starts, you can either keep the current experiment going with the new water type or save the current comparison and start fresh.
               </Text>
               <OptionChips
                 label="New Water Type"
@@ -748,7 +811,6 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                 onChange={(value) => {
                   void updateWaterType(value as WaterType);
                 }}
-                tone="light"
               />
             </View>
           )
@@ -766,7 +828,6 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                 markDraftDirty();
               }
             }}
-            tone="light"
           />
         </SectionCard>
 
@@ -812,13 +873,13 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
               gap: 8,
               borderRadius: theme.radius.md,
               padding: 12,
-              backgroundColor: theme.colors.nestedSurface,
+              backgroundColor: theme.colors.surfaceMuted,
               borderWidth: 1,
-              borderColor: theme.colors.nestedSurfaceBorder
+              borderColor: theme.colors.border
             }}
           >
-            <InlineSummaryRow label="Comparison Status" value={comparisonStatus.outcome === 'decisive' ? 'Decisive' : comparisonStatus.outcome === 'tie' ? 'Tie' : 'Inconclusive'} tone="light" />
-            <InlineSummaryRow label="Current Read" value={comparisonStatus.comparison.summary} tone="light" />
+            <InlineSummaryRow label="Comparison Status" value={comparisonStatus.outcome === 'decisive' ? 'Decisive' : comparisonStatus.outcome === 'tie' ? 'Tie' : 'Inconclusive'} />
+            <InlineSummaryRow label="Current Read" value={comparisonStatus.comparison.summary} />
           </View>
           <View style={{ gap: 10 }}>
             {visibleEntries.map((entry, index) => (

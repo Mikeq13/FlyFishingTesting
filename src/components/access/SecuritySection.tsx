@@ -57,6 +57,11 @@ export const SecuritySection = ({
 }) => {
   const { theme } = useTheme();
   const formInputStyle = getFormInputStyle();
+  const isDaylightTheme = theme.id === 'daylight_light';
+  const elevatedTextColor = isDaylightTheme ? theme.colors.textDark : theme.colors.text;
+  const elevatedSoftTextColor = isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft;
+  const elevatedSurface = isDaylightTheme ? theme.colors.nestedSurface : theme.colors.surfaceAlt;
+  const elevatedBorder = isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.borderStrong;
 
   const runAction = async (action: () => Promise<void>, successTitle: string, successMessage: string) => {
     try {
@@ -72,11 +77,11 @@ export const SecuritySection = ({
       <View
         style={{
           gap: 8,
-          backgroundColor: theme.colors.nestedSurface,
+          backgroundColor: elevatedSurface,
           borderRadius: 12,
           padding: 12,
           borderWidth: 1,
-          borderColor: theme.colors.nestedSurfaceBorder
+          borderColor: elevatedBorder
         }}
       >
         <InlineSummaryRow
@@ -120,8 +125,8 @@ export const SecuritySection = ({
         <>
           {showOwnerIdentityTools ? (
             <View style={{ gap: 8 }}>
-              <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 16 }}>Owner Verification</Text>
-              <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+              <Text style={{ color: elevatedTextColor, fontWeight: '800', fontSize: 16 }}>Owner Verification</Text>
+              <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
                 Link the owner profile to your signed-in email once, then owner tools only unlock when this same account is signed in.
               </Text>
               <AppButton
@@ -140,8 +145,8 @@ export const SecuritySection = ({
           ) : null}
 
           <View style={{ gap: 8 }}>
-            <Text style={{ color: theme.colors.textDark, fontWeight: '800', fontSize: 16 }}>Multi-Factor Authentication</Text>
-            <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+            <Text style={{ color: elevatedTextColor, fontWeight: '800', fontSize: 16 }}>Multi-Factor Authentication</Text>
+            <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
               Add a TOTP authenticator factor if your Supabase project supports MFA. This strengthens owner and tester account security.
             </Text>
             <FormField label="Authenticator Label" tone="light">
@@ -153,18 +158,18 @@ export const SecuritySection = ({
             </ActionGroup>
             {pendingTotpEnrollment ? (
               <View
-                style={{
-                  gap: 8,
-                  backgroundColor: theme.colors.nestedSurface,
-                  borderRadius: 12,
-                  padding: 12,
-                  borderWidth: 1,
-                  borderColor: theme.colors.nestedSurfaceBorder
-                }}
+              style={{
+                gap: 8,
+                backgroundColor: elevatedSurface,
+                borderRadius: 12,
+                padding: 12,
+                borderWidth: 1,
+                borderColor: elevatedBorder
+              }}
               >
-                <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>Finish TOTP Setup</Text>
-                {pendingTotpEnrollment.secret ? <Text style={{ color: theme.colors.textDarkSoft }}>Secret: {pendingTotpEnrollment.secret}</Text> : null}
-                {pendingTotpEnrollment.uri ? <Text style={{ color: theme.colors.textDarkSoft }}>URI: {pendingTotpEnrollment.uri}</Text> : null}
+                <Text style={{ color: elevatedTextColor, fontWeight: '700' }}>Finish TOTP Setup</Text>
+                {pendingTotpEnrollment.secret ? <Text style={{ color: elevatedSoftTextColor }}>Secret: {pendingTotpEnrollment.secret}</Text> : null}
+                {pendingTotpEnrollment.uri ? <Text style={{ color: elevatedSoftTextColor }}>URI: {pendingTotpEnrollment.uri}</Text> : null}
                 <FormField label="Authenticator Code" tone="light">
                   <TextInput value={mfaCode} onChangeText={onMfaCodeChange} keyboardType="number-pad" placeholder="123456" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
                 </FormField>
@@ -174,17 +179,17 @@ export const SecuritySection = ({
             {mfaFactors.map((factor) => (
               <View
                 key={factor.id}
-                style={{
-                  gap: 6,
-                  backgroundColor: theme.colors.nestedSurface,
-                  borderRadius: 12,
-                  padding: 12,
-                  borderWidth: 1,
-                  borderColor: theme.colors.nestedSurfaceBorder
-                }}
+              style={{
+                gap: 6,
+                backgroundColor: elevatedSurface,
+                borderRadius: 12,
+                padding: 12,
+                borderWidth: 1,
+                borderColor: elevatedBorder
+              }}
               >
-                <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>{factor.friendlyName ?? 'Authenticator App'}</Text>
-                <Text style={{ color: theme.colors.textDarkSoft }}>Status: {factor.status}</Text>
+                <Text style={{ color: elevatedTextColor, fontWeight: '700' }}>{factor.friendlyName ?? 'Authenticator App'}</Text>
+                <Text style={{ color: elevatedSoftTextColor }}>Status: {factor.status}</Text>
                 <AppButton
                   label="Remove Factor"
                   onPress={() => runAction(() => onRemoveMfaFactor(factor.id), 'MFA removed', 'The factor was removed from this account.')}
