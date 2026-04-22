@@ -34,7 +34,7 @@ export const CoachScreen = () => {
   const elevatedTextColor = isDaylightTheme ? theme.colors.textDark : theme.colors.text;
   const elevatedSoftTextColor = isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft;
   const navigation = useNavigation<any>();
-  const { sessions, experiments, insights, topFlyRecords, currentHasPremiumAccess } = useAppStore();
+  const { sessions, experiments, insights, topFlyRecords, currentHasPremiumAccess, isWebDemoMode } = useAppStore();
   const [question, setQuestion] = useState('What does my data suggest I try next?');
   const [response, setResponse] = useState<ReturnType<typeof runCoach> | null>(null);
 
@@ -135,6 +135,18 @@ export const CoachScreen = () => {
     neutral: theme.colors.tertiary
   } as const;
 
+  const demoPrompts = [
+    'What setup worked best in faster water?',
+    'What changed when catch rate improved?',
+    'What should I fish first today?',
+    'What exact fly setup looks strongest?'
+  ];
+
+  const askCoach = (nextQuestion: string) => {
+    setQuestion(nextQuestion);
+    setResponse(runCoach(nextQuestion, context));
+  };
+
   if (!currentHasPremiumAccess) {
     return (
       <ScreenBackground>
@@ -164,8 +176,12 @@ export const CoachScreen = () => {
         >
           <ScreenHeader
             title="AI Coach"
-            subtitle="Use your journal to spot what is working, where your data is thin, and what to try next on the water."
-            eyebrow="Premium Guidance"
+            subtitle={
+              isWebDemoMode
+                ? 'Explore the seeded fishing journal and let the coach explain what improved results across practice segments and experiment sessions.'
+                : 'Use your journal to spot what is working, where your data is thin, and what to try next on the water.'
+            }
+            eyebrow={isWebDemoMode ? 'Interactive Demo' : 'Premium Guidance'}
           />
 
           <SectionCard title="Coach Intel" subtitle="Recommendation-first guidance pulled from your sessions, experiments, and top-fly history.">
@@ -208,6 +224,27 @@ export const CoachScreen = () => {
               </Text>
             </View>
 
+            {isWebDemoMode ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {demoPrompts.map((prompt) => (
+                  <Pressable
+                    key={prompt}
+                    onPress={() => askCoach(prompt)}
+                    style={{
+                      borderRadius: 999,
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      backgroundColor: theme.colors.surfaceAlt,
+                      borderWidth: 1,
+                      borderColor: theme.colors.borderStrong
+                    }}
+                  >
+                    <Text style={{ color: elevatedTextColor, fontWeight: '600' }}>{prompt}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+
             <TextInput
               value={question}
               onChangeText={setQuestion}
@@ -226,7 +263,7 @@ export const CoachScreen = () => {
               placeholderTextColor={theme.colors.inputPlaceholder}
             />
 
-            <AppButton label="Ask AI Coach" onPress={() => setResponse(runCoach(question, context))} variant="tertiary" surfaceTone="light" />
+            <AppButton label="Ask AI Coach" onPress={() => askCoach(question)} variant="tertiary" surfaceTone="light" />
 
             {response && (
               <View

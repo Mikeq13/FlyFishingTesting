@@ -23,6 +23,25 @@ export const writeWebValue = (key: string, value: string): void => {
   fallbackMemory.set(key, value);
 };
 
+export const clearWebValuesByPrefix = (prefix: string): void => {
+  if (hasLocalStorage()) {
+    const keysToDelete: string[] = [];
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (key?.startsWith(prefix)) {
+        keysToDelete.push(key);
+      }
+    }
+    keysToDelete.forEach((key) => window.localStorage.removeItem(key));
+  }
+
+  for (const key of Array.from(fallbackMemory.keys())) {
+    if (key.startsWith(prefix)) {
+      fallbackMemory.delete(key);
+    }
+  }
+};
+
 export const listWebRows = <T>(tableKey: string): T[] => {
   const raw = readWebValue(tableKey);
   if (!raw) return [];

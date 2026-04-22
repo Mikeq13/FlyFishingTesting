@@ -49,6 +49,7 @@ export const InsightsScreen = ({ navigation }: any) => {
     users,
     currentUser,
     currentHasPremiumAccess,
+    isWebDemoMode,
     sharedDataStatus,
     syncStatus,
     remoteSession,
@@ -364,6 +365,13 @@ export const InsightsScreen = ({ navigation }: any) => {
               subtitle="Review the strongest patterns in your data, compare anglers with context, and keep technique in view only where it sharpens the read."
               eyebrow="Shared Learning"
             />
+            {isWebDemoMode ? (
+              <SectionCard title="Start Here" subtitle="This interactive demo is seeded to surface the strongest signals quickly." tone="light">
+                <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
+                  Start with Direct Experiment Comparisons, Best Exact Setups, and Context Performance Combos to see how the journal turns water changes and fly tests into actionable recommendations.
+                </Text>
+              </SectionCard>
+            ) : null}
             {sharedDataSettling ? (
               <StatusBanner tone="info" text="Shared groups and friend comparisons are still loading. Group filters will unlock as soon as shared data is ready." />
             ) : null}

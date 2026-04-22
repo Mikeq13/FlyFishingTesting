@@ -53,6 +53,7 @@ export const AccessScreen = ({ navigation }: any) => {
     currentUser,
     currentEntitlementLabel,
     currentHasPremiumAccess,
+    isWebDemoMode,
     syncStatus,
     cleanupSyncStatus,
     backendDiagnostics,
@@ -118,7 +119,8 @@ export const AccessScreen = ({ navigation }: any) => {
     upsertCompetitionAssignmentForUser,
     createInvite,
     acceptInvite,
-    revokeSponsoredAccess
+    revokeSponsoredAccess,
+    resetWebDemoData
   } = useAppStore();
   const [newGroupName, setNewGroupName] = React.useState('');
   const [joinGroupCode, setJoinGroupCode] = React.useState('');
@@ -802,7 +804,28 @@ export const AccessScreen = ({ navigation }: any) => {
           title="Settings"
           subtitle="Keep account, billing, groups, and fishing preferences in one calmer place without repeating the same details everywhere."
         />
-        {sharedDataStatus === 'error' ? (
+        {isWebDemoMode ? (
+          <SectionCard
+            title="Web Demo"
+            subtitle="This Vercel experience is an interactive local sandbox built to showcase the journal, insights, and AI coach."
+            tone="light"
+          >
+            <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
+              Cloud sync, owner tools, MFA, user management, and backend diagnostics are intentionally disabled here. Use the native app for the full authenticated workflow.
+            </Text>
+            <AppButton
+              label="Reset Demo Data"
+              onPress={() =>
+                resetWebDemoData()
+                  .then(() => Alert.alert('Demo reset', 'The seeded sandbox has been restored.'))
+                  .catch((error) => Alert.alert('Unable to reset demo', error instanceof Error ? error.message : 'Please try again.'))
+              }
+              variant="secondary"
+              surfaceTone="light"
+            />
+          </SectionCard>
+        ) : null}
+        {!isWebDemoMode && sharedDataStatus === 'error' ? (
           <StatusBanner
             tone="error"
             text={
@@ -812,10 +835,10 @@ export const AccessScreen = ({ navigation }: any) => {
             }
           />
         ) : null}
-        {notificationPermissionStatus === 'denied' ? (
+        {notificationPermissionStatus === 'denied' && !isWebDemoMode ? (
           <StatusBanner tone="warning" text="Notifications are blocked on this device. Session reminders will stay in-app until phone notification access is re-enabled." />
         ) : null}
-        {renderCollapsibleCard({
+        {!isWebDemoMode ? renderCollapsibleCard({
           sectionKey: 'accountInfo',
           title: 'Account Information',
           subtitle: 'Identity, signed-in email, and access type live here once so the rest of Settings can stay quieter.',
@@ -840,7 +863,7 @@ export const AccessScreen = ({ navigation }: any) => {
               embedded
             />
           )
-        })}
+        }) : null}
 
         {renderCollapsibleCard({
           sectionKey: 'appearance',
@@ -856,7 +879,7 @@ export const AccessScreen = ({ navigation }: any) => {
           children: renderAppearance()
         })}
 
-        {renderCollapsibleCard({
+        {!isWebDemoMode ? renderCollapsibleCard({
           sectionKey: 'billing',
           title: 'Billing',
           subtitle: 'Plan details stay here instead of repeating across account and admin tools.',
@@ -866,9 +889,9 @@ export const AccessScreen = ({ navigation }: any) => {
             </Text>
           ),
           children: renderBilling()
-        })}
+        }) : null}
 
-        {renderCollapsibleCard({
+        {!isWebDemoMode ? renderCollapsibleCard({
           sectionKey: 'competitions',
           title: 'Competitions',
           subtitle: 'Join by code, manage your own assignments, and jump into competition-only history.',
@@ -892,16 +915,34 @@ export const AccessScreen = ({ navigation }: any) => {
               embedded
             />
           )
-        })}
+        }) : null}
 
         {renderCollapsibleCard({
           sectionKey: 'dataManagement',
           title: 'Data Management',
           subtitle: 'Keep cleanup and profile maintenance tools nearby without leaving them open all the time.',
-          summary: <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>Cleanup and local profile maintenance for {currentUser.name}.</Text>,
+          summary: (
+            <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
+              {isWebDemoMode
+                ? 'Reset the seeded sandbox or inspect local demo records without touching native auth/admin workflows.'
+                : `Cleanup and local profile maintenance for ${currentUser.name}.`}
+            </Text>
+          ),
           children: (
             <View style={{ gap: 10 }}>
-              {sharedDataSettling ? (
+              {isWebDemoMode ? (
+                <AppButton
+                  label="Reset Demo Data"
+                  onPress={() =>
+                    resetWebDemoData()
+                      .then(() => Alert.alert('Demo reset', 'The seeded sandbox has been restored.'))
+                      .catch((error) => Alert.alert('Unable to reset demo', error instanceof Error ? error.message : 'Please try again.'))
+                  }
+                  variant="secondary"
+                  surfaceTone="light"
+                />
+              ) : null}
+              {sharedDataSettling && !isWebDemoMode ? (
                 <StatusBanner tone="info" text="Shared groups and invite visibility are still loading from the beta backend. Group lists may stay hidden until that finishes." />
               ) : null}
               <AppButton
@@ -1046,18 +1087,20 @@ export const AccessScreen = ({ navigation }: any) => {
                     </View>
                   ))}
                 </SectionCard>
-              <LocalDataSection
-                isOwner={currentUser.role === 'owner'}
-                cleanupActions={renderCleanupActions(currentUser.id, currentUser.name)}
-                cleanupStatus={cleanupSyncStatus}
-                onDeleteProfile={deleteCurrentProfile}
-                embedded
-              />
+              {!isWebDemoMode ? (
+                <LocalDataSection
+                  isOwner={currentUser.role === 'owner'}
+                  cleanupActions={renderCleanupActions(currentUser.id, currentUser.name)}
+                  cleanupStatus={cleanupSyncStatus}
+                  onDeleteProfile={deleteCurrentProfile}
+                  embedded
+                />
+              ) : null}
             </View>
           )
         })}
 
-        {renderCollapsibleCard({
+        {!isWebDemoMode ? renderCollapsibleCard({
           sectionKey: 'groups',
           title: 'Groups',
           subtitle: 'Normal group joining stays here, while owner-managed power-user invites stay clearly separated.',
@@ -1107,9 +1150,9 @@ export const AccessScreen = ({ navigation }: any) => {
               />
             </View>
           )
-        })}
+        }) : null}
 
-        {renderCollapsibleCard({
+        {!isWebDemoMode ? renderCollapsibleCard({
           sectionKey: 'security',
           title: 'Security',
           subtitle: 'Recovery, MFA, sign-out, and owner verification live here instead of inside account details.',
@@ -1144,9 +1187,9 @@ export const AccessScreen = ({ navigation }: any) => {
               embedded
             />
           )
-        })}
+        }) : null}
 
-        {canAccessPowerTools
+        {!isWebDemoMode && canAccessPowerTools
           ? renderCollapsibleCard({
               sectionKey: 'powerTools',
               title: 'Power Tools',

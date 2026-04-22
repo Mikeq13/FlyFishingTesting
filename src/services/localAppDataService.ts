@@ -76,6 +76,7 @@ import {
 import { createSyncQueueEntry, deleteSyncQueueEntriesForUserReset, listSyncQueueEntries, markAllPendingSyncEntriesAsSynced } from '@/db/syncRepo';
 import { classifyExperimentIntegrity, classifySessionIntegrity } from '@/services/dataIntegrityService';
 import { applySessionShareIds } from '@/utils/sessionSharing';
+import { ensureWebDemoBootstrap, resetWebDemoSandbox } from '@/services/webDemoService';
 
 export interface LoadedLocalAppData {
   users: UserProfile[];
@@ -107,8 +108,14 @@ export interface LoadedLocalAppData {
   topFlyRecords: TopFlyRecord[];
 }
 
-export const bootstrapLocalApp = async (): Promise<{ users: UserProfile[]; activeUserId: number | null }> => {
+export const bootstrapLocalApp = async (options: { isWebDemoMode?: boolean } = {}): Promise<{ users: UserProfile[]; activeUserId: number | null }> => {
   await initDb();
+  if (options.isWebDemoMode) {
+    const demoBootstrap = await ensureWebDemoBootstrap();
+    if (demoBootstrap) {
+      return demoBootstrap;
+    }
+  }
   let existingUsers = await listUsers();
   if (!existingUsers.length) {
     const id = await createUser({ name: 'Owner Account', role: 'owner', accessLevel: 'power_user', subscriptionStatus: 'power_user' });
@@ -132,6 +139,8 @@ export const bootstrapLocalApp = async (): Promise<{ users: UserProfile[]; activ
   }
   return { users: existingUsers, activeUserId: nextActiveUserId };
 };
+
+export const resetLocalWebDemoData = async () => resetWebDemoSandbox();
 
 export const loadLocalAppData = async (preferredUserId?: number | null): Promise<LoadedLocalAppData> => {
   const users = await listUsers();

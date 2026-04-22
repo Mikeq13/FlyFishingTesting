@@ -33,12 +33,19 @@ const SESSION_MODE_OPTIONS: Array<{
 ];
 
 export const HomeScreen = ({ navigation }: any) => {
-  const { currentHasPremiumAccess, currentUser, remoteSession } = useAppStore();
+  const { currentHasPremiumAccess, currentUser, remoteSession, sessions, isWebDemoMode } = useAppStore();
   const { theme } = useTheme();
   const layout = useResponsiveLayout();
   const isDaylightTheme = theme.id === 'daylight_light';
   const [showSessionChooser, setShowSessionChooser] = React.useState(false);
   const shouldCenterContent = Platform.OS !== 'web' && !layout.isCompactLayout;
+  const demoPracticeSession = React.useMemo(
+    () =>
+      sessions.find((session) => session.mode === 'practice' && !!session.endedAt) ??
+      sessions.find((session) => session.mode === 'practice') ??
+      null,
+    [sessions]
+  );
   const contentContainerStyle = layout.buildScrollContentStyle({
     centered: shouldCenterContent,
     gap: 14,
@@ -59,13 +66,43 @@ export const HomeScreen = ({ navigation }: any) => {
           subtitle="A fly fishing journal designed to help you improve with insights, coaching, and shared learning."
           eyebrow="On The Water"
         />
+        {isWebDemoMode ? (
+          <SectionCard>
+            <Text style={{ color: theme.colors.textMuted, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 }}>
+              Web Demo Mode
+            </Text>
+            <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 24 }}>
+              Interactive local sandbox with seeded fishing data
+            </Text>
+            <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
+              Start with practice review, exact setup insights, or AI coach recommendations built from the demo journal story.
+            </Text>
+            <View style={{ gap: 10 }}>
+              {demoPracticeSession ? (
+                <AppButton
+                  label="See Practice Review"
+                  onPress={() => navigation.navigate('PracticeReview', { sessionId: demoPracticeSession.id })}
+                  variant="secondary"
+                />
+              ) : null}
+              <AppButton label="Open Insights" onPress={() => navigation.navigate('Insights')} variant="secondary" />
+              <AppButton label="Ask AI Coach" onPress={() => navigation.navigate('Coach')} variant="secondary" />
+            </View>
+            <View style={{ gap: 4 }}>
+              <Text style={{ color: theme.colors.text, fontWeight: '700' }}>What this demonstrates</Text>
+              <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
+                Session review, exact setup intelligence, and AI coaching grounded in logged water changes, catches, and experiment outcomes.
+              </Text>
+            </View>
+          </SectionCard>
+        ) : null}
         <SectionCard>
           <Text style={{ color: theme.colors.textMuted, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 }}>
-            Active Account
+            {isWebDemoMode ? 'Demo Identity' : 'Active Account'}
           </Text>
           <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 24 }}>{currentUser?.name ?? 'Loading...'}</Text>
           <Text style={{ color: theme.colors.textSoft }}>
-            Signed in as: {remoteSession?.email ?? 'No account linked'}
+            {isWebDemoMode ? 'Interactive demo sandbox with local-only data and premium AI features unlocked.' : `Signed in as: ${remoteSession?.email ?? 'No account linked'}`}
           </Text>
         </SectionCard>
         <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>

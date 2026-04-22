@@ -63,6 +63,7 @@ export interface AppStore {
   currentUser: UserProfile | null;
   currentEntitlementLabel: string;
   currentHasPremiumAccess: boolean;
+  isWebDemoMode: boolean;
   canManageAccess: boolean;
   savedFlies: SavedFly[];
   savedLeaderFormulas: LeaderFormula[];
@@ -96,6 +97,7 @@ export interface AppStore {
   pendingTotpEnrollment: PendingTotpEnrollment | null;
   mfaAssuranceLevel: 'aal1' | 'aal2' | 'unknown';
   activeUserId: number | null;
+  resetWebDemoData: () => Promise<void>;
   setActiveUserId: (id: number) => Promise<void>;
   signInWithMagicLink: (email: string) => Promise<void>;
   signUpWithPassword: (payload: { email: string; password: string; name: string }) => Promise<void>;

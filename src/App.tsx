@@ -31,7 +31,8 @@ const AuthLoadingScreen = () => (
 
 const AppNavigator = () => {
   const { theme } = useTheme();
-  const { authReady, localBootstrapReady, remoteSession, currentUser, remoteBootstrapState } = useAppStore();
+  const { authReady, localBootstrapReady, remoteSession, currentUser, remoteBootstrapState, isWebDemoMode } = useAppStore();
+  const canEnterApp = Boolean((remoteSession && currentUser) || (isWebDemoMode && currentUser));
 
   if (
     !authReady ||
@@ -56,7 +57,7 @@ const AppNavigator = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName={remoteSession && currentUser ? 'Home' : 'Auth'}
+        initialRouteName={canEnterApp ? 'Home' : 'Auth'}
         screenOptions={{
           headerTintColor: theme.colors.headerTint,
           headerBackTitleVisible: false,
@@ -64,7 +65,7 @@ const AppNavigator = () => {
           headerTitleStyle: { color: theme.colors.textDark }
         }}
       >
-        {!remoteSession || !currentUser ? (
+        {!canEnterApp ? (
           <Stack.Screen name="Auth" component={AuthScreen} options={{ headerShown: false }} />
         ) : (
           <>

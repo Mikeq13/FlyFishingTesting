@@ -29,6 +29,7 @@ import {
   bootstrapLocalApp,
   enqueueLocalSyncChange,
   loadLocalAppData,
+  resetLocalWebDemoData,
 } from '@/services/localAppDataService';
 import { bootstrapAuthSession, getMfaAssuranceLevel, listMfaFactors, subscribeToAuthChanges } from '@/services/authService';
 import { hasSupabaseConfig } from '@/services/supabaseClient';
@@ -54,6 +55,7 @@ import {
   dedupeSessionGroupSharesByIdentity
 } from '@/utils/dataIdentity';
 import { summarizeSyncFailures } from '@/services/syncDiagnosticsService';
+import { isWebDemoModeEnabled } from '@/services/webDemoService';
 
 export type { UserDataCleanupCategory };
 
@@ -121,6 +123,7 @@ const reportRuntimeIssue = (label: string, error: unknown) => {
 };
 
 export const AppStoreProvider = ({ children }: { children: React.ReactNode }) => {
+  const isWebDemoMode = isWebDemoModeEnabled();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [allSessions, setAllSessions] = useState<Session[]>([]);
   const [sessionGroupShares, setSessionGroupShares] = useState<SessionGroupShare[]>([]);
@@ -145,7 +148,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const [invites, setInvites] = useState<Invite[]>([]);
   const [sponsoredAccess, setSponsoredAccess] = useState<SponsoredAccess[]>([]);
   const [syncQueue, setSyncQueue] = useState<SyncQueueEntry[]>([]);
-  const [authStatus, setAuthStatus] = useState<AuthStatus>(hasSupabaseConfig ? 'authenticating' : 'unauthenticated');
+  const [authStatus, setAuthStatus] = useState<AuthStatus>(isWebDemoMode ? 'unauthenticated' : hasSupabaseConfig ? 'authenticating' : 'unauthenticated');
   const [remoteSession, setRemoteSession] = useState<RemoteSessionSnapshot | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [localBootstrapReady, setLocalBootstrapReady] = useState(false);
@@ -171,7 +174,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const currentUser = useMemo(() => users.find((user) => user.id === activeUserId) ?? null, [activeUserId, users]);
   const storedOwnerUser = useMemo(() => users.find((user) => user.role === 'owner') ?? null, [users]);
   const ownerUser = useMemo(() => storedOwnerUser, [storedOwnerUser]);
-  const isSyncEnabled = hasSupabaseConfig && !!remoteSession;
+  const isSyncEnabled = !isWebDemoMode && hasSupabaseConfig && !!remoteSession;
   const ownerIdentityLinked = Boolean(ownerUser?.ownerLinkedAuthId || ownerUser?.ownerLinkedEmail);
   const isAuthenticatedOwner = Boolean(
     ownerUser &&
@@ -183,7 +186,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     () => (isAuthenticatedOwner && ownerUser ? ownerUser : currentUser),
     [currentUser, isAuthenticatedOwner, ownerUser]
   );
-  const canManageAccess = Boolean((currentUser?.role === 'owner' || isAuthenticatedOwner) && (!remoteSession || isAuthenticatedOwner));
+  const canManageAccess = !isWebDemoMode && Boolean((currentUser?.role === 'owner' || isAuthenticatedOwner) && (!remoteSession || isAuthenticatedOwner));
   const ownerAccountEmail = normalizeEmail(OWNER_ACCOUNT_EMAIL);
 
   const selectActiveUser = async (id: number) => {
@@ -198,7 +201,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
 
   const bootstrap = async () => {
     try {
-      const bootstrapped = await bootstrapLocalApp();
+      const bootstrapped = await bootstrapLocalApp({ isWebDemoMode });
       setUsers(bootstrapped.users);
       setActiveUserId(bootstrapped.activeUserId);
     } finally {
@@ -495,7 +498,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
 
     const includeRemote = options?.includeRemote ?? true;
 
-    if (hasSupabaseConfig && remoteSession && includeRemote) {
+    if (hasSupabaseConfig && remoteSession && includeRemote && !isWebDemoMode) {
       setRemoteBootstrapState('loading_remote');
       setSharedDataStatus('loading');
       try {
@@ -877,7 +880,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   }, [activeUserId]);
 
   useEffect(() => {
-    if (!hasSupabaseConfig) {
+    if (isWebDemoMode || !hasSupabaseConfig) {
       setAuthStatus('unauthenticated');
       setRemoteSession(null);
       setSharedDataStatus('idle');
@@ -925,7 +928,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
       mounted = false;
       unsubscribe();
     };
-  }, []);
+  }, [isWebDemoMode]);
 
   useEffect(() => {
     getNotificationPermissionStatus()
@@ -947,6 +950,10 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
           setNotificationPermissionStatus('unknown');
         });
 
+      if (isWebDemoMode) {
+        return;
+      }
+
       if (remoteBackendBlocked) {
         setRemoteBackendBlocked(false);
         setRemoteBootstrapState(remoteSession ? 'loading_remote' : 'idle');
@@ -961,10 +968,10 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     return () => {
       subscription.remove();
     };
-  }, [currentUser, isSyncing, refresh, remoteBackendBlocked, remoteSession]);
+  }, [currentUser, isSyncing, isWebDemoMode, refresh, remoteBackendBlocked, remoteSession]);
 
   useEffect(() => {
-    if (!remoteSession) {
+    if (isWebDemoMode || !remoteSession) {
       setMfaFactors([]);
       setPendingTotpEnrollment(null);
       setMfaAssuranceLevel('unknown');
@@ -1038,10 +1045,10 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     return () => {
       cancelled = true;
     };
-  }, [remoteSession]);
+  }, [isWebDemoMode, remoteSession]);
 
   useEffect(() => {
-    if (!remoteSession || !currentUser || isSyncing || remoteBackendBlocked) return;
+    if (isWebDemoMode || !remoteSession || !currentUser || isSyncing || remoteBackendBlocked) return;
     const hasPendingEntries = syncQueue.some((entry) => entry.status === 'pending');
     if (!hasPendingEntries) return;
 
@@ -1050,10 +1057,10 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     }, 600);
 
     return () => clearTimeout(timeoutId);
-  }, [currentUser, isSyncing, remoteBackendBlocked, remoteSession, syncQueue]);
+  }, [currentUser, isSyncing, isWebDemoMode, remoteBackendBlocked, remoteSession, syncQueue]);
 
   useEffect(() => {
-    if (!remoteSession || !currentUser || isSyncing || remoteBackendBlocked) return;
+    if (isWebDemoMode || !remoteSession || !currentUser || isSyncing || remoteBackendBlocked) return;
     const hasRetryableEntries = syncQueue.some((entry) => entry.status === 'pending' || entry.status === 'failed');
     if (!hasRetryableEntries) return;
 
@@ -1062,7 +1069,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     }, 15000);
 
     return () => clearInterval(intervalId);
-  }, [currentUser, isSyncing, remoteBackendBlocked, remoteSession, syncQueue]);
+  }, [currentUser, isSyncing, isWebDemoMode, remoteBackendBlocked, remoteSession, syncQueue]);
 
   const insights = useMemo(
     () => generateInsights(buildAggregates(analyticsEligibleSessions, analyticsEligibleExperiments)),
@@ -1142,10 +1149,26 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   };
 
   const flushSyncQueue = async () => {
+    if (isWebDemoMode) {
+      return;
+    }
     if (!currentUser) {
       throw new Error('No active user selected.');
     }
     await flushSyncQueueWithUser(currentUser);
+  };
+
+  const resetWebDemoData = async () => {
+    if (!isWebDemoMode) return;
+    setLocalBootstrapReady(false);
+    try {
+      const bootstrapped = await resetLocalWebDemoData();
+      setUsers(bootstrapped.users);
+      setActiveUserId(bootstrapped.activeUserId);
+      await refresh(bootstrapped.activeUserId, { includeRemote: false });
+    } finally {
+      setLocalBootstrapReady(true);
+    }
   };
 
   const updateUserAccess = async (
@@ -1226,6 +1249,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         currentUser,
         currentEntitlementLabel: getEntitlementLabel(accessDisplayUser),
         currentHasPremiumAccess: hasPremiumAccess(accessDisplayUser),
+        isWebDemoMode,
         canManageAccess,
         savedFlies,
         savedLeaderFormulas,
@@ -1259,6 +1283,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         pendingTotpEnrollment,
         mfaAssuranceLevel,
         activeUserId,
+        resetWebDemoData,
         getSyncRecordState,
         getSessionIntegrity,
         getExperimentIntegrity,
