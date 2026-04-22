@@ -24,6 +24,8 @@ export const HistoryScreen = ({ navigation, route }: any) => {
   const isDaylightTheme = theme.id === 'daylight_light';
   const elevatedTextColor = isDaylightTheme ? theme.colors.textDark : theme.colors.text;
   const elevatedSoftTextColor = isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft;
+  const elevatedNestedSurface = isDaylightTheme ? theme.colors.nestedSurface : theme.colors.surface;
+  const elevatedNestedBorder = isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.borderStrong;
   const { sessions, experiments, catchEvents, sessionSegments, users, activeUserId, archiveExperiment, deleteExperiment, deleteSessionRecord, cleanupExperimentsForCurrentUser, cleanupSyncStatus, getSyncRecordState, getExperimentIntegrity, getSessionIntegrity } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
   const initialModeFilter = route?.params?.modeFilter;
@@ -407,17 +409,17 @@ export const HistoryScreen = ({ navigation, route }: any) => {
               <View
                 key={`orphan-${experiment.id}`}
                 style={{
-                  backgroundColor: theme.colors.surfaceAlt,
+                  backgroundColor: elevatedNestedSurface,
                   borderRadius: theme.radius.md,
                   padding: 10,
                   gap: 4,
                   borderWidth: 1,
-                  borderColor: theme.colors.borderStrong
+                  borderColor: elevatedNestedBorder
                 }}
               >
-                <InlineSummaryRow label="Hypothesis" value={experiment.hypothesis || 'No saved hypothesis'} />
-                <InlineSummaryRow label="Technique" value={experiment.technique ?? 'Technique not set'} />
-                <InlineSummaryRow label="Status" value={integrity.label} />
+                <InlineSummaryRow label="Hypothesis" value={experiment.hypothesis || 'No saved hypothesis'} tone="light" />
+                <InlineSummaryRow label="Technique" value={experiment.technique ?? 'Technique not set'} tone="light" />
+                <InlineSummaryRow label="Status" value={integrity.label} tone="light" />
                 {integrity.reason ? <Text style={{ color: elevatedSoftTextColor }}>{integrity.reason}</Text> : null}
                 <Text style={{ color: elevatedSoftTextColor }}>
                   Flies: {entries.map((entry) => entry.fly.name || entry.label).join(', ')}
@@ -429,6 +431,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                       onPress={() => navigation.navigate('Experiment', { sessionId: experiment.sessionId, experimentId: experiment.id })}
                       variant="secondary"
                       disabled={isCleanupPending}
+                      surfaceTone="light"
                     />
                   </View>
                   <View style={{ flex: 1 }}>
@@ -437,6 +440,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                       onPress={() => runSingleExperimentCleanup(experiment.id, 'delete')}
                       variant="danger"
                       disabled={isCleanupPending}
+                      surfaceTone="light"
                     />
                   </View>
                 </View>
@@ -454,16 +458,16 @@ export const HistoryScreen = ({ navigation, route }: any) => {
             <View
               key={`problem-session-${session.id}`}
               style={{
-                backgroundColor: theme.colors.surfaceAlt,
+                backgroundColor: elevatedNestedSurface,
                 borderRadius: theme.radius.md,
                 padding: 10,
                 gap: 4,
                 borderWidth: 1,
-                borderColor: theme.colors.borderStrong
+                borderColor: elevatedNestedBorder
               }}
             >
-              <InlineSummaryRow label="Session" value={new Date(session.date).toLocaleString()} />
-              <InlineSummaryRow label="Status" value={getSessionIntegrity(session.id).label} />
+              <InlineSummaryRow label="Session" value={new Date(session.date).toLocaleString()} tone="light" />
+              <InlineSummaryRow label="Status" value={getSessionIntegrity(session.id).label} tone="light" />
                 {getSessionIntegrity(session.id).reason ? (
                 <Text style={{ color: elevatedSoftTextColor }}>{getSessionIntegrity(session.id).reason}</Text>
                 ) : null}
@@ -478,10 +482,11 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                       navigation.navigate('Session', { sessionId: session.id, resumeSource: 'history' });
                     }}
                     variant="secondary"
+                    surfaceTone="light"
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <AppButton label="Delete Session" onPress={() => runProblemSessionCleanup(session.id)} variant="danger" />
+                  <AppButton label="Delete Session" onPress={() => runProblemSessionCleanup(session.id)} variant="danger" surfaceTone="light" />
                 </View>
               </View>
             </View>

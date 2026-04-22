@@ -45,6 +45,8 @@ export const AccessScreen = ({ navigation }: any) => {
   const isDaylightTheme = theme.id === 'daylight_light';
   const elevatedTextColor = isDaylightTheme ? theme.colors.textDark : theme.colors.text;
   const elevatedSoftTextColor = isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft;
+  const elevatedNestedSurface = isDaylightTheme ? theme.colors.nestedSurface : theme.colors.surface;
+  const elevatedNestedBorder = isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.borderStrong;
   const {
     users,
     ownerUser,
@@ -943,9 +945,9 @@ export const AccessScreen = ({ navigation }: any) => {
                         gap: 6,
                         padding: 10,
                         borderRadius: theme.radius.md,
-                        backgroundColor: theme.colors.nestedSurface,
+                        backgroundColor: elevatedNestedSurface,
                         borderWidth: 1,
-                        borderColor: theme.colors.nestedSurfaceBorder
+                        borderColor: elevatedNestedBorder
                       }}
                     >
                       <InlineSummaryRow label="Session" value={new Date(session.date).toLocaleString()} tone="light" />
@@ -980,9 +982,9 @@ export const AccessScreen = ({ navigation }: any) => {
                         gap: 6,
                         padding: 10,
                         borderRadius: theme.radius.md,
-                        backgroundColor: theme.colors.nestedSurface,
+                        backgroundColor: elevatedNestedSurface,
                         borderWidth: 1,
-                        borderColor: theme.colors.nestedSurfaceBorder
+                        borderColor: elevatedNestedBorder
                       }}
                     >
                       <InlineSummaryRow label="Experiment" value={experiment.hypothesis || `Experiment #${experiment.id}`} tone="light" />
@@ -1021,9 +1023,9 @@ export const AccessScreen = ({ navigation }: any) => {
                         gap: 6,
                         padding: 10,
                         borderRadius: theme.radius.md,
-                        backgroundColor: theme.colors.nestedSurface,
+                        backgroundColor: elevatedNestedSurface,
                         borderWidth: 1,
-                        borderColor: theme.colors.nestedSurfaceBorder
+                        borderColor: elevatedNestedBorder
                       }}
                     >
                       <InlineSummaryRow label="Group" value={group.name || `Group #${group.id}`} tone="light" />
