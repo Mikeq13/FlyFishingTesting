@@ -1,7 +1,19 @@
 import React, { useMemo } from 'react';
-import { ImageBackground, Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Image, ImageBackground, Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/design/theme';
+
+type WebBackgroundStyle = {
+  backgroundImage?: string;
+  backgroundPosition: string;
+  backgroundRepeat: string;
+  backgroundSize: string;
+  opacity: number;
+};
+
+type WebForegroundStyle = {
+  minHeight: string;
+};
 
 export const ScreenBackground = ({ children }: { children: React.ReactNode }) => {
   const { width, height } = useWindowDimensions();
@@ -9,45 +21,90 @@ export const ScreenBackground = ({ children }: { children: React.ReactNode }) =>
   const background = useMemo(() => theme.background, [theme]);
   const isLandscape = width > height;
   const isWideWeb = Platform.OS === 'web' && width >= 900;
-  const minHeight = Platform.OS === 'web' ? height : undefined;
+  const webBackgroundUri = useMemo(() => {
+    if (Platform.OS !== 'web' || !background.image) return null;
+    try {
+      return Image.resolveAssetSource(background.image)?.uri ?? null;
+    } catch {
+      return null;
+    }
+  }, [background.image]);
+  const webForegroundStyle = useMemo<WebForegroundStyle | null>(
+    () => (Platform.OS === 'web' ? { minHeight: '100vh' } : null),
+    []
+  );
+  const webBackgroundImageStyle = useMemo<WebBackgroundStyle>(
+    () => ({
+      backgroundPosition: 'center center',
+      backgroundRepeat: 'no-repeat',
+      backgroundSize: 'cover',
+      opacity: background.imageOpacity,
+      ...(webBackgroundUri ? { backgroundImage: `url("${webBackgroundUri}")` } : {})
+    }),
+    [background.imageOpacity, webBackgroundUri]
+  );
+  const sharedBackgroundLayers = (
+    <>
+      <View
+        style={[
+          styles.topGlow,
+          { backgroundColor: background.topGlow },
+          isLandscape && styles.topGlowLandscape,
+          isWideWeb && styles.topGlowDesktop
+        ]}
+      />
+      <View
+        style={[
+          styles.bottomGlow,
+          { backgroundColor: background.bottomGlow },
+          isLandscape && styles.bottomGlowLandscape,
+          isWideWeb && styles.bottomGlowDesktop
+        ]}
+      />
+      <View style={[styles.overlay, { backgroundColor: background.overlay }]} />
+      <View
+        style={[
+          styles.texture,
+          {
+            backgroundColor: background.texture,
+            borderTopColor: background.textureBorderTop,
+            borderBottomColor: background.textureBorderBottom
+          }
+        ]}
+      />
+    </>
+  );
 
   return (
-    <View style={[styles.root, minHeight ? { minHeight } : null]}>
-      <ImageBackground
-        source={background.image}
-        resizeMode="cover"
-        style={styles.bg}
-        imageStyle={[styles.image, { opacity: background.imageOpacity }]}
-      >
+    <View style={styles.root}>
+      {Platform.OS === 'web' ? (
         <View
           style={[
-            styles.topGlow,
-            { backgroundColor: background.topGlow },
-            isLandscape && styles.topGlowLandscape,
-            isWideWeb && styles.topGlowDesktop
-          ]}
-        />
-        <View
-          style={[
-            styles.bottomGlow,
-            { backgroundColor: background.bottomGlow },
-            isLandscape && styles.bottomGlowLandscape,
-            isWideWeb && styles.bottomGlowDesktop
-          ]}
-        />
-        <View style={[styles.overlay, { backgroundColor: background.overlay }]} />
-        <View
-          style={[
-            styles.texture,
+            styles.webBg,
             {
-              backgroundColor: background.texture,
-              borderTopColor: background.textureBorderTop,
-              borderBottomColor: background.textureBorderBottom
+              backgroundColor: theme.colors.bg
             }
           ]}
-        />
-      </ImageBackground>
-      <SafeAreaView edges={['top', 'bottom']} style={[styles.container, minHeight ? { minHeight } : null]}>
+        >
+          <View
+            style={[
+              styles.webBgImage,
+              webBackgroundImageStyle as never
+            ]}
+          />
+          {sharedBackgroundLayers}
+        </View>
+      ) : (
+        <ImageBackground
+          source={background.image}
+          resizeMode="cover"
+          style={styles.bg}
+          imageStyle={[styles.image, { opacity: background.imageOpacity }]}
+        >
+          {sharedBackgroundLayers}
+        </ImageBackground>
+      )}
+      <SafeAreaView edges={['top', 'bottom']} style={[styles.container, webForegroundStyle as never]}>
         {children}
       </SafeAreaView>
     </View>
@@ -64,6 +121,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent'
   },
   image: {},
+  webBg: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'transparent'
+  },
+  webBgImage: {
+    ...StyleSheet.absoluteFillObject
+  },
   topGlow: {
     position: 'absolute',
     top: -120,
@@ -113,6 +181,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1
   },
   container: {
-    flex: 1
+    flex: 1,
+    width: '100%'
   }
 });

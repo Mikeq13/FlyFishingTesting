@@ -352,7 +352,7 @@ export const InsightsScreen = ({ navigation }: any) => {
 
   return (
     <ScreenBackground>
-      <ScrollView contentContainerStyle={layout.buildScrollContentStyle({ gap: 10, bottomPadding: 40 })}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={layout.buildScrollContentStyle({ gap: 10, bottomPadding: 40 })}>
         {!currentHasPremiumAccess ? (
           <PremiumFeatureGate
             title="Premium Insights"

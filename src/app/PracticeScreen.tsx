@@ -306,7 +306,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
 
   return (
     <ScreenBackground>
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40 }}>
         <ScreenHeader
           title="Practice Session"
           subtitle="Stay light, change water fast, and log what is producing without breaking your rhythm."
