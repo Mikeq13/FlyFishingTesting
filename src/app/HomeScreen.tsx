@@ -9,6 +9,7 @@ import { useTheme } from '@/design/theme';
 import { useAppStore } from './store';
 import { SessionMode } from '@/types/session';
 import { useResponsiveLayout } from '@/design/layout';
+import { buildActiveOutingLabel, buildActiveOutingNavigationTarget } from '@/utils/handsFree';
 
 const SESSION_MODE_OPTIONS: Array<{
   mode: SessionMode;
@@ -33,7 +34,7 @@ const SESSION_MODE_OPTIONS: Array<{
 ];
 
 export const HomeScreen = ({ navigation }: any) => {
-  const { currentHasPremiumAccess, currentUser, remoteSession, sessions, isWebDemoMode } = useAppStore();
+  const { currentHasPremiumAccess, currentUser, remoteSession, sessions, isWebDemoMode, activeOuting, autoResumePromptEnabled } = useAppStore();
   const { theme } = useTheme();
   const layout = useResponsiveLayout();
   const isDaylightTheme = theme.id === 'daylight_light';
@@ -105,6 +106,21 @@ export const HomeScreen = ({ navigation }: any) => {
             {isWebDemoMode ? 'Seeded demo journal with local-only data and premium AI guidance unlocked.' : `Signed in as: ${remoteSession?.email ?? 'No account linked'}`}
           </Text>
         </SectionCard>
+        {activeOuting && autoResumePromptEnabled ? (
+          <SectionCard title="Current Outing" subtitle="Jump back into the live session without digging through old records.">
+            <Text style={{ color: theme.colors.text, fontWeight: '800' }}>{buildActiveOutingLabel(activeOuting)}</Text>
+            <Text style={{ color: theme.colors.textSoft }}>
+              Last active: {new Date(activeOuting.lastActiveAt).toLocaleString()}
+            </Text>
+            <AppButton
+              label="Resume Current Outing"
+              onPress={() => {
+                const target = buildActiveOutingNavigationTarget(activeOuting);
+                navigation.navigate(target.route, target.params);
+              }}
+            />
+          </SectionCard>
+        ) : null}
         <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
           <View style={{ flex: 1 }}>
             <AppButton label="Start Session" onPress={() => setShowSessionChooser(true)} variant="secondary" />

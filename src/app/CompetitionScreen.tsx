@@ -18,6 +18,7 @@ import { ActionGroup } from '@/components/ui/ActionGroup';
 import { useTheme } from '@/design/theme';
 import { useResponsiveLayout } from '@/design/layout';
 import { formatSharedBackendError, getPendingSyncFeedback } from '@/utils/syncFeedback';
+import { DictationHelpModal } from '@/components/DictationHelpModal';
 
 const TROUT_SPECIES: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow', 'Tiger', 'Whitefish'];
 
@@ -30,9 +31,28 @@ export const CompetitionScreen = ({ route }: any) => {
   const elevatedNestedSurface = isDaylightTheme ? theme.colors.nestedSurface : theme.colors.surface;
   const elevatedNestedBorder = isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.borderStrong;
   const sessionId = route?.params?.sessionId as number;
-  const { sessions, allSessions, catchEvents, allCatchEvents, users, competitionAssignments, competitionGroups, competitionSessions, addCatchEvent, updateSessionEntry, upsertCompetitionAssignment, notificationPermissionStatus, remoteSession, syncStatus } = useAppStore();
+  const {
+    sessions,
+    allSessions,
+    catchEvents,
+    allCatchEvents,
+    users,
+    competitionAssignments,
+    competitionGroups,
+    competitionSessions,
+    addCatchEvent,
+    updateSessionEntry,
+    upsertCompetitionAssignment,
+    notificationPermissionStatus,
+    remoteSession,
+    syncStatus,
+    setActiveOuting,
+    clearActiveOuting,
+    showDictationHelpInSessions
+  } = useAppStore();
   const session = sessions.find((candidate) => candidate.id === sessionId) ?? null;
   const [showCatchModal, setShowCatchModal] = useState(false);
+  const [showDictationHelp, setShowDictationHelp] = useState(false);
   const [species, setSpecies] = useState<TroutSpecies>('Rainbow');
   const [lengthValue, setLengthValue] = useState('');
   const [isSavingCatch, setIsSavingCatch] = useState(false);
@@ -92,6 +112,19 @@ export const CompetitionScreen = ({ route }: any) => {
     !!competitionSummaryRows.length &&
     competitionSummaryRows.every((row) => row.status === 'finished' || row.status === 'controlling');
   const formInputStyle = getFormInputStyle(theme);
+
+  React.useEffect(() => {
+    if (!session || session.endedAt) {
+      clearActiveOuting().catch(() => undefined);
+      return;
+    }
+    setActiveOuting({
+      mode: session.mode,
+      targetRoute: 'Competition',
+      sessionId: session.id,
+      lastActiveAt: new Date().toISOString()
+    }).catch(() => undefined);
+  }, [clearActiveOuting, session, setActiveOuting, competitionCatches.length]);
 
   if (!session) {
     return (
@@ -193,6 +226,9 @@ export const CompetitionScreen = ({ route }: any) => {
           {!timer.hasEnded ? (
             <AppButton label="End Session Early" onPress={endSessionEarly} variant="danger" />
           ) : null}
+          {showDictationHelpInSessions ? (
+            <AppButton label="Dictation Help" onPress={() => setShowDictationHelp(true)} variant="ghost" />
+          ) : null}
         </SectionCard>
 
         <SectionCard title="Scorecard" subtitle="Keep fish count and official length totals easy to check at a glance." tone="light">
@@ -292,6 +328,7 @@ export const CompetitionScreen = ({ route }: any) => {
           </ActionGroup>
         </ModalSurface>
       </Modal>
+      <DictationHelpModal visible={showDictationHelp} onClose={() => setShowDictationHelp(false)} />
     </ScreenBackground>
   );
 };

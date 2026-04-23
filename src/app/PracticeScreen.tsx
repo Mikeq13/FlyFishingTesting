@@ -23,6 +23,7 @@ import { AppButton } from '@/components/ui/AppButton';
 import { BottomSheetSurface } from '@/components/ui/BottomSheetSurface';
 import { useTheme } from '@/design/theme';
 import { formatSharedBackendError, getPendingSyncFeedback } from '@/utils/syncFeedback';
+import { DictationHelpModal } from '@/components/DictationHelpModal';
 
 type SetupSheetKey = 'technique' | 'leader' | 'rigging' | 'flies' | null;
 
@@ -46,6 +47,9 @@ export const PracticeScreen = ({ route, navigation }: any) => {
     addSessionSegment,
     updateSessionSegmentEntry,
     addCatchEvent,
+    setActiveOuting,
+    clearActiveOuting,
+    showDictationHelpInSessions,
     notificationPermissionStatus,
     remoteSession,
     syncStatus
@@ -59,6 +63,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
   const [activeSetupSheet, setActiveSetupSheet] = useState<SetupSheetKey>(null);
   const [reviewPromptShown, setReviewPromptShown] = useState(false);
   const catchSubmitLockedRef = useRef(false);
+  const [showDictationHelp, setShowDictationHelp] = useState(false);
   const syncFeedback = remoteSession ? getPendingSyncFeedback(syncStatus, 'practice', 'practice') : null;
   const activeSegment = useMemo(
     () =>
@@ -143,6 +148,19 @@ export const PracticeScreen = ({ route, navigation }: any) => {
       Alert.alert('Unable to finish practice session', formatSharedBackendError(error, 'practice'));
     });
   }, [finalizePracticeSession, navigation, reviewPromptShown, session, timer.remainingSeconds]);
+
+  useEffect(() => {
+    if (!session || session.endedAt) {
+      clearActiveOuting().catch(() => undefined);
+      return;
+    }
+    setActiveOuting({
+      mode: session.mode,
+      targetRoute: 'Practice',
+      sessionId: session.id,
+      lastActiveAt: new Date().toISOString()
+    }).catch(() => undefined);
+  }, [clearActiveOuting, session, setActiveOuting, activeSegment?.id]);
 
   const currentRigSetup = activeSegment?.rigSetup ?? createDefaultRigSetup(activeSegment?.flySnapshots ?? []);
   const activeTechnique = activeSegment?.technique ?? session?.startingTechnique;
@@ -336,6 +354,9 @@ export const PracticeScreen = ({ route, navigation }: any) => {
           ) : null}
           {(timer.hasEnded || timer.remainingSeconds === 0) ? (
             <AppButton label="Review Session" onPress={() => navigation.navigate('PracticeReview', { sessionId: session.id })} variant="secondary" />
+          ) : null}
+          {showDictationHelpInSessions ? (
+            <AppButton label="Dictation Help" onPress={() => setShowDictationHelp(true)} variant="ghost" />
           ) : null}
         </SectionCard>
 
@@ -575,6 +596,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
           });
         }}
       />
+      <DictationHelpModal visible={showDictationHelp} onClose={() => setShowDictationHelp(false)} />
     </ScreenBackground>
   );
 };

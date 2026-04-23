@@ -24,8 +24,9 @@ import { useResponsiveLayout } from '@/design/layout';
 import { useTheme } from '@/design/theme';
 import { getAppSetting, setAppSetting } from '@/db/settingsRepo';
 import { buildSessionDeleteMessage, getSessionDeleteConsequences } from '@/utils/sessionDeleteConsequences';
+import { HANDS_FREE_EXAMPLES, SUPPORTED_TECHNIQUES, SUPPORTED_WATER_TYPES } from '@/utils/handsFree';
 
-type UtilitySectionKey = 'accountInfo' | 'appearance' | 'billing' | 'competitions' | 'dataManagement' | 'groups' | 'security' | 'powerTools' | 'ownerTools';
+type UtilitySectionKey = 'accountInfo' | 'appearance' | 'billing' | 'competitions' | 'dataManagement' | 'groups' | 'security' | 'quickCapture' | 'powerTools' | 'ownerTools';
 
 const normalizeIdentityEmail = (email?: string | null) => email?.trim().toLowerCase() ?? null;
 
@@ -59,6 +60,11 @@ export const AccessScreen = ({ navigation }: any) => {
     backendDiagnostics,
     sharedDataStatus,
     notificationPermissionStatus,
+    autoResumePromptEnabled,
+    resumeFromNotificationsEnabled,
+    dictationEnabled,
+    showDictationHelpInSessions,
+    confirmationNotificationsEnabled,
     authStatus,
     remoteSession,
     remoteBootstrapState,
@@ -120,7 +126,12 @@ export const AccessScreen = ({ navigation }: any) => {
     createInvite,
     acceptInvite,
     revokeSponsoredAccess,
-    resetWebDemoData
+    resetWebDemoData,
+    setAutoResumePromptEnabled,
+    setResumeFromNotificationsEnabled,
+    setDictationEnabled,
+    setShowDictationHelpInSessions,
+    setConfirmationNotificationsEnabled
   } = useAppStore();
   const [newGroupName, setNewGroupName] = React.useState('');
   const [joinGroupCode, setJoinGroupCode] = React.useState('');
@@ -148,6 +159,7 @@ export const AccessScreen = ({ navigation }: any) => {
     dataManagement: false,
     groups: false,
     security: false,
+    quickCapture: false,
     powerTools: false,
     ownerTools: false
   });
@@ -916,6 +928,114 @@ export const AccessScreen = ({ navigation }: any) => {
             />
           )
         }) : null}
+
+        {renderCollapsibleCard({
+          sectionKey: 'quickCapture',
+          title: 'Quick Capture & Dictation',
+          subtitle: 'Keep the supported Siri phrases, notification confirmations, and continuity controls visible in one place.',
+          summary: (
+            <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+              {dictationEnabled ? 'Hands-free dictation enabled' : 'Hands-free dictation disabled'} - {showDictationHelpInSessions ? 'session help shown' : 'session help hidden'}
+            </Text>
+          ),
+          children: (
+            <View style={{ gap: 10 }}>
+              <SectionCard
+                title="Hands-Free Controls"
+                subtitle="These settings control how Fishing Lab surfaces Siri-style capture, resume prompts, and confirmation banners."
+                tone="light"
+              >
+                <OptionChips
+                  label="Enable Hands-Free Dictation"
+                  options={['On', 'Off'] as const}
+                  value={dictationEnabled ? 'On' : 'Off'}
+                  onChange={(value) => {
+                    setDictationEnabled(value === 'On').catch((error) =>
+                      Alert.alert('Unable to update setting', error instanceof Error ? error.message : 'Please try again.')
+                    );
+                  }}
+                  tone="light"
+                />
+                <OptionChips
+                  label="Show Dictation Help In Sessions"
+                  options={['On', 'Off'] as const}
+                  value={showDictationHelpInSessions ? 'On' : 'Off'}
+                  onChange={(value) => {
+                    setShowDictationHelpInSessions(value === 'On').catch((error) =>
+                      Alert.alert('Unable to update setting', error instanceof Error ? error.message : 'Please try again.')
+                    );
+                  }}
+                  tone="light"
+                />
+                <OptionChips
+                  label="Auto-open Resume Prompt"
+                  options={['On', 'Off'] as const}
+                  value={autoResumePromptEnabled ? 'On' : 'Off'}
+                  onChange={(value) => {
+                    setAutoResumePromptEnabled(value === 'On').catch((error) =>
+                      Alert.alert('Unable to update setting', error instanceof Error ? error.message : 'Please try again.')
+                    );
+                  }}
+                  tone="light"
+                />
+                <OptionChips
+                  label="Enable Resume From Notifications"
+                  options={['On', 'Off'] as const}
+                  value={resumeFromNotificationsEnabled ? 'On' : 'Off'}
+                  onChange={(value) => {
+                    setResumeFromNotificationsEnabled(value === 'On').catch((error) =>
+                      Alert.alert('Unable to update setting', error instanceof Error ? error.message : 'Please try again.')
+                    );
+                  }}
+                  tone="light"
+                />
+                <OptionChips
+                  label="Enable Confirmation Notifications"
+                  options={['On', 'Off'] as const}
+                  value={confirmationNotificationsEnabled ? 'On' : 'Off'}
+                  onChange={(value) => {
+                    setConfirmationNotificationsEnabled(value === 'On').catch((error) =>
+                      Alert.alert('Unable to update setting', error instanceof Error ? error.message : 'Please try again.')
+                    );
+                  }}
+                  tone="light"
+                />
+              </SectionCard>
+              <SectionCard
+                title="Supported Phrases"
+                subtitle="Fishing Lab keeps the vocabulary intentionally narrow so Siri capture stays reliable on the water."
+                tone="light"
+              >
+                {HANDS_FREE_EXAMPLES.map((example) => (
+                  <View
+                    key={example.title}
+                    style={{
+                      gap: 4,
+                      padding: 10,
+                      borderRadius: theme.radius.md,
+                      backgroundColor: theme.colors.nestedSurface,
+                      borderWidth: 1,
+                      borderColor: theme.colors.nestedSurfaceBorder
+                    }}
+                  >
+                    <Text style={{ color: theme.colors.textDark, fontWeight: '800' }}>{example.title}</Text>
+                    <Text style={{ color: theme.colors.textDarkSoft, fontStyle: 'italic' }}>{example.phrase}</Text>
+                    <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 19 }}>{example.description}</Text>
+                  </View>
+                ))}
+                <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+                  Supported water types: {SUPPORTED_WATER_TYPES.join(', ')}
+                </Text>
+                <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+                  Supported techniques: {SUPPORTED_TECHNIQUES.join(', ')}
+                </Text>
+                <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+                  Practice fish logging uses the active segment. Competition fish logging uses the live scorecard. Experiment fish logging still stays inside the touch workflow for now.
+                </Text>
+              </SectionCard>
+            </View>
+          )
+        })}
 
         {renderCollapsibleCard({
           sectionKey: 'dataManagement',

@@ -30,6 +30,7 @@ import {
 import { TopFlyRecord } from '@/engine/topFlyEngine';
 import { NotificationPermissionStatus, SharedDataStatus } from '@/types/appState';
 import { IntegritySummary } from '@/types/dataIntegrity';
+import { ActiveOuting } from '@/types/handsFree';
 
 export type UserDataCleanupCategory =
   | 'drafts'
@@ -96,9 +97,22 @@ export interface AppStore {
   mfaFactors: MfaFactorSummary[];
   pendingTotpEnrollment: PendingTotpEnrollment | null;
   mfaAssuranceLevel: 'aal1' | 'aal2' | 'unknown';
+  activeOuting: ActiveOuting | null;
+  autoResumePromptEnabled: boolean;
+  resumeFromNotificationsEnabled: boolean;
+  dictationEnabled: boolean;
+  showDictationHelpInSessions: boolean;
+  confirmationNotificationsEnabled: boolean;
   activeUserId: number | null;
   resetWebDemoData: () => Promise<void>;
   setActiveUserId: (id: number) => Promise<void>;
+  setActiveOuting: (outing: ActiveOuting) => Promise<void>;
+  clearActiveOuting: () => Promise<void>;
+  setAutoResumePromptEnabled: (enabled: boolean) => Promise<void>;
+  setResumeFromNotificationsEnabled: (enabled: boolean) => Promise<void>;
+  setDictationEnabled: (enabled: boolean) => Promise<void>;
+  setShowDictationHelpInSessions: (enabled: boolean) => Promise<void>;
+  setConfirmationNotificationsEnabled: (enabled: boolean) => Promise<void>;
   signInWithMagicLink: (email: string) => Promise<void>;
   signUpWithPassword: (payload: { email: string; password: string; name: string }) => Promise<void>;
   signInWithPassword: (payload: { email: string; password: string }) => Promise<void>;

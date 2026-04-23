@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import * as Linking from 'expo-linking';
-import { Alert, Text, View } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { Alert, AppState, Text, View } from 'react-native';
+import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AppStoreProvider } from './app/store';
 import { HomeScreen } from './app/HomeScreen';
@@ -17,9 +17,16 @@ import { SessionDetailScreen } from './app/SessionDetailScreen';
 import { PracticeReviewScreen } from './app/PracticeReviewScreen';
 import { AccessScreen } from './app/AccessScreen';
 import { useAppStore } from './app/store';
-import { ensureNotificationHandler } from './utils/sessionNotifications';
+import {
+  ensureNotificationHandler,
+  getNavigationTargetFromNotificationData,
+  scheduleImmediateNotification
+} from './utils/sessionNotifications';
 import { consumeAuthRedirect } from './services/authService';
 import { ThemeProvider, useTheme } from './design/theme';
+import { buildActiveOutingNavigationTarget, parseHandsFreeUrlCommand, parsePendingHandsFreeCommand } from './utils/handsFree';
+import { consumePendingHandsFreeNativeCommand } from './services/handsFreeNative';
+import { executeHandsFreeCommand } from './utils/handsFreeActions';
 
 const Stack = createNativeStackNavigator();
 
@@ -29,10 +36,162 @@ const AuthLoadingScreen = () => (
   </View>
 );
 
-const AppNavigator = () => {
+const AppNavigator = ({ navigationRef }: { navigationRef: ReturnType<typeof useNavigationContainerRef> }) => {
   const { theme } = useTheme();
-  const { authReady, localBootstrapReady, remoteSession, currentUser, remoteBootstrapState, isWebDemoMode } = useAppStore();
+  const {
+    authReady,
+    localBootstrapReady,
+    remoteSession,
+    currentUser,
+    remoteBootstrapState,
+    isWebDemoMode,
+    activeOuting,
+    dictationEnabled,
+    confirmationNotificationsEnabled,
+    resumeFromNotificationsEnabled,
+    sessions,
+    sessionSegments,
+    experiments,
+    addCatchEvent,
+    addSessionSegment,
+    updateSessionEntry,
+    updateSessionSegmentEntry,
+    updateExperimentEntry
+  } = useAppStore();
   const canEnterApp = Boolean((remoteSession && currentUser) || (isWebDemoMode && currentUser));
+
+  useEffect(() => {
+    ensureNotificationHandler().catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const handleAuthUrl = async (url: string) => {
+      try {
+        await consumeAuthRedirect(url);
+      } catch (error) {
+        console.error(error);
+        const message = error instanceof Error ? error.message : 'Please request a fresh magic link and try again.';
+        Alert.alert('Sign-in link could not be completed', message);
+      }
+    };
+
+    const runHandsFreeCommand = async (rawCommand: string | null) => {
+      if (!rawCommand || !mounted || !currentUser) return;
+      const command = parsePendingHandsFreeCommand(rawCommand);
+      if (!command) return;
+      const result = await executeHandsFreeCommand(command, {
+        activeOuting,
+        dictationEnabled,
+        sessions,
+        sessionSegments,
+        experiments,
+        addCatchEvent,
+        addSessionSegment,
+        updateSessionEntry,
+        updateSessionSegmentEntry,
+        updateExperimentEntry
+      });
+
+      if (result.ok && confirmationNotificationsEnabled) {
+        await scheduleImmediateNotification({
+          title: result.successTitle ?? 'Fishing Lab',
+          body: result.message,
+          data: activeOuting
+            ? {
+                sessionId: activeOuting.sessionId,
+                experimentId: activeOuting.experimentId ?? undefined,
+                targetRoute: activeOuting.targetRoute
+              }
+            : undefined
+        });
+      } else if (!result.ok) {
+        Alert.alert('Hands-free action unavailable', result.message);
+      }
+
+      if (result.navigateToOuting && activeOuting) {
+        const target = buildActiveOutingNavigationTarget(activeOuting);
+        if (navigationRef.isReady()) {
+          (navigationRef as any).navigate(target.route, target.params);
+        }
+      } else if (result.ok && activeOuting) {
+        const target = buildActiveOutingNavigationTarget(activeOuting);
+        if (navigationRef.isReady()) {
+          (navigationRef as any).navigate(target.route, target.params);
+        }
+      }
+    };
+
+    const handleUrl = async (url: string | null) => {
+      if (!url || !mounted) return;
+      const handsFreeCommand = parseHandsFreeUrlCommand(url);
+      if (handsFreeCommand) {
+        await runHandsFreeCommand(JSON.stringify(handsFreeCommand));
+        return;
+      }
+      await handleAuthUrl(url);
+    };
+
+    Linking.getInitialURL()
+      .then(handleUrl)
+      .catch(console.error);
+
+    consumePendingHandsFreeNativeCommand()
+      .then(runHandsFreeCommand)
+      .catch(console.error);
+
+    const linkSubscription = Linking.addEventListener('url', ({ url }) => {
+      handleUrl(url).catch(console.error);
+    });
+
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+      consumePendingHandsFreeNativeCommand()
+        .then(runHandsFreeCommand)
+        .catch(console.error);
+    });
+
+    let notificationSubscription: { remove: () => void } | null = null;
+    import('expo-notifications')
+      .then((Notifications) => {
+        if (!mounted) return;
+        notificationSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+          if (!resumeFromNotificationsEnabled) return;
+          const data = response.notification.request.content.data as Record<string, unknown> | undefined;
+          const target = getNavigationTargetFromNotificationData(data);
+          if (target) {
+            if (navigationRef.isReady()) {
+              (navigationRef as any).navigate(target.route, target.params);
+            }
+          }
+        });
+      })
+      .catch(() => undefined);
+
+    return () => {
+      mounted = false;
+      linkSubscription.remove();
+      appStateSubscription.remove();
+      notificationSubscription?.remove();
+    };
+  }, [
+    activeOuting,
+    addCatchEvent,
+    addSessionSegment,
+    confirmationNotificationsEnabled,
+    currentUser,
+    dictationEnabled,
+    experiments,
+    navigationRef,
+    remoteSession,
+    resumeFromNotificationsEnabled,
+    sessionSegments,
+    sessions,
+    updateExperimentEntry,
+    updateSessionEntry,
+    updateSessionSegmentEntry
+  ]);
 
   if (
     !authReady ||
@@ -41,7 +200,7 @@ const AppNavigator = () => {
     (remoteSession && !currentUser && remoteBootstrapState !== 'degraded')
   ) {
     return (
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef}>
         <Stack.Navigator
           screenOptions={{
             headerShown: false,
@@ -55,7 +214,7 @@ const AppNavigator = () => {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator
         initialRouteName={canEnterApp ? 'Home' : 'Auth'}
         screenOptions={{
@@ -88,42 +247,12 @@ const AppNavigator = () => {
 };
 
 export default function App() {
-  useEffect(() => {
-    ensureNotificationHandler().catch(console.error);
-  }, []);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const handleUrl = async (url: string | null) => {
-      if (!url || !mounted) return;
-      try {
-        await consumeAuthRedirect(url);
-      } catch (error) {
-        console.error(error);
-        const message = error instanceof Error ? error.message : 'Please request a fresh magic link and try again.';
-        Alert.alert('Sign-in link could not be completed', message);
-      }
-    };
-
-    Linking.getInitialURL()
-      .then(handleUrl)
-      .catch(console.error);
-
-    const subscription = Linking.addEventListener('url', ({ url }) => {
-      handleUrl(url).catch(console.error);
-    });
-
-    return () => {
-      mounted = false;
-      subscription.remove();
-    };
-  }, []);
+  const navigationRef = useNavigationContainerRef();
 
   return (
     <ThemeProvider>
       <AppStoreProvider>
-        <AppNavigator />
+        <AppNavigator navigationRef={navigationRef} />
       </AppStoreProvider>
     </ThemeProvider>
   );

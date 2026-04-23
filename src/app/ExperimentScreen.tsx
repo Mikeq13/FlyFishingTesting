@@ -28,6 +28,7 @@ import { Technique, WaterType } from '@/types/session';
 import { BottomSheetSurface } from '@/components/ui/BottomSheetSurface';
 import { formatSharedBackendError, getPendingSyncFeedback } from '@/utils/syncFeedback';
 import { getExperimentRigIdentitySignature } from '@/utils/dataIdentity';
+import { DictationHelpModal } from '@/components/DictationHelpModal';
 
 const isDraftExperiment = (entries: ExperimentFlyEntry[]) =>
   entries.some((entry) => entry.casts <= 0 || !entry.fly.name.trim());
@@ -68,7 +69,10 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     sessions,
     refresh,
     remoteSession,
-    syncStatus
+    syncStatus,
+    setActiveOuting,
+    clearActiveOuting,
+    showDictationHelpInSessions
   } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
   const sessionId: number = route.params.sessionId;
@@ -107,6 +111,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     flies: false
   });
   const [activeSetupSheet, setActiveSetupSheet] = useState<SetupSheetKey>(null);
+  const [showDictationHelp, setShowDictationHelp] = useState(false);
   const isCompactLayout = width < 720;
   const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 980) : undefined;
   const hydratedRef = useRef(false);
@@ -738,6 +743,20 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     )
     .join(' | ');
 
+  useEffect(() => {
+    if (!session || session.endedAt) {
+      clearActiveOuting().catch(() => undefined);
+      return;
+    }
+    setActiveOuting({
+      mode: session.mode,
+      targetRoute: 'Experiment',
+      sessionId: session.id,
+      experimentId: activeExperimentId ?? undefined,
+      lastActiveAt: new Date().toISOString()
+    }).catch(() => undefined);
+  }, [activeExperimentId, clearActiveOuting, currentTechnique, currentWaterType, session, setActiveOuting]);
+
   return (
     <ScreenBackground>
       <KeyboardDismissView>
@@ -968,6 +987,9 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
             }}
             disabled={isSaving}
           />
+          {showDictationHelpInSessions ? (
+            <AppButton label="Dictation Help" onPress={() => setShowDictationHelp(true)} variant="ghost" />
+          ) : null}
         </SectionCard>
 
       </ScrollView>
@@ -1135,6 +1157,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         }}
         onClose={() => setShowSavedExperimentActions(false)}
       />
+      <DictationHelpModal visible={showDictationHelp} onClose={() => setShowDictationHelp(false)} />
     </ScreenBackground>
   );
 };

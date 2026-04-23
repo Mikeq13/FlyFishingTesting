@@ -17,7 +17,7 @@ import {
 } from '@/types/group';
 import { LeaderFormula, RigPreset } from '@/types/rig';
 import { createUser, updateUser } from '@/db/userRepo';
-import { getAppSetting, setActiveUserId as saveActiveUserId, setAppSetting } from '@/db/settingsRepo';
+import { deleteAppSetting, getAppSetting, setActiveUserId as saveActiveUserId, setAppSetting } from '@/db/settingsRepo';
 import { buildAggregates } from '@/engine/aggregationEngine';
 import { generateAnglerComparisons } from '@/engine/anglerComparisonEngine';
 import { createTrialWindow, getEntitlementLabel, hasPremiumAccess } from '@/engine/entitlementEngine';
@@ -46,6 +46,7 @@ import { IntegritySummary } from '@/types/dataIntegrity';
 import { upsertSyncMetadataEntry } from '@/db/syncMetadataRepo';
 import { applySessionShareIds } from '@/utils/sessionSharing';
 import { formatSharedBackendError } from '@/utils/syncFeedback';
+import { ActiveOuting } from '@/types/handsFree';
 import {
   dedupeDraftExperimentsByIdentity,
   dedupeSavedFliesByIdentity,
@@ -56,6 +57,22 @@ import {
 } from '@/utils/dataIdentity';
 import { summarizeSyncFailures } from '@/services/syncDiagnosticsService';
 import { isWebDemoModeEnabled } from '@/services/webDemoService';
+import {
+  ACTIVE_OUTING_SETTING_KEY,
+  AUTO_RESUME_ENABLED_KEY,
+  DEFAULT_AUTO_RESUME_ENABLED,
+  DEFAULT_DICTATION_CONFIRMATION_NOTIFICATIONS,
+  DEFAULT_DICTATION_ENABLED,
+  DEFAULT_DICTATION_SHOW_HELP,
+  DEFAULT_NOTIFICATION_RESUME_ENABLED,
+  DICTATION_CONFIRMATION_NOTIFICATIONS_KEY,
+  DICTATION_ENABLED_KEY,
+  DICTATION_SHOW_HELP_KEY,
+  NOTIFICATION_RESUME_ENABLED_KEY,
+  parseActiveOuting,
+  parseStoredBoolean,
+  serializeActiveOuting
+} from '@/utils/handsFree';
 
 export type { UserDataCleanupCategory };
 
@@ -168,6 +185,14 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   const [mfaFactors, setMfaFactors] = useState<MfaFactorSummary[]>([]);
   const [pendingTotpEnrollment, setPendingTotpEnrollment] = useState<PendingTotpEnrollment | null>(null);
   const [mfaAssuranceLevel, setMfaAssuranceLevel] = useState<'aal1' | 'aal2' | 'unknown'>('unknown');
+  const [activeOuting, setActiveOutingState] = useState<ActiveOuting | null>(null);
+  const [autoResumePromptEnabled, setAutoResumePromptEnabledState] = useState(DEFAULT_AUTO_RESUME_ENABLED);
+  const [resumeFromNotificationsEnabled, setResumeFromNotificationsEnabledState] = useState(DEFAULT_NOTIFICATION_RESUME_ENABLED);
+  const [dictationEnabled, setDictationEnabledState] = useState(DEFAULT_DICTATION_ENABLED);
+  const [showDictationHelpInSessions, setShowDictationHelpInSessionsState] = useState(DEFAULT_DICTATION_SHOW_HELP);
+  const [confirmationNotificationsEnabled, setConfirmationNotificationsEnabledState] = useState(
+    DEFAULT_DICTATION_CONFIRMATION_NOTIFICATIONS
+  );
   const importSeededRef = useRef<string | null>(null);
   const sessionMap = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
   const normalizeEmail = (value?: string | null) => value?.trim().toLowerCase() ?? null;
@@ -194,10 +219,56 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     await saveActiveUserId(id);
   };
 
+  const loadHandsFreePreferences = async () => {
+    const [storedActiveOuting, storedAutoResume, storedNotificationResume, storedDictationEnabled, storedHelp, storedConfirmationNotifications] =
+      await Promise.all([
+        getAppSetting(ACTIVE_OUTING_SETTING_KEY),
+        getAppSetting(AUTO_RESUME_ENABLED_KEY),
+        getAppSetting(NOTIFICATION_RESUME_ENABLED_KEY),
+        getAppSetting(DICTATION_ENABLED_KEY),
+        getAppSetting(DICTATION_SHOW_HELP_KEY),
+        getAppSetting(DICTATION_CONFIRMATION_NOTIFICATIONS_KEY)
+      ]);
+
+    setActiveOutingState(parseActiveOuting(storedActiveOuting));
+    setAutoResumePromptEnabledState(parseStoredBoolean(storedAutoResume, DEFAULT_AUTO_RESUME_ENABLED));
+    setResumeFromNotificationsEnabledState(
+      parseStoredBoolean(storedNotificationResume, DEFAULT_NOTIFICATION_RESUME_ENABLED)
+    );
+    setDictationEnabledState(parseStoredBoolean(storedDictationEnabled, DEFAULT_DICTATION_ENABLED));
+    setShowDictationHelpInSessionsState(parseStoredBoolean(storedHelp, DEFAULT_DICTATION_SHOW_HELP));
+    setConfirmationNotificationsEnabledState(
+      parseStoredBoolean(storedConfirmationNotifications, DEFAULT_DICTATION_CONFIRMATION_NOTIFICATIONS)
+    );
+  };
+
+  const persistBooleanPreference = async (
+    key: string,
+    value: boolean,
+    setter: React.Dispatch<React.SetStateAction<boolean>>
+  ) => {
+    setter(value);
+    await setAppSetting(key, value ? 'true' : 'false');
+  };
+
+  const persistActiveOuting = async (nextOuting: ActiveOuting | null) => {
+    setActiveOutingState(nextOuting);
+    const serialized = serializeActiveOuting(nextOuting);
+    if (!serialized) {
+      await deleteAppSetting(ACTIVE_OUTING_SETTING_KEY);
+      return;
+    }
+    await setAppSetting(ACTIVE_OUTING_SETTING_KEY, serialized);
+  };
+
   useEffect(() => {
     if (!isAuthenticatedOwner || !ownerUser || activeUserId === ownerUser.id) return;
     selectActiveUser(ownerUser.id).catch((error) => reportRuntimeIssue('owner auto-select failed', error));
   }, [activeUserId, isAuthenticatedOwner, ownerUser]);
+
+  useEffect(() => {
+    loadHandsFreePreferences().catch((error) => reportRuntimeIssue('hands-free preference bootstrap failed', error));
+  }, []);
 
   const bootstrap = async () => {
     try {
@@ -1171,6 +1242,42 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     }
   };
 
+  const setActiveOuting = async (outing: ActiveOuting) => {
+    await persistActiveOuting(outing);
+  };
+
+  const clearActiveOuting = async () => {
+    await persistActiveOuting(null);
+  };
+
+  const setAutoResumePromptEnabled = async (enabled: boolean) => {
+    await persistBooleanPreference(AUTO_RESUME_ENABLED_KEY, enabled, setAutoResumePromptEnabledState);
+  };
+
+  const setResumeFromNotificationsEnabled = async (enabled: boolean) => {
+    await persistBooleanPreference(
+      NOTIFICATION_RESUME_ENABLED_KEY,
+      enabled,
+      setResumeFromNotificationsEnabledState
+    );
+  };
+
+  const setDictationEnabled = async (enabled: boolean) => {
+    await persistBooleanPreference(DICTATION_ENABLED_KEY, enabled, setDictationEnabledState);
+  };
+
+  const setShowDictationHelpInSessions = async (enabled: boolean) => {
+    await persistBooleanPreference(DICTATION_SHOW_HELP_KEY, enabled, setShowDictationHelpInSessionsState);
+  };
+
+  const setConfirmationNotificationsEnabled = async (enabled: boolean) => {
+    await persistBooleanPreference(
+      DICTATION_CONFIRMATION_NOTIFICATIONS_KEY,
+      enabled,
+      setConfirmationNotificationsEnabledState
+    );
+  };
+
   const updateUserAccess = async (
     userId: number,
     next: {
@@ -1282,8 +1389,21 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
         mfaFactors,
         pendingTotpEnrollment,
         mfaAssuranceLevel,
+        activeOuting,
+        autoResumePromptEnabled,
+        resumeFromNotificationsEnabled,
+        dictationEnabled,
+        showDictationHelpInSessions,
+        confirmationNotificationsEnabled,
         activeUserId,
         resetWebDemoData,
+        setActiveOuting,
+        clearActiveOuting,
+        setAutoResumePromptEnabled,
+        setResumeFromNotificationsEnabled,
+        setDictationEnabled,
+        setShowDictationHelpInSessions,
+        setConfirmationNotificationsEnabled,
         getSyncRecordState,
         getSessionIntegrity,
         getExperimentIntegrity,

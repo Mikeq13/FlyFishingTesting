@@ -3,6 +3,7 @@ import { Session } from '@/types/session';
 import { deleteAppSetting, getAppSetting, setAppSetting } from '@/db/settingsRepo';
 import { normalizeReminderMarkers } from './sessionReminders';
 import { NotificationPermissionStatus } from '@/types/appState';
+import { ActiveOutingRoute } from '@/types/handsFree';
 
 const SESSION_NOTIFICATION_KEY_PREFIX = 'session_notification_ids';
 
@@ -50,6 +51,57 @@ export const ensureNotificationHandler = async (): Promise<void> => {
       shouldShowList: true
     })
   });
+};
+
+export const scheduleImmediateNotification = async (payload: {
+  title: string;
+  body: string;
+  data?: Record<string, unknown>;
+}): Promise<void> => {
+  const Notifications = await loadNotificationsModule();
+  if (!Notifications) return;
+
+  const hasPermission = await ensureNotificationPermissions();
+  if (!hasPermission) return;
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: payload.title,
+      body: payload.body,
+      data: payload.data ?? {}
+    },
+    trigger: null
+  });
+};
+
+export const getNavigationTargetFromNotificationData = (
+  data: Record<string, unknown> | null | undefined
+): { route: ActiveOutingRoute; params: Record<string, unknown> } | null => {
+  if (!data) return null;
+  const targetRoute = data.targetRoute;
+  const sessionId = typeof data.sessionId === 'number' ? data.sessionId : null;
+  const experimentId = typeof data.experimentId === 'number' ? data.experimentId : null;
+  if (
+    targetRoute !== 'Practice' &&
+    targetRoute !== 'Experiment' &&
+    targetRoute !== 'Competition'
+  ) {
+    return null;
+  }
+
+  if (targetRoute === 'Experiment') {
+    if (!sessionId) return null;
+    return {
+      route: targetRoute,
+      params: experimentId ? { sessionId, experimentId } : { sessionId }
+    };
+  }
+
+  if (!sessionId) return null;
+  return {
+    route: targetRoute,
+    params: { sessionId }
+  };
 };
 
 export const ensureNotificationPermissions = async (): Promise<boolean> => {
@@ -125,6 +177,7 @@ export const scheduleSessionNotifications = async (session: Session): Promise<vo
         data: {
           sessionId: session.id,
           sessionMode: session.mode,
+          targetRoute: session.mode === 'competition' ? 'Competition' : 'Practice',
           minute
         }
       },
