@@ -152,6 +152,7 @@ export const CoachScreen = () => {
       <ScreenBackground>
         <KeyboardDismissView>
           <ScrollView
+            style={{ flex: 1, minHeight: 0 }}
             contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 28 }}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
@@ -170,6 +171,7 @@ export const CoachScreen = () => {
     <ScreenBackground>
       <KeyboardDismissView>
         <ScrollView
+          style={{ flex: 1, minHeight: 0 }}
           contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 28 }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
@@ -178,13 +180,13 @@ export const CoachScreen = () => {
             title="AI Coach"
             subtitle={
               isWebDemoMode
-                ? 'Explore the seeded fishing journal and let the coach explain what improved results across practice segments and experiment sessions.'
+                ? 'Ask what the demo journal suggests next and let the coach explain which logged conditions, setups, and segments improved results.'
                 : 'Use your journal to spot what is working, where your data is thin, and what to try next on the water.'
             }
-            eyebrow={isWebDemoMode ? 'Interactive Demo' : 'Premium Guidance'}
+            eyebrow={isWebDemoMode ? 'Journal Guidance' : 'Premium Guidance'}
           />
 
-          <SectionCard title="Coach Intel" subtitle="Recommendation-first guidance pulled from your sessions, experiments, and top-fly history.">
+          <SectionCard title="Coach Intel" subtitle="Recommendation-first guidance pulled from your logged sessions, experiments, and top-fly history.">
             <View style={{ gap: 4 }}>
               <Text style={{ color: theme.colors.textSoft, lineHeight: 19 }}>
                 Keep the strongest signals close at hand before you ask a deeper question.
@@ -217,7 +219,7 @@ export const CoachScreen = () => {
             </View>
           </SectionCard>
 
-          <SectionCard title="Ask About My Data" subtitle="Ask a specific question when you want the coach to explain what it sees in your journal.">
+          <SectionCard title="Ask About My Journal" subtitle="Ask a specific question when you want the coach to explain what it sees in your fishing journal.">
             <View style={{ gap: 4 }}>
               <Text style={{ color: theme.colors.textSoft, lineHeight: 19 }}>
                 Keep prompts focused so the answer feels useful in the field, not generic.

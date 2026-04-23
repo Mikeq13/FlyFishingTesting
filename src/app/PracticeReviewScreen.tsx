@@ -43,10 +43,10 @@ export const PracticeReviewScreen = ({ route, navigation }: any) => {
 
   return (
     <ScreenBackground>
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 40 }}>
+      <ScrollView style={{ flex: 1, minHeight: 0 }} contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 40 }}>
         <ScreenHeader
           title="Practice Review"
-          subtitle="Review each water segment as its own scouting record so practice stays separate from experiment evidence."
+          subtitle="Review the logged outing segment by segment so you can see what changed on the water and what each scouting decision produced."
           eyebrow={`Angler: ${activeUser?.name ?? 'Loading...'}`}
         />
         {!session ? (
@@ -76,7 +76,7 @@ export const PracticeReviewScreen = ({ route, navigation }: any) => {
 
             <SectionCard
               title="Segment Timeline"
-              subtitle="Use the ordered water changes and catch logs to understand what happened in each practice segment."
+              subtitle="Use the journal timeline to trace water changes, fly choices, and catches through the outing."
               tone="light"
             >
               {!reviewSegments.length ? (

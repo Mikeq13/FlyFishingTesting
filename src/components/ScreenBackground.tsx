@@ -12,7 +12,9 @@ type WebBackgroundStyle = {
 };
 
 type WebForegroundStyle = {
-  minHeight: string;
+  minHeight?: number | string;
+  height?: number | string;
+  overflow?: 'hidden';
 };
 
 export const ScreenBackground = ({ children }: { children: React.ReactNode }) => {
@@ -30,7 +32,25 @@ export const ScreenBackground = ({ children }: { children: React.ReactNode }) =>
     }
   }, [background.image]);
   const webForegroundStyle = useMemo<WebForegroundStyle | null>(
-    () => (Platform.OS === 'web' ? { minHeight: '100vh' } : null),
+    () =>
+      Platform.OS === 'web'
+        ? {
+            minHeight: '100vh' as never,
+            height: '100vh' as never,
+            overflow: 'hidden'
+          }
+        : null,
+    []
+  );
+  const webRootStyle = useMemo(
+    () =>
+      Platform.OS === 'web'
+        ? ({
+            minHeight: '100vh',
+            width: '100%',
+            overflow: 'hidden'
+          } as never)
+        : null,
     []
   );
   const webBackgroundImageStyle = useMemo<WebBackgroundStyle>(
@@ -76,7 +96,7 @@ export const ScreenBackground = ({ children }: { children: React.ReactNode }) =>
   );
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, webRootStyle]}>
       {Platform.OS === 'web' ? (
         <View
           style={[
@@ -99,12 +119,12 @@ export const ScreenBackground = ({ children }: { children: React.ReactNode }) =>
           source={background.image}
           resizeMode="cover"
           style={styles.bg}
-          imageStyle={[styles.image, { opacity: background.imageOpacity }]}
+          imageStyle={{ opacity: background.imageOpacity }}
         >
           {sharedBackgroundLayers}
         </ImageBackground>
       )}
-      <SafeAreaView edges={['top', 'bottom']} style={[styles.container, webForegroundStyle as never]}>
+      <SafeAreaView edges={['top', 'bottom']} style={[styles.container, Platform.OS === 'web' ? styles.webContainer : null, webForegroundStyle as never]}>
         {children}
       </SafeAreaView>
     </View>
@@ -120,7 +140,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'transparent'
   },
-  image: {},
   webBg: {
     position: 'absolute',
     top: 0,
@@ -183,5 +202,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     width: '100%'
+  },
+  webContainer: {
+    minHeight: 0,
+    overflow: 'hidden'
   }
 });

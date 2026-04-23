@@ -60,10 +60,10 @@ export const HomeScreen = ({ navigation }: any) => {
   return (
     <ScreenBackground>
       <KeyboardDismissView>
-      <ScrollView contentContainerStyle={contentContainerStyle} keyboardShouldPersistTaps="handled">
+      <ScrollView style={{ flex: 1, minHeight: 0 }} contentContainerStyle={contentContainerStyle} keyboardShouldPersistTaps="handled">
         <ScreenHeader
           title="Fishing Lab"
-          subtitle="A fly fishing journal designed to help you improve with insights, coaching, and shared learning."
+          subtitle="A fly fishing journal that turns logged outings into clearer patterns, better setup decisions, and grounded AI guidance."
           eyebrow="On The Water"
         />
         {isWebDemoMode ? (
@@ -72,26 +72,26 @@ export const HomeScreen = ({ navigation }: any) => {
               Web Demo Mode
             </Text>
             <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 24 }}>
-              Interactive local sandbox with seeded fishing data
+              Fly fishing journal with a guided demo path
             </Text>
             <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
-              Start with practice review, exact setup insights, or AI coach recommendations built from the demo journal story.
+              Review a logged outing, see the strongest journal patterns, and ask the AI coach what the data suggests you fish next.
             </Text>
             <View style={{ gap: 10 }}>
               {demoPracticeSession ? (
                 <AppButton
-                  label="See Practice Review"
+                  label="Review a Logged Session"
                   onPress={() => navigation.navigate('PracticeReview', { sessionId: demoPracticeSession.id })}
                   variant="secondary"
                 />
               ) : null}
-              <AppButton label="Open Insights" onPress={() => navigation.navigate('Insights')} variant="secondary" />
+              <AppButton label="See Journal Insights" onPress={() => navigation.navigate('Insights')} variant="secondary" />
               <AppButton label="Ask AI Coach" onPress={() => navigation.navigate('Coach')} variant="secondary" />
             </View>
             <View style={{ gap: 4 }}>
               <Text style={{ color: theme.colors.text, fontWeight: '700' }}>What this demonstrates</Text>
               <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
-                Session review, exact setup intelligence, and AI coaching grounded in logged water changes, catches, and experiment outcomes.
+                Logged session review, exact setup intelligence, and AI coaching grounded in water changes, catches, and experiment outcomes.
               </Text>
             </View>
           </SectionCard>
@@ -102,7 +102,7 @@ export const HomeScreen = ({ navigation }: any) => {
           </Text>
           <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 24 }}>{currentUser?.name ?? 'Loading...'}</Text>
           <Text style={{ color: theme.colors.textSoft }}>
-            {isWebDemoMode ? 'Interactive demo sandbox with local-only data and premium AI features unlocked.' : `Signed in as: ${remoteSession?.email ?? 'No account linked'}`}
+            {isWebDemoMode ? 'Seeded demo journal with local-only data and premium AI guidance unlocked.' : `Signed in as: ${remoteSession?.email ?? 'No account linked'}`}
           </Text>
         </SectionCard>
         <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
@@ -140,7 +140,7 @@ export const HomeScreen = ({ navigation }: any) => {
             <View style={{ gap: 4 }}>
               <Text style={{ color: theme.colors.modalText, fontSize: 24, fontWeight: '800' }}>What are you doing today?</Text>
               <Text style={{ color: theme.colors.modalTextSoft, lineHeight: 20 }}>
-                Choose the session style that best matches today’s water and how you want to log intel.
+                Choose the session style that best matches today's water and how you want to log intel.
               </Text>
             </View>
 

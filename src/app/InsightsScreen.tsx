@@ -352,7 +352,7 @@ export const InsightsScreen = ({ navigation }: any) => {
 
   return (
     <ScreenBackground>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={layout.buildScrollContentStyle({ gap: 10, bottomPadding: 40 })}>
+      <ScrollView style={{ flex: 1, minHeight: 0 }} contentContainerStyle={layout.buildScrollContentStyle({ gap: 10, bottomPadding: 40 })}>
         {!currentHasPremiumAccess ? (
           <PremiumFeatureGate
             title="Premium Insights"
@@ -362,13 +362,13 @@ export const InsightsScreen = ({ navigation }: any) => {
           <>
             <ScreenHeader
               title="Insights"
-              subtitle="Review the strongest patterns in your data, compare anglers with context, and keep technique in view only where it sharpens the read."
-              eyebrow="Shared Learning"
+              subtitle="See the strongest patterns emerging from your fishing journal, then zoom into the exact setups and contexts that produced fish."
+              eyebrow="Journal Patterns"
             />
             {isWebDemoMode ? (
-              <SectionCard title="Start Here" subtitle="This interactive demo is seeded to surface the strongest signals quickly." tone="light">
+              <SectionCard title="Start Here" subtitle="This guided demo is seeded to show how the journal turns logged outings into useful recommendations." tone="light">
                 <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
-                  Start with Direct Experiment Comparisons, Best Exact Setups, and Context Performance Combos to see how the journal turns water changes and fly tests into actionable recommendations.
+                  Start with Direct Experiment Comparisons, Best Exact Setups, and Context Performance Combos to see how logged water changes and fly tests become decision-ready insight.
                 </Text>
               </SectionCard>
             ) : null}

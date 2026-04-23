@@ -192,7 +192,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
   return (
     <ScreenBackground>
       <ScrollView
-        style={{ flex: 1 }}
+        style={{ flex: 1, minHeight: 0 }}
         contentContainerStyle={layout.buildScrollContentStyle({ gap: 8, bottomPadding: 40 })}
         keyboardShouldPersistTaps="handled"
       >
