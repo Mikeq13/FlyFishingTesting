@@ -17,6 +17,7 @@ import { useResponsiveLayout } from '@/design/layout';
 import { getFormInputStyle } from '@/components/ui/FormField';
 import { buildSessionDeleteMessage, getSessionDeleteConsequences } from '@/utils/sessionDeleteConsequences';
 import { deriveExperimentStatus } from '@/engine/experimentStatus';
+import { getSyncTrustFeedback } from '@/utils/syncFeedback';
 
 export const HistoryScreen = ({ navigation, route }: any) => {
   const { theme } = useTheme();
@@ -26,7 +27,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
   const elevatedSoftTextColor = isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft;
   const elevatedNestedSurface = isDaylightTheme ? theme.colors.nestedSurface : theme.colors.surface;
   const elevatedNestedBorder = isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.borderStrong;
-  const { sessions, experiments, catchEvents, sessionSegments, users, activeUserId, archiveExperiment, deleteExperiment, deleteSessionRecord, cleanupExperimentsForCurrentUser, cleanupSyncStatus, getSyncRecordState, getExperimentIntegrity, getSessionIntegrity } = useAppStore();
+  const { sessions, experiments, catchEvents, sessionSegments, users, activeUserId, remoteSession, sharedDataStatus, syncStatus, archiveExperiment, deleteExperiment, deleteSessionRecord, cleanupExperimentsForCurrentUser, cleanupSyncStatus, getSyncRecordState, getExperimentIntegrity, getSessionIntegrity } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
   const initialModeFilter = route?.params?.modeFilter;
   const [riverFilter, setRiverFilter] = useState('');
@@ -41,6 +42,17 @@ export const HistoryScreen = ({ navigation, route }: any) => {
   const [cleanupOutcome, setCleanupOutcome] = useState<'all' | 'decisive' | 'tie' | 'inconclusive'>('inconclusive');
   const [cleanupAction, setCleanupAction] = useState<'archive' | 'delete'>('archive');
   const inputStyle = getFormInputStyle(theme);
+  const syncTrustFeedback = useMemo(
+    () =>
+      getSyncTrustFeedback({
+        hasRemoteSession: !!remoteSession,
+        sharedDataStatus,
+        syncStatus,
+        scope: 'local_data',
+        entityLabel: 'history'
+      }),
+    [remoteSession, sharedDataStatus, syncStatus]
+  );
   const modeSummaryLabel = (mode: 'practice' | 'experiment' | 'competition') =>
     mode === 'practice' ? 'Practice scouting' : mode === 'experiment' ? 'Experiment comparison' : 'Competition scorekeeping';
 
@@ -201,6 +213,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
           subtitle={modeFilter === 'competition' ? 'Review competition-only sessions, assignments, and experiment results without mixing in normal journal entries.' : 'Filter past sessions, review experiment history, and clean up old noise when needed.'}
           eyebrow={`Angler: ${activeUser?.name ?? 'Loading...'}`}
         />
+        {syncTrustFeedback ? <StatusBanner tone={syncTrustFeedback.tone} text={syncTrustFeedback.text} /> : null}
         <SectionCard title="Filters" subtitle="Tighten the session list without burying the important controls.">
           <OptionChips label="Session Type" options={['all', 'competition'] as const} value={modeFilter} onChange={(value) => setModeFilter(value as 'all' | 'competition')} />
           {!!riverOptions.length && (

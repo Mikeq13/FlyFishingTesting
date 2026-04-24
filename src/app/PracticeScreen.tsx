@@ -24,6 +24,7 @@ import { BottomSheetSurface } from '@/components/ui/BottomSheetSurface';
 import { useTheme } from '@/design/theme';
 import { formatSharedBackendError, getPendingSyncFeedback } from '@/utils/syncFeedback';
 import { DictationHelpModal } from '@/components/DictationHelpModal';
+import { buildFieldActionFeedback, FieldFeedback } from '@/utils/fieldFeedback';
 
 type SetupSheetKey = 'technique' | 'leader' | 'rigging' | 'flies' | null;
 
@@ -52,6 +53,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
     showDictationHelpInSessions,
     notificationPermissionStatus,
     remoteSession,
+    sharedDataStatus,
     syncStatus
   } = useAppStore();
   const session = sessions.find((candidate) => candidate.id === sessionId) ?? null;
@@ -62,6 +64,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
   const [isSavingCatch, setIsSavingCatch] = useState(false);
   const [activeSetupSheet, setActiveSetupSheet] = useState<SetupSheetKey>(null);
   const [reviewPromptShown, setReviewPromptShown] = useState(false);
+  const [fieldFeedback, setFieldFeedback] = useState<FieldFeedback | null>(null);
   const catchSubmitLockedRef = useRef(false);
   const [showDictationHelp, setShowDictationHelp] = useState(false);
   const syncFeedback = remoteSession ? getPendingSyncFeedback(syncStatus, 'practice', 'practice') : null;
@@ -225,18 +228,44 @@ export const PracticeScreen = ({ route, navigation }: any) => {
       technique: activeTechnique,
       notes: activeSegment.notes
     });
-    Alert.alert('Water updated', `Started a new practice segment in ${nextWaterType}.`);
+    setFieldFeedback(
+      buildFieldActionFeedback({
+        action: `Water changed to ${nextWaterType}`,
+        hasRemoteSession: !!remoteSession,
+        sharedDataStatus,
+        syncStatus,
+        entityLabel: 'practice'
+      })
+    );
   };
 
   const updateActiveSegment = async (nextRigSetup: RigSetup) => {
     if (!activeSegment) return;
     const nextFlies = nextRigSetup.assignments.map((assignment) => assignment.fly);
     await updateSessionSegmentEntry(activeSegment.id, buildSessionSegmentUpdatePayload(activeSegment, { rigSetup: nextRigSetup, flySnapshots: nextFlies }));
+    setFieldFeedback(
+      buildFieldActionFeedback({
+        action: 'Rig updated',
+        hasRemoteSession: !!remoteSession,
+        sharedDataStatus,
+        syncStatus,
+        entityLabel: 'practice'
+      })
+    );
   };
 
   const updateActiveTechnique = async (nextTechnique: Technique) => {
     if (!activeSegment) return;
     await updateSessionSegmentEntry(activeSegment.id, buildSessionSegmentUpdatePayload(activeSegment, { technique: nextTechnique }));
+    setFieldFeedback(
+      buildFieldActionFeedback({
+        action: `Technique changed to ${nextTechnique}`,
+        hasRemoteSession: !!remoteSession,
+        sharedDataStatus,
+        syncStatus,
+        entityLabel: 'practice'
+      })
+    );
   };
 
   const confirmPracticeCatch = async () => {
@@ -260,6 +289,15 @@ export const PracticeScreen = ({ route, navigation }: any) => {
       setPendingCatchFly(null);
       setPendingCatchSpecies(null);
       setPendingCatchLength('');
+      setFieldFeedback(
+        buildFieldActionFeedback({
+          action: 'Fish logged',
+          hasRemoteSession: !!remoteSession,
+          sharedDataStatus,
+          syncStatus,
+          entityLabel: 'practice'
+        })
+      );
     } finally {
       catchSubmitLockedRef.current = false;
       setIsSavingCatch(false);
@@ -331,6 +369,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
           eyebrow={session.riverName ?? 'On-Water Workflow'}
         />
         {syncFeedback ? <StatusBanner tone={syncStatus.lastError ? 'warning' : 'info'} text={syncFeedback} /> : null}
+        {fieldFeedback ? <StatusBanner tone={fieldFeedback.tone} text={fieldFeedback.text} /> : null}
 
         {timer.activeAlertMinute ? (
           <StatusBanner tone="warning" text={`Time marker: ${timer.activeAlertMinute} minutes into your practice session.`} />

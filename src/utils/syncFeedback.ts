@@ -1,6 +1,8 @@
 import { SyncStatusSnapshot } from '@/types/remote';
+import { SharedDataStatus } from '@/types/appState';
 
 type SyncFeedbackScope = 'practice' | 'experiment' | 'competition' | 'insights' | 'local_data';
+type SyncTrustTone = 'success' | 'warning' | 'info';
 
 const TEMPORARY_OUTAGE_MESSAGES: Record<SyncFeedbackScope, string> = {
   practice: 'Shared beta backend is temporarily unavailable right now. Your practice changes are still safe on this device.',
@@ -38,5 +40,49 @@ export const getPendingSyncFeedback = (
   if (syncStatus.state === 'syncing' || syncStatus.pendingCount > 0) {
     return `Saved locally. Syncing the latest ${entityLabel} changes to the shared backend now.`;
   }
+  return null;
+};
+
+export const getSyncTrustFeedback = ({
+  hasRemoteSession,
+  sharedDataStatus,
+  syncStatus,
+  scope,
+  entityLabel = 'journal'
+}: {
+  hasRemoteSession: boolean;
+  sharedDataStatus: SharedDataStatus;
+  syncStatus: SyncStatusSnapshot;
+  scope: SyncFeedbackScope;
+  entityLabel?: string;
+}): { tone: SyncTrustTone; text: string } | null => {
+  if (!hasRemoteSession) {
+    return {
+      tone: 'info',
+      text: `Saved locally. Sign in to sync this ${entityLabel} to shared beta data.`
+    };
+  }
+
+  if (syncStatus.lastError || sharedDataStatus === 'error') {
+    return {
+      tone: 'warning',
+      text: `Saved locally. ${formatSharedBackendError(syncStatus.lastError, scope)}`
+    };
+  }
+
+  if (syncStatus.state === 'syncing' || syncStatus.pendingCount > 0 || sharedDataStatus === 'loading') {
+    return {
+      tone: 'info',
+      text: `Saved locally. Syncing the latest ${entityLabel} changes to the shared backend.`
+    };
+  }
+
+  if (sharedDataStatus === 'ready' && syncStatus.state === 'idle') {
+    return {
+      tone: 'success',
+      text: `Saved locally and shared backend is ready. Latest ${entityLabel} data should survive refresh and relaunch.`
+    };
+  }
+
   return null;
 };

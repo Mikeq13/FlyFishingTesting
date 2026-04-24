@@ -5,11 +5,13 @@ import { ScreenBackground } from '@/components/ScreenBackground';
 import { AppButton } from '@/components/ui/AppButton';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
+import { StatusBanner } from '@/components/ui/StatusBanner';
 import { useTheme } from '@/design/theme';
 import { useAppStore } from './store';
 import { SessionMode } from '@/types/session';
 import { useResponsiveLayout } from '@/design/layout';
 import { buildActiveOutingLabel, buildActiveOutingNavigationTarget, HANDS_FREE_EXAMPLES } from '@/utils/handsFree';
+import { getSyncTrustFeedback } from '@/utils/syncFeedback';
 
 const SESSION_MODE_OPTIONS: Array<{
   mode: SessionMode;
@@ -46,6 +48,7 @@ export const HomeScreen = ({ navigation }: any) => {
     topFlyInsights,
     isWebDemoMode,
     activeOuting,
+    clearActiveOuting,
     autoResumePromptEnabled,
     sharedDataStatus,
     syncStatus
@@ -61,6 +64,31 @@ export const HomeScreen = ({ navigation }: any) => {
   );
   const completedSessions = React.useMemo(() => sessions.filter((session) => !!session.endedAt).length, [sessions]);
   const activeOutingTarget = activeOuting ? buildActiveOutingNavigationTarget(activeOuting) : null;
+  const activeOutingSession = React.useMemo(
+    () => (activeOuting ? sessions.find((session) => session.id === activeOuting.sessionId) ?? null : null),
+    [activeOuting, sessions]
+  );
+  const activeOutingSegment = React.useMemo(
+    () =>
+      activeOuting
+        ? sessionSegments
+            .filter((segment) => segment.sessionId === activeOuting.sessionId)
+            .sort((left, right) => new Date(right.startedAt).getTime() - new Date(left.startedAt).getTime())[0] ?? null
+        : null,
+    [activeOuting, sessionSegments]
+  );
+  const activeOutingIsStale = !!activeOuting && (!activeOutingSession || !!activeOutingSession.endedAt);
+  const syncTrustFeedback = React.useMemo(
+    () =>
+      getSyncTrustFeedback({
+        hasRemoteSession: !!remoteSession,
+        sharedDataStatus,
+        syncStatus,
+        scope: 'local_data',
+        entityLabel: 'journal'
+      }),
+    [remoteSession, sharedDataStatus, syncStatus]
+  );
   const demoExperimentCount = React.useMemo(
     () => experiments.filter((experiment) => experiment.status === 'complete').length,
     [experiments]
@@ -246,16 +274,57 @@ export const HomeScreen = ({ navigation }: any) => {
         >
           {activeOuting && autoResumePromptEnabled ? (
             <>
-              <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 18 }}>{buildActiveOutingLabel(activeOuting)}</Text>
-              <Text style={{ color: theme.colors.textSoft }}>
-                Last active: {new Date(activeOuting.lastActiveAt).toLocaleString()}
-              </Text>
-              <AppButton
-                label="Resume Current Outing"
-                onPress={() => {
-                  if (activeOutingTarget) navigation.navigate(activeOutingTarget.route, activeOutingTarget.params);
-                }}
-              />
+              {activeOutingIsStale ? (
+                <>
+                  <StatusBanner
+                    tone="warning"
+                    text="The stored outing cannot be resumed because the session is missing or already ended. Dismiss it to clear the stale recovery state."
+                  />
+                  <AppButton
+                    label="Dismiss Stale Outing"
+                    onPress={() => {
+                      clearActiveOuting().catch(() => undefined);
+                    }}
+                    variant="secondary"
+                  />
+                </>
+              ) : (
+                <>
+                  <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 18 }}>{buildActiveOutingLabel(activeOuting)}</Text>
+                  <View
+                    style={{
+                      gap: 6,
+                      borderRadius: theme.radius.md,
+                      padding: 12,
+                      backgroundColor: theme.colors.surfaceAlt,
+                      borderWidth: 1,
+                      borderColor: theme.colors.border
+                    }}
+                  >
+                    <Text style={{ color: theme.colors.textSoft }}>
+                      Mode: {activeOutingSession?.mode ?? activeOuting.mode}
+                    </Text>
+                    <Text style={{ color: theme.colors.textSoft }}>
+                      River: {activeOutingSession?.riverName ?? activeOutingSegment?.riverName ?? 'Not set'}
+                    </Text>
+                    <Text style={{ color: theme.colors.textSoft }}>
+                      Water: {activeOutingSegment?.waterType ?? activeOutingSession?.waterType ?? 'Not set'}
+                    </Text>
+                    <Text style={{ color: theme.colors.textSoft }}>
+                      Technique: {activeOutingSegment?.technique ?? activeOutingSession?.startingTechnique ?? 'Not set'}
+                    </Text>
+                    <Text style={{ color: theme.colors.textSoft }}>
+                      Last action: {new Date(activeOuting.lastActiveAt).toLocaleString()}
+                    </Text>
+                  </View>
+                  <AppButton
+                    label="Resume Current Outing"
+                    onPress={() => {
+                      if (activeOutingTarget) navigation.navigate(activeOutingTarget.route, activeOutingTarget.params);
+                    }}
+                  />
+                </>
+              )}
             </>
           ) : (
             <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
@@ -309,6 +378,7 @@ export const HomeScreen = ({ navigation }: any) => {
             {completedSessions} completed outing{completedSessions === 1 ? '' : 's'} are ready for reflection. Shared backend status: {sharedDataStatus}
             {syncStatus.pendingCount ? `, ${syncStatus.pendingCount} item${syncStatus.pendingCount === 1 ? '' : 's'} waiting to sync.` : '.'}
           </Text>
+          {syncTrustFeedback ? <StatusBanner tone={syncTrustFeedback.tone} text={syncTrustFeedback.text} /> : null}
         </SectionCard>
 
         <SectionCard

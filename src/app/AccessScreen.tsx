@@ -16,6 +16,8 @@ import { CompetitionOrganizerSection } from '@/components/access/CompetitionOrga
 import { OwnerControlsSection } from '@/components/access/OwnerControlsSection';
 import { RemoteTesterOnboardingSection } from '@/components/access/RemoteTesterOnboardingSection';
 import { BackendDiagnosticsSection } from '@/components/access/BackendDiagnosticsSection';
+import { BetaReadinessSection } from '@/components/access/BetaReadinessSection';
+import { HandsFreeTestPanel } from '@/components/access/HandsFreeTestPanel';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { StatusBanner } from '@/components/ui/StatusBanner';
@@ -69,6 +71,7 @@ export const AccessScreen = ({ navigation }: any) => {
     backendDiagnostics,
     sharedDataStatus,
     notificationPermissionStatus,
+    activeOuting,
     autoResumePromptEnabled,
     resumeFromNotificationsEnabled,
     dictationEnabled,
@@ -140,7 +143,12 @@ export const AccessScreen = ({ navigation }: any) => {
     setResumeFromNotificationsEnabled,
     setDictationEnabled,
     setShowDictationHelpInSessions,
-    setConfirmationNotificationsEnabled
+    setConfirmationNotificationsEnabled,
+    addCatchEvent,
+    addSessionSegment,
+    updateSessionEntry,
+    updateSessionSegmentEntry,
+    updateExperimentEntry
   } = useAppStore();
   const watchStatusLabel = !watchStatus.isSupported
     ? 'Requires an iOS native build with the Fishing Lab watch companion.'
@@ -871,6 +879,15 @@ export const AccessScreen = ({ navigation }: any) => {
             }
           />
         ) : null}
+        {!isWebDemoMode ? (
+          <BetaReadinessSection
+            authStatus={authStatus}
+            remoteSession={remoteSession}
+            sharedDataStatus={sharedDataStatus}
+            syncStatus={syncStatus}
+            notificationPermissionStatus={notificationPermissionStatus}
+          />
+        ) : null}
         {notificationPermissionStatus === 'denied' && !isWebDemoMode ? (
           <StatusBanner tone="warning" text="Notifications are blocked on this device. Session reminders will stay in-app until phone notification access is re-enabled." />
         ) : null}
@@ -1074,6 +1091,20 @@ export const AccessScreen = ({ navigation }: any) => {
                   Siri phrase to jump back in: “Resume current outing in Fishing Lab.”
                 </Text>
               </SectionCard>
+              <HandsFreeTestPanel
+                context={{
+                  dictationEnabled,
+                  activeOuting,
+                  sessions,
+                  sessionSegments,
+                  experiments,
+                  addCatchEvent,
+                  addSessionSegment,
+                  updateSessionEntry,
+                  updateSessionSegmentEntry,
+                  updateExperimentEntry
+                }}
+              />
             </View>
           )
         })}

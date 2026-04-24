@@ -292,7 +292,14 @@ export const CoachScreen = () => {
                   ))}
                 </View>
 
-                <Text style={{ color: elevatedSoftTextColor, fontWeight: '700' }}>Confidence: {response.confidence}</Text>
+                <View style={{ gap: 4 }}>
+                  <Text style={{ fontWeight: '700', color: elevatedTextColor }}>Why This Recommendation Exists</Text>
+                  <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>{response.whyThisExists}</Text>
+                </View>
+
+                <Text style={{ color: elevatedSoftTextColor, fontWeight: '700' }}>
+                  Confidence: {response.confidenceLabel} | {response.sampleContext}
+                </Text>
 
                 <View style={{ gap: 4 }}>
                   <Text style={{ fontWeight: '700', color: elevatedTextColor }}>Next Best Action</Text>

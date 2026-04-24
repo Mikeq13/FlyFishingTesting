@@ -21,7 +21,7 @@ import { InsightsContextMode } from '@/types/group';
 import { formatExactFlyOption, sizeBandLabel, toExactFlyKey } from './insightsHelpers';
 import { useResponsiveLayout } from '@/design/layout';
 import { useTheme } from '@/design/theme';
-import { formatSharedBackendError } from '@/utils/syncFeedback';
+import { formatSharedBackendError, getSyncTrustFeedback } from '@/utils/syncFeedback';
 import {
   filterExperimentsForInsightsContext,
   filterSessionsForInsightsContext,
@@ -77,6 +77,17 @@ export const InsightsScreen = ({ navigation }: any) => {
     mode === 'practice' ? 'Practice scouting' : mode === 'experiment' ? 'Experiment comparison' : 'Competition scorekeeping';
   const hasSharedContextData = groups.length > 0 || groupMemberships.length > 0;
   const sharedDataSettling = !!remoteSession && sharedDataStatus === 'loading' && !hasSharedContextData;
+  const syncTrustFeedback = useMemo(
+    () =>
+      getSyncTrustFeedback({
+        hasRemoteSession: !!remoteSession,
+        sharedDataStatus,
+        syncStatus,
+        scope: 'insights',
+        entityLabel: 'insights'
+      }),
+    [remoteSession, sharedDataStatus, syncStatus]
+  );
   const joinedGroups = useMemo(
     () => getJoinedGroupsForUser(currentUser?.id, groups, groupMemberships),
     [currentUser?.id, groupMemberships, groups]
@@ -375,6 +386,7 @@ export const InsightsScreen = ({ navigation }: any) => {
             {sharedDataSettling ? (
               <StatusBanner tone="info" text="Shared groups and friend comparisons are still loading. Group filters will unlock as soon as shared data is ready." />
             ) : null}
+            {syncTrustFeedback ? <StatusBanner tone={syncTrustFeedback.tone} text={syncTrustFeedback.text} /> : null}
             {!sharedDataSettling && sharedDataStatus === 'error' ? (
               <StatusBanner
                 tone="warning"
