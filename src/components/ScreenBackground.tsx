@@ -1,15 +1,7 @@
 import React, { useMemo } from 'react';
-import { Image, ImageBackground, Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Image, Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/design/theme';
-
-type WebBackgroundStyle = {
-  backgroundImage?: string;
-  backgroundPosition: string;
-  backgroundRepeat: string;
-  backgroundSize: string;
-  opacity: number;
-};
 
 type WebForegroundStyle = {
   minHeight?: number | string;
@@ -23,14 +15,6 @@ export const ScreenBackground = ({ children }: { children: React.ReactNode }) =>
   const background = useMemo(() => theme.background, [theme]);
   const isLandscape = width > height;
   const isWideWeb = Platform.OS === 'web' && width >= 900;
-  const webBackgroundUri = useMemo(() => {
-    if (Platform.OS !== 'web' || !background.image) return null;
-    try {
-      return Image.resolveAssetSource(background.image)?.uri ?? null;
-    } catch {
-      return null;
-    }
-  }, [background.image]);
   const webForegroundStyle = useMemo<WebForegroundStyle | null>(
     () =>
       Platform.OS === 'web'
@@ -51,16 +35,6 @@ export const ScreenBackground = ({ children }: { children: React.ReactNode }) =>
           } as never)
         : null,
     []
-  );
-  const webBackgroundImageStyle = useMemo<WebBackgroundStyle>(
-    () => ({
-      backgroundPosition: 'center center',
-      backgroundRepeat: 'no-repeat',
-      backgroundSize: 'cover',
-      opacity: background.imageOpacity,
-      ...(webBackgroundUri ? { backgroundImage: `url("${webBackgroundUri}")` } : {})
-    }),
-    [background.imageOpacity, webBackgroundUri]
   );
   const sharedBackgroundLayers = (
     <>
@@ -105,23 +79,24 @@ export const ScreenBackground = ({ children }: { children: React.ReactNode }) =>
             }
           ]}
         >
-          <View
-            style={[
-              styles.webBgImage,
-              webBackgroundImageStyle as never
-            ]}
+          <Image
+            source={background.image}
+            resizeMode="cover"
+            style={[styles.webBgImage, { opacity: background.imageOpacity }]}
           />
           {sharedBackgroundLayers}
         </View>
       ) : (
-        <ImageBackground
-          source={background.image}
-          resizeMode="cover"
+        <View
           style={styles.bg}
-          imageStyle={{ opacity: background.imageOpacity }}
         >
+          <Image
+            source={background.image}
+            resizeMode="cover"
+            style={[styles.nativeBgImage, { opacity: background.imageOpacity }]}
+          />
           {sharedBackgroundLayers}
-        </ImageBackground>
+        </View>
       )}
       <SafeAreaView edges={['top', 'bottom']} style={[styles.container, Platform.OS === 'web' ? styles.webContainer : null, webForegroundStyle as never]}>
         {children}
@@ -148,7 +123,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent'
   },
   webBgImage: {
-    ...StyleSheet.absoluteFillObject
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%'
+  },
+  nativeBgImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%'
   },
   topGlow: {
     position: 'absolute',
