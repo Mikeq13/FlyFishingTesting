@@ -8,6 +8,7 @@ import { AppButton } from '@/components/ui/AppButton';
 import { StatusBanner } from '@/components/ui/StatusBanner';
 import { useAppStore } from './store';
 import { useTheme } from '@/design/theme';
+import { useResponsiveLayout } from '@/design/layout';
 import {
   buildPracticeReviewSegments,
   describePracticeFlies,
@@ -19,6 +20,7 @@ import {
 
 export const PracticeReviewScreen = ({ route, navigation }: any) => {
   const { theme } = useTheme();
+  const layout = useResponsiveLayout();
   const isDaylightTheme = theme.id === 'daylight_light';
   const elevatedTextColor = isDaylightTheme ? theme.colors.textDark : theme.colors.text;
   const elevatedSoftTextColor = isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft;
@@ -43,7 +45,7 @@ export const PracticeReviewScreen = ({ route, navigation }: any) => {
 
   return (
     <ScreenBackground>
-      <ScrollView style={{ flex: 1, minHeight: 0 }} contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 40 }}>
+      <ScrollView style={{ flex: 1, minHeight: 0 }} contentContainerStyle={layout.buildScrollContentStyle({ gap: 10 })}>
         <ScreenHeader
           title="Practice Review"
           subtitle="Review the logged outing segment by segment so you can see what changed on the water and what each scouting decision produced."

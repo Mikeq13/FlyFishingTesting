@@ -22,6 +22,7 @@ import { StatusBanner } from '@/components/ui/StatusBanner';
 import { AppButton } from '@/components/ui/AppButton';
 import { BottomSheetSurface } from '@/components/ui/BottomSheetSurface';
 import { useTheme } from '@/design/theme';
+import { useResponsiveLayout } from '@/design/layout';
 import { formatSharedBackendError, getPendingSyncFeedback } from '@/utils/syncFeedback';
 import { DictationHelpModal } from '@/components/DictationHelpModal';
 import { buildFieldActionFeedback, FieldFeedback } from '@/utils/fieldFeedback';
@@ -30,6 +31,7 @@ type SetupSheetKey = 'technique' | 'leader' | 'rigging' | 'flies' | null;
 
 export const PracticeScreen = ({ route, navigation }: any) => {
   const { theme } = useTheme();
+  const layout = useResponsiveLayout();
   const sessionId = route?.params?.sessionId as number;
   const {
     sessions,
@@ -362,7 +364,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
 
   return (
     <ScreenBackground>
-      <ScrollView style={{ flex: 1, minHeight: 0 }} contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40 }}>
+      <ScrollView style={{ flex: 1, minHeight: 0 }} contentContainerStyle={layout.buildScrollContentStyle({ gap: 12 })}>
         <ScreenHeader
           title="Practice Session"
           subtitle="Stay light, change water fast, and log what is producing without breaking your rhythm."

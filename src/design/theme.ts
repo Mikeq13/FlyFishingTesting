@@ -189,8 +189,8 @@ export const themeRegistry: Record<ThemeId, AppTheme> = {
     radius: sharedRadius,
     background: {
       image: require('../../assets/backgrounds/river-editorial-default.png'),
-      imageOpacity: 0.62,
-      overlay: 'rgba(7, 18, 26, 0.68)',
+      imageOpacity: 0.78,
+      overlay: 'rgba(7, 18, 26, 0.56)',
       topGlow: 'rgba(105, 184, 204, 0.035)',
       bottomGlow: 'rgba(45, 79, 109, 0.055)',
       texture: 'rgba(255,255,255,0.018)',
@@ -262,8 +262,8 @@ export const themeRegistry: Record<ThemeId, AppTheme> = {
     radius: sharedRadius,
     background: {
       image: require('../../assets/backgrounds/river-editorial-contrast.png'),
-      imageOpacity: 0.52,
-      overlay: 'rgba(1, 6, 10, 0.82)',
+      imageOpacity: 0.62,
+      overlay: 'rgba(1, 6, 10, 0.78)',
       topGlow: 'rgba(125, 211, 252, 0.02)',
       bottomGlow: 'rgba(34, 197, 168, 0.03)',
       texture: 'rgba(255,255,255,0.012)',
@@ -335,8 +335,8 @@ export const themeRegistry: Record<ThemeId, AppTheme> = {
     radius: sharedRadius,
     background: {
       image: require('../../assets/backgrounds/river-editorial-daylight.png'),
-      imageOpacity: 0.5,
-      overlay: 'rgba(236, 243, 247, 0.72)',
+      imageOpacity: 0.62,
+      overlay: 'rgba(236, 243, 247, 0.64)',
       topGlow: 'rgba(116, 177, 201, 0.025)',
       bottomGlow: 'rgba(70, 130, 156, 0.025)',
       texture: 'rgba(255,255,255,0.0)',

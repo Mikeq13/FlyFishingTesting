@@ -14,7 +14,7 @@ type WebBackgroundStyle = {
 type WebForegroundStyle = {
   minHeight?: number | string;
   height?: number | string;
-  overflow?: 'hidden';
+  overflow?: 'hidden' | 'visible';
 };
 
 export const ScreenBackground = ({ children }: { children: React.ReactNode }) => {
@@ -36,8 +36,7 @@ export const ScreenBackground = ({ children }: { children: React.ReactNode }) =>
       Platform.OS === 'web'
         ? {
             minHeight: '100vh' as never,
-            height: '100vh' as never,
-            overflow: 'hidden'
+            overflow: 'visible'
           }
         : null,
     []
@@ -48,7 +47,7 @@ export const ScreenBackground = ({ children }: { children: React.ReactNode }) =>
         ? ({
             minHeight: '100vh',
             width: '100%',
-            overflow: 'hidden'
+            overflow: 'visible'
           } as never)
         : null,
     []
@@ -205,6 +204,6 @@ const styles = StyleSheet.create({
   },
   webContainer: {
     minHeight: 0,
-    overflow: 'hidden'
+    overflow: 'visible'
   }
 });

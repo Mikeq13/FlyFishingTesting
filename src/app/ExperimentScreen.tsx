@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Modal, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { ExperimentCatchModal } from '@/components/ExperimentCatchModal';
 import { ExperimentSavedActionsModal } from '@/components/ExperimentSavedActionsModal';
 import { KeyboardDismissView } from '@/components/KeyboardDismissView';
@@ -21,6 +21,7 @@ import { StatusBanner } from '@/components/ui/StatusBanner';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { useTheme } from '@/design/theme';
+import { useResponsiveLayout } from '@/design/layout';
 import { CastCounter } from '@/components/CastCounter';
 import { CatchCounter } from '@/components/CatchCounter';
 import { TECHNIQUES, WATER_TYPES } from '@/constants/options';
@@ -51,7 +52,7 @@ type SetupSheetKey = 'technique' | 'leader' | 'rigging' | 'flies' | null;
 
 export const ExperimentScreen = ({ route, navigation }: any) => {
   const { theme } = useTheme();
-  const { width } = useWindowDimensions();
+  const layout = useResponsiveLayout();
   const {
     addExperiment,
     addSavedFly,
@@ -112,8 +113,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   });
   const [activeSetupSheet, setActiveSetupSheet] = useState<SetupSheetKey>(null);
   const [showDictationHelp, setShowDictationHelp] = useState(false);
-  const isCompactLayout = width < 720;
-  const contentMaxWidth = Platform.OS === 'web' ? Math.min(width - 24, 980) : undefined;
+  const isCompactLayout = layout.isCompactLayout;
   const hydratedRef = useRef(false);
   const hydratedSourceKeyRef = useRef<string | null>(null);
   const draftRevisionRef = useRef(0);
@@ -761,7 +761,8 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     <ScreenBackground>
       <KeyboardDismissView>
       <ScrollView
-        contentContainerStyle={{ padding: 16, gap: 12, width: '100%', alignSelf: 'center', maxWidth: contentMaxWidth }}
+        style={{ flex: 1, minHeight: 0 }}
+        contentContainerStyle={layout.buildScrollContentStyle({ gap: 12 })}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >

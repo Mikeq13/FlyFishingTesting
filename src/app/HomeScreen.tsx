@@ -148,97 +148,82 @@ export const HomeScreen = ({ navigation }: any) => {
     <ScreenBackground>
       <KeyboardDismissView>
       <ScrollView style={{ flex: 1, minHeight: 0 }} contentContainerStyle={contentContainerStyle} keyboardShouldPersistTaps="handled">
-        <ScreenHeader
-          title="Fishing Lab"
-          subtitle="A hands-free fly fishing journal that turns outings, water changes, rigs, flies, and catches into patterns you can trust."
-          eyebrow={isWebDemoMode ? 'Codex Challenge Demo' : 'On The Water'}
-        />
+        {!isWebDemoMode ? (
+          <ScreenHeader
+            title="Fishing Lab"
+            subtitle="A hands-free fly fishing journal that turns outings, water changes, rigs, flies, and catches into patterns you can trust."
+            eyebrow="On The Water"
+          />
+        ) : null}
         {isWebDemoMode ? (
-          <SectionCard>
-            <Text style={{ color: theme.colors.textMuted, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 }}>
-              Field Journal Demo
-            </Text>
-            <Text style={{ color: theme.colors.text, fontWeight: '900', fontSize: layout.isCompactLayout ? 27 : 34, lineHeight: layout.isCompactLayout ? 33 : 40 }}>
-              Log the river once. Let every trip teach you what to fish next.
-            </Text>
-            <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
-              This seeded journal shows the complete loop: a real outing record, confidence-labeled insights, and a coach response grounded in the water, rig, fly, and catch history.
-            </Text>
-            <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
+          <View
+            style={{
+              minHeight: Platform.OS === 'web' ? (layout.isCompactLayout ? 520 : 620) : undefined,
+              justifyContent: 'center',
+              gap: 18,
+              paddingVertical: layout.isCompactLayout ? 28 : 48
+            }}
+          >
+            <View style={{ gap: 12, maxWidth: 780 }}>
+              <Text
+                style={{
+                  color: theme.colors.textMuted,
+                  fontSize: 12,
+                  fontWeight: '800',
+                  textTransform: 'uppercase',
+                  letterSpacing: 1,
+                  textShadowColor: theme.colors.overlay,
+                  textShadowRadius: 10
+                }}
+              >
+                Codex Challenge Demo
+              </Text>
+              <Text
+                style={{
+                  color: theme.colors.text,
+                  fontWeight: '900',
+                  fontSize: layout.isCompactLayout ? 36 : 56,
+                  lineHeight: layout.isCompactLayout ? 42 : 62,
+                  textShadowColor: theme.colors.overlay,
+                  textShadowRadius: 16
+                }}
+              >
+                Fishing Lab turns a day on the river into patterns you can trust.
+              </Text>
+              <Text
+                style={{
+                  color: theme.colors.textSoft,
+                  fontSize: layout.isCompactLayout ? 16 : 18,
+                  lineHeight: layout.isCompactLayout ? 23 : 26,
+                  maxWidth: 690,
+                  textShadowColor: theme.colors.overlay,
+                  textShadowRadius: 12
+                }}
+              >
+                Review a logged outing, inspect the signal it produced, then ask the coach why the next recommendation exists.
+              </Text>
+            </View>
+            <View style={{ flexDirection: layout.stackDirection, gap: 10, maxWidth: 760 }}>
               {demoPracticeSession ? (
                 <View style={{ flex: 1 }}>
-                <AppButton
-                  label="Review Logged Outing"
-                  onPress={() => navigation.navigate('PracticeReview', { sessionId: demoPracticeSession.id })}
-                  variant="primary"
-                />
+                  <AppButton
+                    label="Review Outing"
+                    onPress={() => navigation.navigate('PracticeReview', { sessionId: demoPracticeSession.id })}
+                    variant="primary"
+                  />
                 </View>
               ) : null}
               <View style={{ flex: 1 }}>
-                <AppButton label="Inspect Insights" onPress={() => navigation.navigate('Insights')} variant="secondary" />
+                <AppButton label="Inspect Insight" onPress={() => navigation.navigate('Insights')} variant="secondary" />
               </View>
               <View style={{ flex: 1 }}>
                 <AppButton label="Ask Coach" onPress={() => navigation.navigate('Coach')} variant="secondary" />
               </View>
             </View>
-            <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
-              {journalHealthItems.map((item) => (
-                <View
-                  key={`demo-${item.label}`}
-                  style={{
-                    flex: 1,
-                    minWidth: 92,
-                    backgroundColor: theme.colors.surfaceAlt,
-                    borderRadius: theme.radius.md,
-                    borderWidth: 1,
-                    borderColor: theme.colors.borderStrong,
-                    padding: 10,
-                    gap: 2
-                  }}
-                >
-                  <Text style={{ color: theme.colors.textSoft, fontSize: 12, fontWeight: '700' }}>{item.label}</Text>
-                  <Text style={{ color: theme.colors.text, fontSize: 24, fontWeight: '900', fontVariant: ['tabular-nums'] }}>
-                    {item.value}
-                  </Text>
-                </View>
-              ))}
-            </View>
-            <View style={{ gap: 8 }}>
-              <Text style={{ color: theme.colors.text, fontWeight: '800' }}>Follow the proof path</Text>
-              {guidedDemoSteps.map((step) => (
-                <View
-                  key={step.label}
-                  style={{
-                    flexDirection: 'row',
-                    gap: 10,
-                    backgroundColor: theme.colors.surfaceAlt,
-                    borderRadius: theme.radius.md,
-                    borderWidth: 1,
-                    borderColor: theme.colors.border,
-                    padding: 10
-                  }}
-                >
-                  <View
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: theme.radius.pill,
-                      backgroundColor: theme.colors.primary,
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                  >
-                    <Text style={{ color: theme.colors.buttonText, fontWeight: '900' }}>{step.label}</Text>
-                  </View>
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={{ color: theme.colors.text, fontWeight: '800' }}>{step.title}</Text>
-                    <Text style={{ color: theme.colors.textSoft, lineHeight: 19 }}>{step.body}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-            <View style={{ gap: 8 }}>
-              <Text style={{ color: theme.colors.text, fontWeight: '800' }}>River theme: {themeToneLabel}</Text>
+            <View style={{ gap: 10, maxWidth: 820 }}>
+              <Text style={{ color: theme.colors.text, fontWeight: '800', textShadowColor: theme.colors.overlay, textShadowRadius: 10 }}>
+                River theme: {themeToneLabel}
+              </Text>
               <View style={{ flexDirection: layout.stackDirection, gap: 8 }}>
                 {themeOptions.map((themeOption) => (
                   <View key={themeOption.id} style={{ flex: 1 }}>
@@ -251,7 +236,27 @@ export const HomeScreen = ({ navigation }: any) => {
                 ))}
               </View>
             </View>
-          </SectionCard>
+            <View style={{ flexDirection: layout.stackDirection, gap: 10, maxWidth: 880 }}>
+              {guidedDemoSteps.map((step) => (
+                <View
+                  key={step.label}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    gap: 4,
+                    padding: 12,
+                    borderRadius: theme.radius.md,
+                    backgroundColor: theme.colors.surfaceAlt,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border
+                  }}
+                >
+                  <Text style={{ color: theme.colors.text, fontWeight: '900' }}>{step.label}. {step.title}</Text>
+                  <Text style={{ color: theme.colors.textSoft, lineHeight: 19 }}>{step.body}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
         ) : null}
         {!isWebDemoMode ? (
         <SectionCard>

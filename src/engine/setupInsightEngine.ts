@@ -45,7 +45,7 @@ const describeRig = (rigSetup?: Experiment['rigSetup']) => {
   if (!rigSetup) return 'Rig not logged';
   const leader = rigSetup.leaderFormulaName?.trim() || 'Custom leader';
   const flyCount = rigSetup.assignments.length || 0;
-  return `${leader} · ${flyCount} fly${flyCount === 1 ? '' : 'ies'}`;
+  return `${leader} · ${flyCount} ${flyCount === 1 ? 'fly' : 'flies'}`;
 };
 
 const describeFly = (entry: ReturnType<typeof getExperimentEntries>[number]) =>

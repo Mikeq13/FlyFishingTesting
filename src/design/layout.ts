@@ -9,6 +9,10 @@ export const useResponsiveLayout = () => {
   const isMediumLayout = width >= 720 && width < 1100;
   const isWideLayout = width >= 1100;
   const horizontalPadding = width < 400 ? theme.spacing.md : theme.spacing.lg;
+  const safeBottomPadding =
+    Platform.OS === 'web'
+      ? Math.max(theme.spacing.xl * 4, 104)
+      : Math.max(theme.spacing.xl * 3, 72);
   const contentMaxWidth =
     Platform.OS === 'web'
       ? isWideLayout
@@ -44,7 +48,7 @@ export const useResponsiveLayout = () => {
       flexGrow: 1,
       justifyContent: centered ? ('center' as const) : ('flex-start' as const),
       padding: horizontalPadding,
-      paddingBottom: bottomPadding,
+      paddingBottom: Math.max(bottomPadding, safeBottomPadding),
       gap,
       width: '100%' as const,
       alignSelf: 'center' as const,

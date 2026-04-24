@@ -13,6 +13,7 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { AppButton } from '@/components/ui/AppButton';
 import { useTheme } from '@/design/theme';
+import { useResponsiveLayout } from '@/design/layout';
 
 type CoachCard = {
   title: string;
@@ -30,6 +31,7 @@ const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
 
 export const CoachScreen = () => {
   const { theme } = useTheme();
+  const layout = useResponsiveLayout();
   const isDaylightTheme = theme.id === 'daylight_light';
   const elevatedTextColor = isDaylightTheme ? theme.colors.textDark : theme.colors.text;
   const elevatedSoftTextColor = isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft;
@@ -153,7 +155,7 @@ export const CoachScreen = () => {
         <KeyboardDismissView>
           <ScrollView
             style={{ flex: 1, minHeight: 0 }}
-            contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 28 }}
+            contentContainerStyle={layout.buildScrollContentStyle({ gap: 12 })}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
           >
@@ -172,7 +174,7 @@ export const CoachScreen = () => {
       <KeyboardDismissView>
         <ScrollView
           style={{ flex: 1, minHeight: 0 }}
-          contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 28 }}
+          contentContainerStyle={layout.buildScrollContentStyle({ gap: 14 })}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         >

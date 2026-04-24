@@ -11,9 +11,11 @@ import { AppButton } from '@/components/ui/AppButton';
 import { StatusBanner } from '@/components/ui/StatusBanner';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { useTheme } from '@/design/theme';
+import { useResponsiveLayout } from '@/design/layout';
 
 export const SessionDetailScreen = ({ route, navigation }: any) => {
   const { theme } = useTheme();
+  const layout = useResponsiveLayout();
   const isDaylightTheme = theme.id === 'daylight_light';
   const elevatedTextColor = isDaylightTheme ? theme.colors.textDark : theme.colors.text;
   const elevatedSoftTextColor = isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft;
@@ -66,7 +68,7 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
 
   return (
     <ScreenBackground>
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
+      <ScrollView style={{ flex: 1, minHeight: 0 }} contentContainerStyle={layout.buildScrollContentStyle({ gap: 10 })}>
         <ScreenHeader
           title="Session Detail"
           subtitle="Review the full session, then decide whether to keep testing or move into insights."
