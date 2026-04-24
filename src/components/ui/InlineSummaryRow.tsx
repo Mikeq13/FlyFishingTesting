@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, View } from 'react-native';
+import { Text, YStack } from 'tamagui';
 import { SurfaceTone, useTheme } from '@/design/theme';
 
 export const InlineSummaryRow = ({
@@ -41,7 +41,7 @@ export const InlineSummaryRow = ({
           : theme.colors.text;
 
   return (
-    <View style={{ gap: 2 }}>
+    <YStack style={{ gap: 2 }}>
       <Text
         style={{
           color: labelColor,
@@ -58,6 +58,6 @@ export const InlineSummaryRow = ({
       >
         {value}
       </Text>
-    </View>
+    </YStack>
   );
 };

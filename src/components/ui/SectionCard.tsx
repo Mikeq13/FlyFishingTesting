@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, View } from 'react-native';
+import { Text, YStack } from 'tamagui';
 import { SurfaceTone, useTheme } from '@/design/theme';
 
 export const SectionCard = ({
@@ -23,7 +23,7 @@ export const SectionCard = ({
   const subtitleColor = tone === 'dark' ? theme.colors.textMuted : isModalTone ? theme.colors.modalTextSoft : useThemeElevatedPalette ? theme.colors.textSoft : theme.colors.textDarkSoft;
 
   return (
-    <View
+    <YStack
       style={{
         gap: theme.spacing.sm,
         backgroundColor,
@@ -34,7 +34,7 @@ export const SectionCard = ({
       }}
     >
       {title ? (
-        <View style={{ gap: theme.spacing.xs }}>
+        <YStack style={{ gap: theme.spacing.xs }}>
           <Text
             style={{
               color: titleColor,
@@ -49,9 +49,9 @@ export const SectionCard = ({
               {subtitle}
             </Text>
           ) : null}
-        </View>
+        </YStack>
       ) : null}
       {children}
-    </View>
+    </YStack>
   );
 };

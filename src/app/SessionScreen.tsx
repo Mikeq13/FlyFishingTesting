@@ -11,6 +11,7 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { StatusBanner } from '@/components/ui/StatusBanner';
 import { SelectableListPanel } from '@/components/ui/SelectableListPanel';
+import { WaterGuideDrawer } from '@/components/WaterGuideDrawer';
 import { FormField, getFormInputStyle } from '@/components/ui/FormField';
 import { useTheme } from '@/design/theme';
 import { applyRigPresetToRig, createDefaultRigSetup, setRigFlyCount } from '@/utils/rigSetup';
@@ -31,9 +32,9 @@ const MODE_COPY: Record<SessionMode, { title: string; subtitle: string; button: 
     button: 'Begin Experiment'
   },
   practice: {
-    title: 'Practice Session',
-    subtitle: 'Keep setup light, stay mobile, and log quick scouting feedback while you fish.',
-    button: 'Begin Practice Session'
+    title: 'Journal Entry',
+    subtitle: 'Keep setup light, stay mobile, and log water, flies, notes, and catches while you fish.',
+    button: 'Begin Journal Entry'
   },
   competition: {
     title: 'Competition Session',
@@ -86,6 +87,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
   const [experimentRigSetup, setExperimentRigSetup] = useState(() => createDefaultRigSetup([]));
   const [showSavedRiverList, setShowSavedRiverList] = useState(false);
   const [showSavedHypothesisList, setShowSavedHypothesisList] = useState(false);
+  const [showWaterGuide, setShowWaterGuide] = useState(false);
   const sortedSavedRivers = useMemo(() => [...savedRivers].sort((a, b) => a.name.localeCompare(b.name)), [savedRivers]);
   const savedHypotheses = useMemo(
     () =>
@@ -474,6 +476,17 @@ export const SessionScreen = ({ navigation, route }: any) => {
           competitionLengthUnit={competitionLengthUnit}
           onCompetitionLengthUnitChange={setCompetitionLengthUnit}
         />
+        {mode !== 'competition' ? (
+          <SectionCard
+            title="Water Guide"
+            subtitle="Not sure how to fish this water? Open a quick playbook before you start logging."
+          >
+            <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
+              Current selection: {waterType}. Use the guide for where fish hold, what to try first, and what details are worth logging.
+            </Text>
+            <AppButton label="Open Water Guide" onPress={() => setShowWaterGuide(true)} variant="ghost" />
+          </SectionCard>
+        ) : null}
         {mode === 'competition' && authStatus === 'authenticating' && !remoteSession ? (
           <StatusBanner tone="info" text="Finish magic-link sign-in on this device before relying on synced competition assignments." />
         ) : null}
@@ -490,7 +503,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
           <StatusBanner tone="warning" text="This saved assignment is missing its synced group or session details. Open Settings, review the assignment, and sync again before starting." />
         ) : null}
         <SectionCard
-          title={mode === 'practice' ? 'Session Setup' : mode === 'competition' ? 'Competition Setup' : 'Journal Setup'}
+          title={mode === 'practice' ? 'Journal Setup' : mode === 'competition' ? 'Competition Setup' : 'Experiment Setup'}
           subtitle={
             mode === 'practice'
               ? 'Keep the important setup close at hand without turning this into a long form.'
@@ -631,7 +644,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
               ? mode === 'experiment'
                 ? 'Resume Journal Entry'
                 : mode === 'practice'
-                  ? 'Resume Practice Session'
+                  ? 'Resume Journal Entry'
                   : 'Resume Competition Session'
               : modeCopy.button
           }
@@ -640,6 +653,12 @@ export const SessionScreen = ({ navigation, route }: any) => {
         />
       </ScrollView>
       </KeyboardDismissView>
+      <WaterGuideDrawer
+        visible={showWaterGuide}
+        waterType={waterType}
+        onSelectWaterType={setWaterType}
+        onClose={() => setShowWaterGuide(false)}
+      />
     </ScreenBackground>
   );
 };

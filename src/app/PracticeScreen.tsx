@@ -25,6 +25,7 @@ import { useTheme } from '@/design/theme';
 import { useResponsiveLayout } from '@/design/layout';
 import { formatSharedBackendError, getPendingSyncFeedback, getPendingSyncFeedbackTone } from '@/utils/syncFeedback';
 import { DictationHelpModal } from '@/components/DictationHelpModal';
+import { WaterGuideDrawer } from '@/components/WaterGuideDrawer';
 import { buildFieldActionFeedback, FieldFeedback } from '@/utils/fieldFeedback';
 
 type SetupSheetKey = 'technique' | 'leader' | 'rigging' | 'flies' | null;
@@ -65,6 +66,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
   const [pendingCatchLength, setPendingCatchLength] = useState('');
   const [isSavingCatch, setIsSavingCatch] = useState(false);
   const [activeSetupSheet, setActiveSetupSheet] = useState<SetupSheetKey>(null);
+  const [showWaterGuide, setShowWaterGuide] = useState(false);
   const [reviewPromptShown, setReviewPromptShown] = useState(false);
   const [fieldFeedback, setFieldFeedback] = useState<FieldFeedback | null>(null);
   const catchSubmitLockedRef = useRef(false);
@@ -139,7 +141,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
     const endedAt = new Date().toISOString();
     const finishAndPrompt = async () => {
       await finalizePracticeSession(activeSession, endedAt);
-      Alert.alert('Practice timer complete', 'Your planned practice time is up. Review this session now, or come back from History later.', [
+      Alert.alert('Journal timer complete', 'Your planned journal time is up. Review this entry now, or come back from History later.', [
         { text: 'Later', style: 'cancel' },
         {
           text: 'Review Session',
@@ -150,7 +152,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
 
     finishAndPrompt().catch((error) => {
       setReviewPromptShown(false);
-      Alert.alert('Unable to finish practice session', formatSharedBackendError(error, 'practice'));
+      Alert.alert('Unable to finish journal entry', formatSharedBackendError(error, 'practice'));
     });
   }, [finalizePracticeSession, navigation, reviewPromptShown, session, timer.remainingSeconds]);
 
@@ -208,7 +210,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
     return (
       <ScreenBackground>
         <View style={{ flex: 1, justifyContent: 'center', padding: 24 }}>
-          <Text style={{ color: theme.colors.text, textAlign: 'center' }}>Practice session not found.</Text>
+          <Text style={{ color: theme.colors.text, textAlign: 'center' }}>Journal entry not found.</Text>
         </View>
       </ScreenBackground>
     );
@@ -309,15 +311,15 @@ export const PracticeScreen = ({ route, navigation }: any) => {
   const endSessionEarly = () => {
     if (!session || session.endedAt) return;
 
-    Alert.alert('End Session Early?', 'This will stop the timer and cancel any remaining reminders for this practice session.', [
+    Alert.alert('End Journal Entry Early?', 'This will stop the timer and cancel any remaining reminders for this journal entry.', [
       { text: 'Keep Fishing', style: 'cancel' },
         {
-          text: 'End Session',
+              text: 'End Entry',
           style: 'destructive',
           onPress: async () => {
             const endedAt = new Date().toISOString();
             await finalizePracticeSession(session, endedAt);
-            Alert.alert('Practice session ended', 'Review this session now, or come back from History later.', [
+            Alert.alert('Journal entry ended', 'Review this entry now, or come back from History later.', [
               { text: 'Later', style: 'cancel' },
               {
                 text: 'Review Session',
@@ -366,7 +368,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
     <ScreenBackground>
       <ScrollView style={{ flex: 1, minHeight: 0 }} contentContainerStyle={layout.buildScrollContentStyle({ gap: 12 })}>
         <ScreenHeader
-          title="Practice Session"
+          title="Journal Entry"
           subtitle="Stay light, change water fast, and log what is producing without breaking your rhythm."
           eyebrow={session.riverName ?? 'On-Water Workflow'}
         />
@@ -374,36 +376,37 @@ export const PracticeScreen = ({ route, navigation }: any) => {
         {fieldFeedback ? <StatusBanner tone={fieldFeedback.tone} text={fieldFeedback.text} /> : null}
 
         {timer.activeAlertMinute ? (
-          <StatusBanner tone="warning" text={`Time marker: ${timer.activeAlertMinute} minutes into your practice session.`} />
+          <StatusBanner tone="warning" text={`Time marker: ${timer.activeAlertMinute} minutes into your journal entry.`} />
         ) : null}
         {notificationPermissionStatus === 'denied' ? (
           <StatusBanner tone="info" text="Phone notifications are off on this device, so reminder banners will only appear while the app is open." />
         ) : null}
 
-        <SectionCard title="Session Timer" subtitle="Keep your timing, reminders, and practice measuring in one glance.">
+        <SectionCard title="Journal Timer" subtitle="Keep timing, reminders, and catch measuring in one glance.">
             <Text style={{ color: theme.colors.text }}>Elapsed: {timer.elapsedLabel}</Text>
           {timer.remainingLabel ? <Text style={{ color: theme.colors.text }}>Remaining: {timer.remainingLabel}</Text> : null}
           {timer.hasEnded ? <StatusBanner tone="error" text="Session ended early." /> : null}
           {!timer.hasEnded && timer.nextAlertMinute ? <Text style={{ color: theme.colors.text }}>Next alert: {timer.nextAlertMinute} min</Text> : null}
           {session.practiceMeasurementEnabled ? (
             <Text style={{ color: theme.colors.textSoft }}>
-              Practice measuring is on. Add length in {session.practiceLengthUnit ?? 'in'} whenever it helps your scouting notes.
+              Measuring is on. Add length in {session.practiceLengthUnit ?? 'in'} whenever it helps your journal notes.
             </Text>
           ) : null}
           {!timer.hasEnded ? (
             <AppButton label="End Session Early" onPress={endSessionEarly} variant="danger" />
           ) : null}
           {(timer.hasEnded || timer.remainingSeconds === 0) ? (
-            <AppButton label="Review Session" onPress={() => navigation.navigate('PracticeReview', { sessionId: session.id })} variant="secondary" />
+            <AppButton label="Review Journal Entry" onPress={() => navigation.navigate('PracticeReview', { sessionId: session.id })} variant="secondary" />
           ) : null}
           {showDictationHelpInSessions ? (
             <AppButton label="Dictation Help" onPress={() => setShowDictationHelp(true)} variant="ghost" />
           ) : null}
         </SectionCard>
 
-        <SectionCard title="Active Water Segment" subtitle="Track the current water, then move fast when you want a new segment.">
+        <SectionCard title="Active Water" subtitle="Track the current water, then move fast when you want a new segment.">
           <Text style={{ color: theme.colors.text }}>Current water: {activeSegment?.waterType ?? session.waterType}</Text>
           <Text style={{ color: theme.colors.text }}>Current depth: {activeSegment?.depthRange ?? session.depthRange}</Text>
+          <AppButton label="Open Water Guide" onPress={() => setShowWaterGuide(true)} variant="ghost" />
           <OptionChips label="Next Water Type" options={WATER_TYPES} value={nextWaterType} onChange={setNextWaterType} />
           <Text style={{ color: theme.colors.text, fontWeight: '700' }}>Next Water Depth</Text>
           <DepthSelector value={nextDepthRange} onChange={setNextDepthRange} />
@@ -482,9 +485,9 @@ export const PracticeScreen = ({ route, navigation }: any) => {
           )}
         </SectionCard>
 
-        <SectionCard title="Recent Success" subtitle="A quick read on what has connected lately." tone="light">
+        <SectionCard title="Recent Catches" subtitle="A quick read on what has connected lately." tone="light">
           {!recentCatches.length ? (
-            <Text style={{ color: theme.colors.textDarkSoft }}>No catches logged yet in this practice session.</Text>
+            <Text style={{ color: theme.colors.textDarkSoft }}>No catches logged yet in this journal entry.</Text>
           ) : (
             recentCatches.map((event) => (
               <Text key={event.id} style={{ color: theme.colors.textDarkSoft }}>
@@ -507,7 +510,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
           }
           subtitle={
             activeSetupSheet === 'technique'
-              ? 'Switch methods quickly without slowing down the active practice session.'
+              ? 'Switch methods quickly without slowing down the active journal entry.'
               : activeSetupSheet === 'leader'
               ? 'Update the active segment leader in the foreground, then return right to practice.'
               : activeSetupSheet === 'rigging'
@@ -638,6 +641,12 @@ export const PracticeScreen = ({ route, navigation }: any) => {
         }}
       />
       <DictationHelpModal visible={showDictationHelp} onClose={() => setShowDictationHelp(false)} />
+      <WaterGuideDrawer
+        visible={showWaterGuide}
+        waterType={nextWaterType}
+        onSelectWaterType={setNextWaterType}
+        onClose={() => setShowWaterGuide(false)}
+      />
     </ScreenBackground>
   );
 };

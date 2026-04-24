@@ -93,7 +93,7 @@ export const routeForSessionMode = (mode: SessionMode): ActiveOutingRoute =>
 
 export const buildActiveOutingLabel = (outing: ActiveOuting | null) => {
   if (!outing) return 'No current outing';
-  if (outing.targetRoute === 'Practice') return 'Practice session ready to resume';
+  if (outing.targetRoute === 'Practice') return 'Journal entry ready to resume';
   if (outing.targetRoute === 'Competition') return 'Competition session ready to resume';
   return outing.experimentId ? 'Experiment ready to resume' : 'Experiment session ready to resume';
 };

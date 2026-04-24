@@ -1,7 +1,7 @@
 import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { ScrollView } from 'react-native';
+import { Sheet, Text, YStack } from 'tamagui';
 import { useTheme } from '@/design/theme';
-import { useResponsiveLayout } from '@/design/layout';
 
 export const BottomSheetSurface = ({
   title,
@@ -15,19 +15,24 @@ export const BottomSheetSurface = ({
   children: React.ReactNode;
 }) => {
   const { theme } = useTheme();
-  const layout = useResponsiveLayout();
-  const maxSheetHeight = Math.min(layout.height * 0.86, layout.height - theme.spacing.lg * 2);
 
   return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: theme.colors.overlay,
-        justifyContent: 'flex-end'
+    <Sheet
+      modal
+      open
+      snapPoints={[86]}
+      dismissOnSnapToBottom
+      onOpenChange={(open: boolean) => {
+        if (!open) onClose();
       }}
     >
-      <Pressable style={{ flex: 1 }} onPress={onClose} />
-      <View
+      <Sheet.Overlay
+        style={{
+          backgroundColor: theme.colors.overlay
+        }}
+        onPress={onClose}
+      />
+      <Sheet.Frame
         style={{
           gap: theme.spacing.md,
           borderTopLeftRadius: theme.radius.xl,
@@ -36,14 +41,10 @@ export const BottomSheetSurface = ({
           borderColor: theme.colors.modalBorder,
           padding: theme.spacing.lg,
           paddingBottom: theme.spacing.xl,
-          backgroundColor: theme.colors.modalSurface,
-          width: '100%',
-          alignSelf: 'center',
-          maxWidth: layout.modalMaxWidth,
-          maxHeight: maxSheetHeight
+          backgroundColor: theme.colors.modalSurface
         }}
       >
-        <View
+        <Sheet.Handle
           style={{
             width: 48,
             height: 4,
@@ -52,12 +53,14 @@ export const BottomSheetSurface = ({
             alignSelf: 'center'
           }}
         />
-        <View style={{ gap: theme.spacing.xs }}>
+        <YStack style={{ gap: theme.spacing.xs }}>
           <Text style={{ fontWeight: '800', fontSize: 20, color: theme.colors.modalText }}>{title}</Text>
           {subtitle ? <Text style={{ color: theme.colors.modalTextSoft, lineHeight: 20 }}>{subtitle}</Text> : null}
-        </View>
-        {children}
-      </View>
-    </View>
+        </YStack>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: theme.spacing.md }}>
+          {children}
+        </ScrollView>
+      </Sheet.Frame>
+    </Sheet>
   );
 };

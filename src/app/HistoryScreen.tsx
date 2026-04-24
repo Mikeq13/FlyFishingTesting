@@ -12,6 +12,7 @@ import { AppButton } from '@/components/ui/AppButton';
 import { StatusBanner } from '@/components/ui/StatusBanner';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { SelectableListPanel } from '@/components/ui/SelectableListPanel';
+import { SessionIntelligenceDrawer } from '@/components/SessionIntelligenceDrawer';
 import { useTheme } from '@/design/theme';
 import { useResponsiveLayout } from '@/design/layout';
 import { getFormInputStyle } from '@/components/ui/FormField';
@@ -27,7 +28,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
   const elevatedSoftTextColor = isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft;
   const elevatedNestedSurface = isDaylightTheme ? theme.colors.nestedSurface : theme.colors.surface;
   const elevatedNestedBorder = isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.borderStrong;
-  const { sessions, experiments, catchEvents, sessionSegments, users, activeUserId, remoteSession, sharedDataStatus, syncStatus, archiveExperiment, deleteExperiment, deleteSessionRecord, cleanupExperimentsForCurrentUser, cleanupSyncStatus, getSyncRecordState, getExperimentIntegrity, getSessionIntegrity } = useAppStore();
+  const { sessions, experiments, catchEvents, sessionSegments, insights, topFlyInsights, users, activeUserId, remoteSession, sharedDataStatus, syncStatus, archiveExperiment, deleteExperiment, deleteSessionRecord, cleanupExperimentsForCurrentUser, cleanupSyncStatus, getSyncRecordState, getExperimentIntegrity, getSessionIntegrity } = useAppStore();
   const activeUser = users.find((user) => user.id === activeUserId);
   const initialModeFilter = route?.params?.modeFilter;
   const [riverFilter, setRiverFilter] = useState('');
@@ -41,6 +42,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
   const [cleanupTo, setCleanupTo] = useState('');
   const [cleanupOutcome, setCleanupOutcome] = useState<'all' | 'decisive' | 'tie' | 'inconclusive'>('inconclusive');
   const [cleanupAction, setCleanupAction] = useState<'archive' | 'delete'>('archive');
+  const [selectedIntelligenceSessionId, setSelectedIntelligenceSessionId] = useState<number | null>(null);
   const inputStyle = getFormInputStyle(theme);
   const syncTrustFeedback = useMemo(
     () =>
@@ -65,6 +67,10 @@ export const HistoryScreen = ({ navigation, route }: any) => {
   };
 
   const sessionMap = useMemo(() => new Map(sessions.map((session) => [session.id, session])), [sessions]);
+  const selectedIntelligenceSession = useMemo(
+    () => sessions.find((session) => session.id === selectedIntelligenceSessionId) ?? null,
+    [selectedIntelligenceSessionId, sessions]
+  );
   const riverOptions = useMemo(
     () =>
       [...new Set(sessions.map((session) => session.riverName?.trim()).filter((river): river is string => !!river))]
@@ -328,11 +334,16 @@ export const HistoryScreen = ({ navigation, route }: any) => {
             <InlineSummaryRow label="Experiments Logged" value={`${sessionExperiments.length}`} />
             {session.mode === 'practice' ? (
               <AppButton
-                label="Review Practice Session"
+                label="Review Journal Entry"
                 onPress={() => navigation.navigate('PracticeReview', { sessionId: session.id })}
                 variant="secondary"
               />
             ) : null}
+            <AppButton
+              label="What Did This Teach Me?"
+              onPress={() => setSelectedIntelligenceSessionId(session.id)}
+              variant="ghost"
+            />
 
             {!!sessionExperiments.length && (
               <View style={{ marginTop: 4, gap: 4 }}>
@@ -508,6 +519,19 @@ export const HistoryScreen = ({ navigation, route }: any) => {
         </SectionCard>
       )}
       </ScrollView>
+      <SessionIntelligenceDrawer
+        visible={selectedIntelligenceSessionId !== null}
+        session={selectedIntelligenceSession}
+        sessionSegments={sessionSegments}
+        catchEvents={catchEvents}
+        experiments={experiments}
+        insights={[...topFlyInsights, ...insights]}
+        onOpenFullInsights={() => {
+          setSelectedIntelligenceSessionId(null);
+          navigation.navigate('Insights');
+        }}
+        onClose={() => setSelectedIntelligenceSessionId(null)}
+      />
     </ScreenBackground>
   );
 };

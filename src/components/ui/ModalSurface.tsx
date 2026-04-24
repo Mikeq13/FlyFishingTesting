@@ -1,5 +1,6 @@
 import React from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView } from 'react-native';
+import { Text, YStack } from 'tamagui';
 import { useTheme } from '@/design/theme';
 import { useResponsiveLayout } from '@/design/layout';
 
@@ -31,8 +32,8 @@ export const ModalSurface = ({
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.overlay, justifyContent: 'center', padding: layout.horizontalPadding }}>
-      <View
+    <YStack style={{ flex: 1, backgroundColor: theme.colors.overlay, justifyContent: 'center', padding: layout.horizontalPadding }}>
+      <YStack
         style={{
           gap: theme.spacing.md,
           borderWidth: 1,
@@ -45,12 +46,12 @@ export const ModalSurface = ({
           alignSelf: 'center'
         }}
       >
-        <View style={{ gap: theme.spacing.xs }}>
+        <YStack style={{ gap: theme.spacing.xs }}>
           <Text style={{ fontWeight: '800', fontSize: 20, color: theme.colors.modalText }}>{title}</Text>
           {subtitle ? <Text style={{ color: theme.colors.modalTextSoft, lineHeight: 20 }}>{subtitle}</Text> : null}
-        </View>
+        </YStack>
         {body}
-      </View>
-    </View>
+      </YStack>
+    </YStack>
   );
 };

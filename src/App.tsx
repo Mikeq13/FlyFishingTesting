@@ -24,6 +24,7 @@ import {
 } from './utils/sessionNotifications';
 import { consumeAuthRedirect } from './services/authService';
 import { ThemeProvider, useTheme } from './design/theme';
+import { TamaguiRootProvider } from './components/TamaguiRootProvider';
 import { buildActiveOutingNavigationTarget, parseHandsFreeUrlCommand, parsePendingHandsFreeCommand } from './utils/handsFree';
 import { consumePendingHandsFreeNativeCommand } from './services/handsFreeNative';
 import { executeHandsFreeCommand } from './utils/handsFreeActions';
@@ -269,7 +270,7 @@ const AppNavigator = ({ navigationRef }: { navigationRef: ReturnType<typeof useN
               <Stack.Screen name="Practice" component={PracticeScreen} />
               <Stack.Screen name="Competition" component={CompetitionScreen} />
               <Stack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: 'Session' }} />
-              <Stack.Screen name="PracticeReview" component={PracticeReviewScreen} options={{ title: 'Practice Review' }} />
+              <Stack.Screen name="PracticeReview" component={PracticeReviewScreen} options={{ title: 'Journal Review' }} />
               <Stack.Screen name="Insights" component={InsightsScreen} />
               <Stack.Screen name="History" component={HistoryScreen} />
               <Stack.Screen name="Coach" component={CoachScreen} />
@@ -300,9 +301,11 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <AppStoreProvider>
-        <AppNavigator navigationRef={navigationRef} />
-      </AppStoreProvider>
+      <TamaguiRootProvider>
+        <AppStoreProvider>
+          <AppNavigator navigationRef={navigationRef} />
+        </AppStoreProvider>
+      </TamaguiRootProvider>
     </ThemeProvider>
   );
 }

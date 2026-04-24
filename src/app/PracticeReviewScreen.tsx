@@ -6,6 +6,7 @@ import { SectionCard } from '@/components/ui/SectionCard';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { AppButton } from '@/components/ui/AppButton';
 import { StatusBanner } from '@/components/ui/StatusBanner';
+import { SessionIntelligenceDrawer } from '@/components/SessionIntelligenceDrawer';
 import { useAppStore } from './store';
 import { useTheme } from '@/design/theme';
 import { useResponsiveLayout } from '@/design/layout';
@@ -26,7 +27,8 @@ export const PracticeReviewScreen = ({ route, navigation }: any) => {
   const elevatedSoftTextColor = isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft;
   const elevatedNestedSurface = isDaylightTheme ? theme.colors.nestedSurface : theme.colors.surface;
   const elevatedNestedBorder = isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.borderStrong;
-  const { sessions, sessionSegments, catchEvents, users, activeUserId } = useAppStore();
+  const { sessions, sessionSegments, catchEvents, experiments, insights, topFlyInsights, users, activeUserId } = useAppStore();
+  const [showIntelligence, setShowIntelligence] = React.useState(false);
   const sessionId = route?.params?.sessionId as number;
   const activeUser = users.find((user) => user.id === activeUserId);
   const session = sessions.find((candidate) => candidate.id === sessionId && candidate.mode === 'practice') ?? null;
@@ -47,16 +49,16 @@ export const PracticeReviewScreen = ({ route, navigation }: any) => {
     <ScreenBackground>
       <ScrollView style={{ flex: 1, minHeight: 0 }} contentContainerStyle={layout.buildScrollContentStyle({ gap: 10 })}>
         <ScreenHeader
-          title="Practice Review"
-          subtitle="Review the logged outing segment by segment so you can see what changed on the water and what each scouting decision produced."
+          title="Journal Review"
+          subtitle="Review the logged outing segment by segment, then open Coach context to see what the day taught you."
           eyebrow={`Angler: ${activeUser?.name ?? 'Loading...'}`}
         />
         {!session ? (
-          <StatusBanner tone="error" text="Practice session not found." />
+          <StatusBanner tone="error" text="Journal entry not found." />
         ) : (
           <>
             <SectionCard
-              title="Session Summary"
+              title="Journal Summary"
               subtitle={new Date(session.date).toLocaleString()}
               tone="light"
             >
@@ -74,6 +76,7 @@ export const PracticeReviewScreen = ({ route, navigation }: any) => {
                   text={`${unassignedCatchCount} catch${unassignedCatchCount === 1 ? '' : 'es'} are not tied to a practice segment and are shown only in the session total.`}
                 />
               ) : null}
+              <AppButton label="What Did This Teach Me?" onPress={() => setShowIntelligence(true)} variant="secondary" surfaceTone="light" />
             </SectionCard>
 
             <SectionCard
@@ -142,6 +145,19 @@ export const PracticeReviewScreen = ({ route, navigation }: any) => {
         <AppButton label="View History" onPress={() => navigation.navigate('History')} variant="secondary" />
         <AppButton label="Back Home" onPress={() => navigation.navigate('Home')} variant="tertiary" />
       </ScrollView>
+      <SessionIntelligenceDrawer
+        visible={showIntelligence}
+        session={session}
+        sessionSegments={sessionSegments}
+        catchEvents={catchEvents}
+        experiments={experiments}
+        insights={[...topFlyInsights, ...insights]}
+        onOpenFullInsights={() => {
+          setShowIntelligence(false);
+          navigation.navigate('Insights');
+        }}
+        onClose={() => setShowIntelligence(false)}
+      />
     </ScreenBackground>
   );
 };

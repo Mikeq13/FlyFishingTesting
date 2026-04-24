@@ -202,6 +202,9 @@ export const AccessScreen = ({ navigation }: any) => {
   });
   const currentUserSessions = React.useMemo(() => sessions.filter((session) => session.userId === currentUser?.id), [currentUser?.id, sessions]);
   const currentUserExperiments = React.useMemo(() => experiments.filter((experiment) => experiment.userId === currentUser?.id), [currentUser?.id, experiments]);
+  const currentUserSegments = React.useMemo(() => sessionSegments.filter((segment) => segment.userId === currentUser?.id), [currentUser?.id, sessionSegments]);
+  const currentUserCatches = React.useMemo(() => catchEvents.filter((event) => event.userId === currentUser?.id), [catchEvents, currentUser?.id]);
+  const completedCurrentUserSessions = React.useMemo(() => currentUserSessions.filter((session) => !!session.endedAt).length, [currentUserSessions]);
   const sharedDataSettling = !!remoteSession && (remoteBootstrapState === 'resolving_local' || sharedDataStatus === 'loading');
   const incompleteSessions = React.useMemo(
     () => currentUserSessions.filter((session) => getSessionIntegrity(session.id).state === 'incomplete'),
@@ -1122,6 +1125,45 @@ export const AccessScreen = ({ navigation }: any) => {
           ),
           children: (
             <View style={{ gap: 10 }}>
+              <SectionCard
+                title="Journal Health"
+                subtitle="A behind-the-scenes trust check for logged outings, catches, experiments, and sync state."
+                tone="light"
+              >
+                <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
+                  {[
+                    { label: 'Outings', value: currentUserSessions.length },
+                    { label: 'Segments', value: currentUserSegments.length },
+                    { label: 'Fish', value: currentUserCatches.length },
+                    { label: 'Tests', value: currentUserExperiments.filter((experiment) => experiment.status === 'complete').length }
+                  ].map((item) => (
+                    <View
+                      key={item.label}
+                      style={{
+                        flex: 1,
+                        minWidth: 92,
+                        backgroundColor: elevatedNestedSurface,
+                        borderRadius: theme.radius.md,
+                        borderWidth: 1,
+                        borderColor: elevatedNestedBorder,
+                        padding: 10,
+                        gap: 2
+                      }}
+                    >
+                      <Text style={{ color: elevatedSoftTextColor, fontSize: 12, fontWeight: '700' }}>
+                        {item.label}
+                      </Text>
+                      <Text style={{ color: elevatedTextColor, fontSize: 22, fontWeight: '900', fontVariant: ['tabular-nums'] }}>
+                        {item.value}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+                <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
+                  {completedCurrentUserSessions} completed outing{completedCurrentUserSessions === 1 ? '' : 's'} are ready for reflection. Shared backend status: {sharedDataStatus}
+                  {syncStatus.pendingCount ? `, ${syncStatus.pendingCount} item${syncStatus.pendingCount === 1 ? '' : 's'} waiting to sync.` : '.'}
+                </Text>
+              </SectionCard>
               {isWebDemoMode ? (
                 <AppButton
                   label="Reset Demo Data"

@@ -6,7 +6,7 @@ export const BETA_READINESS_CHECKS: Array<Omit<BetaReadinessCheck, 'status'>> = 
   {
     key: 'cold_start',
     label: 'Cold Open',
-    description: 'Home opens as a field cockpit without forcing normal testers through owner tools.'
+    description: 'Home opens as Today\'s Journal without forcing normal testers through owner tools.'
   },
   {
     key: 'start_practice',

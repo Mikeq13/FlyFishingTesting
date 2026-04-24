@@ -6,6 +6,7 @@ import { AppButton } from '@/components/ui/AppButton';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { StatusBanner } from '@/components/ui/StatusBanner';
+import { WaterGuideDrawer } from '@/components/WaterGuideDrawer';
 import { useTheme } from '@/design/theme';
 import { useAppStore } from './store';
 import { SessionMode } from '@/types/session';
@@ -20,13 +21,13 @@ const SESSION_MODE_OPTIONS: Array<{
 }> = [
   {
     mode: 'experiment',
-    title: 'Experiment Journal',
-    description: 'Run baseline and test fly experiments with deeper controls, hypotheses, and research-style logging.'
+    title: 'Structured Experiment',
+    description: 'Compare flies, water, or techniques when you want cleaner evidence instead of a loose journal note.'
   },
   {
     mode: 'practice',
-    title: 'Practice Session',
-    description: 'Keep it lightweight for a practice day and get ready for quicker catch logging built around saved flies.'
+    title: 'Journal Entry',
+    description: 'Log the river, water, rig, flies, notes, and catches without turning the day into a research project.'
   },
   {
     mode: 'competition',
@@ -37,7 +38,6 @@ const SESSION_MODE_OPTIONS: Array<{
 
 export const HomeScreen = ({ navigation }: any) => {
   const {
-    currentHasPremiumAccess,
     currentUser,
     remoteSession,
     sessions,
@@ -57,6 +57,7 @@ export const HomeScreen = ({ navigation }: any) => {
   const layout = useResponsiveLayout();
   const isDaylightTheme = theme.id === 'daylight_light';
   const [showSessionChooser, setShowSessionChooser] = React.useState(false);
+  const [showWaterGuide, setShowWaterGuide] = React.useState(false);
   const [resumeFeedback, setResumeFeedback] = React.useState<{ tone: 'success' | 'warning'; text: string } | null>(null);
   const shouldCenterContent = Platform.OS !== 'web' && !layout.isCompactLayout;
   const latestInsight = React.useMemo(
@@ -93,16 +94,6 @@ export const HomeScreen = ({ navigation }: any) => {
       }),
     [remoteSession, sharedDataStatus, syncStatus]
   );
-  const demoExperimentCount = React.useMemo(
-    () => experiments.filter((experiment) => experiment.status === 'complete').length,
-    [experiments]
-  );
-  const journalHealthItems = [
-    { label: 'Outings', value: sessions.length },
-    { label: 'Segments', value: sessionSegments.length },
-    { label: 'Fish', value: catchEvents.length },
-    { label: 'Tests', value: demoExperimentCount }
-  ];
   const demoPracticeSession = React.useMemo(
     () =>
       sessions.find((session) => session.mode === 'practice' && !!session.endedAt) ??
@@ -118,22 +109,22 @@ export const HomeScreen = ({ navigation }: any) => {
   const guidedDemoSteps = [
     {
       label: '1',
-      title: 'Review the outing',
+      title: 'Review a journal entry',
       body: demoPracticeSession?.riverName
         ? `${demoPracticeSession.riverName}: water changes, rig decisions, and catch notes are already logged.`
         : 'Open the seeded practice outing and inspect the river, water, setup, and catch timeline.'
     },
     {
       label: '2',
-      title: 'Read the pattern',
+      title: 'Read the signal',
       body: latestInsight
         ? latestInsight.message
         : 'Insights wait for enough journal signal before turning logged trips into recommendations.'
     },
     {
       label: '3',
-      title: 'Ask what to fish',
-      body: 'The coach explains the recommendation from the journal instead of guessing from a generic prompt.'
+      title: 'Ask why it worked',
+      body: 'Coach context now belongs with the outing so the recommendation is grounded in what was actually logged.'
     }
   ];
   const themeToneLabel =
@@ -211,17 +202,17 @@ export const HomeScreen = ({ navigation }: any) => {
               {demoPracticeSession ? (
                 <View style={{ flex: 1 }}>
                   <AppButton
-                    label="Review Outing"
+                    label="Review Journal Entry"
                     onPress={() => navigation.navigate('PracticeReview', { sessionId: demoPracticeSession.id })}
                     variant="primary"
                   />
                 </View>
               ) : null}
               <View style={{ flex: 1 }}>
-                <AppButton label="Inspect Insight" onPress={() => navigation.navigate('Insights')} variant="secondary" />
+                <AppButton label="Open Water Guide" onPress={() => setShowWaterGuide(true)} variant="secondary" />
               </View>
               <View style={{ flex: 1 }}>
-                <AppButton label="Ask Coach" onPress={() => navigation.navigate('Coach')} variant="secondary" />
+                <AppButton label="Start Journal Entry" onPress={() => beginSession('practice')} variant="secondary" />
               </View>
             </View>
             <View style={{ gap: 10, maxWidth: 820 }}>
@@ -274,11 +265,11 @@ export const HomeScreen = ({ navigation }: any) => {
         </SectionCard>
         ) : null}
         <SectionCard
-          title={activeOuting && autoResumePromptEnabled ? 'Current Outing' : 'Field Cockpit'}
+          title={activeOuting && autoResumePromptEnabled ? 'Current Journal Entry' : 'Today\'s Journal'}
           subtitle={
             activeOuting && autoResumePromptEnabled
-              ? 'Jump back into the live session without digging through old records.'
-              : 'Start a clean journal flow before the first cast, then let the app remember the details.'
+              ? 'Jump back into the live entry without digging through old records.'
+              : 'Start with the water in front of you, log what happens, then review what the day taught you.'
           }
         >
           {activeOuting && autoResumePromptEnabled ? (
@@ -302,10 +293,10 @@ export const HomeScreen = ({ navigation }: any) => {
                     <Text style={{ color: theme.colors.textSoft }}>Mode: {activeOuting.mode}</Text>
                     <Text style={{ color: theme.colors.textSoft }}>Resume target: {activeOutingResumeRoute}</Text>
                     <Text style={{ color: theme.colors.textSoft }}>Last action: {new Date(activeOuting.lastActiveAt).toLocaleString()}</Text>
-                    <Text style={{ color: theme.colors.textSoft }}>Repair: dismiss stale outing, then start a clean journal flow.</Text>
+                    <Text style={{ color: theme.colors.textSoft }}>Repair: dismiss stale entry, then start a clean journal flow.</Text>
                   </View>
                   <AppButton
-                    label="Dismiss Stale Outing"
+                    label="Dismiss Stale Entry"
                     onPress={() => {
                       clearActiveOuting().catch(() => undefined);
                     }}
@@ -347,7 +338,7 @@ export const HomeScreen = ({ navigation }: any) => {
                   </View>
                   {syncTrustFeedback ? <StatusBanner tone={syncTrustFeedback.tone} text={syncTrustFeedback.text} /> : null}
                   <AppButton
-                    label="Resume Current Outing"
+                    label="Resume Journal Entry"
                     onPress={() => {
                       if (activeOutingTarget) {
                         setResumeFeedback({
@@ -368,57 +359,22 @@ export const HomeScreen = ({ navigation }: any) => {
             </>
           ) : (
             <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
-              No active outing right now. Choose the journal mode that matches today's water so the data stays clean.
+              No active journal entry right now. Open the Water Guide if you want a quick read on how to fish today, or start logging when you are ready.
             </Text>
           )}
           <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
             <View style={{ flex: 1 }}>
-              <AppButton label="Practice" onPress={() => beginSession('practice')} variant="secondary" />
+              <AppButton label="Start Journal Entry" onPress={() => beginSession('practice')} variant="primary" />
             </View>
             <View style={{ flex: 1 }}>
-              <AppButton label="Experiment" onPress={() => beginSession('experiment')} variant="secondary" />
+              <AppButton label="Structured Experiment" onPress={() => beginSession('experiment')} variant="secondary" />
             </View>
             <View style={{ flex: 1 }}>
               <AppButton label="Competition" onPress={() => beginSession('competition')} variant="secondary" />
             </View>
           </View>
+          <AppButton label="Open Water Guide" onPress={() => setShowWaterGuide(true)} variant="ghost" />
           <AppButton label="Choose Session Style" onPress={() => setShowSessionChooser(true)} variant="ghost" />
-        </SectionCard>
-
-        <SectionCard
-          title="Journal Health"
-          subtitle={isWebDemoMode ? 'The demo is seeded with enough real journal structure to show the concept quickly.' : 'Beta trust starts here: complete outings, canonical setup details, and sync feedback that tells the truth.'}
-          tone="light"
-        >
-          <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
-            {journalHealthItems.map((item) => (
-              <View
-                key={item.label}
-                style={{
-                  flex: 1,
-                  minWidth: 92,
-                  backgroundColor: isDaylightTheme ? theme.colors.nestedSurface : theme.colors.surface,
-                  borderRadius: theme.radius.md,
-                  borderWidth: 1,
-                  borderColor: isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.border,
-                  padding: 10,
-                  gap: 2
-                }}
-              >
-                <Text style={{ color: isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft, fontSize: 12, fontWeight: '700' }}>
-                  {item.label}
-                </Text>
-                <Text style={{ color: isDaylightTheme ? theme.colors.textDark : theme.colors.text, fontSize: 22, fontWeight: '900', fontVariant: ['tabular-nums'] }}>
-                  {item.value}
-                </Text>
-              </View>
-            ))}
-          </View>
-          <Text style={{ color: isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft, lineHeight: 20 }}>
-            {completedSessions} completed outing{completedSessions === 1 ? '' : 's'} are ready for reflection. Shared backend status: {sharedDataStatus}
-            {syncStatus.pendingCount ? `, ${syncStatus.pendingCount} item${syncStatus.pendingCount === 1 ? '' : 's'} waiting to sync.` : '.'}
-          </Text>
-          {syncTrustFeedback ? <StatusBanner tone={syncTrustFeedback.tone} text={syncTrustFeedback.text} /> : null}
         </SectionCard>
 
         <SectionCard
@@ -431,7 +387,7 @@ export const HomeScreen = ({ navigation }: any) => {
                 {latestInsight.confidence === 'high' ? 'Strong pattern' : latestInsight.confidence === 'medium' ? 'Moderate evidence' : 'Early signal'}
               </Text>
               <Text style={{ color: theme.colors.textSoft, lineHeight: 21 }}>{latestInsight.message}</Text>
-              <AppButton label="Open Insights" onPress={() => navigation.navigate('Insights')} variant="secondary" />
+              <AppButton label="Open Full Analysis" onPress={() => navigation.navigate('Insights')} variant="secondary" />
             </>
           ) : (
             <>
@@ -462,17 +418,12 @@ export const HomeScreen = ({ navigation }: any) => {
             <AppButton label="View History" onPress={() => navigation.navigate('History')} variant="secondary" />
           </View>
           <View style={{ flex: 1 }}>
-            <AppButton label="View Insights" onPress={() => navigation.navigate('Insights')} variant="secondary" />
+            <AppButton label="Settings & Beta Tools" onPress={() => navigation.navigate('Access')} variant="tertiary" />
           </View>
         </View>
-        {[
-          [`Ask AI Coach${currentHasPremiumAccess ? '' : ' (Premium)'}`, 'Coach'],
-          ['Settings & Beta Tools', 'Access']
-        ].map(([label, route]) => (
-          <AppButton key={route} label={label} onPress={() => navigation.navigate(route)} variant="tertiary" />
-        ))}
       </ScrollView>
       </KeyboardDismissView>
+      <WaterGuideDrawer visible={showWaterGuide} waterType={activeOutingSegment?.waterType ?? activeOutingSession?.waterType ?? 'run'} onClose={() => setShowWaterGuide(false)} />
       <Modal visible={showSessionChooser} transparent animationType="fade" onRequestClose={() => setShowSessionChooser(false)}>
         <View style={{ flex: 1, backgroundColor: theme.colors.overlay, justifyContent: 'center', padding: 20 }}>
           <View
@@ -489,9 +440,9 @@ export const HomeScreen = ({ navigation }: any) => {
             }}
           >
             <View style={{ gap: 4 }}>
-              <Text style={{ color: theme.colors.modalText, fontSize: 24, fontWeight: '800' }}>What are you doing today?</Text>
+              <Text style={{ color: theme.colors.modalText, fontSize: 24, fontWeight: '800' }}>What do you want to log today?</Text>
               <Text style={{ color: theme.colors.modalTextSoft, lineHeight: 20 }}>
-                Choose the session style that best matches today's water and how you want to log intel.
+                Choose the light journal path for most days, or a structured experiment when you want to compare one thing carefully.
               </Text>
             </View>
 

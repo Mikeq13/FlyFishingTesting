@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, Text } from 'react-native';
+import { Button, Text } from 'tamagui';
 import { ButtonVariant, SurfaceTone, useTheme } from '@/design/theme';
 
 export const AppButton = ({
@@ -71,7 +71,8 @@ export const AppButton = ({
       : 'transparent';
 
   return (
-    <Pressable
+    <Button
+      unstyled
       onPress={onPress}
       disabled={disabled}
       style={{
@@ -81,10 +82,13 @@ export const AppButton = ({
         borderRadius: theme.radius.md,
         opacity: disabled ? 0.78 : 1,
         borderWidth: variant === 'ghost' || variant === 'tertiary' || (variant === 'neutral' && (isLightSurface || isModalSurface)) ? 1 : 0,
-        borderColor
+        borderColor,
+        minHeight: 44,
+        alignItems: 'center',
+        justifyContent: 'center'
       }}
     >
       <Text style={{ color: textColor, textAlign: 'center', fontWeight: '700' }}>{label}</Text>
-    </Pressable>
+    </Button>
   );
 };

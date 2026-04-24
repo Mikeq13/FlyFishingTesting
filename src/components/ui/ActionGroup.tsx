@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { XStack, YStack } from 'tamagui';
 import { useTheme } from '@/design/theme';
 
 export const ActionGroup = ({
@@ -11,15 +11,16 @@ export const ActionGroup = ({
 }) => {
   const { theme } = useTheme();
 
+  const Stack = direction === 'horizontal' ? XStack : YStack;
+
   return (
-  <View
-    style={{
-      flexDirection: direction === 'horizontal' ? 'row' : 'column',
-      gap: theme.spacing.sm,
-      alignItems: direction === 'horizontal' ? 'stretch' : undefined
-    }}
-  >
-    {children}
-  </View>
+    <Stack
+      style={{
+        gap: theme.spacing.sm,
+        alignItems: direction === 'horizontal' ? 'stretch' : undefined
+      }}
+    >
+      {children}
+    </Stack>
   );
 };

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, ScrollView, Text } from 'react-native';
+import { ScrollView } from 'react-native';
+import { ListItem, Text } from 'tamagui';
 import { SurfaceTone, useTheme } from '@/design/theme';
 
 export const SelectableListPanel = ({
@@ -49,7 +50,8 @@ export const SelectableListPanel = ({
     }}
   >
     {items.map((item, index) => (
-      <Pressable
+      <ListItem
+        unstyled
         key={item.key}
         onPress={item.onPress}
         style={{
@@ -60,7 +62,7 @@ export const SelectableListPanel = ({
         }}
       >
         <Text style={{ color: textColor, fontWeight: '600' }}>{item.label}</Text>
-      </Pressable>
+      </ListItem>
     ))}
   </ScrollView>
   );

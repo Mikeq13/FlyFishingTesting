@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, View } from 'react-native';
+import { Text, YStack } from 'tamagui';
 import { useTheme } from '@/design/theme';
 
 export const StatusBanner = ({
@@ -36,7 +36,7 @@ export const StatusBanner = ({
             };
 
   return (
-    <View
+    <YStack
       style={{
         backgroundColor: palette.backgroundColor,
         borderRadius: theme.radius.md,
@@ -46,6 +46,6 @@ export const StatusBanner = ({
       }}
     >
       <Text style={{ color: palette.color, fontWeight: '800', lineHeight: 20 }}>{text}</Text>
-    </View>
+    </YStack>
   );
 };

@@ -8,4 +8,6 @@ config.resolver.extraNodeModules = {
   '@ungap/structured-clone': path.resolve(__dirname, 'src/vendor/structuredClone.ts')
 };
 
+config.resolver.unstable_enablePackageExports = true;
+
 module.exports = config;

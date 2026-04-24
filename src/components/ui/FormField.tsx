@@ -1,5 +1,6 @@
 import React from 'react';
-import { Text, TextStyle, View, ViewStyle } from 'react-native';
+import { TextStyle, ViewStyle } from 'react-native';
+import { Text, YStack } from 'tamagui';
 import { AppTheme, appTheme, SurfaceTone, useTheme } from '@/design/theme';
 
 export const getFormInputStyle = (themeOverride?: AppTheme): ViewStyle & TextStyle => {
@@ -34,7 +35,7 @@ export const FormField = ({
   const helperColor = tone === 'modal' ? theme.colors.modalTextSoft : tone === 'light' ? (useThemeElevatedPalette ? theme.colors.textSoft : theme.colors.textDarkSoft) : theme.colors.textSoft;
 
   return (
-    <View style={{ gap: theme.spacing.xs }}>
+    <YStack style={{ gap: theme.spacing.xs }}>
       <Text style={{ color: labelColor, fontWeight: '800' }}>{label}</Text>
       {children}
       {error ? <Text style={{ color: theme.colors.errorText }}>{error}</Text> : null}
@@ -43,6 +44,6 @@ export const FormField = ({
           {helper}
         </Text>
       ) : null}
-    </View>
+    </YStack>
   );
 };

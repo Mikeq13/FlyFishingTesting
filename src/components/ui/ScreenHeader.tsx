@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, View } from 'react-native';
+import { Text, YStack } from 'tamagui';
 import { useTheme } from '@/design/theme';
 
 export const ScreenHeader = ({
@@ -14,7 +14,7 @@ export const ScreenHeader = ({
   const { theme } = useTheme();
 
   return (
-    <View style={{ gap: theme.spacing.xs }}>
+    <YStack style={{ gap: theme.spacing.xs }}>
       {eyebrow ? (
         <Text
           style={{
@@ -30,6 +30,6 @@ export const ScreenHeader = ({
       ) : null}
       <Text style={{ fontSize: 30, fontWeight: '800', color: theme.colors.text }}>{title}</Text>
       {subtitle ? <Text style={{ color: theme.colors.textMuted, lineHeight: 20 }}>{subtitle}</Text> : null}
-    </View>
+    </YStack>
   );
 };

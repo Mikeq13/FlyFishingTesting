@@ -128,7 +128,7 @@ export const PracticeSetupSection = ({
         />
         <RigFlyManager title="Fly Assignments" rigSetup={rigSetup} savedFlies={savedFlies} onChange={onRigSetupChange} onCreateFly={onCreateFly} />
         {showMeasurementControls ? (
-          <SectionCard title="Practice Catch Measurement" subtitle="Keep quick logging fast, and only turn on length entry when this practice session calls for it.">
+      <SectionCard title="Journal Catch Measurement" subtitle="Keep quick logging fast, and only turn on length entry when this journal entry calls for it.">
             <OptionChips label="Measure Fish In Practice?" options={['Yes', 'No'] as const} value={practiceMeasurementEnabled ? 'Yes' : 'No'} onChange={(value) => onPracticeMeasurementEnabledChange(value === 'Yes')} />
             {practiceMeasurementEnabled ? (
               <OptionChips label="Practice Length Unit" options={['in', 'cm', 'mm'] as const} value={practiceLengthUnit} onChange={(value) => onPracticeLengthUnitChange(value as PracticeLengthUnit)} />
@@ -166,7 +166,7 @@ export const PracticeSetupSection = ({
         sheetKey: 'flies'
       })}
       {showMeasurementControls ? (
-        <SectionCard title="Practice Catch Measurement" subtitle="Keep quick logging fast, and only turn on length entry when this practice session calls for it.">
+          <SectionCard title="Journal Catch Measurement" subtitle="Keep quick logging fast, and only turn on length entry when this journal entry calls for it.">
           <OptionChips label="Measure Fish In Practice?" options={['Yes', 'No'] as const} value={practiceMeasurementEnabled ? 'Yes' : 'No'} onChange={(value) => onPracticeMeasurementEnabledChange(value === 'Yes')} />
           {practiceMeasurementEnabled ? (
             <OptionChips label="Practice Length Unit" options={['in', 'cm', 'mm'] as const} value={practiceLengthUnit} onChange={(value) => onPracticeLengthUnitChange(value as PracticeLengthUnit)} />

@@ -10,6 +10,7 @@ import { SectionCard } from '@/components/ui/SectionCard';
 import { AppButton } from '@/components/ui/AppButton';
 import { StatusBanner } from '@/components/ui/StatusBanner';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
+import { SessionIntelligenceDrawer } from '@/components/SessionIntelligenceDrawer';
 import { useTheme } from '@/design/theme';
 import { useResponsiveLayout } from '@/design/layout';
 
@@ -21,7 +22,8 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
   const elevatedSoftTextColor = isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft;
   const elevatedNestedSurface = isDaylightTheme ? theme.colors.nestedSurface : theme.colors.surface;
   const elevatedNestedBorder = isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.borderStrong;
-  const { sessions, experiments, users, activeUserId, archiveExperiment, deleteExperiment, cleanupSyncStatus, getSyncRecordState, getExperimentIntegrity, getSessionIntegrity } = useAppStore();
+  const { sessions, sessionSegments, catchEvents, experiments, insights, topFlyInsights, users, activeUserId, archiveExperiment, deleteExperiment, cleanupSyncStatus, getSyncRecordState, getExperimentIntegrity, getSessionIntegrity } = useAppStore();
+  const [showIntelligence, setShowIntelligence] = React.useState(false);
   const sessionId = route?.params?.sessionId as number;
   const activeUser = users.find((user) => user.id === activeUserId);
 
@@ -71,7 +73,7 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
       <ScrollView style={{ flex: 1, minHeight: 0 }} contentContainerStyle={layout.buildScrollContentStyle({ gap: 10 })}>
         <ScreenHeader
           title="Session Detail"
-          subtitle="Review the full session, then decide whether to keep testing or move into insights."
+          subtitle="Review the full session, then open Coach context right here when you want the takeaway."
           eyebrow={`Angler: ${activeUser?.name ?? 'Loading...'}`}
         />
         {session ? (
@@ -96,6 +98,7 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
                 surfaceTone="light"
               />
             ) : null}
+            <AppButton label="What Did This Teach Me?" onPress={() => setShowIntelligence(true)} variant="secondary" surfaceTone="light" />
           </SectionCard>
         ) : null}
         {!session ? (
@@ -169,12 +172,25 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
         </SectionCard>
 
         {session?.mode === 'practice' ? (
-          <AppButton label="Review Practice Session" onPress={() => navigation.navigate('PracticeReview', { sessionId })} variant="secondary" />
+          <AppButton label="Review Journal Entry" onPress={() => navigation.navigate('PracticeReview', { sessionId })} variant="secondary" />
         ) : null}
         <AppButton label="Add Another Experiment" onPress={() => navigation.navigate('Experiment', { sessionId })} />
-        <AppButton label="View Insights" onPress={() => navigation.navigate('Insights')} variant="secondary" />
+        <AppButton label="Open Full Analysis" onPress={() => navigation.navigate('Insights')} variant="secondary" />
         <AppButton label="Back Home" onPress={() => navigation.navigate('Home')} variant="tertiary" />
       </ScrollView>
+      <SessionIntelligenceDrawer
+        visible={showIntelligence}
+        session={session ?? null}
+        sessionSegments={sessionSegments}
+        catchEvents={catchEvents}
+        experiments={experiments}
+        insights={[...topFlyInsights, ...insights]}
+        onOpenFullInsights={() => {
+          setShowIntelligence(false);
+          navigation.navigate('Insights');
+        }}
+        onClose={() => setShowIntelligence(false)}
+      />
     </ScreenBackground>
   );
 };
