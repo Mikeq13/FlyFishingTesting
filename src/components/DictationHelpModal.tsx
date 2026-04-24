@@ -18,11 +18,14 @@ export const DictationHelpModal = ({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <ModalSurface
         title="Hands-Free Dictation"
-        subtitle="Use Siri phrases that map cleanly onto the current outing so voice logging stays predictable on the water."
+        subtitle="Use Siri or Google Assistant phrases that map cleanly onto the current outing so voice logging stays predictable on the water."
       >
         <ScrollView contentContainerStyle={{ gap: 12 }}>
           <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
             Fishing Lab keeps the vocabulary intentionally small so voice commands stay reliable when you are moving, wet, or wearing gloves.
+          </Text>
+          <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+            The same action names are used for Siri on iPhone and for Apple Watch quick capture, so once the watch companion is installed there is nothing new to relearn.
           </Text>
           {HANDS_FREE_EXAMPLES.map((example) => (
             <View

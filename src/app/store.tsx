@@ -73,6 +73,7 @@ import {
   parseStoredBoolean,
   serializeActiveOuting
 } from '@/utils/handsFree';
+import { syncHandsFreeActiveOutingNative, syncHandsFreePreferencesNative } from '@/services/handsFreeNative';
 
 export type { UserDataCleanupCategory };
 
@@ -269,6 +270,26 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   useEffect(() => {
     loadHandsFreePreferences().catch((error) => reportRuntimeIssue('hands-free preference bootstrap failed', error));
   }, []);
+
+  useEffect(() => {
+    syncHandsFreeActiveOutingNative(activeOuting).catch((error) => reportRuntimeIssue('hands-free outing sync failed', error));
+  }, [activeOuting]);
+
+  useEffect(() => {
+    syncHandsFreePreferencesNative({
+      autoResumePromptEnabled,
+      resumeFromNotificationsEnabled,
+      dictationEnabled,
+      showDictationHelpInSessions,
+      confirmationNotificationsEnabled
+    }).catch((error) => reportRuntimeIssue('hands-free preference sync failed', error));
+  }, [
+    autoResumePromptEnabled,
+    confirmationNotificationsEnabled,
+    dictationEnabled,
+    resumeFromNotificationsEnabled,
+    showDictationHelpInSessions
+  ]);
 
   const bootstrap = async () => {
     try {

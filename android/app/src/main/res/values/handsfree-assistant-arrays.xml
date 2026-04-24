@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string-array name="fishing_lab_resume_queries">
+    <item>resume current outing</item>
+    <item>open my current outing</item>
+    <item>resume my outing</item>
+  </string-array>
+  <string-array name="fishing_lab_log_fish_queries">
+    <item>log fish</item>
+    <item>log a fish</item>
+    <item>record a fish</item>
+  </string-array>
+  <string-array name="fishing_lab_add_note_queries">
+    <item>add note $noteText</item>
+    <item>save note $noteText</item>
+    <item>record note $noteText</item>
+  </string-array>
+  <string-array name="fishing_lab_change_water_queries">
+    <item>change water to $waterType</item>
+    <item>set water to $waterType</item>
+    <item>switch water to $waterType</item>
+  </string-array>
+  <string-array name="fishing_lab_change_technique_queries">
+    <item>change technique to $technique</item>
+    <item>set technique to $technique</item>
+    <item>switch technique to $technique</item>
+  </string-array>
+</resources>

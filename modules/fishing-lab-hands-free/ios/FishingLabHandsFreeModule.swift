@@ -1,16 +1,25 @@
 import ExpoModulesCore
 
-let FishingLabPendingCommandKey = "fishing_lab.pending_handsfree_command"
-
 public class FishingLabHandsFreeModule: Module {
   public func definition() -> ModuleDefinition {
     Name("FishingLabHandsFree")
 
+    let syncManager = FishingLabWatchSyncManager.shared
+
     AsyncFunction("consumePendingCommand") {
-      let defaults = UserDefaults.standard
-      let raw = defaults.string(forKey: FishingLabPendingCommandKey)
-      defaults.removeObject(forKey: FishingLabPendingCommandKey)
-      return raw
+      syncManager.consumePendingCommand()
+    }
+
+    AsyncFunction("syncActiveOuting") { (serializedOuting: String?) in
+      syncManager.syncActiveOuting(serializedOuting)
+    }
+
+    AsyncFunction("syncHandsFreePreferences") { (serializedPreferences: String) throws in
+      try syncManager.syncHandsFreePreferences(serializedPreferences)
+    }
+
+    AsyncFunction("getWatchCompanionStatus") {
+      syncManager.getWatchCompanionStatus()
     }
   }
 }

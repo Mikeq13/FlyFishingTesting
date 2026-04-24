@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { UserDataCleanupCategory, useAppStore } from './store';
@@ -23,6 +23,8 @@ import { OptionChips } from '@/components/OptionChips';
 import { useResponsiveLayout } from '@/design/layout';
 import { useTheme } from '@/design/theme';
 import { getAppSetting, setAppSetting } from '@/db/settingsRepo';
+import { getWatchCompanionStatusNative } from '@/services/handsFreeNative';
+import { WatchCompanionStatus } from '@/types/handsFree';
 import { buildSessionDeleteMessage, getSessionDeleteConsequences } from '@/utils/sessionDeleteConsequences';
 import { HANDS_FREE_EXAMPLES, SUPPORTED_TECHNIQUES, SUPPORTED_WATER_TYPES } from '@/utils/handsFree';
 
@@ -48,6 +50,13 @@ export const AccessScreen = ({ navigation }: any) => {
   const elevatedSoftTextColor = isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft;
   const elevatedNestedSurface = isDaylightTheme ? theme.colors.nestedSurface : theme.colors.surface;
   const elevatedNestedBorder = isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.borderStrong;
+  const [watchStatus, setWatchStatus] = useState<WatchCompanionStatus>({
+    isSupported: false,
+    isPaired: false,
+    isWatchAppInstalled: false,
+    isReachable: false,
+    activationState: 'unknown'
+  });
   const {
     users,
     ownerUser,
@@ -133,6 +142,15 @@ export const AccessScreen = ({ navigation }: any) => {
     setShowDictationHelpInSessions,
     setConfirmationNotificationsEnabled
   } = useAppStore();
+  const watchStatusLabel = !watchStatus.isSupported
+    ? 'Requires an iOS native build with the Fishing Lab watch companion.'
+    : watchStatus.isWatchAppInstalled
+      ? watchStatus.isReachable
+        ? 'Watch companion installed and reachable right now.'
+        : 'Watch companion installed. Commands will hand off when the paired phone wakes.'
+      : watchStatus.isPaired
+        ? 'Watch is paired. Install the Fishing Lab watch companion to enable quick capture.'
+        : 'No paired Apple Watch detected yet.';
   const [newGroupName, setNewGroupName] = React.useState('');
   const [joinGroupCode, setJoinGroupCode] = React.useState('');
   const [newCompetitionName, setNewCompetitionName] = React.useState('');
@@ -323,6 +341,12 @@ export const AccessScreen = ({ navigation }: any) => {
     setAccountEmail(resolvedEmail);
     setPasswordResetEmail(resolvedEmail);
   }, [currentUser?.email, remoteSession?.email]);
+
+  useEffect(() => {
+    getWatchCompanionStatusNative()
+      .then(setWatchStatus)
+      .catch(() => undefined);
+  }, []);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -942,7 +966,7 @@ export const AccessScreen = ({ navigation }: any) => {
             <View style={{ gap: 10 }}>
               <SectionCard
                 title="Hands-Free Controls"
-                subtitle="These settings control how Fishing Lab surfaces Siri-style capture, resume prompts, and confirmation banners."
+                subtitle="These settings control how Fishing Lab surfaces Siri, Google Assistant, resume prompts, and confirmation banners."
                 tone="light"
               >
                 <OptionChips
@@ -1003,7 +1027,7 @@ export const AccessScreen = ({ navigation }: any) => {
               </SectionCard>
               <SectionCard
                 title="Supported Phrases"
-                subtitle="Fishing Lab keeps the vocabulary intentionally narrow so Siri capture stays reliable on the water."
+                subtitle="Fishing Lab keeps the vocabulary intentionally narrow so Siri and Google Assistant capture stay reliable on the water."
                 tone="light"
               >
                 {HANDS_FREE_EXAMPLES.map((example) => (
@@ -1030,7 +1054,24 @@ export const AccessScreen = ({ navigation }: any) => {
                   Supported techniques: {SUPPORTED_TECHNIQUES.join(', ')}
                 </Text>
                 <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-                  Practice fish logging uses the active segment. Competition fish logging uses the live scorecard. Experiment fish logging still stays inside the touch workflow for now.
+                  Practice fish logging uses the active segment. Competition fish logging uses the live scorecard. Assistant phrases should match the same wording on both Android and iPhone. Experiment fish logging still stays inside the touch workflow for now.
+                </Text>
+              </SectionCard>
+              <SectionCard
+                title="Apple Watch Quick Capture"
+                subtitle="The watch companion mirrors the same structured actions so the phone, Siri, and watch all teach the same workflow."
+                tone="light"
+              >
+                <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>{watchStatusLabel}</Text>
+                <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+                  Watch status: {watchStatus.activationState} · paired {watchStatus.isPaired ? 'yes' : 'no'} · installed{' '}
+                  {watchStatus.isWatchAppInstalled ? 'yes' : 'no'} · reachable {watchStatus.isReachable ? 'yes' : 'no'}
+                </Text>
+                <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+                  Recommended watch actions: Resume Outing, Log Fish, Add Note, Change Water, and Change Technique.
+                </Text>
+                <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+                  Siri phrase to jump back in: “Resume current outing in Fishing Lab.”
                 </Text>
               </SectionCard>
             </View>

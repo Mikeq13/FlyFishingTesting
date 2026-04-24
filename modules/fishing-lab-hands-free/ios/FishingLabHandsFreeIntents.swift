@@ -77,15 +77,6 @@ private enum FishingLabLengthUnit: String, AppEnum {
 }
 
 @available(iOS 16.0, *)
-private func storePendingCommand(_ payload: [String: Any]) throws {
-  let data = try JSONSerialization.data(withJSONObject: payload, options: [])
-  guard let encoded = String(data: data, encoding: .utf8) else {
-    throw NSError(domain: "FishingLabHandsFree", code: 1, userInfo: [NSLocalizedDescriptionKey: "Could not encode the pending command."])
-  }
-  UserDefaults.standard.set(encoded, forKey: FishingLabPendingCommandKey)
-}
-
-@available(iOS 16.0, *)
 struct LogFishIntent: AppIntent {
   static let title: LocalizedStringResource = "Log Fish"
   static let description = IntentDescription("Open Fishing Lab and log a fish to the current outing.")
@@ -101,8 +92,9 @@ struct LogFishIntent: AppIntent {
   var lengthUnit: FishingLabLengthUnit?
 
   func perform() async throws -> some IntentResult & ProvidesDialog {
-    try storePendingCommand([
+    try FishingLabWatchSyncManager.shared.queuePendingCommand([
       "action": FishingLabHandsFreeAction.logFish.rawValue,
+      "source": "siri",
       "species": species?.rawValue as Any,
       "lengthValue": lengthValue as Any,
       "lengthUnit": lengthUnit?.rawValue as Any
@@ -121,8 +113,9 @@ struct AddOutingNoteIntent: AppIntent {
   var noteText: String
 
   func perform() async throws -> some IntentResult & ProvidesDialog {
-    try storePendingCommand([
+    try FishingLabWatchSyncManager.shared.queuePendingCommand([
       "action": FishingLabHandsFreeAction.addNote.rawValue,
+      "source": "siri",
       "noteText": noteText
     ])
     return .result(dialog: "Opening Fishing Lab to save your note.")
@@ -139,8 +132,9 @@ struct ChangeWaterIntent: AppIntent {
   var waterType: FishingLabWaterType
 
   func perform() async throws -> some IntentResult & ProvidesDialog {
-    try storePendingCommand([
+    try FishingLabWatchSyncManager.shared.queuePendingCommand([
       "action": FishingLabHandsFreeAction.changeWater.rawValue,
+      "source": "siri",
       "waterType": waterType.rawValue
     ])
     return .result(dialog: "Opening Fishing Lab to change water.")
@@ -157,8 +151,9 @@ struct ChangeTechniqueIntent: AppIntent {
   var technique: FishingLabTechnique
 
   func perform() async throws -> some IntentResult & ProvidesDialog {
-    try storePendingCommand([
+    try FishingLabWatchSyncManager.shared.queuePendingCommand([
       "action": FishingLabHandsFreeAction.changeTechnique.rawValue,
+      "source": "siri",
       "technique": technique.rawValue
     ])
     return .result(dialog: "Opening Fishing Lab to change technique.")
@@ -172,8 +167,9 @@ struct ResumeCurrentOutingIntent: AppIntent {
   static let openAppWhenRun = true
 
   func perform() async throws -> some IntentResult & ProvidesDialog {
-    try storePendingCommand([
-      "action": FishingLabHandsFreeAction.resumeOuting.rawValue
+    try FishingLabWatchSyncManager.shared.queuePendingCommand([
+      "action": FishingLabHandsFreeAction.resumeOuting.rawValue,
+      "source": "siri"
     ])
     return .result(dialog: "Opening Fishing Lab to resume your outing.")
   }

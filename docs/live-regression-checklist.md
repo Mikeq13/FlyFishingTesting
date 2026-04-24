@@ -4,6 +4,14 @@ Use this checklist before calling a build "trusted" for beta testing. The goal i
 
 ## Trust-Critical Flows
 
+- Native beta cold start:
+  Install the Android debug or preview build, cold-open it, confirm Home opens as a field cockpit, and confirm Settings / owner tools are not the first thing a normal tester has to understand.
+- Active outing recovery:
+  Start a practice outing, leave the app, relaunch, and confirm Home shows the current outing with a working resume action.
+- Field cockpit launch:
+  From Home, start Practice, Experiment, and Competition directly and confirm each route opens the matching setup or outing flow without requiring admin or owner context.
+- Field action feedback:
+  During practice, log a fish, add a note, change water, and change technique. Confirm the app gives clear saved/action feedback and the latest state survives refresh or relaunch.
 - Multi-group sharing:
   Share one session to more than one group, refresh the app, and confirm each group still sees the shared session correctly.
 - Practice water and technique changes:
@@ -33,6 +41,8 @@ Use this checklist before calling a build "trusted" for beta testing. The goal i
   If a change looked saved immediately, refresh or relaunch and confirm the same state is still present. Any mismatch between immediate and refreshed state should be treated as a trust bug.
 - Duplicate-proof analytics:
   Reproduce a save, modify-and-continue, and save-and-start-fresh loop, then confirm History, Session Detail, and Insights do not show duplicate rivers, duplicate experiments, or inflated catch totals.
+- Insight confidence language:
+  Confirm each insight labels whether it is an early signal, moderate evidence, or a strong pattern, and that low-sample data does not read like a guaranteed recommendation.
 
 ## Mode-Specific UX
 
@@ -66,6 +76,33 @@ Use this checklist before calling a build "trusted" for beta testing. The goal i
   Open Settings → Power Tools → Backend Diagnostics and confirm schema status is `compatible`, shared bootstrap is healthy, and failed sync items are either empty or understood before sending builds to testers.
 - Preview build target:
   Use the `preview` profile for direct-install field testing unless TestFlight/App Store distribution is specifically needed.
+
+## Android Hands-Free Beta
+
+- Android package:
+  Confirm the native project package and `app.json` Android package are both `com.fishinglab.app`.
+- Assistant resources:
+  Confirm `android/app/src/main/res/xml/shortcuts.xml` and `android/app/src/main/res/values/handsfree-assistant-arrays.xml` exist after prebuild.
+- Deep link routing:
+  Confirm the Android manifest includes a `fishinglab://hands-free` VIEW intent filter and `android.app.shortcuts` metadata.
+- Supported commands:
+  Validate only the beta vocabulary: resume current outing, log fish, add note, change water, and change technique.
+- Disabled state:
+  Turn off hands-free dictation and confirm voice/deep-link commands fail with the same in-app disabled message.
+- No-active-outing state:
+  Trigger a hands-free command with no active outing and confirm the app explains that no outing is available instead of silently doing nothing.
+- Build verification:
+  Run `npx.cmd expo prebuild --platform android --no-install` and `.\gradlew.bat :app:assembleDebug` from `android/` before sharing an Android APK.
+
+## Tester Wave Gate
+
+- Owner device pass:
+  One full owner-device outing flow passes before inviting anyone else.
+- Trusted angler pass:
+  Two or three trusted anglers install the Android build and complete one short practice outing each.
+- Friend beta pass:
+  Expand to 8-12 testers only after cold open, active outing recovery, hands-free deep links, sync messaging, and duplicate-proof insights pass.
+
 ## Sign-Off Notes
 
 - Build or commit tested:

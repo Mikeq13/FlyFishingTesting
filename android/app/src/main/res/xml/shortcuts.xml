@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <capability
+        android:name="custom.actions.intent.FISHING_LAB_RESUME_OUTING"
+        app:queryPatterns="@array/fishing_lab_resume_queries">
+        <intent>
+            <url-template android:value="fishinglab://hands-free?action=resume_outing&amp;source=assistant" />
+        </intent>
+    </capability>
+
+    <capability
+        android:name="custom.actions.intent.FISHING_LAB_LOG_FISH"
+        app:queryPatterns="@array/fishing_lab_log_fish_queries">
+        <intent>
+            <url-template android:value="fishinglab://hands-free?action=log_fish&amp;source=assistant" />
+        </intent>
+    </capability>
+
+    <capability
+        android:name="custom.actions.intent.FISHING_LAB_ADD_NOTE"
+        app:queryPatterns="@array/fishing_lab_add_note_queries">
+        <intent>
+            <url-template android:value="fishinglab://hands-free?action=add_note&amp;source=assistant{&amp;noteText}" />
+            <parameter
+                android:name="noteText"
+                android:key="noteText"
+                android:mimeType="https://schema.org/Text" />
+        </intent>
+        <intent>
+            <url-template android:value="fishinglab://hands-free?action=add_note&amp;source=assistant" />
+        </intent>
+    </capability>
+
+    <capability
+        android:name="custom.actions.intent.FISHING_LAB_CHANGE_WATER"
+        app:queryPatterns="@array/fishing_lab_change_water_queries">
+        <intent>
+            <url-template android:value="fishinglab://hands-free?action=change_water&amp;source=assistant{&amp;waterType}" />
+            <parameter
+                android:name="waterType"
+                android:key="waterType"
+                android:mimeType="https://schema.org/Text" />
+        </intent>
+        <intent>
+            <url-template android:value="fishinglab://hands-free?action=change_water&amp;source=assistant" />
+        </intent>
+    </capability>
+
+    <capability
+        android:name="custom.actions.intent.FISHING_LAB_CHANGE_TECHNIQUE"
+        app:queryPatterns="@array/fishing_lab_change_technique_queries">
+        <intent>
+            <url-template android:value="fishinglab://hands-free?action=change_technique&amp;source=assistant{&amp;technique}" />
+            <parameter
+                android:name="technique"
+                android:key="technique"
+                android:mimeType="https://schema.org/Text" />
+        </intent>
+        <intent>
+            <url-template android:value="fishinglab://hands-free?action=change_technique&amp;source=assistant" />
+        </intent>
+    </capability>
+</shortcuts>

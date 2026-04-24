@@ -36,7 +36,8 @@
                                  "expo-dev-client",
                                  "expo-notifications",
                                  "expo-sqlite",
-                                 "expo-web-browser"
+                                 "expo-web-browser",
+                                 "./plugins/withAndroidHandsFree"
                              ],
                  "extra":  {
                                "eas":  {

@@ -9,7 +9,7 @@ import { useTheme } from '@/design/theme';
 import { useAppStore } from './store';
 import { SessionMode } from '@/types/session';
 import { useResponsiveLayout } from '@/design/layout';
-import { buildActiveOutingLabel, buildActiveOutingNavigationTarget } from '@/utils/handsFree';
+import { buildActiveOutingLabel, buildActiveOutingNavigationTarget, HANDS_FREE_EXAMPLES } from '@/utils/handsFree';
 
 const SESSION_MODE_OPTIONS: Array<{
   mode: SessionMode;
@@ -34,12 +34,39 @@ const SESSION_MODE_OPTIONS: Array<{
 ];
 
 export const HomeScreen = ({ navigation }: any) => {
-  const { currentHasPremiumAccess, currentUser, remoteSession, sessions, isWebDemoMode, activeOuting, autoResumePromptEnabled } = useAppStore();
+  const {
+    currentHasPremiumAccess,
+    currentUser,
+    remoteSession,
+    sessions,
+    sessionSegments,
+    catchEvents,
+    experiments,
+    insights,
+    topFlyInsights,
+    isWebDemoMode,
+    activeOuting,
+    autoResumePromptEnabled,
+    sharedDataStatus,
+    syncStatus
+  } = useAppStore();
   const { theme } = useTheme();
   const layout = useResponsiveLayout();
   const isDaylightTheme = theme.id === 'daylight_light';
   const [showSessionChooser, setShowSessionChooser] = React.useState(false);
   const shouldCenterContent = Platform.OS !== 'web' && !layout.isCompactLayout;
+  const latestInsight = React.useMemo(
+    () => [...topFlyInsights, ...insights].find((insight) => insight.confidence !== 'low') ?? topFlyInsights[0] ?? insights[0] ?? null,
+    [insights, topFlyInsights]
+  );
+  const completedSessions = React.useMemo(() => sessions.filter((session) => !!session.endedAt).length, [sessions]);
+  const activeOutingTarget = activeOuting ? buildActiveOutingNavigationTarget(activeOuting) : null;
+  const journalHealthItems = [
+    { label: 'Outings', value: sessions.length },
+    { label: 'Segments', value: sessionSegments.length },
+    { label: 'Fish', value: catchEvents.length },
+    { label: 'Tests', value: experiments.filter((experiment) => experiment.status === 'complete').length }
+  ];
   const demoPracticeSession = React.useMemo(
     () =>
       sessions.find((session) => session.mode === 'practice' && !!session.endedAt) ??
@@ -106,33 +133,128 @@ export const HomeScreen = ({ navigation }: any) => {
             {isWebDemoMode ? 'Seeded demo journal with local-only data and premium AI guidance unlocked.' : `Signed in as: ${remoteSession?.email ?? 'No account linked'}`}
           </Text>
         </SectionCard>
-        {activeOuting && autoResumePromptEnabled ? (
-          <SectionCard title="Current Outing" subtitle="Jump back into the live session without digging through old records.">
-            <Text style={{ color: theme.colors.text, fontWeight: '800' }}>{buildActiveOutingLabel(activeOuting)}</Text>
-            <Text style={{ color: theme.colors.textSoft }}>
-              Last active: {new Date(activeOuting.lastActiveAt).toLocaleString()}
+        <SectionCard
+          title={activeOuting && autoResumePromptEnabled ? 'Current Outing' : 'Field Cockpit'}
+          subtitle={
+            activeOuting && autoResumePromptEnabled
+              ? 'Jump back into the live session without digging through old records.'
+              : 'Start a clean journal flow before the first cast, then let the app remember the details.'
+          }
+        >
+          {activeOuting && autoResumePromptEnabled ? (
+            <>
+              <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 18 }}>{buildActiveOutingLabel(activeOuting)}</Text>
+              <Text style={{ color: theme.colors.textSoft }}>
+                Last active: {new Date(activeOuting.lastActiveAt).toLocaleString()}
+              </Text>
+              <AppButton
+                label="Resume Current Outing"
+                onPress={() => {
+                  if (activeOutingTarget) navigation.navigate(activeOutingTarget.route, activeOutingTarget.params);
+                }}
+              />
+            </>
+          ) : (
+            <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
+              No active outing right now. Choose the journal mode that matches today's water so the data stays clean.
             </Text>
-            <AppButton
-              label="Resume Current Outing"
-              onPress={() => {
-                const target = buildActiveOutingNavigationTarget(activeOuting);
-                navigation.navigate(target.route, target.params);
-              }}
-            />
-          </SectionCard>
-        ) : null}
-        <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
-          <View style={{ flex: 1 }}>
-            <AppButton label="Start Session" onPress={() => setShowSessionChooser(true)} variant="secondary" />
+          )}
+          <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
+            <View style={{ flex: 1 }}>
+              <AppButton label="Practice" onPress={() => beginSession('practice')} variant="secondary" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <AppButton label="Experiment" onPress={() => beginSession('experiment')} variant="secondary" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <AppButton label="Competition" onPress={() => beginSession('competition')} variant="secondary" />
+            </View>
           </View>
+          <AppButton label="Choose Session Style" onPress={() => setShowSessionChooser(true)} variant="ghost" />
+        </SectionCard>
+
+        <SectionCard
+          title="Journal Health"
+          subtitle="Beta trust starts here: complete outings, canonical setup details, and sync feedback that tells the truth."
+          tone="light"
+        >
+          <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
+            {journalHealthItems.map((item) => (
+              <View
+                key={item.label}
+                style={{
+                  flex: 1,
+                  minWidth: 92,
+                  backgroundColor: isDaylightTheme ? theme.colors.nestedSurface : theme.colors.surface,
+                  borderRadius: theme.radius.md,
+                  borderWidth: 1,
+                  borderColor: isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.border,
+                  padding: 10,
+                  gap: 2
+                }}
+              >
+                <Text style={{ color: isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft, fontSize: 12, fontWeight: '700' }}>
+                  {item.label}
+                </Text>
+                <Text style={{ color: isDaylightTheme ? theme.colors.textDark : theme.colors.text, fontSize: 22, fontWeight: '900', fontVariant: ['tabular-nums'] }}>
+                  {item.value}
+                </Text>
+              </View>
+            ))}
+          </View>
+          <Text style={{ color: isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft, lineHeight: 20 }}>
+            {completedSessions} completed outing{completedSessions === 1 ? '' : 's'} are ready for reflection. Shared backend status: {sharedDataStatus}
+            {syncStatus.pendingCount ? `, ${syncStatus.pendingCount} item${syncStatus.pendingCount === 1 ? '' : 's'} waiting to sync.` : '.'}
+          </Text>
+        </SectionCard>
+
+        <SectionCard
+          title="Best Current Signal"
+          subtitle="Insights stay useful by favoring clean records and confidence over flashy guesses."
+        >
+          {latestInsight ? (
+            <>
+              <Text style={{ color: theme.colors.text, fontWeight: '800' }}>
+                {latestInsight.confidence === 'high' ? 'Strong pattern' : latestInsight.confidence === 'medium' ? 'Moderate evidence' : 'Early signal'}
+              </Text>
+              <Text style={{ color: theme.colors.textSoft, lineHeight: 21 }}>{latestInsight.message}</Text>
+              <AppButton label="Open Insights" onPress={() => navigation.navigate('Insights')} variant="secondary" />
+            </>
+          ) : (
+            <>
+              <Text style={{ color: theme.colors.textSoft, lineHeight: 21 }}>
+                Log a few complete sessions with river, water, technique, fly, and catch details. Fishing Lab will wait until the journal has enough signal before calling something a pattern.
+              </Text>
+              <AppButton label="Start First Outing" onPress={() => setShowSessionChooser(true)} variant="secondary" />
+            </>
+          )}
+        </SectionCard>
+
+        <SectionCard
+          title="Hands-Free Beta Commands"
+          subtitle="Use voice as a narrow field shortcut for actions that are safe to complete without digging through screens."
+          tone="light"
+        >
+          <View style={{ gap: 6 }}>
+            {HANDS_FREE_EXAMPLES.map((example) => (
+              <Text key={example.title} style={{ color: isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft, lineHeight: 20 }}>
+                {example.title}: {example.phrase}
+              </Text>
+            ))}
+          </View>
+        </SectionCard>
+
+        <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
           <View style={{ flex: 1 }}>
             <AppButton label="View History" onPress={() => navigation.navigate('History')} variant="secondary" />
           </View>
+          <View style={{ flex: 1 }}>
+            <AppButton label="View Insights" onPress={() => navigation.navigate('Insights')} variant="secondary" />
+          </View>
         </View>
         {[
-          [`View Insights${currentHasPremiumAccess ? '' : ' (Premium)'}`, 'Insights'],
           [`Ask AI Coach${currentHasPremiumAccess ? '' : ' (Premium)'}`, 'Coach'],
-          ['Settings', 'Access']
+          ['Settings & Beta Tools', 'Access']
         ].map(([label, route]) => (
           <AppButton key={route} label={label} onPress={() => navigation.navigate(route)} variant="tertiary" />
         ))}

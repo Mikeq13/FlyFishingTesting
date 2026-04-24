@@ -5,7 +5,8 @@ import {
   ActiveOuting,
   ActiveOutingRoute,
   HandsFreeCommand,
-  HandsFreeExample
+  HandsFreeExample,
+  HandsFreePreferences
 } from '@/types/handsFree';
 import { TroutSpecies } from '@/types/experiment';
 import { SessionMode, Technique, WaterType } from '@/types/session';
@@ -47,7 +48,7 @@ export const HANDS_FREE_EXAMPLES: HandsFreeExample[] = [
   {
     title: 'Resume Current Outing',
     phrase: 'Resume current outing in Fishing Lab',
-    description: 'Jump straight back into the session that is still active on your phone.'
+    description: 'Jump straight back into the session that is still active on your phone or Apple Watch.'
   }
 ];
 
@@ -81,6 +82,8 @@ export const parseActiveOuting = (raw: string | null): ActiveOuting | null => {
 
 export const serializeActiveOuting = (outing: ActiveOuting | null) =>
   outing ? JSON.stringify(outing) : null;
+
+export const serializeHandsFreePreferences = (preferences: HandsFreePreferences) => JSON.stringify(preferences);
 
 export const isActiveOutingRoute = (value: unknown): value is ActiveOutingRoute =>
   value === 'Practice' || value === 'Experiment' || value === 'Competition';
@@ -143,6 +146,7 @@ export const parseHandsFreeUrlCommand = (url: string): HandsFreeCommand | null =
 
   return {
     action: action as HandsFreeCommand['action'],
+    source: typeof params.source === 'string' ? (params.source as HandsFreeCommand['source']) : null,
     species: normalizeSpecies(typeof params.species === 'string' ? params.species : null),
     noteText: typeof params.noteText === 'string' ? params.noteText : null,
     waterType: normalizeWaterType(typeof params.waterType === 'string' ? params.waterType : null),
@@ -162,6 +166,7 @@ export const parsePendingHandsFreeCommand = (raw: string | null): HandsFreeComma
     if (!parsed?.action) return null;
     return {
       ...parsed,
+      source: typeof parsed.source === 'string' ? (parsed.source as HandsFreeCommand['source']) : null,
       species: normalizeSpecies(parsed.species ?? null),
       technique: normalizeTechnique(parsed.technique ?? null),
       waterType: normalizeWaterType(parsed.waterType ?? null),

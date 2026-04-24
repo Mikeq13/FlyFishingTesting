@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as Linking from 'expo-linking';
 import { Alert, AppState, Text, View } from 'react-native';
 import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
@@ -27,6 +27,7 @@ import { ThemeProvider, useTheme } from './design/theme';
 import { buildActiveOutingNavigationTarget, parseHandsFreeUrlCommand, parsePendingHandsFreeCommand } from './utils/handsFree';
 import { consumePendingHandsFreeNativeCommand } from './services/handsFreeNative';
 import { executeHandsFreeCommand } from './utils/handsFreeActions';
+import { StatusBanner } from './components/ui/StatusBanner';
 
 const Stack = createNativeStackNavigator();
 
@@ -38,6 +39,9 @@ const AuthLoadingScreen = () => (
 
 const AppNavigator = ({ navigationRef }: { navigationRef: ReturnType<typeof useNavigationContainerRef> }) => {
   const { theme } = useTheme();
+  const [handsFreeBanner, setHandsFreeBanner] = useState<{ tone: 'success' | 'warning'; text: string } | null>(null);
+  const bannerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const appStateRef = useRef(AppState.currentState);
   const {
     authReady,
     localBootstrapReady,
@@ -65,6 +69,24 @@ const AppNavigator = ({ navigationRef }: { navigationRef: ReturnType<typeof useN
   }, []);
 
   useEffect(() => {
+    if (!handsFreeBanner) return;
+    if (bannerTimeoutRef.current) {
+      clearTimeout(bannerTimeoutRef.current);
+    }
+    bannerTimeoutRef.current = setTimeout(() => {
+      setHandsFreeBanner(null);
+      bannerTimeoutRef.current = null;
+    }, 3200);
+
+    return () => {
+      if (bannerTimeoutRef.current) {
+        clearTimeout(bannerTimeoutRef.current);
+        bannerTimeoutRef.current = null;
+      }
+    };
+  }, [handsFreeBanner]);
+
+  useEffect(() => {
     let mounted = true;
 
     const handleAuthUrl = async (url: string) => {
@@ -74,6 +96,14 @@ const AppNavigator = ({ navigationRef }: { navigationRef: ReturnType<typeof useN
         console.error(error);
         const message = error instanceof Error ? error.message : 'Please request a fresh magic link and try again.';
         Alert.alert('Sign-in link could not be completed', message);
+      }
+    };
+
+    const drainPendingNativeCommands = async () => {
+      while (mounted) {
+        const nextCommand = await consumePendingHandsFreeNativeCommand();
+        if (!nextCommand) break;
+        await runHandsFreeCommand(nextCommand);
       }
     };
 
@@ -94,19 +124,24 @@ const AppNavigator = ({ navigationRef }: { navigationRef: ReturnType<typeof useN
         updateExperimentEntry
       });
 
-      if (result.ok && confirmationNotificationsEnabled) {
-        await scheduleImmediateNotification({
-          title: result.successTitle ?? 'Fishing Lab',
-          body: result.message,
-          data: activeOuting
-            ? {
-                sessionId: activeOuting.sessionId,
-                experimentId: activeOuting.experimentId ?? undefined,
-                targetRoute: activeOuting.targetRoute
-              }
-            : undefined
-        });
+      if (result.ok) {
+        if (appStateRef.current === 'active') {
+          setHandsFreeBanner({ tone: 'success', text: result.message });
+        } else if (confirmationNotificationsEnabled) {
+          await scheduleImmediateNotification({
+            title: result.successTitle ?? 'Fishing Lab',
+            body: result.message,
+            data: activeOuting
+              ? {
+                  sessionId: activeOuting.sessionId,
+                  experimentId: activeOuting.experimentId ?? undefined,
+                  targetRoute: activeOuting.targetRoute
+                }
+              : undefined
+          });
+        }
       } else if (!result.ok) {
+        setHandsFreeBanner({ tone: 'warning', text: result.message });
         Alert.alert('Hands-free action unavailable', result.message);
       }
 
@@ -137,8 +172,7 @@ const AppNavigator = ({ navigationRef }: { navigationRef: ReturnType<typeof useN
       .then(handleUrl)
       .catch(console.error);
 
-    consumePendingHandsFreeNativeCommand()
-      .then(runHandsFreeCommand)
+    drainPendingNativeCommands()
       .catch(console.error);
 
     const linkSubscription = Linking.addEventListener('url', ({ url }) => {
@@ -146,9 +180,9 @@ const AppNavigator = ({ navigationRef }: { navigationRef: ReturnType<typeof useN
     });
 
     const appStateSubscription = AppState.addEventListener('change', (state) => {
+      appStateRef.current = state;
       if (state !== 'active') return;
-      consumePendingHandsFreeNativeCommand()
-        .then(runHandsFreeCommand)
+      drainPendingNativeCommands()
         .catch(console.error);
     });
 
@@ -214,35 +248,50 @@ const AppNavigator = ({ navigationRef }: { navigationRef: ReturnType<typeof useN
   }
 
   return (
-    <NavigationContainer ref={navigationRef}>
-      <Stack.Navigator
-        initialRouteName={canEnterApp ? 'Home' : 'Auth'}
-        screenOptions={{
-          headerTintColor: theme.colors.headerTint,
-          headerBackTitleVisible: false,
-          headerStyle: { backgroundColor: theme.colors.surfaceLightAlt },
-          headerTitleStyle: { color: theme.colors.textDark }
-        }}
-      >
-        {!canEnterApp ? (
-          <Stack.Screen name="Auth" component={AuthScreen} options={{ headerShown: false }} />
-        ) : (
-          <>
-            <Stack.Screen name="Home" component={HomeScreen} />
-            <Stack.Screen name="Session" component={SessionScreen} />
-            <Stack.Screen name="Experiment" component={ExperimentScreen} />
-            <Stack.Screen name="Practice" component={PracticeScreen} />
-            <Stack.Screen name="Competition" component={CompetitionScreen} />
-            <Stack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: 'Session' }} />
-            <Stack.Screen name="PracticeReview" component={PracticeReviewScreen} options={{ title: 'Practice Review' }} />
-            <Stack.Screen name="Insights" component={InsightsScreen} />
-            <Stack.Screen name="History" component={HistoryScreen} />
-            <Stack.Screen name="Coach" component={CoachScreen} />
-            <Stack.Screen name="Access" component={AccessScreen} />
-          </>
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+    <View style={{ flex: 1 }}>
+      <NavigationContainer ref={navigationRef}>
+        <Stack.Navigator
+          initialRouteName={canEnterApp ? 'Home' : 'Auth'}
+          screenOptions={{
+            headerTintColor: theme.colors.headerTint,
+            headerBackTitleVisible: false,
+            headerStyle: { backgroundColor: theme.colors.surfaceLightAlt },
+            headerTitleStyle: { color: theme.colors.textDark }
+          }}
+        >
+          {!canEnterApp ? (
+            <Stack.Screen name="Auth" component={AuthScreen} options={{ headerShown: false }} />
+          ) : (
+            <>
+              <Stack.Screen name="Home" component={HomeScreen} />
+              <Stack.Screen name="Session" component={SessionScreen} />
+              <Stack.Screen name="Experiment" component={ExperimentScreen} />
+              <Stack.Screen name="Practice" component={PracticeScreen} />
+              <Stack.Screen name="Competition" component={CompetitionScreen} />
+              <Stack.Screen name="SessionDetail" component={SessionDetailScreen} options={{ title: 'Session' }} />
+              <Stack.Screen name="PracticeReview" component={PracticeReviewScreen} options={{ title: 'Practice Review' }} />
+              <Stack.Screen name="Insights" component={InsightsScreen} />
+              <Stack.Screen name="History" component={HistoryScreen} />
+              <Stack.Screen name="Coach" component={CoachScreen} />
+              <Stack.Screen name="Access" component={AccessScreen} />
+            </>
+          )}
+        </Stack.Navigator>
+      </NavigationContainer>
+      {handsFreeBanner ? (
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: 12,
+            left: 12,
+            right: 12
+          }}
+        >
+          <StatusBanner tone={handsFreeBanner.tone} text={handsFreeBanner.text} />
+        </View>
+      ) : null}
+    </View>
   );
 };
 

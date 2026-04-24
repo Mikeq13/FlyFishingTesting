@@ -11,6 +11,12 @@ export const InsightCard = ({ insight }: { insight: Insight }) => {
       : insight.confidence === 'medium'
         ? 'Moderate evidence'
         : 'Early signal';
+  const trustLabel =
+    insight.confidence === 'high'
+      ? 'Decision-ready if the context matches today.'
+      : insight.confidence === 'medium'
+        ? 'Useful clue; confirm it with more water time.'
+        : 'Exploratory only; log more clean data before leaning on it.';
   const sampleCount =
     typeof insight.supportingData.sampleCount === 'number'
       ? insight.supportingData.sampleCount
@@ -30,10 +36,13 @@ export const InsightCard = ({ insight }: { insight: Insight }) => {
       }}
     >
       <Text style={{ fontWeight: '800', color: theme.colors.text, marginBottom: 4 }}>
-        {insight.type.toUpperCase()} · {confidenceLabel}
+        {insight.type.toUpperCase()} - {confidenceLabel}
       </Text>
       <Text style={{ color: theme.colors.textMuted, lineHeight: 22 }}>{insight.message}</Text>
-      {sampleCount ? <Text style={{ color: theme.colors.textSoft, marginTop: 6, fontSize: 12 }}>Sample size: {sampleCount}</Text> : null}
+      <View style={{ marginTop: 8, gap: 3 }}>
+        <Text style={{ color: theme.colors.textSoft, fontSize: 12 }}>{trustLabel}</Text>
+        {sampleCount ? <Text style={{ color: theme.colors.textSoft, fontSize: 12 }}>Sample size: {sampleCount}</Text> : null}
+      </View>
     </View>
   );
 };

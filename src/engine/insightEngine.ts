@@ -36,16 +36,17 @@ export const generateInsights = (stats: AggregatedStats): Insight[] => {
         type: 'pattern',
         message: `Strong test signal: ${c.label} '${top[0]}' is outperforming '${bottom[0]}' in clean logged data by ${(diff * 100).toFixed(0)}%.`,
         confidence: confidenceFromSamples(sampleCount),
-        supportingData: { dimension: c.label, top, bottom, diff }
+        supportingData: { dimension: c.label, top, bottom, diff, sampleCount }
       });
     }
 
     if (bottom[1] < 0.08) {
+      const sampleCount = bottomCasts;
       insights.push({
         type: 'warning',
         message: `Weak zone identified in ${c.label} '${bottom[0]}' (catch rate ${(bottom[1] * 100).toFixed(1)}%).`,
-        confidence: 'medium',
-        supportingData: { dimension: c.label, value: bottom[0], rate: bottom[1] }
+        confidence: confidenceFromSamples(sampleCount),
+        supportingData: { dimension: c.label, value: bottom[0], rate: bottom[1], sampleCount }
       });
     }
   }
@@ -70,7 +71,7 @@ export const generateInsights = (stats: AggregatedStats): Insight[] => {
         type: 'recommendation',
         message: `River-season signal detected: '${top[0]}' is currently your strongest stored context for catch rate performance.`,
         confidence: confidenceFromSamples(stats.byRiverMonth[top[0]].casts),
-        supportingData: { dimension: 'river-month', top }
+        supportingData: { dimension: 'river-month', top, sampleCount: stats.byRiverMonth[top[0]].casts }
       });
     }
   }
@@ -91,7 +92,7 @@ export const generateInsights = (stats: AggregatedStats): Insight[] => {
       type: 'recommendation',
       message: `Strongest stored ${c.label} context: '${top[0]}' is returning ${(top[1] * 100).toFixed(1)}% catch rate over ${sampleCount} casts.`,
       confidence: confidenceFromSamples(sampleCount),
-      supportingData: { dimension: c.label, top }
+      supportingData: { dimension: c.label, top, sampleCount }
     });
   }
 

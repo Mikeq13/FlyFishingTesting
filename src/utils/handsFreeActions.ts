@@ -43,10 +43,15 @@ const failure = (message: string): HandsFreeActionResult => ({
   message
 });
 
+const describeSource = (source: HandsFreeCommand['source']) =>
+  source === 'watch' ? 'Apple Watch' : source === 'assistant' ? 'Google Assistant' : source === 'app' ? 'Fishing Lab' : 'Siri';
+
 export const executeHandsFreeCommand = async (
   command: HandsFreeCommand,
   context: HandsFreeActionContext
 ): Promise<HandsFreeActionResult> => {
+  const sourceLabel = describeSource(command.source ?? 'siri');
+
   if (!context.dictationEnabled) {
     return failure('Hands-free dictation is turned off in Settings.');
   }
@@ -88,7 +93,7 @@ export const executeHandsFreeCommand = async (
           notes: appendNote(activeSegment.notes, noteText)
         })
       );
-      return success('Added a hands-free note to the current practice segment.', 'Note Added');
+      return success(`Added a ${sourceLabel} note to the current practice segment.`, 'Note Added');
     }
 
     await context.updateSessionEntry(
@@ -97,7 +102,7 @@ export const executeHandsFreeCommand = async (
         notes: appendNote(session.notes, noteText)
       })
     );
-    return success('Added a hands-free note to the current outing.', 'Note Added');
+    return success(`Added a ${sourceLabel} note to the current outing.`, 'Note Added');
   }
 
   if (command.action === 'change_water') {
@@ -180,9 +185,9 @@ export const executeHandsFreeCommand = async (
         lengthValue: session.competitionRequiresMeasurement === false ? undefined : command.lengthValue ?? undefined,
         lengthUnit: session.competitionLengthUnit ?? command.lengthUnit ?? 'mm',
         caughtAt: new Date().toISOString(),
-        notes: 'Logged hands-free through Siri'
+        notes: `Logged hands-free through ${sourceLabel}`
       });
-      return success('Logged a competition fish to the current outing.', 'Fish Logged');
+      return success('Logged a fish to the current competition outing.', 'Fish Logged');
     }
 
     if (activeOuting.targetRoute === 'Practice' && activeSegment) {
@@ -197,9 +202,9 @@ export const executeHandsFreeCommand = async (
         lengthValue: session.practiceMeasurementEnabled ? command.lengthValue ?? undefined : undefined,
         lengthUnit: session.practiceLengthUnit ?? command.lengthUnit ?? 'in',
         caughtAt: new Date().toISOString(),
-        notes: 'Logged hands-free through Siri'
+        notes: `Logged hands-free through ${sourceLabel}`
       });
-      return success('Logged a practice catch to the active segment.', 'Fish Logged');
+      return success('Logged a fish to the active practice segment.', 'Fish Logged');
     }
 
     return failure('Hands-free fish logging is available for practice and competition outings right now.');
