@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, ScrollView, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { AppButton } from '@/components/ui/AppButton';
 import { BottomSheetSurface } from '@/components/ui/BottomSheetSurface';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
@@ -29,13 +29,13 @@ export const WaterGuideDrawer = ({
   const entry = getWaterTypePlaybookEntry(selectedWaterType);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <BottomSheetSurface
+        visible={visible}
         title="Water Guide"
         subtitle="Fast field guidance for the water in front of you. Start here, then let the journal prove what worked."
         onClose={onClose}
       >
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 12 }}>
+        <View style={{ gap: 12 }}>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {Object.values(WATER_TYPE_PLAYBOOK).map((item) => {
               const selected = item.waterType === selectedWaterType;
@@ -67,9 +67,7 @@ export const WaterGuideDrawer = ({
             This is a starting point, not a guarantee. Fishing Lab gets smarter when you log the water, rig, technique, and catches that actually happened.
           </Text>
           <AppButton label="Done" onPress={onClose} surfaceTone="modal" />
-        </ScrollView>
+        </View>
       </BottomSheetSurface>
-    </Modal>
   );
 };
-

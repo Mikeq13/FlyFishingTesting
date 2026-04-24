@@ -1,11 +1,12 @@
 import React from 'react';
-import { Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { KeyboardDismissView } from '@/components/KeyboardDismissView';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { AppButton } from '@/components/ui/AppButton';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { StatusBanner } from '@/components/ui/StatusBanner';
+import { ModalSurface } from '@/components/ui/ModalSurface';
 import { WaterGuideDrawer } from '@/components/WaterGuideDrawer';
 import { useTheme } from '@/design/theme';
 import { useAppStore } from './store';
@@ -424,28 +425,13 @@ export const HomeScreen = ({ navigation }: any) => {
       </ScrollView>
       </KeyboardDismissView>
       <WaterGuideDrawer visible={showWaterGuide} waterType={activeOutingSegment?.waterType ?? activeOutingSession?.waterType ?? 'run'} onClose={() => setShowWaterGuide(false)} />
-      <Modal visible={showSessionChooser} transparent animationType="fade" onRequestClose={() => setShowSessionChooser(false)}>
-        <View style={{ flex: 1, backgroundColor: theme.colors.overlay, justifyContent: 'center', padding: 20 }}>
-          <View
-            style={{
-              backgroundColor: theme.colors.modalSurface,
-              borderRadius: 22,
-              padding: 18,
-              gap: 12,
-              borderWidth: 1,
-              borderColor: theme.colors.borderStrong,
-              width: '100%',
-              maxWidth: layout.modalMaxWidth,
-              alignSelf: 'center'
-            }}
-          >
-            <View style={{ gap: 4 }}>
-              <Text style={{ color: theme.colors.modalText, fontSize: 24, fontWeight: '800' }}>What do you want to log today?</Text>
-              <Text style={{ color: theme.colors.modalTextSoft, lineHeight: 20 }}>
-                Choose the light journal path for most days, or a structured experiment when you want to compare one thing carefully.
-              </Text>
-            </View>
-
+      <ModalSurface
+        visible={showSessionChooser}
+        title="What do you want to log today?"
+        subtitle="Choose the light journal path for most days, or a structured experiment when you want to compare one thing carefully."
+        onClose={() => setShowSessionChooser(false)}
+      >
+            <View style={{ gap: 12 }}>
             {SESSION_MODE_OPTIONS.map((option) => (
               <Pressable
                 key={option.mode}
@@ -465,9 +451,8 @@ export const HomeScreen = ({ navigation }: any) => {
             ))}
 
             <AppButton label="Cancel" onPress={() => setShowSessionChooser(false)} variant="ghost" surfaceTone="modal" />
-          </View>
-        </View>
-      </Modal>
+            </View>
+      </ModalSurface>
     </ScreenBackground>
   );
 };

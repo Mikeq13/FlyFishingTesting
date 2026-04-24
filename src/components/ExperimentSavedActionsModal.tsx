@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View } from 'react-native';
+import { View } from 'react-native';
 import { AppButton } from '@/components/ui/AppButton';
 import { ModalSurface } from '@/components/ui/ModalSurface';
 
@@ -22,10 +22,11 @@ export const ExperimentSavedActionsModal = ({
   onGoToInsights,
   onClose
 }: ExperimentSavedActionsModalProps) => (
-  <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
     <ModalSurface
+      visible={visible}
       title={isEditing ? 'Experiment updated' : 'Experiment saved'}
       subtitle="What do you want to do next?"
+      onClose={onClose}
     >
       <View style={{ gap: 8 }}>
         <AppButton label="Modify and continue" onPress={onModifyAndContinue} variant="primary" surfaceTone="modal" />
@@ -35,5 +36,4 @@ export const ExperimentSavedActionsModal = ({
         <AppButton label="Close" onPress={onClose} variant="neutral" surfaceTone="modal" />
       </View>
     </ModalSurface>
-  </Modal>
 );

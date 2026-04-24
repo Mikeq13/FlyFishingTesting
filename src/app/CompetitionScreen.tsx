@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { OptionChips } from '@/components/OptionChips';
 import { useAppStore } from './store';
@@ -288,10 +288,11 @@ export const CompetitionScreen = ({ route }: any) => {
         </SectionCard>
       </ScrollView>
 
-      <Modal visible={showCatchModal} transparent animationType="fade" onRequestClose={() => setShowCatchModal(false)}>
         <ModalSurface
+          visible={showCatchModal}
           title="Log Competition Fish"
           subtitle="Keep the scoring flow quick and clear so the phone never gets in the way of the session."
+          onClose={() => setShowCatchModal(false)}
         >
           <OptionChips label="Species" options={TROUT_SPECIES} value={species} onChange={setSpecies} />
           {competitionRequiresMeasurement ? (
@@ -327,7 +328,6 @@ export const CompetitionScreen = ({ route }: any) => {
             <AppButton label="Cancel" onPress={() => { if (!isSavingCatch) setShowCatchModal(false); }} variant="ghost" disabled={isSavingCatch} />
           </ActionGroup>
         </ModalSurface>
-      </Modal>
       <DictationHelpModal visible={showDictationHelp} onClose={() => setShowDictationHelp(false)} />
     </ScreenBackground>
   );

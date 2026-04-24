@@ -4,25 +4,32 @@ import { Sheet, Text, YStack } from 'tamagui';
 import { useTheme } from '@/design/theme';
 
 export const BottomSheetSurface = ({
+  visible = true,
   title,
   subtitle,
+  onOpenChange,
   onClose,
   children
 }: {
+  visible?: boolean;
   title: string;
   subtitle?: string;
+  onOpenChange?: (open: boolean) => void;
   onClose: () => void;
   children: React.ReactNode;
 }) => {
   const { theme } = useTheme();
 
+  if (!visible) return null;
+
   return (
     <Sheet
       modal
-      open
+      open={visible}
       snapPoints={[86]}
       dismissOnSnapToBottom
       onOpenChange={(open: boolean) => {
+        onOpenChange?.(open);
         if (!open) onClose();
       }}
     >

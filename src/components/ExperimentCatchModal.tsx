@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { TroutSpecies } from '@/types/experiment';
 import { AppButton } from '@/components/ui/AppButton';
 import { ModalSurface } from '@/components/ui/ModalSurface';
@@ -32,10 +32,11 @@ export const ExperimentCatchModal = ({
   const { theme } = useTheme();
 
   return (
-  <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
     <ModalSurface
+      visible={visible}
       title={title}
       subtitle="Choose the trout species and optionally add an approximate length so the app can track both catch rate and fish quality."
+      onClose={onCancel}
     >
 
         <View style={{ gap: 8 }}>
@@ -90,6 +91,5 @@ export const ExperimentCatchModal = ({
           </View>
         </View>
     </ModalSurface>
-  </Modal>
   );
 };

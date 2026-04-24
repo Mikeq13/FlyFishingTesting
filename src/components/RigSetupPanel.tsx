@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { OptionChips } from './OptionChips';
 import { AddedTippetSection, LeaderFormula, RigPreset, RigSetup, TippetSize } from '@/types/rig';
 import { applyLeaderFormulaToRig, createRigPresetPayload } from '@/utils/rigSetup';
@@ -409,8 +409,12 @@ export const RigSetupPanel = ({
           {!forceEditorOpen ? <AppButton label="Hide Setup Details" onPress={closeSetupEditor} variant="ghost" surfaceTone={tone} /> : null}
         </>
       ) : null}
-      <Modal visible={showFormulaEditor && foregroundQuickAdd} transparent animationType="fade" onRequestClose={() => setShowFormulaEditor(false)}>
-        <ModalSurface title="Quick Add Leader" subtitle="Save a new leader in the foreground, then return to this setup flow.">
+      <ModalSurface
+        visible={showFormulaEditor && foregroundQuickAdd}
+        title="Quick Add Leader"
+        subtitle="Save a new leader in the foreground, then return to this setup flow."
+        onClose={() => setShowFormulaEditor(false)}
+      >
           <LeaderFormulaEditor
             tone="modal"
             onSave={async (payload) => {
@@ -426,9 +430,12 @@ export const RigSetupPanel = ({
           />
           <AppButton label="Cancel" onPress={() => setShowFormulaEditor(false)} variant="ghost" surfaceTone="modal" />
         </ModalSurface>
-      </Modal>
-      <Modal visible={showPresetEditor && foregroundQuickAdd && presentationMode !== 'setup'} transparent animationType="fade" onRequestClose={() => setShowPresetEditor(false)}>
-        <ModalSurface title={presentationMode === 'setup' ? 'Build New Rig' : 'Quick Add Rig'} subtitle={presentationMode === 'setup' ? 'Build today’s starting rig and save it for future use if you want it again.' : 'Save a rig preset in the foreground, then return to this setup flow.'}>
+      <ModalSurface
+        visible={showPresetEditor && foregroundQuickAdd && presentationMode !== 'setup'}
+        title={presentationMode === 'setup' ? 'Build New Rig' : 'Quick Add Rig'}
+        subtitle={presentationMode === 'setup' ? 'Build today’s starting rig and save it for future use if you want it again.' : 'Save a rig preset in the foreground, then return to this setup flow.'}
+        onClose={() => setShowPresetEditor(false)}
+      >
           <RigPresetEditor
             tone="modal"
             onSave={async (name) => {
@@ -442,7 +449,6 @@ export const RigSetupPanel = ({
           />
           <AppButton label="Cancel" onPress={() => setShowPresetEditor(false)} variant="ghost" surfaceTone="modal" />
         </ModalSurface>
-      </Modal>
     </SectionCard>
   );
 };

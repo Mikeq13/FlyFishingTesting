@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Modal, ScrollView, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { OptionChips } from '@/components/OptionChips';
 import { RigFlyManager } from '@/components/RigFlyManager';
 import { RigSetupPanel } from '@/components/RigSetupPanel';
@@ -173,8 +173,8 @@ export const PracticeSetupSection = ({
           ) : null}
         </SectionCard>
       ) : null}
-      <Modal visible={activeSetupSheet !== null} transparent animationType="fade" onRequestClose={() => setActiveSetupSheet(null)}>
         <BottomSheetSurface
+          visible={activeSetupSheet !== null}
           title={
             activeSetupSheet === 'technique'
               ? presentationMode === 'setup'
@@ -211,7 +211,7 @@ export const PracticeSetupSection = ({
           }
           onClose={() => setActiveSetupSheet(null)}
         >
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 12 }}>
+          <View style={{ gap: 12 }}>
             {activeSetupSheet === 'technique' ? (
               <SectionCard title="Technique" subtitle="Keep approach changes fast and obvious before you adjust the rest of the setup." tone="modal">
                 <OptionChips
@@ -277,9 +277,8 @@ export const PracticeSetupSection = ({
               />
             ) : null}
             <AppButton label="Done" onPress={() => setActiveSetupSheet(null)} />
-          </ScrollView>
+          </View>
         </BottomSheetSurface>
-      </Modal>
     </>
   );
 };

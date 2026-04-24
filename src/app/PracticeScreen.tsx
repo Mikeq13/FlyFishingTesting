@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { OptionChips } from '@/components/OptionChips';
 import { DepthSelector } from '@/components/DepthSelector';
@@ -497,8 +497,8 @@ export const PracticeScreen = ({ route, navigation }: any) => {
           )}
         </SectionCard>
       </ScrollView>
-      <Modal visible={activeSetupSheet !== null} transparent animationType="fade" onRequestClose={() => setActiveSetupSheet(null)}>
         <BottomSheetSurface
+          visible={activeSetupSheet !== null}
           title={
             activeSetupSheet === 'technique'
               ? 'Change Technique'
@@ -519,7 +519,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
           }
           onClose={() => setActiveSetupSheet(null)}
         >
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 12 }}>
+          <View style={{ gap: 12 }}>
             {activeSetupSheet === 'technique' ? (
               <SectionCard title="Technique" subtitle="Use the same active session and switch methods without leaving the water flow." tone="modal">
                 <OptionChips
@@ -615,9 +615,8 @@ export const PracticeScreen = ({ route, navigation }: any) => {
               />
             ) : null}
             <AppButton label="Done" onPress={() => setActiveSetupSheet(null)} />
-          </ScrollView>
+          </View>
         </BottomSheetSurface>
-      </Modal>
       <PracticeCatchModal
         visible={pendingCatchFly !== null}
         title={`Log catch for ${pendingCatchFly?.name ?? 'Fly'}`}

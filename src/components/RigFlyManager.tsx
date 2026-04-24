@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { FlySetup, SavedFly } from '@/types/fly';
 import { FlySelector } from './FlySelector';
 import { RigFlyAssignment, RigSetup } from '@/types/rig';
@@ -302,14 +302,15 @@ export const RigFlyManager = ({
       ) : null}
         </>
       ) : null}
-      <Modal visible={targetAssignmentIndex !== null && editorMode !== null && foregroundQuickAdd} transparent animationType="fade" onRequestClose={() => setEditorMode(null)}>
         <ModalSurface
+          visible={targetAssignmentIndex !== null && editorMode !== null && foregroundQuickAdd}
           title={`${editorMode === 'adjust' ? 'Adjust Fly For' : 'New Fly For'} ${targetAssignmentIndex !== null ? selectedAssignments[targetAssignmentIndex]?.position ?? 'Slot' : 'Slot'}`}
           subtitle={
             editorMode === 'adjust'
               ? 'Tune the current fly in the foreground, then return to the same setup flow.'
               : 'Build the fly in the foreground, then return to the same setup flow.'
           }
+          onClose={() => setEditorMode(null)}
         >
           <FlySelector
             title={editorMode === 'adjust' ? 'Adjust Current Fly' : 'New Fly'}
@@ -344,11 +345,11 @@ export const RigFlyManager = ({
           />
           <AppButton label="Cancel" onPress={() => setEditorMode(null)} variant="ghost" surfaceTone="modal" />
         </ModalSurface>
-      </Modal>
-      <Modal visible={targetAssignmentIndex !== null && editorMode === null && foregroundQuickAdd} transparent animationType="fade" onRequestClose={closeForegroundPicker}>
         <ModalSurface
+          visible={targetAssignmentIndex !== null && editorMode === null && foregroundQuickAdd}
           title={`Saved Flies For ${targetAssignmentIndex !== null ? selectedAssignments[targetAssignmentIndex]?.position ?? 'Slot' : 'Slot'}`}
           subtitle="Pick from the current angler's saved flies for this slot."
+          onClose={closeForegroundPicker}
         >
           {sortedSavedFlies.length ? (
             <ScrollView
@@ -405,7 +406,6 @@ export const RigFlyManager = ({
           )}
           <AppButton label="Cancel" onPress={closeForegroundPicker} variant="ghost" surfaceTone="modal" />
         </ModalSurface>
-      </Modal>
     </SectionCard>
   );
 };

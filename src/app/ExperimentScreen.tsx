@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { ExperimentCatchModal } from '@/components/ExperimentCatchModal';
 import { ExperimentSavedActionsModal } from '@/components/ExperimentSavedActionsModal';
 import { KeyboardDismissView } from '@/components/KeyboardDismissView';
@@ -995,8 +995,8 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
 
       </ScrollView>
       </KeyboardDismissView>
-      <Modal visible={activeSetupSheet !== null} transparent animationType="fade" onRequestClose={() => setActiveSetupSheet(null)}>
         <BottomSheetSurface
+          visible={activeSetupSheet !== null}
           title={
             activeSetupSheet === 'technique'
               ? 'Change Technique'
@@ -1017,7 +1017,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           }
           onClose={() => setActiveSetupSheet(null)}
         >
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 12 }}>
+          <View style={{ gap: 12 }}>
             {activeSetupSheet === 'technique' ? (
               <SectionCard title="Technique" subtitle="Switch methods without losing your place in the experiment." tone="modal">
                 <OptionChips
@@ -1130,9 +1130,8 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
               />
             ) : null}
             <AppButton label="Done" onPress={() => setActiveSetupSheet(null)} />
-          </ScrollView>
+          </View>
         </BottomSheetSurface>
-      </Modal>
       <ExperimentCatchModal
         visible={pendingFishEntryIndex !== null}
         title={`Log catch for ${pendingFishEntryIndex !== null && visibleEntries[pendingFishEntryIndex] ? visibleEntries[pendingFishEntryIndex].label : 'Fly'}`}

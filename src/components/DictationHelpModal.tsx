@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, ScrollView, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { HANDS_FREE_EXAMPLES, SUPPORTED_TECHNIQUES, SUPPORTED_WATER_TYPES } from '@/utils/handsFree';
 import { useTheme } from '@/design/theme';
 import { ModalSurface } from '@/components/ui/ModalSurface';
@@ -15,12 +15,13 @@ export const DictationHelpModal = ({
   const { theme } = useTheme();
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <ModalSurface
+        visible={visible}
         title="Hands-Free Dictation"
         subtitle="Use Siri or Google Assistant phrases that map cleanly onto the current outing so voice logging stays predictable on the water."
+        onClose={onClose}
       >
-        <ScrollView contentContainerStyle={{ gap: 12 }}>
+        <View style={{ gap: 12 }}>
           <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
             Fishing Lab keeps the vocabulary intentionally small so voice commands stay reliable when you are moving, wet, or wearing gloves.
           </Text>
@@ -51,8 +52,7 @@ export const DictationHelpModal = ({
             Supported techniques: {SUPPORTED_TECHNIQUES.join(', ')}
           </Text>
           <AppButton label="Done" onPress={onClose} />
-        </ScrollView>
+        </View>
       </ModalSurface>
-    </Modal>
   );
 };

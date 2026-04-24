@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, ScrollView, Text } from 'react-native';
+import { Text, View } from 'react-native';
 import { AppButton } from '@/components/ui/AppButton';
 import { BottomSheetSurface } from '@/components/ui/BottomSheetSurface';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
@@ -54,13 +54,13 @@ export const SessionIntelligenceDrawer = ({
   const changedTechniques = [...new Set(segmentsForSession.map((segment) => segment.technique).filter(Boolean))];
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <BottomSheetSurface
+        visible={visible}
         title="Session Intelligence"
         subtitle="Coach and insight context tied to this journal entry, not a detached analytics page."
         onClose={onClose}
       >
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 12 }}>
+        <View style={{ gap: 12 }}>
           {!session ? (
             <Text style={{ color: theme.colors.modalTextSoft }}>Session not found.</Text>
           ) : (
@@ -102,9 +102,7 @@ export const SessionIntelligenceDrawer = ({
             <AppButton label="Open Full Analysis" onPress={onOpenFullInsights} variant="secondary" surfaceTone="modal" />
           ) : null}
           <AppButton label="Done" onPress={onClose} surfaceTone="modal" />
-        </ScrollView>
+        </View>
       </BottomSheetSurface>
-    </Modal>
   );
 };
-
