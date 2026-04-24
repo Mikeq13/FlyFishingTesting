@@ -9,19 +9,54 @@ export const BETA_READINESS_CHECKS: Array<Omit<BetaReadinessCheck, 'status'>> = 
     description: 'Home opens as a field cockpit without forcing normal testers through owner tools.'
   },
   {
-    key: 'active_recovery',
-    label: 'Active Outing Recovery',
-    description: 'A live outing survives relaunch and resumes to the correct flow.'
+    key: 'start_practice',
+    label: 'Start Practice',
+    description: 'Practice starts directly from Home and lands in the active field flow without admin context.'
   },
   {
-    key: 'hands_free',
-    label: 'Hands-Free Commands',
-    description: 'Resume, log fish, add note, change water, and change technique report clear results.'
+    key: 'resume_outing',
+    label: 'Resume Outing',
+    description: 'A live outing survives app leave/relaunch and resumes to the correct route.'
+  },
+  {
+    key: 'log_fish',
+    label: 'Log Fish',
+    description: 'Fish logging gives saved/action feedback and remains present after refresh or relaunch.'
+  },
+  {
+    key: 'add_note',
+    label: 'Add Note',
+    description: 'Notes save into the active outing context and remain visible after refresh or relaunch.'
+  },
+  {
+    key: 'change_water',
+    label: 'Change Water',
+    description: 'Water changes preserve the expected active segment context and give clear saved feedback.'
+  },
+  {
+    key: 'change_technique',
+    label: 'Change Technique',
+    description: 'Technique changes update the active context and survive refresh or relaunch.'
+  },
+  {
+    key: 'hands_free_disabled',
+    label: 'Hands-Free Disabled State',
+    description: 'Voice/deep-link commands fail with the same in-app disabled message when dictation is off.'
+  },
+  {
+    key: 'hands_free_no_active',
+    label: 'Hands-Free No-Active-Outing',
+    description: 'Commands explain that no outing is available instead of silently doing nothing.'
+  },
+  {
+    key: 'relaunch_persistence',
+    label: 'Relaunch Persistence',
+    description: 'Recently saved field actions still match after app refresh, relaunch, or cold open.'
   },
   {
     key: 'sync_trust',
-    label: 'Sync Trust',
-    description: 'Saved locally, syncing, unavailable, and structural backend states are distinguishable.'
+    label: 'Sync Messaging',
+    description: 'Saved locally, syncing to shared backend, unavailable, and migration/policy states are distinguishable.'
   },
   {
     key: 'duplicate_proof',

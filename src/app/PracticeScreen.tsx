@@ -23,7 +23,7 @@ import { AppButton } from '@/components/ui/AppButton';
 import { BottomSheetSurface } from '@/components/ui/BottomSheetSurface';
 import { useTheme } from '@/design/theme';
 import { useResponsiveLayout } from '@/design/layout';
-import { formatSharedBackendError, getPendingSyncFeedback } from '@/utils/syncFeedback';
+import { formatSharedBackendError, getPendingSyncFeedback, getPendingSyncFeedbackTone } from '@/utils/syncFeedback';
 import { DictationHelpModal } from '@/components/DictationHelpModal';
 import { buildFieldActionFeedback, FieldFeedback } from '@/utils/fieldFeedback';
 
@@ -370,7 +370,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
           subtitle="Stay light, change water fast, and log what is producing without breaking your rhythm."
           eyebrow={session.riverName ?? 'On-Water Workflow'}
         />
-        {syncFeedback ? <StatusBanner tone={syncStatus.lastError ? 'warning' : 'info'} text={syncFeedback} /> : null}
+        {syncFeedback ? <StatusBanner tone={getPendingSyncFeedbackTone(syncStatus)} text={syncFeedback} /> : null}
         {fieldFeedback ? <StatusBanner tone={fieldFeedback.tone} text={fieldFeedback.text} /> : null}
 
         {timer.activeAlertMinute ? (

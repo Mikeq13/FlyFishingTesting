@@ -27,7 +27,7 @@ import { CatchCounter } from '@/components/CatchCounter';
 import { TECHNIQUES, WATER_TYPES } from '@/constants/options';
 import { Technique, WaterType } from '@/types/session';
 import { BottomSheetSurface } from '@/components/ui/BottomSheetSurface';
-import { formatSharedBackendError, getPendingSyncFeedback } from '@/utils/syncFeedback';
+import { formatSharedBackendError, getPendingSyncFeedback, getPendingSyncFeedbackTone } from '@/utils/syncFeedback';
 import { getExperimentRigIdentitySignature } from '@/utils/dataIdentity';
 import { DictationHelpModal } from '@/components/DictationHelpModal';
 
@@ -774,7 +774,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         {isDraft ? (
           <StatusBanner tone="warning" text="Draft mode: incomplete experiments can be saved now and finished later. Only invalid counts are blocked." />
         ) : null}
-        {syncStatusText ? <StatusBanner tone={syncStatus.lastError ? 'warning' : 'info'} text={syncStatusText} /> : null}
+        {syncStatusText ? <StatusBanner tone={getPendingSyncFeedbackTone(syncStatus)} text={syncStatusText} /> : null}
         {comparisonWarning?.check.warning ? (
           <StatusBanner
             tone="info"

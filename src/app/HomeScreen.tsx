@@ -57,6 +57,7 @@ export const HomeScreen = ({ navigation }: any) => {
   const layout = useResponsiveLayout();
   const isDaylightTheme = theme.id === 'daylight_light';
   const [showSessionChooser, setShowSessionChooser] = React.useState(false);
+  const [resumeFeedback, setResumeFeedback] = React.useState<{ tone: 'success' | 'warning'; text: string } | null>(null);
   const shouldCenterContent = Platform.OS !== 'web' && !layout.isCompactLayout;
   const latestInsight = React.useMemo(
     () => [...topFlyInsights, ...insights].find((insight) => insight.confidence !== 'low') ?? topFlyInsights[0] ?? insights[0] ?? null,
@@ -78,6 +79,9 @@ export const HomeScreen = ({ navigation }: any) => {
     [activeOuting, sessionSegments]
   );
   const activeOutingIsStale = !!activeOuting && (!activeOutingSession || !!activeOutingSession.endedAt);
+  const activeOutingResumeRoute = activeOutingTarget
+    ? `${activeOutingTarget.route}${activeOuting?.experimentId ? ` #${activeOuting.experimentId}` : ''}`
+    : 'No route available';
   const syncTrustFeedback = React.useMemo(
     () =>
       getSyncTrustFeedback({
@@ -283,8 +287,23 @@ export const HomeScreen = ({ navigation }: any) => {
                 <>
                   <StatusBanner
                     tone="warning"
-                    text="The stored outing cannot be resumed because the session is missing or already ended. Dismiss it to clear the stale recovery state."
+                    text="Repair needed: the stored outing points to a session that is missing or already ended. This outing cannot be resumed safely."
                   />
+                  <View
+                    style={{
+                      gap: 6,
+                      borderRadius: theme.radius.md,
+                      padding: 12,
+                      backgroundColor: theme.colors.surfaceAlt,
+                      borderWidth: 1,
+                      borderColor: theme.colors.border
+                    }}
+                  >
+                    <Text style={{ color: theme.colors.textSoft }}>Mode: {activeOuting.mode}</Text>
+                    <Text style={{ color: theme.colors.textSoft }}>Resume target: {activeOutingResumeRoute}</Text>
+                    <Text style={{ color: theme.colors.textSoft }}>Last action: {new Date(activeOuting.lastActiveAt).toLocaleString()}</Text>
+                    <Text style={{ color: theme.colors.textSoft }}>Repair: dismiss stale outing, then start a clean journal flow.</Text>
+                  </View>
                   <AppButton
                     label="Dismiss Stale Outing"
                     onPress={() => {
@@ -296,6 +315,7 @@ export const HomeScreen = ({ navigation }: any) => {
               ) : (
                 <>
                   <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 18 }}>{buildActiveOutingLabel(activeOuting)}</Text>
+                  {resumeFeedback ? <StatusBanner tone={resumeFeedback.tone} text={resumeFeedback.text} /> : null}
                   <View
                     style={{
                       gap: 6,
@@ -321,11 +341,26 @@ export const HomeScreen = ({ navigation }: any) => {
                     <Text style={{ color: theme.colors.textSoft }}>
                       Last action: {new Date(activeOuting.lastActiveAt).toLocaleString()}
                     </Text>
+                    <Text style={{ color: theme.colors.textSoft }}>
+                      Resume target: {activeOutingResumeRoute}
+                    </Text>
                   </View>
+                  {syncTrustFeedback ? <StatusBanner tone={syncTrustFeedback.tone} text={syncTrustFeedback.text} /> : null}
                   <AppButton
                     label="Resume Current Outing"
                     onPress={() => {
-                      if (activeOutingTarget) navigation.navigate(activeOutingTarget.route, activeOutingTarget.params);
+                      if (activeOutingTarget) {
+                        setResumeFeedback({
+                          tone: 'success',
+                          text: 'Current outing is ready to resume. Saved state should survive relaunch.'
+                        });
+                        navigation.navigate(activeOutingTarget.route, activeOutingTarget.params);
+                      } else {
+                        setResumeFeedback({
+                          tone: 'warning',
+                          text: 'Resume target is unavailable. Start a clean outing or dismiss the stale recovery state.'
+                        });
+                      }
                     }}
                   />
                 </>

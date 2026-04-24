@@ -13,13 +13,27 @@ type TestCommand = {
   command: HandsFreeCommand;
 };
 
+type TestResult = {
+  id: string;
+  label: string;
+  result: HandsFreeActionResult;
+};
+
 const TEST_COMMANDS: TestCommand[] = [
   { label: 'Resume Outing', command: { action: 'resume_outing', source: 'app' } },
   { label: 'Log Fish', command: { action: 'log_fish', source: 'app' } },
   { label: 'Add Note', command: { action: 'add_note', source: 'app', noteText: 'Manual hands-free beta test note.' } },
   { label: 'Change Water', command: { action: 'change_water', source: 'app', waterType: 'run' } },
-  { label: 'Change Technique', command: { action: 'change_technique', source: 'app', technique: 'Euro Nymphing' } }
+  { label: 'Change Technique', command: { action: 'change_technique', source: 'app', technique: 'Euro Nymphing' } },
+  { label: 'Missing Note Payload', command: { action: 'add_note', source: 'app' } },
+  { label: 'Unsupported Command', command: { action: 'unsupported_command' as HandsFreeCommand['action'], source: 'app' } }
 ];
+
+const formatResultCode = (code: HandsFreeActionResult['code']) =>
+  code
+    .split('_')
+    .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
+    .join(' ');
 
 export const HandsFreeTestPanel = ({
   context
@@ -28,6 +42,7 @@ export const HandsFreeTestPanel = ({
 }) => {
   const { theme } = useTheme();
   const [lastResult, setLastResult] = React.useState<HandsFreeActionResult | null>(null);
+  const [resultHistory, setResultHistory] = React.useState<TestResult[]>([]);
   const [runningLabel, setRunningLabel] = React.useState<string | null>(null);
 
   const runTest = async (testCommand: TestCommand) => {
@@ -35,11 +50,29 @@ export const HandsFreeTestPanel = ({
     try {
       const result = await executeHandsFreeCommand(testCommand.command, context);
       setLastResult(result);
+      setResultHistory((current) => [
+        {
+          id: `${Date.now()}-${testCommand.label}`,
+          label: testCommand.label,
+          result
+        },
+        ...current
+      ].slice(0, 6));
     } catch (error) {
-      setLastResult({
+      const result: HandsFreeActionResult = {
         ok: false,
+        code: 'command_failed',
         message: error instanceof Error ? error.message : 'Hands-free test command failed.'
-      });
+      };
+      setLastResult(result);
+      setResultHistory((current) => [
+        {
+          id: `${Date.now()}-${testCommand.label}`,
+          label: testCommand.label,
+          result
+        },
+        ...current
+      ].slice(0, 6));
     } finally {
       setRunningLabel(null);
     }
@@ -63,7 +96,12 @@ export const HandsFreeTestPanel = ({
         valueMuted={!context.dictationEnabled}
         tone="light"
       />
-      {lastResult ? <StatusBanner tone={lastResult.ok ? 'success' : 'warning'} text={lastResult.message} /> : null}
+      {lastResult ? (
+        <StatusBanner
+          tone={lastResult.ok ? 'success' : lastResult.code === 'command_failed' ? 'error' : 'warning'}
+          text={`${formatResultCode(lastResult.code)}: ${lastResult.message}`}
+        />
+      ) : null}
       <View style={{ gap: 8 }}>
         {TEST_COMMANDS.map((testCommand) => (
           <AppButton
@@ -78,8 +116,31 @@ export const HandsFreeTestPanel = ({
           />
         ))}
       </View>
+      {resultHistory.length ? (
+        <View style={{ gap: 8 }}>
+          <Text style={{ color: theme.colors.textDark, fontWeight: '800' }}>Current Test Results</Text>
+          {resultHistory.map((entry) => (
+            <View
+              key={entry.id}
+              style={{
+                gap: 4,
+                borderRadius: theme.radius.md,
+                borderWidth: 1,
+                borderColor: entry.result.ok ? theme.colors.successBorder : theme.colors.warningBorder,
+                backgroundColor: theme.colors.nestedSurface,
+                padding: theme.spacing.md
+              }}
+            >
+              <Text style={{ color: theme.colors.textDark, fontWeight: '800' }}>{entry.label}</Text>
+              <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 19 }}>
+                {formatResultCode(entry.result.code)}: {entry.result.message}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
       <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-        Expected failure states are useful: dictation off should say it is disabled, and no active outing should explain that no outing is available.
+        Expected failure states are useful: dictation off should say it is disabled, no active outing should explain that no outing is available, and unsupported commands should be explicit.
       </Text>
     </SectionCard>
   );

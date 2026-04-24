@@ -33,18 +33,22 @@ const appendNote = (existing: string | undefined, nextNote: string) =>
 
 const success = (message: string, successTitle?: string, navigateToOuting?: boolean): HandsFreeActionResult => ({
   ok: true,
+  code: 'success',
   message,
   successTitle,
   navigateToOuting
 });
 
-const failure = (message: string): HandsFreeActionResult => ({
+const failure = (code: HandsFreeActionResult['code'], message: string): HandsFreeActionResult => ({
   ok: false,
+  code,
   message
 });
 
 const describeSource = (source: HandsFreeCommand['source']) =>
   source === 'watch' ? 'Apple Watch' : source === 'assistant' ? 'Google Assistant' : source === 'app' ? 'Fishing Lab' : 'Siri';
+
+const SUPPORTED_ACTIONS = new Set(['log_fish', 'add_note', 'change_water', 'change_technique', 'resume_outing']);
 
 export const executeHandsFreeCommand = async (
   command: HandsFreeCommand,
@@ -52,18 +56,22 @@ export const executeHandsFreeCommand = async (
 ): Promise<HandsFreeActionResult> => {
   const sourceLabel = describeSource(command.source ?? 'siri');
 
+  if (!SUPPORTED_ACTIONS.has(command.action)) {
+    return failure('unsupported_command', 'That hands-free command is not supported yet.');
+  }
+
   if (!context.dictationEnabled) {
-    return failure('Hands-free dictation is turned off in Settings.');
+    return failure('dictation_disabled', 'Hands-free dictation is turned off in Settings.');
   }
 
   const activeOuting = context.activeOuting;
   if (!activeOuting) {
-    return failure('No active outing is available to receive this command.');
+    return failure('no_active_outing', 'No active outing is available to receive this command.');
   }
 
   const session = context.sessions.find((candidate) => candidate.id === activeOuting.sessionId) ?? null;
   if (!session || session.endedAt) {
-    return failure('The current outing is no longer active.');
+    return failure('stale_outing', 'The current outing is no longer active.');
   }
 
   const activeSegment =
@@ -84,7 +92,7 @@ export const executeHandsFreeCommand = async (
 
   if (command.action === 'add_note') {
     const noteText = command.noteText?.trim();
-    if (!noteText) return failure('A short note is required before I can save it.');
+    if (!noteText) return failure('missing_payload', 'A short note is required before I can save it.');
 
     if (activeOuting.targetRoute === 'Practice' && activeSegment) {
       await context.updateSessionSegmentEntry(
@@ -106,7 +114,7 @@ export const executeHandsFreeCommand = async (
   }
 
   if (command.action === 'change_water') {
-    if (!command.waterType) return failure('Choose one of the supported water types before changing water.');
+    if (!command.waterType) return failure('missing_payload', 'Choose one of the supported water types before changing water.');
 
     if (activeOuting.targetRoute === 'Practice' && activeSegment) {
       const endedAt = new Date().toISOString();
@@ -146,11 +154,11 @@ export const executeHandsFreeCommand = async (
       return success(`Updated the experiment water type to ${command.waterType}.`, 'Water Updated');
     }
 
-    return failure('Change Water is currently available for practice and experiment outings.');
+    return failure('unsupported_context', 'Change Water is currently available for practice and experiment outings.');
   }
 
   if (command.action === 'change_technique') {
-    if (!command.technique) return failure('Choose one of the supported techniques before changing it.');
+    if (!command.technique) return failure('missing_payload', 'Choose one of the supported techniques before changing it.');
 
     if (activeOuting.targetRoute === 'Practice' && activeSegment) {
       await context.updateSessionSegmentEntry(
@@ -173,7 +181,7 @@ export const executeHandsFreeCommand = async (
       return success(`Updated the experiment technique to ${command.technique}.`, 'Technique Updated');
     }
 
-    return failure('Change Technique is currently available for practice and experiment outings.');
+    return failure('unsupported_context', 'Change Technique is currently available for practice and experiment outings.');
   }
 
   if (command.action === 'log_fish') {
@@ -207,8 +215,8 @@ export const executeHandsFreeCommand = async (
       return success('Logged a fish to the active practice segment.', 'Fish Logged');
     }
 
-    return failure('Hands-free fish logging is available for practice and competition outings right now.');
+    return failure('unsupported_context', 'Hands-free fish logging is available for practice and competition outings right now.');
   }
 
-  return failure('That hands-free command is not supported yet.');
+  return failure('unsupported_command', 'That hands-free command is not supported yet.');
 };

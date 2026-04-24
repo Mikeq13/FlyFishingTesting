@@ -17,7 +17,7 @@ import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { ActionGroup } from '@/components/ui/ActionGroup';
 import { useTheme } from '@/design/theme';
 import { useResponsiveLayout } from '@/design/layout';
-import { formatSharedBackendError, getPendingSyncFeedback } from '@/utils/syncFeedback';
+import { formatSharedBackendError, getPendingSyncFeedback, getPendingSyncFeedbackTone } from '@/utils/syncFeedback';
 import { DictationHelpModal } from '@/components/DictationHelpModal';
 
 const TROUT_SPECIES: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow', 'Tiger', 'Whitefish'];
@@ -203,7 +203,7 @@ export const CompetitionScreen = ({ route }: any) => {
           subtitle="Track every fish quickly with score-ready totals and a cleaner group summary view."
           eyebrow={`${currentCompetitionGroup ? `Group ${currentCompetitionGroup.label}` : 'Competition'}${session.competitionBeat ? ` • Beat ${session.competitionBeat}` : ''}${currentCompetitionSession ? ` • Session ${currentCompetitionSession.sessionNumber}` : ''}`}
         />
-        {syncFeedback ? <StatusBanner tone={syncStatus.lastError ? 'warning' : 'info'} text={syncFeedback} /> : null}
+        {syncFeedback ? <StatusBanner tone={getPendingSyncFeedbackTone(syncStatus)} text={syncFeedback} /> : null}
         <SectionCard title="Assignment" subtitle="Keep the critical comp details visible without crowding the screen.">
           {currentCompetitionGroup ? <InlineSummaryRow label="Assigned Group" value={currentCompetitionGroup.label} /> : null}
           {session.competitionBeat ? <InlineSummaryRow label="Beat" value={session.competitionBeat} /> : null}

@@ -5,12 +5,17 @@ type SyncFeedbackScope = 'practice' | 'experiment' | 'competition' | 'insights' 
 type SyncTrustTone = 'success' | 'warning' | 'info';
 
 const TEMPORARY_OUTAGE_MESSAGES: Record<SyncFeedbackScope, string> = {
-  practice: 'Shared beta backend is temporarily unavailable right now. Your practice changes are still safe on this device.',
-  experiment: 'Shared beta backend is temporarily unavailable right now. Your experiment changes are still safe on this device.',
-  competition: 'Shared beta backend is temporarily unavailable right now. Your competition changes are still safe on this device.',
-  insights: 'Shared insights are temporarily unavailable right now. Your local insight history is still safe.',
-  local_data: 'Shared beta backend is temporarily unavailable right now. Your local data is still safe, and cloud sync should recover once the service is back.'
+  practice: 'Shared backend unavailable. Practice changes are saved locally on this device.',
+  experiment: 'Shared backend unavailable. Experiment changes are saved locally on this device.',
+  competition: 'Shared backend unavailable. Competition changes are saved locally on this device.',
+  insights: 'Shared backend unavailable. Local insight history is still available on this device.',
+  local_data: 'Shared backend unavailable. Local data is still safe, and sync should recover when the service is back.'
 };
+
+const STRUCTURAL_FIX_MESSAGE = 'Migration or policy fix needed before shared beta sync can be trusted.';
+
+const hasStructuralSyncFailure = (syncStatus: SyncStatusSnapshot) =>
+  syncStatus.failureSummaries.some((failure) => failure.category === 'schema' || failure.category === 'permission');
 
 export const formatSharedBackendError = (error: unknown, scope: SyncFeedbackScope): string => {
   if (error == null) {
@@ -34,14 +39,20 @@ export const getPendingSyncFeedback = (
   scope: Exclude<SyncFeedbackScope, 'local_data'>,
   entityLabel: string
 ): string | null => {
+  if (hasStructuralSyncFailure(syncStatus)) {
+    return `Saved locally. ${STRUCTURAL_FIX_MESSAGE}`;
+  }
   if (syncStatus.lastError) {
     return `Saved locally. ${formatSharedBackendError(syncStatus.lastError, scope)}`;
   }
   if (syncStatus.state === 'syncing' || syncStatus.pendingCount > 0) {
-    return `Saved locally. Syncing the latest ${entityLabel} changes to the shared backend now.`;
+    return `Saved locally. Syncing to shared backend for latest ${entityLabel} changes.`;
   }
   return null;
 };
+
+export const getPendingSyncFeedbackTone = (syncStatus: SyncStatusSnapshot): SyncTrustTone =>
+  syncStatus.lastError || hasStructuralSyncFailure(syncStatus) ? 'warning' : 'info';
 
 export const getSyncTrustFeedback = ({
   hasRemoteSession,
@@ -63,6 +74,13 @@ export const getSyncTrustFeedback = ({
     };
   }
 
+  if (hasStructuralSyncFailure(syncStatus)) {
+    return {
+      tone: 'warning',
+      text: `Saved locally. ${STRUCTURAL_FIX_MESSAGE}`
+    };
+  }
+
   if (syncStatus.lastError || sharedDataStatus === 'error') {
     return {
       tone: 'warning',
@@ -73,14 +91,14 @@ export const getSyncTrustFeedback = ({
   if (syncStatus.state === 'syncing' || syncStatus.pendingCount > 0 || sharedDataStatus === 'loading') {
     return {
       tone: 'info',
-      text: `Saved locally. Syncing the latest ${entityLabel} changes to the shared backend.`
+      text: `Saved locally. Syncing to shared backend for latest ${entityLabel} changes.`
     };
   }
 
   if (sharedDataStatus === 'ready' && syncStatus.state === 'idle') {
     return {
       tone: 'success',
-      text: `Saved locally and shared backend is ready. Latest ${entityLabel} data should survive refresh and relaunch.`
+      text: `Saved locally. Shared backend ready; latest ${entityLabel} data should survive refresh and relaunch.`
     };
   }
 

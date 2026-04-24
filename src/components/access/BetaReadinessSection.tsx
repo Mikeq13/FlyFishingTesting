@@ -9,6 +9,7 @@ import { useTheme } from '@/design/theme';
 import { AuthStatus, RemoteSessionSnapshot, SyncStatusSnapshot } from '@/types/remote';
 import { NotificationPermissionStatus, SharedDataStatus } from '@/types/appState';
 import { getAppSetting, setAppSetting } from '@/db/settingsRepo';
+import { getSyncTrustFeedback } from '@/utils/syncFeedback';
 import {
   BETA_READINESS_CHECKS,
   BETA_READINESS_SETTING_KEY,
@@ -33,6 +34,17 @@ export const BetaReadinessSection = ({
   const { theme } = useTheme();
   const [snapshot, setSnapshot] = React.useState<BetaReadinessSnapshot>(() => parseBetaReadinessSnapshot(null));
   const score = getBetaReadinessScore(snapshot);
+  const syncTrustFeedback = React.useMemo(
+    () =>
+      getSyncTrustFeedback({
+        hasRemoteSession: !!remoteSession,
+        sharedDataStatus,
+        syncStatus,
+        scope: 'local_data',
+        entityLabel: 'journal'
+      }),
+    [remoteSession, sharedDataStatus, syncStatus]
+  );
 
   React.useEffect(() => {
     let mounted = true;
@@ -142,12 +154,12 @@ export const BetaReadinessSection = ({
       label="Shared Data"
       value={
         sharedDataStatus === 'ready'
-          ? 'Loaded from backend'
+          ? 'Shared backend ready'
           : sharedDataStatus === 'loading'
-            ? 'Still loading'
+            ? 'Syncing to shared backend'
             : sharedDataStatus === 'error'
-              ? 'Needs retry'
-              : 'Local-only cache'
+              ? 'Shared backend unavailable'
+              : 'Saved locally'
       }
       tone="light"
     />
@@ -156,6 +168,17 @@ export const BetaReadinessSection = ({
       value={syncStatus.pendingCount ? `${syncStatus.pendingCount} changes waiting to sync` : 'No pending local changes'}
       tone="light"
     />
+    {syncTrustFeedback ? <StatusBanner tone={syncTrustFeedback.tone} text={syncTrustFeedback.text} /> : null}
+    {syncStatus.failureSummaries.length ? (
+      <StatusBanner
+        tone="warning"
+        text={
+          syncStatus.failureSummaries.some((failure) => failure.category === 'schema' || failure.category === 'permission')
+            ? 'Migration or policy fix needed before shared beta sync can be trusted.'
+            : `${syncStatus.failureSummaries.length} sync issue${syncStatus.failureSummaries.length === 1 ? '' : 's'} need review before tester expansion.`
+        }
+      />
+    ) : null}
     <InlineSummaryRow
       label="Phone Alerts"
       value={

@@ -73,6 +73,15 @@ export interface HandsFreeActionContext {
 export interface HandsFreeActionResult {
   ok: boolean;
   message: string;
+  code:
+    | 'success'
+    | 'dictation_disabled'
+    | 'no_active_outing'
+    | 'stale_outing'
+    | 'unsupported_command'
+    | 'missing_payload'
+    | 'unsupported_context'
+    | 'command_failed';
   successTitle?: string;
   navigateToOuting?: boolean;
 }
