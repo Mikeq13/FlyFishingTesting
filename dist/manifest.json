@@ -1,0 +1,18 @@
+{
+  "short_name": "Fish Lab",
+  "name": "Fishing Lab",
+  "description": "A Fly Fishing Journal designed to help you improve with insights and coaching.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#08161f",
+  "theme_color": "#0b3d5c",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

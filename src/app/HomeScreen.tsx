@@ -50,7 +50,7 @@ export const HomeScreen = ({ navigation }: any) => {
     sharedDataStatus,
     syncStatus
   } = useAppStore();
-  const { theme } = useTheme();
+  const { theme, themeId, setThemeId, themeOptions } = useTheme();
   const layout = useResponsiveLayout();
   const isDaylightTheme = theme.id === 'daylight_light';
   const [showSessionChooser, setShowSessionChooser] = React.useState(false);
@@ -61,11 +61,15 @@ export const HomeScreen = ({ navigation }: any) => {
   );
   const completedSessions = React.useMemo(() => sessions.filter((session) => !!session.endedAt).length, [sessions]);
   const activeOutingTarget = activeOuting ? buildActiveOutingNavigationTarget(activeOuting) : null;
+  const demoExperimentCount = React.useMemo(
+    () => experiments.filter((experiment) => experiment.status === 'complete').length,
+    [experiments]
+  );
   const journalHealthItems = [
     { label: 'Outings', value: sessions.length },
     { label: 'Segments', value: sessionSegments.length },
     { label: 'Fish', value: catchEvents.length },
-    { label: 'Tests', value: experiments.filter((experiment) => experiment.status === 'complete').length }
+    { label: 'Tests', value: demoExperimentCount }
   ];
   const demoPracticeSession = React.useMemo(
     () =>
@@ -79,6 +83,33 @@ export const HomeScreen = ({ navigation }: any) => {
     gap: 14,
     bottomPadding: 40
   });
+  const guidedDemoSteps = [
+    {
+      label: '1',
+      title: 'Review the outing',
+      body: demoPracticeSession?.riverName
+        ? `${demoPracticeSession.riverName}: water changes, rig decisions, and catch notes are already logged.`
+        : 'Open the seeded practice outing and inspect the river, water, setup, and catch timeline.'
+    },
+    {
+      label: '2',
+      title: 'Read the pattern',
+      body: latestInsight
+        ? latestInsight.message
+        : 'Insights wait for enough journal signal before turning logged trips into recommendations.'
+    },
+    {
+      label: '3',
+      title: 'Ask what to fish',
+      body: 'The coach explains the recommendation from the journal instead of guessing from a generic prompt.'
+    }
+  ];
+  const themeToneLabel =
+    themeId === 'high_contrast'
+      ? 'Field contrast'
+      : themeId === 'daylight_light'
+        ? 'Daylight review'
+        : 'Professional river';
 
   const beginSession = (mode: SessionMode) => {
     setShowSessionChooser(false);
@@ -91,48 +122,120 @@ export const HomeScreen = ({ navigation }: any) => {
       <ScrollView style={{ flex: 1, minHeight: 0 }} contentContainerStyle={contentContainerStyle} keyboardShouldPersistTaps="handled">
         <ScreenHeader
           title="Fishing Lab"
-          subtitle="A fly fishing journal that turns logged outings into clearer patterns, better setup decisions, and grounded AI guidance."
-          eyebrow="On The Water"
+          subtitle="A hands-free fly fishing journal that turns outings, water changes, rigs, flies, and catches into patterns you can trust."
+          eyebrow={isWebDemoMode ? 'Codex Challenge Demo' : 'On The Water'}
         />
         {isWebDemoMode ? (
           <SectionCard>
             <Text style={{ color: theme.colors.textMuted, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 }}>
-              Web Demo Mode
+              Field Journal Demo
             </Text>
-            <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 24 }}>
-              Fly fishing journal with a guided demo path
+            <Text style={{ color: theme.colors.text, fontWeight: '900', fontSize: layout.isCompactLayout ? 27 : 34, lineHeight: layout.isCompactLayout ? 33 : 40 }}>
+              Log the river once. Let every trip teach you what to fish next.
             </Text>
             <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
-              Review a logged outing, see the strongest journal patterns, and ask the AI coach what the data suggests you fish next.
+              This seeded journal shows the complete loop: a real outing record, confidence-labeled insights, and a coach response grounded in the water, rig, fly, and catch history.
             </Text>
-            <View style={{ gap: 10 }}>
+            <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
               {demoPracticeSession ? (
+                <View style={{ flex: 1 }}>
                 <AppButton
-                  label="Review a Logged Session"
+                  label="Review Logged Outing"
                   onPress={() => navigation.navigate('PracticeReview', { sessionId: demoPracticeSession.id })}
-                  variant="secondary"
+                  variant="primary"
                 />
+                </View>
               ) : null}
-              <AppButton label="See Journal Insights" onPress={() => navigation.navigate('Insights')} variant="secondary" />
-              <AppButton label="Ask AI Coach" onPress={() => navigation.navigate('Coach')} variant="secondary" />
+              <View style={{ flex: 1 }}>
+                <AppButton label="Inspect Insights" onPress={() => navigation.navigate('Insights')} variant="secondary" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <AppButton label="Ask Coach" onPress={() => navigation.navigate('Coach')} variant="secondary" />
+              </View>
             </View>
-            <View style={{ gap: 4 }}>
-              <Text style={{ color: theme.colors.text, fontWeight: '700' }}>What this demonstrates</Text>
-              <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
-                Logged session review, exact setup intelligence, and AI coaching grounded in water changes, catches, and experiment outcomes.
-              </Text>
+            <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
+              {journalHealthItems.map((item) => (
+                <View
+                  key={`demo-${item.label}`}
+                  style={{
+                    flex: 1,
+                    minWidth: 92,
+                    backgroundColor: theme.colors.surfaceAlt,
+                    borderRadius: theme.radius.md,
+                    borderWidth: 1,
+                    borderColor: theme.colors.borderStrong,
+                    padding: 10,
+                    gap: 2
+                  }}
+                >
+                  <Text style={{ color: theme.colors.textSoft, fontSize: 12, fontWeight: '700' }}>{item.label}</Text>
+                  <Text style={{ color: theme.colors.text, fontSize: 24, fontWeight: '900', fontVariant: ['tabular-nums'] }}>
+                    {item.value}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            <View style={{ gap: 8 }}>
+              <Text style={{ color: theme.colors.text, fontWeight: '800' }}>Follow the proof path</Text>
+              {guidedDemoSteps.map((step) => (
+                <View
+                  key={step.label}
+                  style={{
+                    flexDirection: 'row',
+                    gap: 10,
+                    backgroundColor: theme.colors.surfaceAlt,
+                    borderRadius: theme.radius.md,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                    padding: 10
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: theme.radius.pill,
+                      backgroundColor: theme.colors.primary,
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <Text style={{ color: theme.colors.buttonText, fontWeight: '900' }}>{step.label}</Text>
+                  </View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={{ color: theme.colors.text, fontWeight: '800' }}>{step.title}</Text>
+                    <Text style={{ color: theme.colors.textSoft, lineHeight: 19 }}>{step.body}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+            <View style={{ gap: 8 }}>
+              <Text style={{ color: theme.colors.text, fontWeight: '800' }}>River theme: {themeToneLabel}</Text>
+              <View style={{ flexDirection: layout.stackDirection, gap: 8 }}>
+                {themeOptions.map((themeOption) => (
+                  <View key={themeOption.id} style={{ flex: 1 }}>
+                    <AppButton
+                      label={themeOption.label}
+                      onPress={() => setThemeId(themeOption.id)}
+                      variant={themeOption.id === themeId ? 'primary' : 'ghost'}
+                    />
+                  </View>
+                ))}
+              </View>
             </View>
           </SectionCard>
         ) : null}
+        {!isWebDemoMode ? (
         <SectionCard>
           <Text style={{ color: theme.colors.textMuted, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 }}>
-            {isWebDemoMode ? 'Demo Identity' : 'Active Account'}
+            Active Account
           </Text>
           <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 24 }}>{currentUser?.name ?? 'Loading...'}</Text>
           <Text style={{ color: theme.colors.textSoft }}>
-            {isWebDemoMode ? 'Seeded demo journal with local-only data and premium AI guidance unlocked.' : `Signed in as: ${remoteSession?.email ?? 'No account linked'}`}
+            Signed in as: {remoteSession?.email ?? 'No account linked'}
           </Text>
         </SectionCard>
+        ) : null}
         <SectionCard
           title={activeOuting && autoResumePromptEnabled ? 'Current Outing' : 'Field Cockpit'}
           subtitle={
@@ -175,7 +278,7 @@ export const HomeScreen = ({ navigation }: any) => {
 
         <SectionCard
           title="Journal Health"
-          subtitle="Beta trust starts here: complete outings, canonical setup details, and sync feedback that tells the truth."
+          subtitle={isWebDemoMode ? 'The demo is seeded with enough real journal structure to show the concept quickly.' : 'Beta trust starts here: complete outings, canonical setup details, and sync feedback that tells the truth.'}
           tone="light"
         >
           <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
@@ -231,7 +334,7 @@ export const HomeScreen = ({ navigation }: any) => {
         </SectionCard>
 
         <SectionCard
-          title="Hands-Free Beta Commands"
+          title={isWebDemoMode ? 'Hands-Free Field Promise' : 'Hands-Free Beta Commands'}
           subtitle="Use voice as a narrow field shortcut for actions that are safe to complete without digging through screens."
           tone="light"
         >
