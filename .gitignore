@@ -3,3 +3,4 @@
 .env*.local
 node_modules/
 .codex-web*.log
+.tamagui/
