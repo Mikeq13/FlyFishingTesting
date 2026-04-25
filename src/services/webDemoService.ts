@@ -20,7 +20,7 @@ import { createSessionSegment } from '@/db/sessionSegmentRepo';
 import { createUser, listUsers } from '@/db/userRepo';
 import { clearWebValuesByPrefix } from '@/db/webStore';
 import { CatchEvent, SessionSegment } from '@/types/activity';
-import { ExperimentFlyEntry, TroutSpecies } from '@/types/experiment';
+import { ExperimentFlyEntry, FishSpecies } from '@/types/experiment';
 import { FlySetup } from '@/types/fly';
 import { AddedTippetSection, LeaderFormulaSection, RigSetup } from '@/types/rig';
 import { UserProfile } from '@/types/user';
@@ -68,8 +68,8 @@ const makeRigSetup = (
 const makeExperimentEntries = (
   baselineFly: FlySetup,
   testFly: FlySetup,
-  baselineStats: { casts: number; catches: number; species: TroutSpecies[]; sizes: number[]; timestamps: string[] },
-  testStats: { casts: number; catches: number; species: TroutSpecies[]; sizes: number[]; timestamps: string[] }
+  baselineStats: { casts: number; catches: number; species: FishSpecies[]; sizes: number[]; timestamps: string[] },
+  testStats: { casts: number; catches: number; species: FishSpecies[]; sizes: number[]; timestamps: string[] }
 ): ExperimentFlyEntry[] => [
   {
     slotId: 'baseline',
@@ -508,7 +508,7 @@ const seedDemoData = async (): Promise<number> => {
       mode: 'competition' as const,
       flyName: adams.name,
       flySnapshot: adams,
-      species: 'Brown' as TroutSpecies,
+      species: 'Brown',
       lengthUnit: 'mm' as const,
       caughtAt: iso('2026-04-17T17:51:00-06:00')
     },
@@ -517,7 +517,7 @@ const seedDemoData = async (): Promise<number> => {
       mode: 'competition' as const,
       flyName: pinkTag.name,
       flySnapshot: pinkTag,
-      species: 'Rainbow' as TroutSpecies,
+      species: 'Rainbow',
       lengthUnit: 'mm' as const,
       caughtAt: iso('2026-04-17T18:13:00-06:00')
     }

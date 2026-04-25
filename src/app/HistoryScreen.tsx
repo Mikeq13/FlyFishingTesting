@@ -19,6 +19,7 @@ import { getFormInputStyle } from '@/components/ui/FormField';
 import { buildSessionDeleteMessage, getSessionDeleteConsequences } from '@/utils/sessionDeleteConsequences';
 import { deriveExperimentStatus } from '@/engine/experimentStatus';
 import { getSyncTrustFeedback } from '@/utils/syncFeedback';
+import { describeFishingStyleSetup } from '@/utils/fishingStyle';
 
 export const HistoryScreen = ({ navigation, route }: any) => {
   const { theme } = useTheme();
@@ -56,7 +57,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
     [remoteSession, sharedDataStatus, syncStatus]
   );
   const modeSummaryLabel = (mode: 'practice' | 'experiment' | 'competition') =>
-    mode === 'practice' ? 'Practice scouting' : mode === 'experiment' ? 'Experiment comparison' : 'Competition scorekeeping';
+    mode === 'practice' ? 'Journal Entry' : mode === 'experiment' ? 'Experiment comparison' : 'Competition scorekeeping';
 
   const normalizedFilters = {
     river: riverFilter.trim().toLowerCase(),
@@ -313,6 +314,9 @@ export const HistoryScreen = ({ navigation, route }: any) => {
 
       {filteredSessions.map((session) => {
         const sessionExperiments = experiments.filter((experiment) => experiment.sessionId === session.id);
+        const fishingStyleSetup = describeFishingStyleSetup(session);
+        const isFlyJournal = fishingStyleSetup.style === 'fly';
+        const sessionCatches = catchEvents.filter((event) => event.sessionId === session.id);
         const totalCasts = sessionExperiments.reduce(
           (sum, experiment) => sum + getExperimentEntries(experiment).reduce((entrySum, entry) => entrySum + entry.casts, 0),
           0
@@ -326,11 +330,17 @@ export const HistoryScreen = ({ navigation, route }: any) => {
         return (
           <SectionCard key={session.id} title={new Date(session.date).toLocaleString()} subtitle={`${session.waterType} water | ${session.depthRange}`}>
             <InlineSummaryRow label="Mode" value={modeSummaryLabel(session.mode)} />
+            {session.mode === 'practice' ? <InlineSummaryRow label="Style" value={fishingStyleSetup.styleLabel} /> : null}
+            {session.mode === 'practice' && !isFlyJournal && fishingStyleSetup.method ? <InlineSummaryRow label="Method" value={fishingStyleSetup.method} /> : null}
             <InlineSummaryRow label="Month" value={new Date(session.date).toLocaleString('en-US', { month: 'long' })} />
             {session.riverName ? <InlineSummaryRow label="River" value={session.riverName} /> : null}
-            {session.startingTechnique ? <InlineSummaryRow label="Technique" value={session.startingTechnique} /> : null}
+            {session.startingTechnique && (session.mode !== 'practice' || isFlyJournal) ? <InlineSummaryRow label="Technique" value={session.startingTechnique} /> : null}
             {session.hypothesis ? <InlineSummaryRow label="Session Hypothesis" value={session.hypothesis} /> : null}
-            <InlineSummaryRow label="Session Catch Rate" value={`${(rate * 100).toFixed(1)}%`} />
+            {session.mode === 'practice' ? (
+              <InlineSummaryRow label="Catches Logged" value={`${sessionCatches.length}`} />
+            ) : (
+              <InlineSummaryRow label="Session Catch Rate" value={`${(rate * 100).toFixed(1)}%`} />
+            )}
             <InlineSummaryRow label="Experiments Logged" value={`${sessionExperiments.length}`} />
             {session.mode === 'practice' ? (
               <AppButton
@@ -387,7 +397,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                           Fish log: {entries
                             .flatMap((entry) =>
                               entry.fishSizesInches.map(
-                                (size, fishIndex) => `${size}" ${entry.fishSpecies[fishIndex] ?? 'Trout'}`
+                                (size, fishIndex) => `${size}" ${entry.fishSpecies[fishIndex] ?? 'Fish'}`
                               )
                             )
                             .join(', ')}

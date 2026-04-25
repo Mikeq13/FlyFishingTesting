@@ -1,10 +1,9 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, ScrollView, Text, TextInput, View } from 'react-native';
 import { ScreenBackground } from '@/components/ScreenBackground';
-import { OptionChips } from '@/components/OptionChips';
 import { useAppStore } from './store';
 import { useSessionTimer } from '@/hooks/useSessionTimer';
-import { TroutSpecies } from '@/types/experiment';
+import { FishSpecies } from '@/types/experiment';
 import { buildSessionUpdatePayload, getCompetitionMinimumLength, getSessionPlannedDurationMinutes, sumCatchLengths } from '@/utils/sessionState';
 import { useSessionAlerts } from '@/hooks/useSessionAlerts';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
@@ -19,8 +18,8 @@ import { useTheme } from '@/design/theme';
 import { useResponsiveLayout } from '@/design/layout';
 import { formatSharedBackendError, getPendingSyncFeedback, getPendingSyncFeedbackTone } from '@/utils/syncFeedback';
 import { DictationHelpModal } from '@/components/DictationHelpModal';
-
-const TROUT_SPECIES: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow', 'Tiger', 'Whitefish'];
+import { SpeciesPicker } from '@/components/SpeciesPicker';
+import { GENERAL_SPECIES_OPTIONS, getRecentCatchSpecies } from '@/utils/fishSpecies';
 
 export const CompetitionScreen = ({ route }: any) => {
   const { theme } = useTheme();
@@ -53,7 +52,7 @@ export const CompetitionScreen = ({ route }: any) => {
   const session = sessions.find((candidate) => candidate.id === sessionId) ?? null;
   const [showCatchModal, setShowCatchModal] = useState(false);
   const [showDictationHelp, setShowDictationHelp] = useState(false);
-  const [species, setSpecies] = useState<TroutSpecies>('Rainbow');
+  const [species, setSpecies] = useState<FishSpecies>('Rainbow Trout');
   const [lengthValue, setLengthValue] = useState('');
   const [isSavingCatch, setIsSavingCatch] = useState(false);
   const catchSubmitLockedRef = useRef(false);
@@ -62,6 +61,7 @@ export const CompetitionScreen = ({ route }: any) => {
     () => catchEvents.filter((event) => event.sessionId === sessionId),
     [catchEvents, sessionId]
   );
+  const recentCompetitionSpecies = useMemo(() => getRecentCatchSpecies(allCatchEvents), [allCatchEvents]);
   const totalLengthDisplay = sumCatchLengths(competitionCatches);
   const competitionLengthUnit = session?.competitionLengthUnit ?? 'mm';
   const competitionRequiresMeasurement = session?.competitionRequiresMeasurement ?? true;
@@ -294,7 +294,12 @@ export const CompetitionScreen = ({ route }: any) => {
           subtitle="Keep the scoring flow quick and clear so the phone never gets in the way of the session."
           onClose={() => setShowCatchModal(false)}
         >
-          <OptionChips label="Species" options={TROUT_SPECIES} value={species} onChange={setSpecies} />
+          <SpeciesPicker
+            selectedSpecies={species}
+            recommendedSpecies={GENERAL_SPECIES_OPTIONS}
+            recentSpecies={recentCompetitionSpecies}
+            onSelectSpecies={setSpecies}
+          />
           {competitionRequiresMeasurement ? (
             <>
               <StatusBanner

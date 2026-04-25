@@ -11,7 +11,7 @@ import { FlySetup } from '@/types/fly';
 import { validateExperimentPair } from '@/engine/rules';
 import { deriveExperimentStatus } from '@/engine/experimentStatus';
 import { ScreenBackground } from '@/components/ScreenBackground';
-import { ExperimentControlFocus, ExperimentFlyEntry, ExperimentStatus, TroutSpecies } from '@/types/experiment';
+import { ExperimentControlFocus, ExperimentFlyEntry, ExperimentStatus, FishSpecies } from '@/types/experiment';
 import { RigSetup } from '@/types/rig';
 import { alignExperimentEntries, createEmptyExperimentEntries, getExperimentRigSetup, getLegacyExperimentFields } from '@/utils/experimentEntries';
 import { applyRigPresetToRig, createDefaultRigSetup, getFlyCount, syncRigSetupFromFlies } from '@/utils/rigSetup';
@@ -30,6 +30,7 @@ import { BottomSheetSurface } from '@/components/ui/BottomSheetSurface';
 import { formatSharedBackendError, getPendingSyncFeedback, getPendingSyncFeedbackTone } from '@/utils/syncFeedback';
 import { getExperimentRigIdentitySignature } from '@/utils/dataIdentity';
 import { DictationHelpModal } from '@/components/DictationHelpModal';
+import { FLY_SPECIES_OPTIONS, getRecentExperimentSpecies } from '@/utils/fishSpecies';
 
 const isDraftExperiment = (entries: ExperimentFlyEntry[]) =>
   entries.some((entry) => entry.casts <= 0 || !entry.fly.name.trim());
@@ -103,7 +104,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   const [draftRevision, setDraftRevision] = useState(0);
   const [pendingFishEntryIndex, setPendingFishEntryIndex] = useState<number | null>(null);
   const [pendingFishSize, setPendingFishSize] = useState<number | null>(null);
-  const [pendingFishSpecies, setPendingFishSpecies] = useState<TroutSpecies | null>(null);
+  const [pendingFishSpecies, setPendingFishSpecies] = useState<FishSpecies | null>(null);
   const [expandedSections, setExpandedSections] = useState<Record<ExperimentSectionKey, boolean>>({
     hypothesis: true,
     waterType: false,
@@ -218,10 +219,11 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     [visibleEntries]
   );
   const activeExperimentId = routeExperiment?.id ?? draftExperimentId;
-  const lastLoggedSpecies = useMemo<TroutSpecies | null>(() => {
+  const lastLoggedSpecies = useMemo<FishSpecies | null>(() => {
     const allSpecies = visibleEntries.flatMap((entry) => entry.fishSpecies);
-    return (allSpecies.length ? allSpecies[allSpecies.length - 1] : null) as TroutSpecies | null;
+    return allSpecies.length ? allSpecies[allSpecies.length - 1] : null;
   }, [visibleEntries]);
+  const recentExperimentSpecies = useMemo(() => getRecentExperimentSpecies(experiments), [experiments]);
   const leaderSummary = rigSetup.leaderFormulaName ?? (rigSetup.leaderFormulaSectionsSnapshot.length ? 'Custom leader' : 'Not chosen');
   const rigSummary = `${rigSetup.assignments.length} ${rigSetup.assignments.length === 1 ? 'fly' : 'flies'} | ${rigSetup.assignments.map((assignment) => assignment.position).join(' | ')}`;
   const comparisonWarning = useMemo(() => {
@@ -948,7 +950,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                 </View>
                 {!!entry.fishSizesInches.length ? (
                   <Text style={{ color: theme.colors.textSoft, fontSize: 12 }}>
-                    Fish log: {entry.fishSizesInches.map((size, fishIndex) => `${size}" ${entry.fishSpecies[fishIndex] ?? 'Trout'}`).join(', ')}
+                    Fish log: {entry.fishSizesInches.map((size, fishIndex) => `${size}" ${entry.fishSpecies[fishIndex] ?? 'Fish'}`).join(', ')}
                   </Text>
                 ) : null}
               </View>
@@ -1136,6 +1138,8 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         visible={pendingFishEntryIndex !== null}
         title={`Log catch for ${pendingFishEntryIndex !== null && visibleEntries[pendingFishEntryIndex] ? visibleEntries[pendingFishEntryIndex].label : 'Fly'}`}
         selectedSpecies={pendingFishSpecies}
+        recommendedSpecies={FLY_SPECIES_OPTIONS}
+        recentSpecies={recentExperimentSpecies}
         selectedSize={pendingFishSize}
         onSelectSpecies={setPendingFishSpecies}
         onSelectSize={setPendingFishSize}

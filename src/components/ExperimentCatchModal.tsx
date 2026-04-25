@@ -1,19 +1,21 @@
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { TroutSpecies } from '@/types/experiment';
 import { AppButton } from '@/components/ui/AppButton';
 import { ModalSurface } from '@/components/ui/ModalSurface';
 import { useTheme } from '@/design/theme';
+import { SpeciesPicker } from '@/components/SpeciesPicker';
+import { FLY_SPECIES_OPTIONS } from '@/utils/fishSpecies';
 
-const TROUT_SPECIES_OPTIONS: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow', 'Tiger', 'Whitefish'];
 const FISH_SIZE_OPTIONS = Array.from({ length: 17 }, (_, index) => index + 8);
 
 interface ExperimentCatchModalProps {
   visible: boolean;
   title: string;
-  selectedSpecies: TroutSpecies | null;
+  selectedSpecies: string | null;
+  recommendedSpecies?: string[];
+  recentSpecies?: string[];
   selectedSize: number | null;
-  onSelectSpecies: (species: TroutSpecies) => void;
+  onSelectSpecies: (species: string) => void;
   onSelectSize: (size: number) => void;
   onCancel: () => void;
   onConfirm: () => void;
@@ -23,6 +25,8 @@ export const ExperimentCatchModal = ({
   visible,
   title,
   selectedSpecies,
+  recommendedSpecies = FLY_SPECIES_OPTIONS,
+  recentSpecies = [],
   selectedSize,
   onSelectSpecies,
   onSelectSize,
@@ -35,31 +39,16 @@ export const ExperimentCatchModal = ({
     <ModalSurface
       visible={visible}
       title={title}
-      subtitle="Choose the trout species and optionally add an approximate length so the app can track both catch rate and fish quality."
+      subtitle="Choose the species and optionally add an approximate length so the app can track both catch rate and fish quality."
       onClose={onCancel}
     >
 
-        <View style={{ gap: 8 }}>
-          <Text style={{ color: theme.colors.modalText, fontWeight: '700' }}>Species</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {TROUT_SPECIES_OPTIONS.map((species) => (
-              <Pressable
-                key={species}
-                onPress={() => onSelectSpecies(species)}
-                style={{
-                  backgroundColor: selectedSpecies === species ? theme.colors.primary : theme.colors.modalSurfaceAlt,
-                  paddingVertical: 10,
-                  paddingHorizontal: 12,
-                  borderRadius: theme.radius.md,
-                  borderWidth: 1,
-                  borderColor: selectedSpecies === species ? theme.colors.modalBorder : theme.colors.modalNestedBorder
-                }}
-              >
-                <Text style={{ color: selectedSpecies === species ? theme.colors.buttonText : theme.colors.modalText, fontWeight: '700' }}>{species}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
+        <SpeciesPicker
+          selectedSpecies={selectedSpecies}
+          recommendedSpecies={recommendedSpecies}
+          recentSpecies={recentSpecies}
+          onSelectSpecies={onSelectSpecies}
+        />
 
         <View style={{ gap: 8 }}>
           <Text style={{ color: theme.colors.modalText, fontWeight: '700' }}>Length</Text>

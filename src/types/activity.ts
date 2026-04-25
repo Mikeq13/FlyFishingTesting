@@ -1,4 +1,4 @@
-import { TroutSpecies } from './experiment';
+import { FishSpecies } from './experiment';
 import { FlySetup } from './fly';
 import { RigSetup } from './rig';
 import { DepthRange, SessionMode, Technique, WaterType } from './session';
@@ -29,7 +29,7 @@ export interface CatchEvent {
   mode: SessionMode;
   flyName?: string;
   flySnapshot?: FlySetup;
-  species?: TroutSpecies;
+  species?: FishSpecies;
   lengthValue?: number;
   lengthUnit: CatchLengthUnit;
   caughtAt: string;

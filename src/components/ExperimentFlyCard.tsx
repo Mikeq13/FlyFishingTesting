@@ -89,7 +89,7 @@ export const ExperimentFlyCard = ({
     {!!entry.fishSizesInches.length && (
       <Text style={{ color: theme.colors.textSoft, fontSize: 12 }}>
         Fish log:{' '}
-        {entry.fishSizesInches.map((size, fishIndex) => `${size}" ${entry.fishSpecies[fishIndex] ?? 'Trout'}`).join(', ')}
+          {entry.fishSizesInches.map((size, fishIndex) => `${size}" ${entry.fishSpecies[fishIndex] ?? 'Fish'}`).join(', ')}
       </Text>
     )}
   </SectionCard>

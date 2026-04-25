@@ -148,7 +148,7 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
                 </Text>
                 {!!entry.fishSizesInches.length && (
                   <Text style={{ color: elevatedSoftTextColor }}>
-                    Fish log: {entry.fishSizesInches.map((size, fishIndex) => `${size}" ${entry.fishSpecies[fishIndex] ?? 'Trout'}`).join(', ')}
+                    Fish log: {entry.fishSizesInches.map((size, fishIndex) => `${size}" ${entry.fishSpecies[fishIndex] ?? 'Fish'}`).join(', ')}
                   </Text>
                 )}
               </View>

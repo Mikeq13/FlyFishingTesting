@@ -24,6 +24,14 @@ import { ReminderSettingsSection } from '@/components/sessionSetup/ReminderSetti
 import { useResponsiveLayout } from '@/design/layout';
 import { FlySetup } from '@/types/fly';
 import { describeSessionShareIntent } from '@/utils/sessionSharing';
+import {
+  FishingStyle,
+  FISHING_STYLE_OPTIONS,
+  describeFishingStyleSetup,
+  getFishingStyleOption,
+  serializeFishingStyleNotes,
+  stripFishingStyleSetupBlock
+} from '@/utils/fishingStyle';
 
 const MODE_COPY: Record<SessionMode, { title: string; subtitle: string; button: string }> = {
   experiment: {
@@ -48,11 +56,13 @@ export const SessionScreen = ({ navigation, route }: any) => {
   const layout = useResponsiveLayout();
   const { addSession, updateSessionEntry, addSavedFly, addSavedLeaderFormula, deleteSavedLeaderFormula, addSavedRigPreset, deleteSavedRigPreset, addSavedRiver, savedFlies, savedLeaderFormulas, savedRigPresets, savedRivers, users, activeUserId, sessions, experiments, groups, groupMemberships, competitions, competitionGroups, competitionSessions, competitionParticipants, competitionAssignments, upsertCompetitionAssignment, sharedDataStatus, syncStatus, notificationPermissionStatus, authStatus, remoteSession, getGroupIntegrity } = useAppStore();
   const sessionId = route?.params?.sessionId as number | undefined;
+  const routeFishingStyle = route?.params?.fishingStyle as FishingStyle | undefined;
   const existingSession = useMemo(
     () => (sessionId ? sessions.find((session) => session.id === sessionId) ?? null : null),
     [sessionId, sessions]
   );
   const mode = (existingSession?.mode ?? route?.params?.mode ?? 'experiment') as SessionMode;
+  const existingFishingStyleSetup = useMemo(() => describeFishingStyleSetup(existingSession), [existingSession]);
   const modeCopy = useMemo(() => {
     const baseCopy = MODE_COPY[mode] ?? MODE_COPY.experiment;
     if (mode !== 'competition') return baseCopy;
@@ -77,6 +87,9 @@ export const SessionScreen = ({ navigation, route }: any) => {
   const [competitionLengthUnit, setCompetitionLengthUnit] = useState<CompetitionLengthUnit>('mm');
   const [selectedSharedGroupIds, setSelectedSharedGroupIds] = useState<number[]>([]);
   const [startingTechnique, setStartingTechnique] = useState<Technique | undefined>(undefined);
+  const [fishingStyle, setFishingStyle] = useState<FishingStyle>(routeFishingStyle ?? existingFishingStyleSetup.style ?? 'fly');
+  const [tackleMethod, setTackleMethod] = useState('');
+  const [tackleNotes, setTackleNotes] = useState('');
   const [practiceMeasurementEnabled, setPracticeMeasurementEnabled] = useState(false);
   const [practiceLengthUnit, setPracticeLengthUnit] = useState<'in' | 'cm' | 'mm'>('in');
   const [selectedCompetitionId, setSelectedCompetitionId] = useState<number | null>(null);
@@ -202,6 +215,9 @@ export const SessionScreen = ({ navigation, route }: any) => {
     setCompetitionLengthUnit(existingSession.competitionLengthUnit ?? 'mm');
     setSelectedSharedGroupIds(existingSession.sharedGroupIds ?? (existingSession.sharedGroupId ? [existingSession.sharedGroupId] : []));
     setStartingTechnique(existingSession.startingTechnique);
+    setFishingStyle(existingFishingStyleSetup.style);
+    setTackleMethod(existingFishingStyleSetup.method ?? '');
+    setTackleNotes(existingFishingStyleSetup.tackleNotes ?? '');
     setPracticeMeasurementEnabled(existingSession.practiceMeasurementEnabled ?? false);
     setPracticeLengthUnit(existingSession.practiceLengthUnit ?? 'in');
     setSelectedCompetitionId(existingSession.competitionId ?? null);
@@ -210,7 +226,14 @@ export const SessionScreen = ({ navigation, route }: any) => {
     setNotificationVibrationEnabled(existingSession.notificationVibrationEnabled ?? true);
     setPracticeRigSetup(existingSession.startingRigSetup ?? createDefaultRigSetup([]));
     setExperimentRigSetup(existingSession.startingRigSetup ?? createDefaultRigSetup([]));
-  }, [existingSession, mode]);
+    setNotes(existingFishingStyleSetup.journalNotes);
+  }, [existingFishingStyleSetup.journalNotes, existingFishingStyleSetup.method, existingFishingStyleSetup.style, existingFishingStyleSetup.tackleNotes, existingSession, mode]);
+
+  React.useEffect(() => {
+    if (fishingStyle === 'fly') return;
+    const option = getFishingStyleOption(fishingStyle);
+    setTackleMethod((current) => current || option.methods[0] || '');
+  }, [fishingStyle]);
 
   const selectedSharedGroups = useMemo(
     () => joinedGroups.filter((group) => selectedSharedGroupIds.includes(group.id)),
@@ -337,6 +360,10 @@ export const SessionScreen = ({ navigation, route }: any) => {
       await saveRiver();
     }
 
+    const savedNotes =
+      mode === 'practice' && fishingStyle !== 'fly'
+        ? serializeFishingStyleNotes(notes, { style: fishingStyle, method: tackleMethod, tackleNotes })
+        : stripFishingStyleSetupBlock(notes);
     const sessionPayload = {
       date: mode === 'competition' ? competitionStartAt! : existingSession?.date ?? new Date().toISOString(),
       mode,
@@ -364,11 +391,11 @@ export const SessionScreen = ({ navigation, route }: any) => {
       competitionSessionNumber: mode === 'competition' ? selectedCompetitionSession?.sessionNumber : undefined,
       competitionRequiresMeasurement: mode === 'competition' ? competitionRequiresMeasurement : undefined,
       competitionLengthUnit: mode === 'competition' ? competitionLengthUnit : undefined,
-      startingRigSetup: mode === 'practice' ? practiceRigSetup : mode === 'experiment' ? experimentRigSetup : undefined,
-      startingTechnique: mode === 'practice' || mode === 'experiment' ? startingTechnique : undefined,
+      startingRigSetup: mode === 'practice' && fishingStyle === 'fly' ? practiceRigSetup : mode === 'experiment' ? experimentRigSetup : undefined,
+      startingTechnique: mode === 'practice' && fishingStyle === 'fly' ? startingTechnique : mode === 'experiment' ? startingTechnique : undefined,
       riverName: normalizedRiverName || undefined,
       hypothesis: hypothesis.trim() || undefined,
-      notes
+      notes: savedNotes
     };
     const id = existingSession ? existingSession.id : await addSession(sessionPayload);
     if (existingSession) {
@@ -417,7 +444,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
         startingTechnique: undefined,
         riverName: normalizedRiverName || undefined,
         hypothesis: hypothesis.trim() || undefined,
-        notes
+        notes: savedNotes
       });
     }
     navigation.navigate(mode === 'experiment' ? 'Experiment' : mode === 'practice' ? 'Practice' : 'Competition', { sessionId: id });
@@ -512,7 +539,24 @@ export const SessionScreen = ({ navigation, route }: any) => {
                 : 'Capture the hypothesis and notes you want to test today.'
           }
         >
-          {mode === 'practice' || mode === 'experiment' ? (
+          {mode === 'practice' ? (
+            <SectionCard
+              title="Fishing Style"
+              subtitle={fishingStyle === 'fly' ? 'Fly fishing unlocks the full rig, fly, experiment, and competition path.' : 'This journal keeps setup lightweight for the way you are fishing today.'}
+              tone="light"
+            >
+              <OptionChips
+                label="Style"
+                options={FISHING_STYLE_OPTIONS.map((option) => option.title)}
+                value={getFishingStyleOption(fishingStyle).title}
+                onChange={(value) => {
+                  const nextStyle = FISHING_STYLE_OPTIONS.find((option) => option.title === value)?.key ?? 'fly';
+                  setFishingStyle(nextStyle);
+                }}
+              />
+            </SectionCard>
+          ) : null}
+          {mode === 'experiment' || (mode === 'practice' && fishingStyle === 'fly') ? (
             <PracticeSetupSection
               title={mode === 'experiment' ? 'Starting Rig Setup' : 'Starting Rig Setup'}
               rigSetup={mode === 'experiment' ? experimentRigSetup : practiceRigSetup}
@@ -547,6 +591,34 @@ export const SessionScreen = ({ navigation, route }: any) => {
               foregroundEditing
               presentationMode="setup"
             />
+          ) : null}
+          {mode === 'practice' && fishingStyle !== 'fly' ? (
+            <SectionCard
+              title="Tackle Setup"
+              subtitle="Log the simple setup details that matter today without forcing fly-specific rig fields."
+              tone="light"
+            >
+              <OptionChips
+                label="Method"
+                options={getFishingStyleOption(fishingStyle).methods}
+                value={tackleMethod || null}
+                onChange={setTackleMethod}
+              />
+              <FormField label="Lure, Bait, Or Tackle Notes">
+                <TextInput
+                  value={tackleNotes}
+                  onChangeText={setTackleNotes}
+                  placeholder="Example: orange spinner, PowerBait off bottom, downrigger at 35 ft"
+                  placeholderTextColor={theme.colors.inputPlaceholder}
+                  multiline
+                  style={{ ...formInputStyle, minHeight: 72, textAlignVertical: 'top' }}
+                />
+              </FormField>
+              <OptionChips label="Measure Fish?" options={['Yes', 'No'] as const} value={practiceMeasurementEnabled ? 'Yes' : 'No'} onChange={(value) => setPracticeMeasurementEnabled(value === 'Yes')} />
+              {practiceMeasurementEnabled ? (
+                <OptionChips label="Length Unit" options={['in', 'cm', 'mm'] as const} value={practiceLengthUnit} onChange={(value) => setPracticeLengthUnit(value as 'in' | 'cm' | 'mm')} />
+              ) : null}
+            </SectionCard>
           ) : null}
           {mode !== 'competition' && !!joinedGroups.length ? (
             <View style={{ gap: 10 }}>

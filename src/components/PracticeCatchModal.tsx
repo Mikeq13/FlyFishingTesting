@@ -1,22 +1,23 @@
 import React from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
-import { TroutSpecies } from '@/types/experiment';
+import { Text, TextInput, View } from 'react-native';
 import { CatchLengthUnit } from '@/types/activity';
 import { AppButton } from '@/components/ui/AppButton';
 import { ModalSurface } from '@/components/ui/ModalSurface';
 import { useTheme } from '@/design/theme';
-
-const TROUT_SPECIES_OPTIONS: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow', 'Tiger', 'Whitefish'];
+import { SpeciesPicker } from '@/components/SpeciesPicker';
+import { FLY_SPECIES_OPTIONS } from '@/utils/fishSpecies';
 
 interface PracticeCatchModalProps {
   visible: boolean;
   title: string;
-  selectedSpecies: TroutSpecies | null;
+  selectedSpecies: string | null;
+  recommendedSpecies?: string[];
+  recentSpecies?: string[];
   measurementEnabled?: boolean;
   lengthUnit?: CatchLengthUnit;
   selectedLength?: string;
   isSubmitting?: boolean;
-  onSelectSpecies: (species: TroutSpecies) => void;
+  onSelectSpecies: (species: string) => void;
   onSelectLength?: (value: string) => void;
   onCancel: () => void;
   onConfirm: () => void;
@@ -26,6 +27,8 @@ export const PracticeCatchModal = ({
   visible,
   title,
   selectedSpecies,
+  recommendedSpecies = FLY_SPECIES_OPTIONS,
+  recentSpecies = [],
   measurementEnabled = false,
   lengthUnit = 'in',
   selectedLength = '',
@@ -41,30 +44,15 @@ export const PracticeCatchModal = ({
     <ModalSurface
       visible={visible}
       title={title}
-      subtitle="Choose the trout species. The app will timestamp the catch automatically for catch-rate insights later."
+      subtitle="Choose the species. The app will timestamp the catch automatically for catch-rate insights later."
       onClose={onCancel}
     >
-        <View style={{ gap: 8 }}>
-          <Text style={{ color: theme.colors.modalText, fontWeight: '700' }}>Species</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {TROUT_SPECIES_OPTIONS.map((species) => (
-              <Pressable
-                key={species}
-                onPress={() => onSelectSpecies(species)}
-                style={{
-                  backgroundColor: selectedSpecies === species ? theme.colors.primary : theme.colors.modalSurfaceAlt,
-                  paddingVertical: 10,
-                  paddingHorizontal: 12,
-                  borderRadius: theme.radius.md,
-                  borderWidth: 1,
-                  borderColor: selectedSpecies === species ? theme.colors.modalBorder : theme.colors.modalNestedBorder
-                }}
-              >
-                <Text style={{ color: selectedSpecies === species ? theme.colors.buttonText : theme.colors.modalText, fontWeight: '700' }}>{species}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
+        <SpeciesPicker
+          selectedSpecies={selectedSpecies}
+          recommendedSpecies={recommendedSpecies}
+          recentSpecies={recentSpecies}
+          onSelectSpecies={onSelectSpecies}
+        />
         {measurementEnabled ? (
           <View style={{ gap: 8 }}>
             <Text style={{ color: theme.colors.modalText, fontWeight: '700' }}>Optional length ({lengthUnit})</Text>

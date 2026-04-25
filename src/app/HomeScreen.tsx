@@ -7,28 +7,30 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { StatusBanner } from '@/components/ui/StatusBanner';
 import { ModalSurface } from '@/components/ui/ModalSurface';
-import { WaterGuideDrawer } from '@/components/WaterGuideDrawer';
 import { useTheme } from '@/design/theme';
 import { useAppStore } from './store';
 import { SessionMode } from '@/types/session';
 import { useResponsiveLayout } from '@/design/layout';
 import { buildActiveOutingLabel, buildActiveOutingNavigationTarget, HANDS_FREE_EXAMPLES } from '@/utils/handsFree';
 import { getSyncTrustFeedback } from '@/utils/syncFeedback';
+import { FISHING_STYLE_OPTIONS, FishingStyle } from '@/utils/fishingStyle';
 
 const SESSION_MODE_OPTIONS: Array<{
   mode: SessionMode;
   title: string;
   description: string;
+  recommended?: boolean;
 }> = [
+  {
+    mode: 'practice',
+    title: 'Journal Entry',
+    description: 'Recommended for most anglers. Log the water, setup, notes, and catches without turning the day into a research project.',
+    recommended: true
+  },
   {
     mode: 'experiment',
     title: 'Structured Experiment',
     description: 'Compare flies, water, or techniques when you want cleaner evidence instead of a loose journal note.'
-  },
-  {
-    mode: 'practice',
-    title: 'Journal Entry',
-    description: 'Log the river, water, rig, flies, notes, and catches without turning the day into a research project.'
   },
   {
     mode: 'competition',
@@ -58,7 +60,7 @@ export const HomeScreen = ({ navigation }: any) => {
   const layout = useResponsiveLayout();
   const isDaylightTheme = theme.id === 'daylight_light';
   const [showSessionChooser, setShowSessionChooser] = React.useState(false);
-  const [showWaterGuide, setShowWaterGuide] = React.useState(false);
+  const [selectedFishingStyle, setSelectedFishingStyle] = React.useState<FishingStyle | null>(null);
   const [resumeFeedback, setResumeFeedback] = React.useState<{ tone: 'success' | 'warning'; text: string } | null>(null);
   const shouldCenterContent = Platform.OS !== 'web' && !layout.isCompactLayout;
   const latestInsight = React.useMemo(
@@ -135,9 +137,15 @@ export const HomeScreen = ({ navigation }: any) => {
         ? 'Daylight review'
         : 'Professional river';
 
-  const beginSession = (mode: SessionMode) => {
+  const beginSession = (mode: SessionMode, fishingStyle: FishingStyle = 'fly') => {
     setShowSessionChooser(false);
-    navigation.navigate('Session', { mode });
+    setSelectedFishingStyle(null);
+    navigation.navigate('Session', { mode, fishingStyle });
+  };
+
+  const openSessionChooser = () => {
+    setSelectedFishingStyle(null);
+    setShowSessionChooser(true);
   };
 
   return (
@@ -147,7 +155,7 @@ export const HomeScreen = ({ navigation }: any) => {
         {!isWebDemoMode ? (
           <ScreenHeader
             title="Fishing Lab"
-            subtitle="A hands-free fly fishing journal that turns outings, water changes, rigs, flies, and catches into patterns you can trust."
+            subtitle="A hands-free fishing journal that turns outings, water changes, setups, and catches into patterns you can trust."
             eyebrow="On The Water"
           />
         ) : null}
@@ -184,7 +192,7 @@ export const HomeScreen = ({ navigation }: any) => {
                   textShadowRadius: 16
                 }}
               >
-                Fishing Lab turns a day on the river into patterns you can trust.
+                Fishing Lab turns a day on the water into patterns you can trust.
               </Text>
               <Text
                 style={{
@@ -210,10 +218,7 @@ export const HomeScreen = ({ navigation }: any) => {
                 </View>
               ) : null}
               <View style={{ flex: 1 }}>
-                <AppButton label="Open Water Guide" onPress={() => setShowWaterGuide(true)} variant="secondary" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <AppButton label="Start Journal Entry" onPress={() => beginSession('practice')} variant="secondary" />
+                <AppButton label="Start Fishing" onPress={openSessionChooser} variant="secondary" />
               </View>
             </View>
             <View style={{ gap: 10, maxWidth: 820 }}>
@@ -360,22 +365,10 @@ export const HomeScreen = ({ navigation }: any) => {
             </>
           ) : (
             <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
-              No active journal entry right now. Open the Water Guide if you want a quick read on how to fish today, or start logging when you are ready.
+              No active journal entry right now. Choose the style of fishing you are doing today, then Fishing Lab will guide you into the right setup.
             </Text>
           )}
-          <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
-            <View style={{ flex: 1 }}>
-              <AppButton label="Start Journal Entry" onPress={() => beginSession('practice')} variant="primary" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <AppButton label="Structured Experiment" onPress={() => beginSession('experiment')} variant="secondary" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <AppButton label="Competition" onPress={() => beginSession('competition')} variant="secondary" />
-            </View>
-          </View>
-          <AppButton label="Open Water Guide" onPress={() => setShowWaterGuide(true)} variant="ghost" />
-          <AppButton label="Choose Session Style" onPress={() => setShowSessionChooser(true)} variant="ghost" />
+          <AppButton label="Start Fishing" onPress={openSessionChooser} variant="primary" />
         </SectionCard>
 
         <SectionCard
@@ -393,9 +386,9 @@ export const HomeScreen = ({ navigation }: any) => {
           ) : (
             <>
               <Text style={{ color: theme.colors.textSoft, lineHeight: 21 }}>
-                Log a few complete sessions with river, water, technique, fly, and catch details. Fishing Lab will wait until the journal has enough signal before calling something a pattern.
+                Log a few complete sessions with water, setup, method, and catch details. Fishing Lab will wait until the journal has enough signal before calling something a pattern.
               </Text>
-              <AppButton label="Start First Outing" onPress={() => setShowSessionChooser(true)} variant="secondary" />
+              <AppButton label="Start First Journal" onPress={openSessionChooser} variant="secondary" />
             </>
           )}
         </SectionCard>
@@ -424,34 +417,86 @@ export const HomeScreen = ({ navigation }: any) => {
         </View>
       </ScrollView>
       </KeyboardDismissView>
-      <WaterGuideDrawer visible={showWaterGuide} waterType={activeOutingSegment?.waterType ?? activeOutingSession?.waterType ?? 'run'} onClose={() => setShowWaterGuide(false)} />
       <ModalSurface
         visible={showSessionChooser}
-        title="What do you want to log today?"
-        subtitle="Choose the light journal path for most days, or a structured experiment when you want to compare one thing carefully."
-        onClose={() => setShowSessionChooser(false)}
+        title={selectedFishingStyle ? FISHING_STYLE_OPTIONS.find((option) => option.key === selectedFishingStyle)?.title ?? 'Choose Session' : 'Choose Fishing Style'}
+        subtitle={
+          selectedFishingStyle
+            ? selectedFishingStyle === 'fly'
+              ? 'Choose how much structure you want. Journal Entry is the best default when you just want to fish and learn.'
+              : 'This style starts with a lightweight journal entry so logging stays quick.'
+            : 'Start with the type of fishing you are doing today. Fishing Lab will only show the flows that fit that style.'
+        }
+        onClose={() => {
+          setShowSessionChooser(false);
+          setSelectedFishingStyle(null);
+        }}
       >
-            <View style={{ gap: 12 }}>
-            {SESSION_MODE_OPTIONS.map((option) => (
+        <View style={{ gap: 12 }}>
+          {!selectedFishingStyle ? (
+            FISHING_STYLE_OPTIONS.map((styleOption) => (
               <Pressable
-                key={option.mode}
-                onPress={() => beginSession(option.mode)}
+                key={styleOption.key}
+                onPress={() => setSelectedFishingStyle(styleOption.key)}
                 style={{
-                backgroundColor: isDaylightTheme ? theme.colors.nestedSurface : theme.colors.modalNestedSurface,
-                borderRadius: 16,
-                padding: 14,
-                borderWidth: 1,
-                borderColor: isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.modalNestedBorder,
-                gap: 4
-              }}
+                  backgroundColor: isDaylightTheme ? theme.colors.nestedSurface : theme.colors.modalNestedSurface,
+                  borderRadius: 16,
+                  padding: 14,
+                  borderWidth: 1,
+                  borderColor: isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.modalNestedBorder,
+                  gap: 4
+                }}
               >
-                <Text style={{ color: isDaylightTheme ? theme.colors.textDark : theme.colors.modalText, fontWeight: '800', fontSize: 17 }}>{option.title}</Text>
-                <Text style={{ color: isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.modalTextSoft, lineHeight: 19 }}>{option.description}</Text>
+                <Text style={{ color: isDaylightTheme ? theme.colors.textDark : theme.colors.modalText, fontWeight: '800', fontSize: 17 }}>
+                  {styleOption.title}
+                </Text>
+                <Text style={{ color: isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.modalTextSoft, lineHeight: 19 }}>
+                  {styleOption.description}
+                </Text>
               </Pressable>
-            ))}
-
-            <AppButton label="Cancel" onPress={() => setShowSessionChooser(false)} variant="ghost" surfaceTone="modal" />
+            ))
+          ) : selectedFishingStyle === 'fly' ? (
+            <View style={{ gap: 8 }}>
+              {SESSION_MODE_OPTIONS.map((option) => (
+                <Pressable
+                  key={option.mode}
+                  onPress={() => beginSession(option.mode, 'fly')}
+                  style={{
+                    backgroundColor: isDaylightTheme ? theme.colors.nestedSurface : theme.colors.modalNestedSurface,
+                    borderRadius: 16,
+                    padding: 14,
+                    borderWidth: 1,
+                    borderColor: option.recommended ? theme.colors.primary : isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.modalNestedBorder,
+                    gap: 4
+                  }}
+                >
+                  <Text style={{ color: isDaylightTheme ? theme.colors.textDark : theme.colors.modalText, fontWeight: '800', fontSize: 17 }}>
+                    {option.title}{option.recommended ? ' - Recommended' : ''}
+                  </Text>
+                  <Text style={{ color: isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.modalTextSoft, lineHeight: 19 }}>{option.description}</Text>
+                </Pressable>
+              ))}
             </View>
+          ) : (
+            <View style={{ gap: 10 }}>
+              <StatusBanner tone="info" text="Journal Entry is the simple path for this fishing style. Structured experiments and competition stay fly-first for now." />
+              <AppButton label="Start Journal Entry" onPress={() => beginSession('practice', selectedFishingStyle)} surfaceTone="modal" />
+            </View>
+          )}
+
+          {selectedFishingStyle ? (
+            <AppButton label="Back To Fishing Styles" onPress={() => setSelectedFishingStyle(null)} variant="ghost" surfaceTone="modal" />
+          ) : null}
+          <AppButton
+            label="Cancel"
+            onPress={() => {
+              setShowSessionChooser(false);
+              setSelectedFishingStyle(null);
+            }}
+            variant="ghost"
+            surfaceTone="modal"
+          />
+        </View>
       </ModalSurface>
     </ScreenBackground>
   );

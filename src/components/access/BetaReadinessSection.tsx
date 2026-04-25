@@ -18,6 +18,20 @@ import {
 } from '@/utils/betaReadiness';
 import { BetaReadinessCheckStatus, BetaReadinessSnapshot } from '@/types/betaReadiness';
 
+const STATUS_LABEL_BY_VALUE: Record<BetaReadinessCheckStatus, string> = {
+  untested: 'Not Tested',
+  follow_up: 'Needs Follow-Up',
+  pass: 'Passed'
+};
+
+const STATUS_VALUE_BY_LABEL: Record<string, BetaReadinessCheckStatus> = {
+  'Not Tested': 'untested',
+  'Needs Follow-Up': 'follow_up',
+  Passed: 'pass'
+};
+
+const STATUS_LABEL_OPTIONS = ['Not Tested', 'Needs Follow-Up', 'Passed'] as const;
+
 export const BetaReadinessSection = ({
   authStatus,
   remoteSession,
@@ -83,7 +97,7 @@ export const BetaReadinessSection = ({
 
   return (
   <SectionCard
-    title="Beta Readiness"
+    title="Owner Test Checklist"
     subtitle="Use this as the owner-device gate before inviting more testers. A build is not trusted until the live checks pass on Android."
     tone="light"
   >
@@ -219,9 +233,9 @@ export const BetaReadinessSection = ({
           <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 19 }}>{check.description}</Text>
           <OptionChips
             label="Status"
-            options={['untested', 'follow_up', 'pass'] as const}
-            value={snapshot.checks[check.key] ?? 'untested'}
-            onChange={(value) => updateCheckStatus(check.key, value as BetaReadinessCheckStatus)}
+            options={STATUS_LABEL_OPTIONS}
+            value={STATUS_LABEL_BY_VALUE[snapshot.checks[check.key] ?? 'untested']}
+            onChange={(value) => updateCheckStatus(check.key, STATUS_VALUE_BY_LABEL[value] ?? 'untested')}
           />
         </View>
       ))}

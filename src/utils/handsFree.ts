@@ -8,8 +8,8 @@ import {
   HandsFreeExample,
   HandsFreePreferences
 } from '@/types/handsFree';
-import { TroutSpecies } from '@/types/experiment';
 import { SessionMode, Technique, WaterType } from '@/types/session';
+import { GENERAL_SPECIES_OPTIONS, normalizeSpeciesName } from '@/utils/fishSpecies';
 
 export const ACTIVE_OUTING_SETTING_KEY = 'continuity.active_outing';
 export const AUTO_RESUME_ENABLED_KEY = 'continuity.auto_resume_enabled';
@@ -52,7 +52,7 @@ export const HANDS_FREE_EXAMPLES: HandsFreeExample[] = [
   }
 ];
 
-export const SUPPORTED_SPECIES: TroutSpecies[] = ['Brook', 'Brown', 'Cutthroat', 'Rainbow', 'Tiger', 'Whitefish'];
+export const SUPPORTED_SPECIES = GENERAL_SPECIES_OPTIONS;
 export const SUPPORTED_WATER_TYPES: WaterType[] = WATER_TYPES;
 export const SUPPORTED_TECHNIQUES: Technique[] = TECHNIQUES;
 export const SUPPORTED_LENGTH_UNITS: CatchLengthUnit[] = ['in', 'mm', 'cm'];
@@ -123,11 +123,9 @@ const normalizeWaterType = (value: string | undefined | null): WaterType | null 
   return match ?? null;
 };
 
-const normalizeSpecies = (value: string | undefined | null): TroutSpecies | null => {
+const normalizeSpecies = (value: string | undefined | null): string | null => {
   if (!value) return null;
-  const normalized = value.trim().toLowerCase();
-  const match = SUPPORTED_SPECIES.find((species) => species.toLowerCase() === normalized);
-  return match ?? null;
+  return normalizeSpeciesName(value);
 };
 
 const normalizeLengthUnit = (value: string | undefined | null): CatchLengthUnit | null => {

@@ -1,5 +1,5 @@
 import { CatchEvent, CatchLengthUnit, SessionSegment } from './activity';
-import { Experiment, TroutSpecies } from './experiment';
+import { Experiment, FishSpecies } from './experiment';
 import { Session, SessionMode, Technique, WaterType } from './session';
 
 export type ActiveOutingRoute = 'Practice' | 'Experiment' | 'Competition';
@@ -24,7 +24,7 @@ export type HandsFreeAction =
 export interface HandsFreeCommand {
   action: HandsFreeAction;
   source?: HandsFreeCommandSource | null;
-  species?: TroutSpecies | null;
+  species?: FishSpecies | null;
   lengthValue?: number | null;
   lengthUnit?: CatchLengthUnit | null;
   noteText?: string | null;

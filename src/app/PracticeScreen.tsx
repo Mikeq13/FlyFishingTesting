@@ -10,7 +10,7 @@ import { TECHNIQUES, WATER_TYPES } from '@/constants/options';
 import { useAppStore } from './store';
 import { useSessionTimer } from '@/hooks/useSessionTimer';
 import { FlySetup } from '@/types/fly';
-import { TroutSpecies } from '@/types/experiment';
+import { FishSpecies } from '@/types/experiment';
 import { RigSetup } from '@/types/rig';
 import { Technique } from '@/types/session';
 import { applyRigPresetToRig, createDefaultRigSetup, setRigFlyCount } from '@/utils/rigSetup';
@@ -27,6 +27,8 @@ import { formatSharedBackendError, getPendingSyncFeedback, getPendingSyncFeedbac
 import { DictationHelpModal } from '@/components/DictationHelpModal';
 import { WaterGuideDrawer } from '@/components/WaterGuideDrawer';
 import { buildFieldActionFeedback, FieldFeedback } from '@/utils/fieldFeedback';
+import { describeFishingStyleSetup, getFishingStyleForSession } from '@/utils/fishingStyle';
+import { getRecommendedSpeciesForStyle, getRecentCatchSpecies } from '@/utils/fishSpecies';
 
 type SetupSheetKey = 'technique' | 'leader' | 'rigging' | 'flies' | null;
 
@@ -62,7 +64,8 @@ export const PracticeScreen = ({ route, navigation }: any) => {
   const session = sessions.find((candidate) => candidate.id === sessionId) ?? null;
   const [isBootstrappingSegment, setIsBootstrappingSegment] = useState(false);
   const [pendingCatchFly, setPendingCatchFly] = useState<FlySetup | null>(null);
-  const [pendingCatchSpecies, setPendingCatchSpecies] = useState<TroutSpecies | null>(null);
+  const [pendingGeneralCatch, setPendingGeneralCatch] = useState(false);
+  const [pendingCatchSpecies, setPendingCatchSpecies] = useState<FishSpecies | null>(null);
   const [pendingCatchLength, setPendingCatchLength] = useState('');
   const [isSavingCatch, setIsSavingCatch] = useState(false);
   const [activeSetupSheet, setActiveSetupSheet] = useState<SetupSheetKey>(null);
@@ -86,12 +89,13 @@ export const PracticeScreen = ({ route, navigation }: any) => {
     () => catchEvents.filter((event) => event.sessionId === sessionId).slice(0, 12),
     [catchEvents, sessionId]
   );
-  const lastLoggedSpecies = useMemo<TroutSpecies | null>(() => {
+  const lastLoggedSpecies = useMemo<FishSpecies | null>(() => {
     const species = catchEvents
       .filter((event) => event.sessionId === sessionId && !!event.species)
       .sort((left, right) => new Date(right.caughtAt).getTime() - new Date(left.caughtAt).getTime())[0]?.species;
-    return (species as TroutSpecies | undefined) ?? null;
+    return species ?? null;
   }, [catchEvents, sessionId]);
+  const recentPracticeSpecies = useMemo(() => getRecentCatchSpecies(catchEvents), [catchEvents]);
   const timer = useSessionTimer({
     startedAt: session?.startAt ?? session?.date ?? new Date().toISOString(),
     endedAt: session?.endedAt,
@@ -171,6 +175,9 @@ export const PracticeScreen = ({ route, navigation }: any) => {
 
   const currentRigSetup = activeSegment?.rigSetup ?? createDefaultRigSetup(activeSegment?.flySnapshots ?? []);
   const activeTechnique = activeSegment?.technique ?? session?.startingTechnique;
+  const fishingStyle = getFishingStyleForSession(session);
+  const fishingStyleSetup = describeFishingStyleSetup(session);
+  const isFlyJournal = fishingStyle === 'fly';
   const leaderSummary = currentRigSetup.leaderFormulaName ?? (currentRigSetup.leaderFormulaSectionsSnapshot.length ? 'Custom leader' : 'Not chosen');
   const rigSummary = `${currentRigSetup.assignments.length} ${currentRigSetup.assignments.length === 1 ? 'fly' : 'flies'} | ${currentRigSetup.assignments.map((assignment) => assignment.position).join(' | ')}`;
   const flySummary = currentRigSetup.assignments.length
@@ -273,7 +280,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
   };
 
   const confirmPracticeCatch = async () => {
-    if (catchSubmitLockedRef.current || !activeSegment || !pendingCatchFly || !pendingCatchSpecies) return;
+    if (catchSubmitLockedRef.current || !activeSegment || (!pendingCatchFly && !pendingGeneralCatch) || !pendingCatchSpecies) return;
     catchSubmitLockedRef.current = true;
     setIsSavingCatch(true);
     const parsedLength = Number(pendingCatchLength);
@@ -282,15 +289,17 @@ export const PracticeScreen = ({ route, navigation }: any) => {
         sessionId: session.id,
         segmentId: activeSegment.id,
         mode: 'practice',
-        flyName: pendingCatchFly.name,
-        flySnapshot: pendingCatchFly,
+        flyName: pendingCatchFly?.name,
+        flySnapshot: pendingCatchFly ?? undefined,
         species: pendingCatchSpecies,
         lengthValue:
           session.practiceMeasurementEnabled && Number.isFinite(parsedLength) && parsedLength > 0 ? parsedLength : undefined,
         lengthUnit: session.practiceLengthUnit ?? 'in',
-        caughtAt: new Date().toISOString()
+        caughtAt: new Date().toISOString(),
+        notes: pendingGeneralCatch ? [fishingStyleSetup.styleLabel, fishingStyleSetup.method, fishingStyleSetup.tackleNotes].filter(Boolean).join(' | ') : undefined
       });
       setPendingCatchFly(null);
+      setPendingGeneralCatch(false);
       setPendingCatchSpecies(null);
       setPendingCatchLength('');
       setFieldFeedback(
@@ -422,44 +431,67 @@ export const PracticeScreen = ({ route, navigation }: any) => {
           />
         </SectionCard>
 
-        {renderSetupSummaryCard({
+        {isFlyJournal ? renderSetupSummaryCard({
           title: 'Technique',
           subtitle: 'Change approach quickly as you cover different water levels in the same session.',
           summaryTitle: 'Current Technique',
           summaryText: activeTechnique ?? 'Not chosen',
           buttonLabel: 'Change Technique',
           sheetKey: 'technique'
-        })}
+        }) : null}
 
-        {renderSetupSummaryCard({
+        {isFlyJournal ? renderSetupSummaryCard({
           title: 'Leader',
           subtitle: 'Adjust the current leader quickly without burying the practice flow under setup controls.',
           summaryTitle: 'Current Leader',
           summaryText: leaderSummary,
           buttonLabel: 'Change Leader',
           sheetKey: 'leader'
-        })}
+        }) : null}
 
-        {renderSetupSummaryCard({
+        {isFlyJournal ? renderSetupSummaryCard({
           title: 'Rigging',
           subtitle: 'Adjust fly count, rig preset, or tippet details in one focused step.',
           summaryTitle: 'Current Rigging',
           summaryText: rigSummary,
           buttonLabel: 'Change Rigging',
           sheetKey: 'rigging'
-        })}
+        }) : null}
 
-        {renderSetupSummaryCard({
+        {isFlyJournal ? renderSetupSummaryCard({
           title: 'Flies',
           subtitle: 'Swap or add flies without pushing timer and catch logging off screen.',
           summaryTitle: 'Current Flies',
           summaryText: flySummary,
           buttonLabel: 'Change Flies',
           sheetKey: 'flies'
-        })}
+        }) : null}
+
+        {!isFlyJournal ? (
+          <SectionCard title="Tackle Setup" subtitle="Lightweight setup for the fishing style you chose.">
+            <Text style={{ color: theme.colors.text }}>Style: {fishingStyleSetup.styleLabel}</Text>
+            <Text style={{ color: theme.colors.text }}>Method: {fishingStyleSetup.method ?? 'Not set'}</Text>
+            {fishingStyleSetup.tackleNotes ? (
+              <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>{fishingStyleSetup.tackleNotes}</Text>
+            ) : (
+              <Text style={{ color: theme.colors.textSoft }}>No tackle notes added yet.</Text>
+            )}
+          </SectionCard>
+        ) : null}
 
         <SectionCard title="Log Catches" subtitle="Quick tap logging stays front and center while you practice.">
-          {!currentRigSetup.assignments.length ? (
+          {!isFlyJournal ? (
+            <AppButton
+              label="Log Catch"
+              onPress={() => {
+                setPendingGeneralCatch(true);
+                setPendingCatchSpecies(lastLoggedSpecies);
+                setPendingCatchLength('');
+              }}
+              disabled={timer.hasEnded}
+              variant="tertiary"
+            />
+          ) : !currentRigSetup.assignments.length ? (
             <Text style={{ color: theme.colors.textSoft }}>Add flies to the rig before logging practice catches.</Text>
           ) : (
             currentRigSetup.assignments.map((assignment, index) => (
@@ -491,7 +523,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
           ) : (
             recentCatches.map((event) => (
               <Text key={event.id} style={{ color: theme.colors.textDarkSoft }}>
-                {new Date(event.caughtAt).toLocaleTimeString()} - {event.flyName || 'Fly'}{event.species ? ` - ${event.species}` : ''}
+                {new Date(event.caughtAt).toLocaleTimeString()} - {event.flyName || fishingStyleSetup.method || 'Catch'}{event.species ? ` - ${event.species}` : ''}
               </Text>
             ))
           )}
@@ -618,9 +650,11 @@ export const PracticeScreen = ({ route, navigation }: any) => {
           </View>
         </BottomSheetSurface>
       <PracticeCatchModal
-        visible={pendingCatchFly !== null}
-        title={`Log catch for ${pendingCatchFly?.name ?? 'Fly'}`}
+        visible={pendingCatchFly !== null || pendingGeneralCatch}
+        title={pendingGeneralCatch ? 'Log Catch' : `Log catch for ${pendingCatchFly?.name ?? 'Fly'}`}
         selectedSpecies={pendingCatchSpecies}
+        recommendedSpecies={getRecommendedSpeciesForStyle(fishingStyle)}
+        recentSpecies={recentPracticeSpecies}
         measurementEnabled={session.practiceMeasurementEnabled}
         lengthUnit={session.practiceLengthUnit ?? 'in'}
         selectedLength={pendingCatchLength}
@@ -630,6 +664,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
         onCancel={() => {
           if (isSavingCatch) return;
           setPendingCatchFly(null);
+          setPendingGeneralCatch(false);
           setPendingCatchSpecies(null);
           setPendingCatchLength('');
         }}

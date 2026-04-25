@@ -1,4 +1,4 @@
-import { Experiment, ExperimentFlyEntry, TroutSpecies } from '@/types/experiment';
+import { Experiment, ExperimentFlyEntry, FishSpecies } from '@/types/experiment';
 import { FlySetup } from '@/types/fly';
 import { createDefaultRigSetup, createEmptyFly } from './rigSetup';
 const normalizeFly = (fly: FlySetup): FlySetup => ({
@@ -27,9 +27,9 @@ const normalizeFishSizes = (fishSizesInches: number[] | undefined, catches: numb
     .filter((size): size is number => typeof size === 'number' && Number.isFinite(size))
     .slice(0, Math.max(catches, 0));
 
-const normalizeFishSpecies = (fishSpecies: string[] | undefined, catches: number): TroutSpecies[] =>
+const normalizeFishSpecies = (fishSpecies: string[] | undefined, catches: number): FishSpecies[] =>
   (fishSpecies ?? [])
-    .filter((species): species is TroutSpecies => typeof species === 'string' && species.trim().length > 0)
+    .filter((species): species is FishSpecies => typeof species === 'string' && species.trim().length > 0)
     .slice(0, Math.max(catches, 0));
 
 const normalizeCatchTimestamps = (catchTimestamps: string[] | undefined, catches: number): string[] =>
