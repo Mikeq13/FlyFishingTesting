@@ -139,11 +139,6 @@ export const AccessScreen = ({ navigation }: any) => {
     acceptInvite,
     revokeSponsoredAccess,
     resetWebDemoData,
-    setAutoResumePromptEnabled,
-    setResumeFromNotificationsEnabled,
-    setDictationEnabled,
-    setShowDictationHelpInSessions,
-    setConfirmationNotificationsEnabled,
     addCatchEvent,
     addSessionSegment,
     updateSessionEntry,
@@ -197,8 +192,9 @@ export const AccessScreen = ({ navigation }: any) => {
   const [assignmentDrafts, setAssignmentDrafts] = React.useState<Record<string, { competitionGroupId: number | null; beat: string; role: CompetitionSessionRole }>>({});
   const [powerToolsSections, setPowerToolsSections] = React.useState({
     competitionOrganizer: false,
-    userManagement: false,
-    backendDiagnostics: false
+    backendDiagnostics: false,
+    handsFreeDiagnostics: false,
+    userManagement: false
   });
   const currentUserSessions = React.useMemo(() => sessions.filter((session) => session.userId === currentUser?.id), [currentUser?.id, sessions]);
   const currentUserExperiments = React.useMemo(() => experiments.filter((experiment) => experiment.userId === currentUser?.id), [currentUser?.id, experiments]);
@@ -396,7 +392,7 @@ export const AccessScreen = ({ navigation }: any) => {
 
   React.useEffect(() => {
     if (canAccessPowerTools) return;
-    setPowerToolsSections({ competitionOrganizer: false, userManagement: false, backendDiagnostics: false });
+    setPowerToolsSections({ competitionOrganizer: false, backendDiagnostics: false, handsFreeDiagnostics: false, userManagement: false });
   }, [canAccessPowerTools]);
 
   React.useEffect(() => {
@@ -882,15 +878,6 @@ export const AccessScreen = ({ navigation }: any) => {
             }
           />
         ) : null}
-        {!isWebDemoMode ? (
-          <BetaReadinessSection
-            authStatus={authStatus}
-            remoteSession={remoteSession}
-            sharedDataStatus={sharedDataStatus}
-            syncStatus={syncStatus}
-            notificationPermissionStatus={notificationPermissionStatus}
-          />
-        ) : null}
         {notificationPermissionStatus === 'denied' && !isWebDemoMode ? (
           <StatusBanner tone="warning" text="Notifications are blocked on this device. Session reminders will stay in-app until phone notification access is re-enabled." />
         ) : null}
@@ -975,75 +962,24 @@ export const AccessScreen = ({ navigation }: any) => {
 
         {renderCollapsibleCard({
           sectionKey: 'quickCapture',
-          title: 'Quick Capture & Dictation',
-          subtitle: 'Keep the supported Siri phrases, notification confirmations, and continuity controls visible in one place.',
+          title: 'Voice Commands & Quick Capture',
+          subtitle: 'See the field phrases and device status for voice and watch capture.',
           summary: (
             <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
-              {dictationEnabled ? 'Hands-free dictation enabled' : 'Hands-free dictation disabled'} - {showDictationHelpInSessions ? 'session help shown' : 'session help hidden'}
+              Voice shortcuts, watch status, and supported field vocabulary
             </Text>
           ),
           children: (
             <View style={{ gap: 10 }}>
               <SectionCard
-                title="Hands-Free Controls"
-                subtitle="These settings control how Fishing Lab surfaces Siri, Google Assistant, resume prompts, and confirmation banners."
+                title="Field Capture Status"
+                subtitle="Fishing Lab keeps hands-free capture narrow so it stays reliable while your hands are wet or busy."
                 tone="light"
               >
-                <OptionChips
-                  label="Enable Hands-Free Dictation"
-                  options={['On', 'Off'] as const}
-                  value={dictationEnabled ? 'On' : 'Off'}
-                  onChange={(value) => {
-                    setDictationEnabled(value === 'On').catch((error) =>
-                      Alert.alert('Unable to update setting', error instanceof Error ? error.message : 'Please try again.')
-                    );
-                  }}
-                  tone="light"
-                />
-                <OptionChips
-                  label="Show Dictation Help In Sessions"
-                  options={['On', 'Off'] as const}
-                  value={showDictationHelpInSessions ? 'On' : 'Off'}
-                  onChange={(value) => {
-                    setShowDictationHelpInSessions(value === 'On').catch((error) =>
-                      Alert.alert('Unable to update setting', error instanceof Error ? error.message : 'Please try again.')
-                    );
-                  }}
-                  tone="light"
-                />
-                <OptionChips
-                  label="Auto-open Resume Prompt"
-                  options={['On', 'Off'] as const}
-                  value={autoResumePromptEnabled ? 'On' : 'Off'}
-                  onChange={(value) => {
-                    setAutoResumePromptEnabled(value === 'On').catch((error) =>
-                      Alert.alert('Unable to update setting', error instanceof Error ? error.message : 'Please try again.')
-                    );
-                  }}
-                  tone="light"
-                />
-                <OptionChips
-                  label="Enable Resume From Notifications"
-                  options={['On', 'Off'] as const}
-                  value={resumeFromNotificationsEnabled ? 'On' : 'Off'}
-                  onChange={(value) => {
-                    setResumeFromNotificationsEnabled(value === 'On').catch((error) =>
-                      Alert.alert('Unable to update setting', error instanceof Error ? error.message : 'Please try again.')
-                    );
-                  }}
-                  tone="light"
-                />
-                <OptionChips
-                  label="Enable Confirmation Notifications"
-                  options={['On', 'Off'] as const}
-                  value={confirmationNotificationsEnabled ? 'On' : 'Off'}
-                  onChange={(value) => {
-                    setConfirmationNotificationsEnabled(value === 'On').catch((error) =>
-                      Alert.alert('Unable to update setting', error instanceof Error ? error.message : 'Please try again.')
-                    );
-                  }}
-                  tone="light"
-                />
+                <InlineSummaryRow label="Voice Capture" value={dictationEnabled ? 'Available' : 'Unavailable'} tone="light" />
+                <InlineSummaryRow label="In-Session Help" value={showDictationHelpInSessions ? 'Shown when needed' : 'Quiet during sessions'} tone="light" />
+                <InlineSummaryRow label="Resume Prompt" value={activeOuting && autoResumePromptEnabled ? 'Ready for current outing' : 'No active outing'} tone="light" />
+                <InlineSummaryRow label="Notifications" value={resumeFromNotificationsEnabled && confirmationNotificationsEnabled ? 'Resume and save feedback enabled' : 'In-app feedback only'} tone="light" />
               </SectionCard>
               <SectionCard
                 title="Supported Phrases"
@@ -1094,20 +1030,6 @@ export const AccessScreen = ({ navigation }: any) => {
                   Siri phrase to jump back in: “Resume current outing in Fishing Lab.”
                 </Text>
               </SectionCard>
-              <HandsFreeTestPanel
-                context={{
-                  dictationEnabled,
-                  activeOuting,
-                  sessions,
-                  sessionSegments,
-                  experiments,
-                  addCatchEvent,
-                  addSessionSegment,
-                  updateSessionEntry,
-                  updateSessionSegmentEntry,
-                  updateExperimentEntry
-                }}
-              />
             </View>
           )
         })}
@@ -1468,15 +1390,46 @@ export const AccessScreen = ({ navigation }: any) => {
                   })}
                   {renderNestedCollapsibleSection({
                     title: 'Backend Diagnostics',
-                    subtitle: 'Verify schema readiness, sync health, and env wiring before trusting shared beta data or cutting new builds.',
+                    subtitle: 'Verify readiness, schema health, sync state, and env wiring before trusting shared beta data or cutting new builds.',
                     expanded: powerToolsSections.backendDiagnostics,
                     onToggle: () => togglePowerToolsSection('backendDiagnostics'),
                     children: (
-                      <BackendDiagnosticsSection
-                        diagnostics={backendDiagnostics}
-                        onRetryBootstrap={() => refresh(currentUser.id)}
-                        onRetrySync={flushSyncQueue}
-                        embedded
+                      <View style={{ gap: 10 }}>
+                        <BetaReadinessSection
+                          authStatus={authStatus}
+                          remoteSession={remoteSession}
+                          sharedDataStatus={sharedDataStatus}
+                          syncStatus={syncStatus}
+                          notificationPermissionStatus={notificationPermissionStatus}
+                        />
+                        <BackendDiagnosticsSection
+                          diagnostics={backendDiagnostics}
+                          onRetryBootstrap={() => refresh(currentUser.id)}
+                          onRetrySync={flushSyncQueue}
+                          embedded
+                        />
+                      </View>
+                    )
+                  })}
+                  {renderNestedCollapsibleSection({
+                    title: 'Hands-Free Diagnostics',
+                    subtitle: 'Test field commands without putting beta controls in the normal Settings path.',
+                    expanded: powerToolsSections.handsFreeDiagnostics,
+                    onToggle: () => togglePowerToolsSection('handsFreeDiagnostics'),
+                    children: (
+                      <HandsFreeTestPanel
+                        context={{
+                          dictationEnabled,
+                          activeOuting,
+                          sessions,
+                          sessionSegments,
+                          experiments,
+                          addCatchEvent,
+                          addSessionSegment,
+                          updateSessionEntry,
+                          updateSessionSegmentEntry,
+                          updateExperimentEntry
+                        }}
                       />
                     )
                   })}

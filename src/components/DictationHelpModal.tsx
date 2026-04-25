@@ -17,7 +17,7 @@ export const DictationHelpModal = ({
   return (
       <ModalSurface
         visible={visible}
-        title="Hands-Free Dictation"
+        title="Voice Commands"
         subtitle="Use Siri or Google Assistant phrases that map cleanly onto the current outing so voice logging stays predictable on the water."
         onClose={onClose}
       >

@@ -1,6 +1,6 @@
 import { config as baseConfig } from '@tamagui/config/v3';
 import { createTamagui } from 'tamagui';
-import { themeRegistry } from '@/design/theme';
+import { themeRegistry } from './theme';
 
 const buildTamaguiTheme = (themeId: keyof typeof themeRegistry) => {
   const appTheme = themeRegistry[themeId];

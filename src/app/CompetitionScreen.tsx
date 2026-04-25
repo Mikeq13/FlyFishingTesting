@@ -227,7 +227,7 @@ export const CompetitionScreen = ({ route }: any) => {
             <AppButton label="End Session Early" onPress={endSessionEarly} variant="danger" />
           ) : null}
           {showDictationHelpInSessions ? (
-            <AppButton label="Dictation Help" onPress={() => setShowDictationHelp(true)} variant="ghost" />
+            <AppButton label="Voice Commands" onPress={() => setShowDictationHelp(true)} variant="ghost" />
           ) : null}
         </SectionCard>
 
