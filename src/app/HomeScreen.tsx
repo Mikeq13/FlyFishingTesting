@@ -11,7 +11,7 @@ import { useTheme } from '@/design/theme';
 import { useAppStore } from './store';
 import { SessionMode } from '@/types/session';
 import { useResponsiveLayout } from '@/design/layout';
-import { buildActiveOutingLabel, buildActiveOutingNavigationTarget, HANDS_FREE_EXAMPLES } from '@/utils/handsFree';
+import { buildActiveOutingLabel, buildActiveOutingNavigationTarget } from '@/utils/handsFree';
 import { getSyncTrustFeedback } from '@/utils/syncFeedback';
 import { FISHING_STYLE_OPTIONS, FishingStyle } from '@/utils/fishingStyle';
 
@@ -218,7 +218,7 @@ export const HomeScreen = ({ navigation }: any) => {
                 </View>
               ) : null}
               <View style={{ flex: 1 }}>
-                <AppButton label="Start Fishing" onPress={openSessionChooser} variant="secondary" />
+                <AppButton label="Start Journal Entry" onPress={openSessionChooser} variant="secondary" />
               </View>
             </View>
             <View style={{ gap: 10, maxWidth: 820 }}>
@@ -262,11 +262,15 @@ export const HomeScreen = ({ navigation }: any) => {
         {!isWebDemoMode ? (
         <SectionCard>
           <Text style={{ color: theme.colors.textMuted, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 }}>
-            Active Account
+            Welcome
           </Text>
-          <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 24 }}>{currentUser?.name ?? 'Loading...'}</Text>
-          <Text style={{ color: theme.colors.textSoft }}>
-            Signed in as: {remoteSession?.email ?? 'No account linked'}
+          <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 24 }}>
+            Hello {currentUser?.name ?? 'there'}.
+          </Text>
+          <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
+            {activeOuting && autoResumePromptEnabled
+              ? 'Resume Journal Entry returns to the live record you already started. Start Journal Entry begins a separate outing for new water, new timing, or a different fishing style.'
+              : 'Start a journal entry to briefly document what you are doing today.'}
           </Text>
         </SectionCard>
         ) : null}
@@ -368,7 +372,7 @@ export const HomeScreen = ({ navigation }: any) => {
               No active journal entry right now. Choose the style of fishing you are doing today, then Fishing Lab will guide you into the right setup.
             </Text>
           )}
-          <AppButton label="Start Fishing" onPress={openSessionChooser} variant="primary" />
+          <AppButton label="Start Journal Entry" onPress={openSessionChooser} variant="primary" />
         </SectionCard>
 
         <SectionCard
@@ -381,46 +385,26 @@ export const HomeScreen = ({ navigation }: any) => {
                 {latestInsight.confidence === 'high' ? 'Strong pattern' : latestInsight.confidence === 'medium' ? 'Moderate evidence' : 'Early signal'}
               </Text>
               <Text style={{ color: theme.colors.textSoft, lineHeight: 21 }}>{latestInsight.message}</Text>
-              <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
-                <View style={{ flex: 1 }}>
-                  <AppButton label="Start Next Journal" onPress={openSessionChooser} variant="secondary" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <AppButton label="Review Patterns" onPress={() => navigation.navigate('Insights')} variant="tertiary" />
-                </View>
-              </View>
             </>
           ) : (
-            <>
-              <Text style={{ color: theme.colors.textSoft, lineHeight: 21 }}>
-                Log a few complete sessions with water, setup, method, and catch details. Fishing Lab will wait until the journal has enough signal before calling something a pattern.
-              </Text>
-              <AppButton label="Start First Journal" onPress={openSessionChooser} variant="secondary" />
-            </>
+            <Text style={{ color: theme.colors.textSoft, lineHeight: 21 }}>
+              Log a few complete sessions with water, setup, method, and catch details. Fishing Lab will wait until the journal has enough signal before calling something a pattern.
+            </Text>
           )}
         </SectionCard>
 
         <SectionCard
-          title="Hands-Free Field Shortcuts"
-          subtitle="Use voice as a narrow field shortcut for actions that are safe to complete without digging through screens."
+          title="Voice Commands"
+          subtitle="Use structured voice shortcuts inside active journal entries for safe field actions like logging fish, adding notes, and changing water."
           tone="light"
         >
-          <View style={{ gap: 6 }}>
-            {HANDS_FREE_EXAMPLES.map((example) => (
-              <Text key={example.title} style={{ color: isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft, lineHeight: 20 }}>
-                {example.title}: {example.phrase}
-              </Text>
-            ))}
-          </View>
+          <Text style={{ color: isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft, lineHeight: 20 }}>
+            Open Voice Commands from a journal entry when you want the full list of supported phrases.
+          </Text>
         </SectionCard>
 
-        <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
-          <View style={{ flex: 1 }}>
-            <AppButton label="View History" onPress={() => navigation.navigate('History')} variant="secondary" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <AppButton label="Settings" onPress={() => navigation.navigate('Access')} variant="tertiary" />
-          </View>
+        <View>
+          <AppButton label="Settings" onPress={() => navigation.navigate('Access')} variant="tertiary" />
         </View>
       </ScrollView>
       </KeyboardDismissView>

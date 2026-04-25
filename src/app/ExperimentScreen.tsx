@@ -26,7 +26,7 @@ import { CastCounter } from '@/components/CastCounter';
 import { CatchCounter } from '@/components/CatchCounter';
 import { TECHNIQUES, WATER_TYPES } from '@/constants/options';
 import { Technique, WaterType } from '@/types/session';
-import { BottomSheetSurface } from '@/components/ui/BottomSheetSurface';
+import { ModalSurface } from '@/components/ui/ModalSurface';
 import { formatSharedBackendError, getPendingSyncFeedback, getPendingSyncFeedbackTone } from '@/utils/syncFeedback';
 import { getExperimentRigIdentitySignature } from '@/utils/dataIdentity';
 import { DictationHelpModal } from '@/components/DictationHelpModal';
@@ -49,7 +49,7 @@ const CONTROL_FOCUS_OPTIONS: ExperimentControlFocus[] = [
 
 type ExperimentSectionKey = 'hypothesis' | 'waterType' | 'leaders' | 'rigging' | 'flies';
 type DraftSaveState = 'dirty' | 'saving' | 'save_failed' | 'saved';
-type SetupSheetKey = 'technique' | 'leader' | 'rigging' | 'flies' | null;
+type SetupSheetKey = 'water' | 'technique' | 'leader' | 'rigging' | 'flies' | 'more' | null;
 
 export const ExperimentScreen = ({ route, navigation }: any) => {
   const { theme } = useTheme();
@@ -106,7 +106,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   const [pendingFishSize, setPendingFishSize] = useState<number | null>(null);
   const [pendingFishSpecies, setPendingFishSpecies] = useState<FishSpecies | null>(null);
   const [expandedSections, setExpandedSections] = useState<Record<ExperimentSectionKey, boolean>>({
-    hypothesis: true,
+    hypothesis: false,
     waterType: false,
     leaders: false,
     rigging: false,
@@ -119,6 +119,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   const hydratedSourceKeyRef = useRef<string | null>(null);
   const draftRevisionRef = useRef(0);
   const latestSaveTokenRef = useRef(0);
+  const activeOutingSignatureRef = useRef<string | null>(null);
   const syncFeedback = remoteSession ? getPendingSyncFeedback(syncStatus, 'experiment', 'experiment') : null;
 
   useEffect(() => {
@@ -706,39 +707,6 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     </SectionCard>
   );
 
-  const renderSetupSummaryCard = ({
-    title,
-    subtitle,
-    summaryTitle,
-    summaryText,
-    buttonLabel,
-    sheetKey
-  }: {
-    title: string;
-    subtitle: string;
-    summaryTitle: string;
-    summaryText: string;
-    buttonLabel: string;
-    sheetKey: Exclude<SetupSheetKey, null>;
-  }) => (
-    <SectionCard title={title} subtitle={subtitle}>
-      <View
-        style={{
-          gap: 8,
-          borderRadius: theme.radius.md,
-          padding: 12,
-          backgroundColor: theme.colors.surfaceAlt,
-          borderWidth: 1,
-          borderColor: theme.colors.border
-        }}
-      >
-        <Text style={{ color: theme.colors.text, fontWeight: '800' }}>{summaryTitle}</Text>
-        <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>{summaryText}</Text>
-        <AppButton label={buttonLabel} onPress={() => setActiveSetupSheet(sheetKey)} variant="ghost" />
-      </View>
-    </SectionCard>
-  );
-
   const flySummaryText = visibleEntries
     .map((entry, index) =>
       `${entry.label} ${index === baselineIndex ? '(Baseline)' : '(Test)'}: ${entry.fly.name.trim() || 'No fly selected'}`
@@ -747,9 +715,19 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
 
   useEffect(() => {
     if (!session || session.endedAt) {
+      activeOutingSignatureRef.current = null;
       clearActiveOuting().catch(() => undefined);
       return;
     }
+    const activeOutingSignature = JSON.stringify({
+      sessionId: session.id,
+      mode: session.mode,
+      activeExperimentId: activeExperimentId ?? null,
+      waterType: currentWaterType,
+      technique: currentTechnique ?? null
+    });
+    if (activeOutingSignatureRef.current === activeOutingSignature) return;
+    activeOutingSignatureRef.current = activeOutingSignature;
     setActiveOuting({
       mode: session.mode,
       targetRoute: 'Experiment',
@@ -784,112 +762,17 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           />
         ) : null}
 
-        {renderExperimentSection({
-          sectionKey: 'hypothesis',
-          title: 'Hypothesis',
-          subtitle: 'Keep the test intent and control focus visible without crowding the experiment screen.',
-          summary: `${session?.hypothesis?.trim() || 'No hypothesis provided'} | Control focus: ${controlFocus} | Cast step: ${castStep}`,
-          children: (
-            <View style={{ gap: 10 }}>
-              <Text style={{ color: theme.colors.text, lineHeight: 22 }}>
-                {session?.hypothesis?.trim() || 'No hypothesis was saved on the session screen.'}
-              </Text>
-              <OptionChips
-                label="Control Focus"
-                options={CONTROL_FOCUS_OPTIONS}
-                value={controlFocus}
-                onChange={(value) => {
-                  setControlFocus(value as ExperimentControlFocus);
-                  markDraftDirty();
-                }}
-              />
-              <OptionChips
-                label="Cast Step"
-                options={['5', '10'] as const}
-                value={String(castStep) as '5' | '10'}
-                onChange={(value) => {
-                  setCastStep(Number(value) as 5 | 10);
-                  markDraftDirty();
-                }}
-              />
+        <SectionCard title="Experiment Cockpit" subtitle="The active comparison, water, method, and save state stay visible while you fish.">
+          <InlineSummaryRow label="Hypothesis" value={session?.hypothesis?.trim() || 'No hypothesis provided'} valueMuted={!session?.hypothesis?.trim()} />
+          <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
+            <View style={{ flex: 1 }}>
+              <InlineSummaryRow label="Water" value={currentWaterType} />
             </View>
-          )
-        })}
-
-        {renderExperimentSection({
-          sectionKey: 'waterType',
-          title: 'Water Type',
-          subtitle: 'Use the session as your broad outing, but keep each experiment water change on the experiment itself.',
-          summary: `Current water type: ${currentWaterType}`,
-          children: (
-            <View style={{ gap: 10 }}>
-              <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
-                Before logging starts, you can change the experiment water type directly. After logging starts, you can either keep the current experiment going with the new water type or save the current comparison and start fresh.
-              </Text>
-              <OptionChips
-                label="New Water Type"
-                options={WATER_TYPES}
-                value={currentWaterType}
-                onChange={(value) => {
-                  void updateWaterType(value as WaterType);
-                }}
-              />
+            <View style={{ flex: 1 }}>
+              <InlineSummaryRow label="Technique" value={currentTechnique ?? 'Not chosen'} valueMuted={!currentTechnique} />
             </View>
-          )
-        })}
-
-        <SectionCard title="Baseline Fly" subtitle="Keep the control fly obvious on the main screen while you test changes below.">
-          <OptionChips
-            label="Baseline Fly"
-            options={visibleEntries.map((entry) => entry.label) as [string, ...string[]]}
-            value={visibleEntries[baselineIndex]?.label}
-            onChange={(value) => {
-              const nextIndex = visibleEntries.findIndex((entry) => entry.label === value);
-              if (nextIndex >= 0) {
-                setBaselineIndex(nextIndex);
-                markDraftDirty();
-              }
-            }}
-          />
-        </SectionCard>
-
-        {renderSetupSummaryCard({
-          title: 'Technique',
-          subtitle: 'Keep the current method visible and lightweight to change without blurring the experiment context.',
-          summaryTitle: 'Current Technique',
-          summaryText: currentTechnique ?? 'Not chosen',
-          buttonLabel: 'Change Technique',
-          sheetKey: 'technique'
-        })}
-
-        {renderSetupSummaryCard({
-          title: 'Leader',
-          subtitle: 'Leader setup persists from Session and can be changed here without leaving the experiment.',
-          summaryTitle: 'Current Leader',
-          summaryText: leaderSummary,
-          buttonLabel: 'Change Leader',
-          sheetKey: 'leader'
-        })}
-
-        {renderSetupSummaryCard({
-          title: 'Rigging',
-          subtitle: 'Rigging persists from Session. Change fly count, preset, or tippet details in one focused step.',
-          summaryTitle: 'Current Rigging',
-          summaryText: rigSummary,
-          buttonLabel: 'Change Rigging',
-          sheetKey: 'rigging'
-        })}
-
-        {renderSetupSummaryCard({
-          title: 'Flies',
-          subtitle: 'Flies persist from Session. Replace them or fill empty slots without pushing Results off screen.',
-          summaryTitle: 'Current Flies',
-          summaryText: flySummaryText,
-          buttonLabel: 'Change Flies',
-          sheetKey: 'flies'
-        })}
-
-        <SectionCard title="Results" subtitle="Record casts and catches without reopening the fly builder each time.">
+          </View>
+          <InlineSummaryRow label="Save State" value={routeExperiment?.status === 'complete' ? 'Complete experiment' : draftStatusText ?? 'Draft status unavailable'} />
           <View
             style={{
               gap: 8,
@@ -903,6 +786,9 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
             <InlineSummaryRow label="Comparison Status" value={comparisonStatus.outcome === 'decisive' ? 'Decisive' : comparisonStatus.outcome === 'tie' ? 'Tie' : 'Inconclusive'} />
             <InlineSummaryRow label="Current Read" value={comparisonStatus.comparison.summary} />
           </View>
+        </SectionCard>
+
+        <SectionCard title="Log Results" subtitle="Casts and catches stay one tap away when you resume on the water.">
           <View style={{ gap: 10 }}>
             {visibleEntries.map((entry, index) => (
               <View
@@ -958,6 +844,69 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
           </View>
         </SectionCard>
 
+        <SectionCard title="Quick Changes" subtitle="Change field context without hunting through setup cards.">
+          <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
+            <View style={{ flex: 1 }}>
+              <AppButton label="Change Water" onPress={() => setActiveSetupSheet('water')} variant="secondary" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <AppButton label="Adjust Flies" onPress={() => setActiveSetupSheet('flies')} variant="secondary" />
+            </View>
+          </View>
+          <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
+            <View style={{ flex: 1 }}>
+              <AppButton label="Change Technique" onPress={() => setActiveSetupSheet('technique')} variant="tertiary" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <AppButton label="More Setup" onPress={() => setActiveSetupSheet('more')} variant="tertiary" />
+            </View>
+          </View>
+        </SectionCard>
+
+        {renderExperimentSection({
+          sectionKey: 'hypothesis',
+          title: 'Experiment Details',
+          subtitle: 'Keep comparison settings available without putting them ahead of logging.',
+          summary: `${session?.hypothesis?.trim() || 'No hypothesis provided'} | Control focus: ${controlFocus} | Cast step: ${castStep} | Baseline: ${visibleEntries[baselineIndex]?.label ?? 'Not set'}`,
+          children: (
+            <View style={{ gap: 10 }}>
+              <Text style={{ color: theme.colors.text, lineHeight: 22 }}>
+                {session?.hypothesis?.trim() || 'No hypothesis was saved on the session screen.'}
+              </Text>
+              <OptionChips
+                label="Baseline Fly"
+                options={visibleEntries.map((entry) => entry.label) as [string, ...string[]]}
+                value={visibleEntries[baselineIndex]?.label}
+                onChange={(value) => {
+                  const nextIndex = visibleEntries.findIndex((entry) => entry.label === value);
+                  if (nextIndex >= 0) {
+                    setBaselineIndex(nextIndex);
+                    markDraftDirty();
+                  }
+                }}
+              />
+              <OptionChips
+                label="Control Focus"
+                options={CONTROL_FOCUS_OPTIONS}
+                value={controlFocus}
+                onChange={(value) => {
+                  setControlFocus(value as ExperimentControlFocus);
+                  markDraftDirty();
+                }}
+              />
+              <OptionChips
+                label="Cast Step"
+                options={['5', '10'] as const}
+                value={String(castStep) as '5' | '10'}
+                onChange={(value) => {
+                  setCastStep(Number(value) as 5 | 10);
+                  markDraftDirty();
+                }}
+              />
+            </View>
+          )
+        })}
+
         <SectionCard title="Save Progress" subtitle="This is the primary action for this screen.">
           <Text style={{ color: theme.colors.textSoft }}>
             {activeExperimentId
@@ -991,35 +940,59 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
             disabled={isSaving}
           />
           {showDictationHelpInSessions ? (
-            <AppButton label="Dictation Help" onPress={() => setShowDictationHelp(true)} variant="ghost" />
+            <AppButton label="Voice Commands" onPress={() => setShowDictationHelp(true)} variant="ghost" />
           ) : null}
         </SectionCard>
 
       </ScrollView>
       </KeyboardDismissView>
-        <BottomSheetSurface
+        <ModalSurface
           visible={activeSetupSheet !== null}
           title={
-            activeSetupSheet === 'technique'
+            activeSetupSheet === 'water'
+              ? 'Change Water'
+              : activeSetupSheet === 'technique'
               ? 'Change Technique'
               : activeSetupSheet === 'leader'
               ? 'Change Leader'
               : activeSetupSheet === 'rigging'
                 ? 'Change Rigging'
-                : 'Change Flies'
+                : activeSetupSheet === 'flies'
+                  ? 'Change Flies'
+                  : 'More Setup'
           }
           subtitle={
-            activeSetupSheet === 'technique'
+            activeSetupSheet === 'water'
+              ? 'Change the water context while keeping experiment integrity clear.'
+              : activeSetupSheet === 'technique'
               ? 'Keep the method quick to change while protecting experiment integrity once logging has started.'
               : activeSetupSheet === 'leader'
               ? 'Keep the current experiment visible while you swap leader setup.'
               : activeSetupSheet === 'rigging'
                 ? 'Adjust rig count, preset, and tippet details without losing your place in Results.'
-                : 'Replace flies or fill empty slots in one focused editor.'
+                : activeSetupSheet === 'flies'
+                  ? 'Replace flies or fill empty slots in one focused editor.'
+                  : 'Leader and rigging details stay available without crowding the field cockpit.'
           }
           onClose={() => setActiveSetupSheet(null)}
         >
           <View style={{ gap: 12 }}>
+            {activeSetupSheet === 'water' ? (
+              <SectionCard title="Water" subtitle="Choose the water you are testing right now." tone="modal">
+                <Text style={{ color: theme.colors.modalTextSoft, lineHeight: 20 }}>
+                  After logging starts, Fishing Lab will ask whether to keep this comparison going or save and start fresh.
+                </Text>
+                <OptionChips
+                  label="Water Type"
+                  options={WATER_TYPES}
+                  value={currentWaterType}
+                  onChange={(value) => {
+                    void updateWaterType(value as WaterType);
+                  }}
+                  tone="modal"
+                />
+              </SectionCard>
+            ) : null}
             {activeSetupSheet === 'technique' ? (
               <SectionCard title="Technique" subtitle="Switch methods without losing your place in the experiment." tone="modal">
                 <OptionChips
@@ -1031,6 +1004,21 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                   }}
                   tone="modal"
                 />
+              </SectionCard>
+            ) : null}
+            {activeSetupSheet === 'more' ? (
+              <SectionCard title="Setup Summary" subtitle="Open only the setup editor you need, then return to logging." tone="modal">
+                <InlineSummaryRow label="Leader" value={leaderSummary} tone="modal" />
+                <InlineSummaryRow label="Rigging" value={rigSummary} tone="modal" />
+                <InlineSummaryRow label="Flies" value={flySummaryText} tone="modal" />
+                <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
+                  <View style={{ flex: 1 }}>
+                    <AppButton label="Change Leader" onPress={() => setActiveSetupSheet('leader')} variant="secondary" surfaceTone="modal" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <AppButton label="Change Rigging" onPress={() => setActiveSetupSheet('rigging')} variant="secondary" surfaceTone="modal" />
+                  </View>
+                </View>
               </SectionCard>
             ) : null}
             {activeSetupSheet === 'leader' ? (
@@ -1133,7 +1121,7 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
             ) : null}
             <AppButton label="Done" onPress={() => setActiveSetupSheet(null)} />
           </View>
-        </BottomSheetSurface>
+        </ModalSurface>
       <ExperimentCatchModal
         visible={pendingFishEntryIndex !== null}
         title={`Log catch for ${pendingFishEntryIndex !== null && visibleEntries[pendingFishEntryIndex] ? visibleEntries[pendingFishEntryIndex].label : 'Fly'}`}

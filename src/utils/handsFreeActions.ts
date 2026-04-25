@@ -61,7 +61,7 @@ export const executeHandsFreeCommand = async (
   }
 
   if (!context.dictationEnabled) {
-    return failure('dictation_disabled', 'Hands-free dictation is turned off in Settings.');
+    return failure('dictation_disabled', 'Voice Commands are turned off in Settings.');
   }
 
   const activeOuting = context.activeOuting;

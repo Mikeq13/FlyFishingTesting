@@ -422,7 +422,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
             <AppButton label="Review Journal Entry" onPress={() => navigation.navigate('PracticeReview', { sessionId: session.id })} variant="secondary" />
           ) : null}
           {showDictationHelpInSessions ? (
-            <AppButton label="Dictation Help" onPress={() => setShowDictationHelp(true)} variant="ghost" />
+            <AppButton label="Voice Commands" onPress={() => setShowDictationHelp(true)} variant="ghost" />
           ) : null}
         </SectionCard>
 

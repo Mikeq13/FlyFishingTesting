@@ -85,6 +85,7 @@ export const createStoreActions = ({
   pendingTotpEnrollment,
   setActiveUserId,
   setRemoteSession,
+  setUsers,
   setAuthStatus,
   setPendingTotpEnrollment,
   setMfaFactors,
@@ -125,6 +126,7 @@ export const createStoreActions = ({
   pendingTotpEnrollment: AppStore['pendingTotpEnrollment'];
   setActiveUserId: (value: number | null) => void;
   setRemoteSession: (value: AppStore['remoteSession']) => void;
+  setUsers: (value: AppStore['users'] | ((current: AppStore['users']) => AppStore['users'])) => void;
   setAuthStatus: (value: AppStore['authStatus']) => void;
   setPendingTotpEnrollment: (value: AppStore['pendingTotpEnrollment']) => void;
   setMfaFactors: (value: AppStore['mfaFactors']) => void;
@@ -741,6 +743,7 @@ export const createStoreActions = ({
       await trackSyncChange('profile', 'update', activeUser.id, { name: trimmedName });
     }
     await updateLocalUser(activeUser.id, { name: trimmedName });
+    setUsers((current) => current.map((user) => (user.id === activeUser.id ? { ...user, name: trimmedName } : user)));
     await refresh(activeUser.id);
   },
   linkOwnerIdentity: async () => {

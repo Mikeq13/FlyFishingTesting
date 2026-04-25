@@ -962,7 +962,7 @@ export const AccessScreen = ({ navigation }: any) => {
 
         {renderCollapsibleCard({
           sectionKey: 'quickCapture',
-          title: 'Quick Capture & Dictation',
+          title: 'Voice Commands & Quick Capture',
           subtitle: 'See the field phrases and device status for voice and watch capture.',
           summary: (
             <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>

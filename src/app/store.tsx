@@ -1345,6 +1345,7 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
     pendingTotpEnrollment,
     setActiveUserId,
     setRemoteSession,
+    setUsers,
     setAuthStatus,
     setPendingTotpEnrollment,
     setMfaFactors,
