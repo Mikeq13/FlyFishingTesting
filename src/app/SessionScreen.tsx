@@ -51,6 +51,11 @@ const MODE_COPY: Record<SessionMode, { title: string; subtitle: string; button: 
   }
 };
 
+const getTackleNotesPlaceholder = (style: FishingStyle) =>
+  style === 'boat_trolling'
+    ? 'Example: downrigger at 35 ft, 1.8 mph, pink spoon, outside weed edge'
+    : 'Example: orange spinner, slow retrieve near current seam, PowerBait off bottom';
+
 export const SessionScreen = ({ navigation, route }: any) => {
   const { theme } = useTheme();
   const layout = useResponsiveLayout();
@@ -595,7 +600,9 @@ export const SessionScreen = ({ navigation, route }: any) => {
           {mode === 'practice' && fishingStyle !== 'fly' ? (
             <SectionCard
               title="Tackle Setup"
-              subtitle="Log the simple setup details that matter today without forcing fly-specific rig fields."
+              subtitle={fishingStyle === 'boat_trolling'
+                ? 'Capture depth, speed, lure, and location notes without forcing fly-specific rig fields.'
+                : 'Capture lure, bait, retrieve, and structure notes without forcing fly-specific rig fields.'}
               tone="light"
             >
               <OptionChips
@@ -608,7 +615,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
                 <TextInput
                   value={tackleNotes}
                   onChangeText={setTackleNotes}
-                  placeholder="Example: orange spinner, PowerBait off bottom, downrigger at 35 ft"
+                  placeholder={getTackleNotesPlaceholder(fishingStyle)}
                   placeholderTextColor={theme.colors.inputPlaceholder}
                   multiline
                   style={{ ...formInputStyle, minHeight: 72, textAlignVertical: 'top' }}

@@ -18,6 +18,7 @@ import { buildSessionSegmentUpdatePayload, buildSessionUpdatePayload, getSession
 import { useSessionAlerts } from '@/hooks/useSessionAlerts';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
+import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { StatusBanner } from '@/components/ui/StatusBanner';
 import { AppButton } from '@/components/ui/AppButton';
 import { BottomSheetSurface } from '@/components/ui/BottomSheetSurface';
@@ -89,6 +90,14 @@ export const PracticeScreen = ({ route, navigation }: any) => {
     () => catchEvents.filter((event) => event.sessionId === sessionId).slice(0, 12),
     [catchEvents, sessionId]
   );
+  const topSessionSpecies = useMemo(() => {
+    const counts = new Map<string, number>();
+    recentCatches.forEach((event) => {
+      if (!event.species) return;
+      counts.set(event.species, (counts.get(event.species) ?? 0) + 1);
+    });
+    return [...counts.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] ?? null;
+  }, [recentCatches]);
   const lastLoggedSpecies = useMemo<FishSpecies | null>(() => {
     const species = catchEvents
       .filter((event) => event.sessionId === sessionId && !!event.species)
@@ -178,6 +187,11 @@ export const PracticeScreen = ({ route, navigation }: any) => {
   const fishingStyle = getFishingStyleForSession(session);
   const fishingStyleSetup = describeFishingStyleSetup(session);
   const isFlyJournal = fishingStyle === 'fly';
+  const nonFlySignalLabel = fishingStyle === 'boat_trolling' ? 'Boat Signal' : 'Tackle Signal';
+  const nonFlySignalHint =
+    fishingStyle === 'boat_trolling'
+      ? 'Keep logging species, depth, speed, and lure notes so Fishing Lab can compare productive passes instead of only counting fish.'
+      : 'Keep logging species, lure or bait, retrieve, and water notes so Fishing Lab can compare what worked across banks, structure, and conditions.';
   const leaderSummary = currentRigSetup.leaderFormulaName ?? (currentRigSetup.leaderFormulaSectionsSnapshot.length ? 'Custom leader' : 'Not chosen');
   const rigSummary = `${currentRigSetup.assignments.length} ${currentRigSetup.assignments.length === 1 ? 'fly' : 'flies'} | ${currentRigSetup.assignments.map((assignment) => assignment.position).join(' | ')}`;
   const flySummary = currentRigSetup.assignments.length
@@ -476,6 +490,19 @@ export const PracticeScreen = ({ route, navigation }: any) => {
             ) : (
               <Text style={{ color: theme.colors.textSoft }}>No tackle notes added yet.</Text>
             )}
+          </SectionCard>
+        ) : null}
+
+        {!isFlyJournal ? (
+          <SectionCard
+            title={nonFlySignalLabel}
+            subtitle="Simple logging still creates useful patterns when the method, species, and water context stay connected."
+            tone="light"
+          >
+            <InlineSummaryRow label="Catches This Entry" value={`${recentCatches.length}`} tone="light" />
+            <InlineSummaryRow label="Current Method" value={fishingStyleSetup.method ?? 'Not set'} valueMuted={!fishingStyleSetup.method} tone="light" />
+            <InlineSummaryRow label="Best Early Species" value={topSessionSpecies ?? 'Need a few catches'} valueMuted={!topSessionSpecies} tone="light" />
+            <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>{nonFlySignalHint}</Text>
           </SectionCard>
         ) : null}
 

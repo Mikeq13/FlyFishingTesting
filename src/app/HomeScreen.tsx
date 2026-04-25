@@ -381,7 +381,14 @@ export const HomeScreen = ({ navigation }: any) => {
                 {latestInsight.confidence === 'high' ? 'Strong pattern' : latestInsight.confidence === 'medium' ? 'Moderate evidence' : 'Early signal'}
               </Text>
               <Text style={{ color: theme.colors.textSoft, lineHeight: 21 }}>{latestInsight.message}</Text>
-              <AppButton label="Open Full Analysis" onPress={() => navigation.navigate('Insights')} variant="secondary" />
+              <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <AppButton label="Start Next Journal" onPress={openSessionChooser} variant="secondary" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <AppButton label="Review Patterns" onPress={() => navigation.navigate('Insights')} variant="tertiary" />
+                </View>
+              </View>
             </>
           ) : (
             <>
@@ -394,7 +401,7 @@ export const HomeScreen = ({ navigation }: any) => {
         </SectionCard>
 
         <SectionCard
-          title={isWebDemoMode ? 'Hands-Free Field Promise' : 'Hands-Free Beta Commands'}
+          title="Hands-Free Field Shortcuts"
           subtitle="Use voice as a narrow field shortcut for actions that are safe to complete without digging through screens."
           tone="light"
         >
@@ -412,7 +419,7 @@ export const HomeScreen = ({ navigation }: any) => {
             <AppButton label="View History" onPress={() => navigation.navigate('History')} variant="secondary" />
           </View>
           <View style={{ flex: 1 }}>
-            <AppButton label="Settings & Beta Tools" onPress={() => navigation.navigate('Access')} variant="tertiary" />
+            <AppButton label="Settings" onPress={() => navigation.navigate('Access')} variant="tertiary" />
           </View>
         </View>
       </ScrollView>
