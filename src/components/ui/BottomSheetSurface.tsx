@@ -2,6 +2,7 @@ import React from 'react';
 import { ScrollView } from 'react-native';
 import { Sheet, Text, YStack } from 'tamagui';
 import { useTheme } from '@/design/theme';
+import { useResponsiveLayout } from '@/design/layout';
 
 export const BottomSheetSurface = ({
   visible = true,
@@ -19,6 +20,9 @@ export const BottomSheetSurface = ({
   children: React.ReactNode;
 }) => {
   const { theme } = useTheme();
+  const layout = useResponsiveLayout();
+  const maxFrameHeight = Math.max(260, layout.height - layout.horizontalPadding * 2);
+  const maxBodyHeight = Math.max(220, maxFrameHeight - theme.spacing.lg * 7);
 
   if (!visible) return null;
 
@@ -26,7 +30,7 @@ export const BottomSheetSurface = ({
     <Sheet
       modal
       open={visible}
-      snapPoints={[86]}
+      snapPoints={[92]}
       dismissOnSnapToBottom
       onOpenChange={(open: boolean) => {
         onOpenChange?.(open);
@@ -47,8 +51,9 @@ export const BottomSheetSurface = ({
           borderWidth: 1,
           borderColor: theme.colors.modalBorder,
           padding: theme.spacing.lg,
-          paddingBottom: theme.spacing.xl,
-          backgroundColor: theme.colors.modalSurface
+          paddingBottom: theme.spacing.md,
+          backgroundColor: theme.colors.modalSurface,
+          maxHeight: maxFrameHeight
         }}
       >
         <Sheet.Handle
@@ -64,7 +69,12 @@ export const BottomSheetSurface = ({
           <Text style={{ fontWeight: '800', fontSize: 20, color: theme.colors.modalText }}>{title}</Text>
           {subtitle ? <Text style={{ color: theme.colors.modalTextSoft, lineHeight: 20 }}>{subtitle}</Text> : null}
         </YStack>
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: theme.spacing.md }}>
+        <ScrollView
+          style={{ maxHeight: maxBodyHeight, flexShrink: 1 }}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ gap: theme.spacing.md, paddingBottom: theme.spacing.lg }}
+          showsVerticalScrollIndicator
+        >
           {children}
         </ScrollView>
       </Sheet.Frame>

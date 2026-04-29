@@ -38,9 +38,9 @@ export const validateExperimentPair = (baselineFly: FlySetup, testFly: FlySetup,
     valid: true,
     warning:
       unexpectedVariables.length > 0
-        ? `Baseline and test fly differ outside the chosen control focus (${controlFocus}): ${unexpectedVariables.join(', ')}. Results may be harder to interpret cleanly.`
+        ? `Baseline is the control, and the test fly should mainly differ by the selected testing variable (${controlFocus}). Extra differences found: ${unexpectedVariables.join(', ')}. Log anyway, but treat the read as lower confidence.`
         : differingMajorVariables.length > 1
-        ? `Baseline and test fly differ in ${differingMajorVariables.length} major variables (${differingMajorVariables.join(', ')}). Results may be harder to interpret cleanly.`
+        ? `Baseline is the control, but this pair differs in ${differingMajorVariables.length} major variables (${differingMajorVariables.join(', ')}). Log anyway, but treat the read as lower confidence.`
         : undefined,
     differingMajorVariables
   };

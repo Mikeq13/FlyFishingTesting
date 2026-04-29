@@ -12,7 +12,8 @@
         "typecheck": "tsc --noEmit",
         "check:theme-hardcoding": "node scripts/check-theme-hardcoding.js",
         "check:backend-config": "node scripts/check-backend-config.js",
-        "verify:prebuild": "npm run typecheck && npm run check:theme-hardcoding && npm run check:backend-config"
+        "verify:prebuild": "npm run typecheck && npm run check:theme-hardcoding && npm run check:backend-config",
+        "verify:submission": "npm run verify:prebuild && npm run build:web"
     },
     "dependencies": {
         "@expo/metro-runtime": "~6.1.2",

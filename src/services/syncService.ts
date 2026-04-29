@@ -348,7 +348,7 @@ const syncSessionGroupShare = async (context: SyncContext, share: SessionGroupSh
 
 const syncSessionSegment = async (context: SyncContext, segment: SessionSegment) => {
   const remoteSessionId = await findRemoteId('session', segment.sessionId);
-  if (!remoteSessionId) throw new Error('Session segment depends on a synced session.');
+  if (!remoteSessionId) throw new Error('Waiting for parent journal entry to sync before syncing this segment.');
   const remoteId = await upsertOwnedRow('session_segments', context.remoteAuthUserId, segment.id, {
     session_id: remoteSessionId,
     session_mode: segment.mode,
@@ -367,8 +367,9 @@ const syncSessionSegment = async (context: SyncContext, segment: SessionSegment)
 
 const syncCatchEvent = async (context: SyncContext, event: CatchEvent) => {
   const remoteSessionId = await findRemoteId('session', event.sessionId);
-  if (!remoteSessionId) throw new Error('Catch event depends on a synced session.');
+  if (!remoteSessionId) throw new Error('Waiting for parent journal entry to sync before syncing this catch.');
   const remoteSegmentId = event.segmentId ? await findRemoteId('session_segment', event.segmentId) : null;
+  if (event.segmentId && !remoteSegmentId) throw new Error('Waiting for parent water segment to sync before syncing this catch.');
   const remoteId = await upsertOwnedRow('catch_events', context.remoteAuthUserId, event.id, {
     session_id: remoteSessionId,
     segment_id: remoteSegmentId,
@@ -386,7 +387,7 @@ const syncCatchEvent = async (context: SyncContext, event: CatchEvent) => {
 
 const syncExperiment = async (context: SyncContext, experiment: Experiment) => {
   const remoteSessionId = await findRemoteId('session', experiment.sessionId);
-  if (!remoteSessionId) throw new Error('Experiment depends on a synced session.');
+  if (!remoteSessionId) throw new Error('Waiting for parent journal entry to sync before syncing this experiment.');
   const remoteId = await upsertOwnedRow('experiments', context.remoteAuthUserId, experiment.id, {
     session_id: remoteSessionId,
     hypothesis: experiment.hypothesis,
@@ -639,6 +640,8 @@ export const syncQueueToSupabase = async (
   queueEntries: SyncQueueEntry[]
 ) => {
   await syncProfile(context);
+  const isParentDependencyDelay = (error: unknown) =>
+    error instanceof Error && error.message.toLowerCase().startsWith('waiting for parent ');
 
   for (const entry of queueEntries.filter((item) => item.status !== 'synced').sort((left, right) => left.createdAt.localeCompare(right.createdAt))) {
     try {
@@ -765,6 +768,13 @@ export const syncQueueToSupabase = async (
         errorMessage: null
       });
     } catch (error) {
+      if (isParentDependencyDelay(error)) {
+        await updateSyncQueueEntry(entry.id, {
+          status: 'pending',
+          errorMessage: error instanceof Error ? error.message : null
+        });
+        continue;
+      }
       await updateSyncQueueEntry(entry.id, {
         status: 'failed',
         errorMessage: error instanceof Error ? error.message : 'Unknown sync error'

@@ -54,7 +54,7 @@ export const ExperimentSetupPanel = ({
       </View>
     </SectionCard>
 
-    <OptionChips label="Control Focus" options={CONTROL_FOCUS_OPTIONS} value={controlFocus} onChange={onControlFocusChange} />
+      <OptionChips label="Testing Variable" options={CONTROL_FOCUS_OPTIONS} value={controlFocus} onChange={onControlFocusChange} />
 
     {flyCount > 1 && (
       <SectionCard title="Choose Baseline" subtitle="Set the anchor fly clearly before you compare the rest.">

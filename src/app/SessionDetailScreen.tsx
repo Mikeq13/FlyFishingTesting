@@ -139,7 +139,7 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
             <InlineSummaryRow label="Experiment Water" value={e.waterType ?? session?.waterType ?? 'Not set'} tone="light" />
             <InlineSummaryRow label="Technique" value={e.technique ?? session?.startingTechnique ?? 'Not set'} tone="light" />
             <InlineSummaryRow label="Hypothesis" value={e.hypothesis} tone="light" />
-            <InlineSummaryRow label="Control Focus" value={e.controlFocus} tone="light" />
+            <InlineSummaryRow label="Testing Variable" value={e.controlFocus} tone="light" />
             <Text style={{ color: elevatedSoftTextColor }}>{comparisonStatus.comparison.summary}</Text>
             {getExperimentEntries(e).map((entry) => (
               <View key={`${e.id}-${entry.slotId}`} style={{ gap: 2 }}>

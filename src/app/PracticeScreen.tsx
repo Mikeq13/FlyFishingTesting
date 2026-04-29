@@ -294,7 +294,14 @@ export const PracticeScreen = ({ route, navigation }: any) => {
   };
 
   const confirmPracticeCatch = async () => {
-    if (catchSubmitLockedRef.current || !activeSegment || (!pendingCatchFly && !pendingGeneralCatch) || !pendingCatchSpecies) return;
+    if (catchSubmitLockedRef.current || (!pendingCatchFly && !pendingGeneralCatch) || !pendingCatchSpecies) return;
+    if (!activeSegment) {
+      setFieldFeedback({
+        tone: 'warning',
+        text: 'Still preparing this journal entry. Try logging the catch again in a moment.'
+      });
+      return;
+    }
     catchSubmitLockedRef.current = true;
     setIsSavingCatch(true);
     const parsedLength = Number(pendingCatchLength);
@@ -325,6 +332,12 @@ export const PracticeScreen = ({ route, navigation }: any) => {
           entityLabel: 'practice'
         })
       );
+    } catch (error) {
+      setFieldFeedback({
+        tone: 'warning',
+        text: 'Catch was not saved. Your journal stayed open, so try again when the connection settles.'
+      });
+      throw error;
     } finally {
       catchSubmitLockedRef.current = false;
       setIsSavingCatch(false);

@@ -23,13 +23,14 @@ export const ModalSurface = ({
 }) => {
   const { theme } = useTheme();
   const layout = useResponsiveLayout();
-  const maxBodyHeight = Math.min(layout.height * 0.72, layout.height - layout.horizontalPadding * 4);
+  const maxPanelHeight = Math.max(260, layout.height - layout.horizontalPadding * 2);
+  const maxBodyHeight = Math.max(220, maxPanelHeight - theme.spacing.lg * 8);
   const body = scrollable ? (
     <ScrollView
-      style={{ maxHeight: maxBodyHeight }}
-      contentContainerStyle={{ gap: theme.spacing.md }}
+      style={{ maxHeight: maxBodyHeight, flexShrink: 1 }}
+      contentContainerStyle={{ gap: theme.spacing.md, paddingBottom: theme.spacing.lg }}
       keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
+      showsVerticalScrollIndicator
     >
       {children}
     </ScrollView>
@@ -48,6 +49,7 @@ export const ModalSurface = ({
           backgroundColor: theme.colors.modalSurface,
           width: '100%',
           maxWidth: layout.modalMaxWidth,
+          maxHeight: maxPanelHeight,
           alignSelf: 'center'
         }}
       >
@@ -77,7 +79,7 @@ export const ModalSurface = ({
       <Sheet
         modal
         open={visible}
-        snapPoints={[82]}
+        snapPoints={[92]}
         dismissOnSnapToBottom
         onOpenChange={(open: boolean) => {
           onOpenChange?.(open);
@@ -94,7 +96,8 @@ export const ModalSurface = ({
           style={{
             backgroundColor: 'transparent',
             padding: layout.horizontalPadding,
-            paddingBottom: theme.spacing.xl
+            paddingBottom: theme.spacing.md,
+            maxHeight: layout.height
           }}
         >
           {panel}

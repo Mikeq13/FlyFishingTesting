@@ -381,7 +381,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
                       }}
                     >
                       <InlineSummaryRow label="Hypothesis" value={experiment.hypothesis} />
-                      <InlineSummaryRow label="Control Focus" value={experiment.controlFocus} />
+                      <InlineSummaryRow label="Testing Variable" value={experiment.controlFocus} />
                       <InlineSummaryRow label="Experiment Water" value={experiment.waterType ?? session.waterType} />
                       <InlineSummaryRow label="Technique" value={experiment.technique ?? session.startingTechnique ?? 'Technique not set'} />
                       <InlineSummaryRow label="Status" value={getExperimentIntegrity(experiment.id).label} />

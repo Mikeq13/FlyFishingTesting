@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, Text, View } from 'react-native';
 import { ExperimentCatchModal } from '@/components/ExperimentCatchModal';
 import { ExperimentSavedActionsModal } from '@/components/ExperimentSavedActionsModal';
 import { KeyboardDismissView } from '@/components/KeyboardDismissView';
@@ -47,9 +47,8 @@ const CONTROL_FOCUS_OPTIONS: ExperimentControlFocus[] = [
   'number of flies'
 ];
 
-type ExperimentSectionKey = 'hypothesis' | 'waterType' | 'leaders' | 'rigging' | 'flies';
 type DraftSaveState = 'dirty' | 'saving' | 'save_failed' | 'saved';
-type SetupSheetKey = 'water' | 'technique' | 'leader' | 'rigging' | 'flies' | 'more' | null;
+type SetupSheetKey = 'water' | 'technique' | 'leader' | 'rigging' | 'flies' | 'setup' | null;
 
 export const ExperimentScreen = ({ route, navigation }: any) => {
   const { theme } = useTheme();
@@ -105,13 +104,6 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   const [pendingFishEntryIndex, setPendingFishEntryIndex] = useState<number | null>(null);
   const [pendingFishSize, setPendingFishSize] = useState<number | null>(null);
   const [pendingFishSpecies, setPendingFishSpecies] = useState<FishSpecies | null>(null);
-  const [expandedSections, setExpandedSections] = useState<Record<ExperimentSectionKey, boolean>>({
-    hypothesis: false,
-    waterType: false,
-    leaders: false,
-    rigging: false,
-    flies: false
-  });
   const [activeSetupSheet, setActiveSetupSheet] = useState<SetupSheetKey>(null);
   const [showDictationHelp, setShowDictationHelp] = useState(false);
   const isCompactLayout = layout.isCompactLayout;
@@ -131,10 +123,6 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     draftRevisionRef.current += 1;
     setDraftRevision(draftRevisionRef.current);
     setDraftSaveState('dirty');
-  };
-
-  const toggleSection = (key: ExperimentSectionKey) => {
-    setExpandedSections((current) => ({ ...current, [key]: !current[key] }));
   };
 
   useEffect(() => {
@@ -238,6 +226,12 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     );
   }, [baselineIndex, controlFocus, visibleEntries]);
   const comparisonStatus = useMemo(() => deriveExperimentStatus(visibleEntries), [visibleEntries]);
+  const comparisonResultLabel =
+    comparisonStatus.outcome === 'decisive'
+      ? 'Decisive'
+      : comparisonStatus.outcome === 'tie'
+        ? 'Tie'
+        : 'Inconclusive';
   const currentComparisonIdentity = useMemo(
     () => getExperimentRigIdentitySignature(rigSetup, visibleEntries),
     [rigSetup, visibleEntries]
@@ -670,49 +664,6 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
     }
   };
 
-  const renderExperimentSection = ({
-    sectionKey,
-    title,
-    subtitle,
-    summary,
-    children
-  }: {
-    sectionKey: ExperimentSectionKey;
-    title: string;
-    subtitle: string;
-    summary: string;
-    children: React.ReactNode;
-  }) => (
-    <SectionCard title={title} subtitle={subtitle}>
-      {!expandedSections[sectionKey] ? (
-        <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>{summary}</Text>
-      ) : null}
-      <Pressable
-        onPress={() => toggleSection(sectionKey)}
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingVertical: 6
-        }}
-      >
-        <Text style={{ color: theme.colors.textSoft, fontWeight: '700' }}>
-          {expandedSections[sectionKey] ? 'Hide details' : 'Show details'}
-        </Text>
-        <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '800' }}>
-          {expandedSections[sectionKey] ? '-' : '+'}
-        </Text>
-      </Pressable>
-      {expandedSections[sectionKey] ? children : null}
-    </SectionCard>
-  );
-
-  const flySummaryText = visibleEntries
-    .map((entry, index) =>
-      `${entry.label} ${index === baselineIndex ? '(Baseline)' : '(Test)'}: ${entry.fly.name.trim() || 'No fly selected'}`
-    )
-    .join(' | ');
-
   useEffect(() => {
     if (!session || session.endedAt) {
       activeOutingSignatureRef.current = null;
@@ -758,21 +709,11 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
         {comparisonWarning?.check.warning ? (
           <StatusBanner
             tone="info"
-            text={`Design note for ${comparisonWarning.entry.label}: ${comparisonWarning.check.warning}`}
+            text={`Testing note for ${comparisonWarning.entry.label}: ${comparisonWarning.check.warning}`}
           />
         ) : null}
 
-        <SectionCard title="Experiment Cockpit" subtitle="The active comparison, water, method, and save state stay visible while you fish.">
-          <InlineSummaryRow label="Hypothesis" value={session?.hypothesis?.trim() || 'No hypothesis provided'} valueMuted={!session?.hypothesis?.trim()} />
-          <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
-            <View style={{ flex: 1 }}>
-              <InlineSummaryRow label="Water" value={currentWaterType} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <InlineSummaryRow label="Technique" value={currentTechnique ?? 'Not chosen'} valueMuted={!currentTechnique} />
-            </View>
-          </View>
-          <InlineSummaryRow label="Save State" value={routeExperiment?.status === 'complete' ? 'Complete experiment' : draftStatusText ?? 'Draft status unavailable'} />
+        <SectionCard title="Experiment Cockpit" subtitle="The active test, water, method, and result stay visible while you fish.">
           <View
             style={{
               gap: 8,
@@ -783,8 +724,19 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
               borderColor: theme.colors.border
             }}
           >
-            <InlineSummaryRow label="Comparison Status" value={comparisonStatus.outcome === 'decisive' ? 'Decisive' : comparisonStatus.outcome === 'tie' ? 'Tie' : 'Inconclusive'} />
-            <InlineSummaryRow label="Current Read" value={comparisonStatus.comparison.summary} />
+            <Text style={{ color: theme.colors.text, fontWeight: '800' }} numberOfLines={2}>
+              {session?.hypothesis?.trim() || 'No hypothesis provided'}
+            </Text>
+            <InlineSummaryRow label="Testing" value={controlFocus} />
+            <View style={{ flexDirection: layout.stackDirection, gap: 8 }}>
+              <View style={{ flex: 1 }}>
+                <InlineSummaryRow label="Water" value={currentWaterType} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <InlineSummaryRow label="Technique" value={currentTechnique ?? 'Not chosen'} valueMuted={!currentTechnique} />
+              </View>
+            </View>
+            <InlineSummaryRow label="Result" value={`${comparisonResultLabel}: ${comparisonStatus.comparison.summary}`} />
           </View>
         </SectionCard>
 
@@ -858,54 +810,10 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
               <AppButton label="Change Technique" onPress={() => setActiveSetupSheet('technique')} variant="tertiary" />
             </View>
             <View style={{ flex: 1 }}>
-              <AppButton label="More Setup" onPress={() => setActiveSetupSheet('more')} variant="tertiary" />
+              <AppButton label="Experiment Setup" onPress={() => setActiveSetupSheet('setup')} variant="tertiary" />
             </View>
           </View>
         </SectionCard>
-
-        {renderExperimentSection({
-          sectionKey: 'hypothesis',
-          title: 'Experiment Details',
-          subtitle: 'Keep comparison settings available without putting them ahead of logging.',
-          summary: `${session?.hypothesis?.trim() || 'No hypothesis provided'} | Control focus: ${controlFocus} | Cast step: ${castStep} | Baseline: ${visibleEntries[baselineIndex]?.label ?? 'Not set'}`,
-          children: (
-            <View style={{ gap: 10 }}>
-              <Text style={{ color: theme.colors.text, lineHeight: 22 }}>
-                {session?.hypothesis?.trim() || 'No hypothesis was saved on the session screen.'}
-              </Text>
-              <OptionChips
-                label="Baseline Fly"
-                options={visibleEntries.map((entry) => entry.label) as [string, ...string[]]}
-                value={visibleEntries[baselineIndex]?.label}
-                onChange={(value) => {
-                  const nextIndex = visibleEntries.findIndex((entry) => entry.label === value);
-                  if (nextIndex >= 0) {
-                    setBaselineIndex(nextIndex);
-                    markDraftDirty();
-                  }
-                }}
-              />
-              <OptionChips
-                label="Control Focus"
-                options={CONTROL_FOCUS_OPTIONS}
-                value={controlFocus}
-                onChange={(value) => {
-                  setControlFocus(value as ExperimentControlFocus);
-                  markDraftDirty();
-                }}
-              />
-              <OptionChips
-                label="Cast Step"
-                options={['5', '10'] as const}
-                value={String(castStep) as '5' | '10'}
-                onChange={(value) => {
-                  setCastStep(Number(value) as 5 | 10);
-                  markDraftDirty();
-                }}
-              />
-            </View>
-          )
-        })}
 
         <SectionCard title="Save Progress" subtitle="This is the primary action for this screen.">
           <Text style={{ color: theme.colors.textSoft }}>
@@ -954,25 +862,25 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
               : activeSetupSheet === 'technique'
               ? 'Change Technique'
               : activeSetupSheet === 'leader'
-              ? 'Change Leader'
+                ? 'Change Leader'
               : activeSetupSheet === 'rigging'
                 ? 'Change Rigging'
                 : activeSetupSheet === 'flies'
                   ? 'Change Flies'
-                  : 'More Setup'
+                  : 'Experiment Setup'
           }
           subtitle={
             activeSetupSheet === 'water'
               ? 'Change the water context while keeping experiment integrity clear.'
               : activeSetupSheet === 'technique'
-              ? 'Keep the method quick to change while protecting experiment integrity once logging has started.'
+              ? 'Keep the method, leader, and rigging context quick to change without losing the active results.'
               : activeSetupSheet === 'leader'
               ? 'Keep the current experiment visible while you swap leader setup.'
               : activeSetupSheet === 'rigging'
                 ? 'Adjust rig count, preset, and tippet details without losing your place in Results.'
                 : activeSetupSheet === 'flies'
                   ? 'Replace flies or fill empty slots in one focused editor.'
-                  : 'Leader and rigging details stay available without crowding the field cockpit.'
+                  : 'Set the testing variable and baseline details without crowding the field cockpit.'
           }
           onClose={() => setActiveSetupSheet(null)}
         >
@@ -1004,21 +912,77 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
                   }}
                   tone="modal"
                 />
-              </SectionCard>
-            ) : null}
-            {activeSetupSheet === 'more' ? (
-              <SectionCard title="Setup Summary" subtitle="Open only the setup editor you need, then return to logging." tone="modal">
-                <InlineSummaryRow label="Leader" value={leaderSummary} tone="modal" />
-                <InlineSummaryRow label="Rigging" value={rigSummary} tone="modal" />
-                <InlineSummaryRow label="Flies" value={flySummaryText} tone="modal" />
-                <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
-                  <View style={{ flex: 1 }}>
-                    <AppButton label="Change Leader" onPress={() => setActiveSetupSheet('leader')} variant="secondary" surfaceTone="modal" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <AppButton label="Change Rigging" onPress={() => setActiveSetupSheet('rigging')} variant="secondary" surfaceTone="modal" />
+                <View
+                  style={{
+                    gap: 10,
+                    borderRadius: theme.radius.md,
+                    padding: 12,
+                    backgroundColor: theme.colors.nestedSurface,
+                    borderWidth: 1,
+                    borderColor: theme.colors.nestedSurfaceBorder
+                  }}
+                >
+                  <Text style={{ color: theme.colors.modalText, fontWeight: '800' }}>Context Setup</Text>
+                  <Text style={{ color: theme.colors.modalTextSoft, lineHeight: 20 }}>
+                    Leader and rigging changes live with technique because they change how the test is fished.
+                  </Text>
+                  <InlineSummaryRow label="Leader" value={leaderSummary} tone="modal" />
+                  <InlineSummaryRow label="Rigging" value={rigSummary} tone="modal" />
+                  <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
+                    <View style={{ flex: 1 }}>
+                      <AppButton label="Change Leader" onPress={() => setActiveSetupSheet('leader')} variant="secondary" surfaceTone="modal" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <AppButton label="Change Rigging" onPress={() => setActiveSetupSheet('rigging')} variant="secondary" surfaceTone="modal" />
+                    </View>
                   </View>
                 </View>
+              </SectionCard>
+            ) : null}
+            {activeSetupSheet === 'setup' ? (
+              <SectionCard title="Experiment Setup" subtitle="Pick the independent variable and baseline so rapid tests stay easy to interpret." tone="modal">
+                <OptionChips
+                  label="Testing Variable"
+                  options={CONTROL_FOCUS_OPTIONS}
+                  value={controlFocus}
+                  onChange={(value) => {
+                    setControlFocus(value as ExperimentControlFocus);
+                    markDraftDirty();
+                  }}
+                  tone="modal"
+                />
+                <Text style={{ color: theme.colors.modalTextSoft, lineHeight: 20 }}>
+                  Use the baseline fly as the control. The test fly should mainly differ by this variable; extra differences are allowed, but confidence drops.
+                </Text>
+                <OptionChips
+                  label="Baseline Fly"
+                  options={visibleEntries.map((entry) => entry.label) as [string, ...string[]]}
+                  value={visibleEntries[baselineIndex]?.label}
+                  onChange={(value) => {
+                    const nextIndex = visibleEntries.findIndex((entry) => entry.label === value);
+                    if (nextIndex >= 0) {
+                      setBaselineIndex(nextIndex);
+                      markDraftDirty();
+                    }
+                  }}
+                  tone="modal"
+                />
+                <OptionChips
+                  label="Cast Step"
+                  options={['5', '10'] as const}
+                  value={String(castStep) as '5' | '10'}
+                  onChange={(value) => {
+                    setCastStep(Number(value) as 5 | 10);
+                    markDraftDirty();
+                  }}
+                  tone="modal"
+                />
+                <InlineSummaryRow
+                  label="Hypothesis"
+                  value={session?.hypothesis?.trim() || 'No hypothesis was saved on the session screen.'}
+                  valueMuted={!session?.hypothesis?.trim()}
+                  tone="modal"
+                />
               </SectionCard>
             ) : null}
             {activeSetupSheet === 'leader' ? (

@@ -1,5 +1,32 @@
 # Fishing Lab
 
+Fishing Lab is a field-first fishing journal for logging what happened on the water and turning those entries into useful patterns. It supports fly fishing, spinning or bait tackle, and boating or trolling journals, with fly fishing carrying the deeper practice, experiment, and competition workflows.
+
+The current beta focus is simple:
+
+- start or resume a journal entry quickly
+- log catches, notes, water changes, and technique changes without breaking field rhythm
+- support Voice Commands and hands-free capture where platform integrations allow it
+- keep data local-first with clear sync feedback when the shared backend is pending or unavailable
+- make the Vercel web version strong enough for product review while native EAS builds validate device-only behavior
+
+## Demo And Submission Readiness
+
+Use these before submitting the web build or cutting wider beta builds:
+
+- [Vercel demo script](docs/vercel-demo-script.md)
+- [9.5 beta readiness gate](docs/beta-readiness-9-5-gate.md)
+- [Non-fly beta smoke checklist](docs/non-fly-beta-smoke-checklist.md)
+- [Live regression checklist](docs/live-regression-checklist.md)
+
+Run the full local submission gate with:
+
+```bash
+npm run verify:submission
+```
+
+Vercel is configured to run `npm run build:web` and publish `dist`.
+
 ## Local Supabase Setup
 
 Use a local, untracked `.env.local` file for Expo client configuration:
