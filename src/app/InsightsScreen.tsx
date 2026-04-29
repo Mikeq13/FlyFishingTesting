@@ -6,6 +6,8 @@ import { OptionChips } from '@/components/OptionChips';
 import { PremiumFeatureGate } from '@/components/PremiumFeatureGate';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { AppButton } from '@/components/ui/AppButton';
+import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
+import { ModalSurface } from '@/components/ui/ModalSurface';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { StatusBanner } from '@/components/ui/StatusBanner';
@@ -28,6 +30,17 @@ import {
   getJoinedGroupsForUser,
   getVisibleFriendOptions
 } from '@/services/remoteInsightsService';
+import { Insight } from '@/types/experiment';
+
+type InsightDetailSheet =
+  | 'filters'
+  | 'experiment_comparisons'
+  | 'exact_setups'
+  | 'context_combos'
+  | 'top_flies'
+  | 'catch_analytics'
+  | 'across_anglers'
+  | null;
 
 export const InsightsScreen = ({ navigation }: any) => {
   const { theme } = useTheme();
@@ -73,6 +86,7 @@ export const InsightsScreen = ({ navigation }: any) => {
   const [showRiverChoices, setShowRiverChoices] = useState(false);
   const [showFlyChoices, setShowFlyChoices] = useState(false);
   const [showHypothesisChoices, setShowHypothesisChoices] = useState(false);
+  const [activeDetailSheet, setActiveDetailSheet] = useState<InsightDetailSheet>(null);
   const modeSummaryLabel = (mode: 'practice' | 'experiment' | 'competition') =>
     mode === 'practice' ? 'Practice scouting' : mode === 'experiment' ? 'Experiment comparison' : 'Competition scorekeeping';
   const hasSharedContextData = groups.length > 0 || groupMemberships.length > 0;
@@ -349,6 +363,76 @@ export const InsightsScreen = ({ navigation }: any) => {
     return generateAnglerComparisons(relevantUsers, filteredSessions, filteredExperiments);
   }, [currentUser?.id, filteredExperiments, filteredSessions, groupMemberships, insightsContext, selectedFriendUserId, selectedGroupId, users]);
 
+  const confidenceLabel = (confidence?: Insight['confidence']) =>
+    confidence === 'high' ? 'Strong pattern' : confidence === 'medium' ? 'Moderate evidence' : 'Early signal';
+
+  const sampleCountForInsight = (insight?: Insight | null) => {
+    if (!insight) return null;
+    const { supportingData } = insight;
+    if (typeof supportingData.sampleCount === 'number') return supportingData.sampleCount;
+    if (typeof supportingData.casts === 'number') return supportingData.casts;
+    return null;
+  };
+
+  const strongestInsight = useMemo(
+    () => [...setupInsights, ...filteredInsights, ...filteredTopFlyInsights].sort((left, right) => {
+      const score = (insight: Insight) => (insight.confidence === 'high' ? 3 : insight.confidence === 'medium' ? 2 : 1);
+      return score(right) - score(left);
+    })[0] ?? null,
+    [filteredInsights, filteredTopFlyInsights, setupInsights]
+  );
+  const topComparison = comparisonRecords.find((record) => record.outcome === 'decisive') ?? comparisonRecords[0] ?? null;
+  const topExactSetup = exactSetupRecords[0] ?? null;
+  const topContext = contextPerformanceRecords[0] ?? null;
+  const topFlyRecord = filteredTopFlyRecords[0] ?? null;
+  const strongestSignalMessage =
+    strongestInsight?.message ??
+    topComparison?.summary ??
+    (topFlyRecord ? `${topFlyRecord.name} is your strongest logged fly pattern so far.` : 'Keep logging clean entries to unlock a stronger pattern.');
+  const nextTryMessage =
+    topExactSetup
+      ? `Repeat ${topExactSetup.flyLabel} in ${topExactSetup.waterType} / ${topExactSetup.depthRange} with ${topExactSetup.technique}, then log whether the same signal holds.`
+      : topContext
+        ? `Start with ${topContext.waterType} / ${topContext.depthRange} and ${topContext.technique}, then change only one variable.`
+        : topComparison
+          ? `Use the direct comparison result as your next test: ${topComparison.summary}`
+          : 'Log the next outing with water, method, and catches so the app can separate hunches from patterns.';
+  const strongestSampleCount = sampleCountForInsight(strongestInsight) ?? topComparison?.baselineCasts ?? topFlyRecord?.casts ?? 0;
+
+  const renderCoachCard = ({
+    title,
+    takeaway,
+    detailLabel,
+    sheet,
+    confidence,
+    sampleCount
+  }: {
+    title: string;
+    takeaway: string;
+    detailLabel: string;
+    sheet: Exclude<InsightDetailSheet, null>;
+    confidence?: Insight['confidence'];
+    sampleCount?: number | null;
+  }) => (
+    <View
+      style={{
+        gap: 8,
+        borderRadius: theme.radius.md,
+        padding: 12,
+        backgroundColor: theme.colors.surfaceAlt,
+        borderWidth: 1,
+        borderColor: theme.colors.border
+      }}
+    >
+      <Text style={{ color: theme.colors.text, fontWeight: '800' }}>{title}</Text>
+      <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>{takeaway}</Text>
+      <Text style={{ color: theme.colors.textSoft, fontSize: 12 }}>
+        {confidenceLabel(confidence)}{sampleCount ? ` | ${sampleCount} samples` : ''}
+      </Text>
+      <AppButton label={detailLabel} onPress={() => setActiveDetailSheet(sheet)} variant="ghost" />
+    </View>
+  );
+
   const renderChartRow = (label: string, value: number, max: number, color: string) => (
     <View key={label} style={{ gap: 4 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -398,6 +482,84 @@ export const InsightsScreen = ({ navigation }: any) => {
               />
             ) : null}
 
+            <SectionCard title="Today's Read" subtitle="The app should answer what to pay attention to before it asks you to parse the data.">
+              <InlineSummaryRow label="Sessions In View" value={`${filteredSessions.length}`} />
+              <InlineSummaryRow label="Catch Records" value={`${filteredCatchEvents.length}`} />
+              <InlineSummaryRow label="Confidence" value={confidenceLabel(strongestInsight?.confidence)} />
+              {strongestSampleCount ? <InlineSummaryRow label="Sample Size" value={`${strongestSampleCount}`} /> : null}
+              {(excludedSessionCount > 0 || excludedExperimentCount > 0) ? (
+                <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
+                  {excludedSessionCount + excludedExperimentCount} incomplete or cleanup-pending record{excludedSessionCount + excludedExperimentCount === 1 ? '' : 's'} excluded from trusted analytics.
+                </Text>
+              ) : null}
+            </SectionCard>
+
+            <SectionCard title="Coach Summary" subtitle="Start with the recommendation, then drill into the evidence only when you need it.">
+              <View style={{ gap: 10 }}>
+                {renderCoachCard({
+                  title: 'What’s Working',
+                  takeaway: strongestSignalMessage,
+                  detailLabel: 'Explore Evidence',
+                  sheet: 'top_flies',
+                  confidence: strongestInsight?.confidence,
+                  sampleCount: strongestSampleCount
+                })}
+                {renderCoachCard({
+                  title: 'What To Try Next',
+                  takeaway: nextTryMessage,
+                  detailLabel: 'Open Setup Details',
+                  sheet: topExactSetup ? 'exact_setups' : topContext ? 'context_combos' : 'experiment_comparisons',
+                  confidence: strongestInsight?.confidence,
+                  sampleCount: strongestSampleCount
+                })}
+              </View>
+            </SectionCard>
+
+            <SectionCard title="Explore" subtitle="Filters and deeper analytics are still here, just no longer competing with the main takeaway.">
+              <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <AppButton label="Filter Data" onPress={() => setActiveDetailSheet('filters')} variant="secondary" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <AppButton label="Experiment Signals" onPress={() => setActiveDetailSheet('experiment_comparisons')} variant="secondary" />
+                </View>
+              </View>
+              <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <AppButton label="Best Setups" onPress={() => setActiveDetailSheet('exact_setups')} variant="tertiary" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <AppButton label="Catch Analytics" onPress={() => setActiveDetailSheet('catch_analytics')} variant="tertiary" />
+                </View>
+              </View>
+              {contextComparisons.length ? (
+                <AppButton label="Across Anglers" onPress={() => setActiveDetailSheet('across_anglers')} variant="ghost" />
+              ) : null}
+            </SectionCard>
+
+            <ModalSurface
+              visible={activeDetailSheet !== null}
+              title={
+                activeDetailSheet === 'filters'
+                  ? 'Filter Data'
+                  : activeDetailSheet === 'experiment_comparisons'
+                    ? 'Experiment Signals'
+                    : activeDetailSheet === 'exact_setups'
+                      ? 'Best Exact Setups'
+                      : activeDetailSheet === 'context_combos'
+                        ? 'Context Combos'
+                        : activeDetailSheet === 'top_flies'
+                          ? 'What’s Working Evidence'
+                          : activeDetailSheet === 'across_anglers'
+                            ? 'Across Anglers'
+                            : 'Catch Analytics'
+              }
+              subtitle="Detailed analytics stay available when you want the evidence trail."
+              onClose={() => setActiveDetailSheet(null)}
+            >
+              <View style={{ gap: 12 }}>
+                {activeDetailSheet === 'filters' ? (
+                  <>
             <SectionCard title="View Context" subtitle="Switch between your own data, a shared group, or a friend comparison without losing trust in the numbers.">
               <OptionChips
                 label="Insights Context"
@@ -490,7 +652,10 @@ export const InsightsScreen = ({ navigation }: any) => {
               filteredExperimentCount={filteredExperiments.length}
               filteredSessionCount={filteredSessions.length}
             />
+                  </>
+                ) : null}
 
+                {activeDetailSheet === 'catch_analytics' ? (
             <SectionCard title="Catch Analytics" subtitle="See what is actually surfacing in the selected context right now.">
               <Text style={{ color: theme.colors.textSoft }}>
                 Sessions in view: {filteredSessions.length} | Catch records in view: {filteredCatchEvents.length}
@@ -537,7 +702,10 @@ export const InsightsScreen = ({ navigation }: any) => {
                 </View>
               )}
             </SectionCard>
+                ) : null}
 
+                {activeDetailSheet === 'top_flies' ? (
+                  <>
             {filteredInsights.map((insight, idx) => (
               <InsightCard key={`${insight.type}-${idx}`} insight={insight} />
             ))}
@@ -550,8 +718,10 @@ export const InsightsScreen = ({ navigation }: any) => {
                 ))}
               </>
             )}
+                  </>
+                ) : null}
 
-            {!!comparisonRecords.length && (
+                {activeDetailSheet === 'experiment_comparisons' && !!comparisonRecords.length ? (
               <SectionCard
                 title="Direct Experiment Comparisons"
                 subtitle="Keep head-to-head fly tests separate from broad top-fly rankings so direct winners do not blur into aggregate performance."
@@ -588,9 +758,9 @@ export const InsightsScreen = ({ navigation }: any) => {
                   ))}
                 </View>
               </SectionCard>
-            )}
+                ) : null}
 
-            {!!filteredTopFlyInsights.length && (
+                {activeDetailSheet === 'top_flies' && !!filteredTopFlyInsights.length ? (
               <>
                 <Text style={{ fontSize: 20, fontWeight: '800', marginTop: 4, marginBottom: 2, color: theme.colors.text }}>Top Flies</Text>
                 {filteredTopFlyInsights.map((insight, idx) => (
@@ -648,9 +818,9 @@ export const InsightsScreen = ({ navigation }: any) => {
                   ))}
                 </View>
               </>
-            )}
+                ) : null}
 
-            {!!exactSetupRecords.length && (
+                {activeDetailSheet === 'exact_setups' && !!exactSetupRecords.length ? (
               <SectionCard
                 title="Best Exact Setups"
                 subtitle="These records combine exact fly configuration with the logged water, depth, technique, and rig context that actually produced fish."
@@ -686,9 +856,9 @@ export const InsightsScreen = ({ navigation }: any) => {
                   ))}
                 </View>
               </SectionCard>
-            )}
+                ) : null}
 
-            {!!contextPerformanceRecords.length && (
+                {activeDetailSheet === 'context_combos' && !!contextPerformanceRecords.length ? (
               <SectionCard
                 title="Context Performance Combos"
                 subtitle="Use these grouped water, depth, technique, and rig combinations to see where performance is strongest across the shared context you selected."
@@ -721,16 +891,19 @@ export const InsightsScreen = ({ navigation }: any) => {
                   ))}
                 </View>
               </SectionCard>
-            )}
+                ) : null}
 
-            {!!contextComparisons.length && (
+                {activeDetailSheet === 'across_anglers' && !!contextComparisons.length ? (
               <>
                 <Text style={{ fontSize: 20, fontWeight: '800', marginTop: 4, marginBottom: 2, color: theme.colors.text }}>Across Anglers</Text>
                 {contextComparisons.map((insight, idx) => (
                   <InsightCard key={`comparison-${idx}`} insight={insight} />
                 ))}
               </>
-            )}
+                ) : null}
+                <AppButton label="Done" onPress={() => setActiveDetailSheet(null)} surfaceTone="modal" />
+              </View>
+            </ModalSurface>
 
             <AppButton label="Back to Session Setup" onPress={() => navigation.navigate('Session')} />
             <AppButton label="View History" onPress={() => navigation.navigate('History')} variant="secondary" />

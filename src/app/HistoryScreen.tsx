@@ -11,6 +11,7 @@ import { SectionCard } from '@/components/ui/SectionCard';
 import { AppButton } from '@/components/ui/AppButton';
 import { StatusBanner } from '@/components/ui/StatusBanner';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
+import { ModalSurface } from '@/components/ui/ModalSurface';
 import { SelectableListPanel } from '@/components/ui/SelectableListPanel';
 import { SessionIntelligenceDrawer } from '@/components/SessionIntelligenceDrawer';
 import { useTheme } from '@/design/theme';
@@ -20,6 +21,8 @@ import { buildSessionDeleteMessage, getSessionDeleteConsequences } from '@/utils
 import { deriveExperimentStatus } from '@/engine/experimentStatus';
 import { getSyncTrustFeedback } from '@/utils/syncFeedback';
 import { describeFishingStyleSetup } from '@/utils/fishingStyle';
+
+type HistorySheet = 'filters' | 'cleanup' | 'problem_records' | null;
 
 export const HistoryScreen = ({ navigation, route }: any) => {
   const { theme } = useTheme();
@@ -44,6 +47,8 @@ export const HistoryScreen = ({ navigation, route }: any) => {
   const [cleanupOutcome, setCleanupOutcome] = useState<'all' | 'decisive' | 'tie' | 'inconclusive'>('inconclusive');
   const [cleanupAction, setCleanupAction] = useState<'archive' | 'delete'>('archive');
   const [selectedIntelligenceSessionId, setSelectedIntelligenceSessionId] = useState<number | null>(null);
+  const [activeSheet, setActiveSheet] = useState<HistorySheet>(null);
+  const [expandedSessionId, setExpandedSessionId] = useState<number | null>(null);
   const inputStyle = getFormInputStyle(theme);
   const syncTrustFeedback = useMemo(
     () =>
@@ -221,6 +226,23 @@ export const HistoryScreen = ({ navigation, route }: any) => {
           eyebrow={`Angler: ${activeUser?.name ?? 'Loading...'}`}
         />
         {syncTrustFeedback ? <StatusBanner tone={syncTrustFeedback.tone} text={syncTrustFeedback.text} /> : null}
+        <SectionCard title="Journal Timeline" subtitle="Scan what happened first. Filters, cleanup, and deep records stay available when you need them.">
+          <InlineSummaryRow label="Entries Shown" value={`${filteredSessions.length}`} />
+          <InlineSummaryRow label="Problem Records" value={`${problemSessions.length}`} valueMuted={!problemSessions.length} />
+          <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
+            <View style={{ flex: 1 }}>
+              <AppButton label="Filters" onPress={() => setActiveSheet('filters')} variant="secondary" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <AppButton label="Cleanup Tools" onPress={() => setActiveSheet('cleanup')} variant="secondary" />
+            </View>
+          </View>
+          {problemSessions.length ? (
+            <AppButton label="Problem Records" onPress={() => setActiveSheet('problem_records')} variant="ghost" />
+          ) : null}
+        </SectionCard>
+
+        <ModalSurface visible={activeSheet === 'filters'} title="Filters" subtitle="Tighten the journal timeline without keeping controls in the default scan." onClose={() => setActiveSheet(null)}>
         <SectionCard title="Filters" subtitle="Tighten the session list without burying the important controls.">
           <OptionChips label="Session Type" options={['all', 'competition'] as const} value={modeFilter} onChange={(value) => setModeFilter(value as 'all' | 'competition')} />
           {!!riverOptions.length && (
@@ -259,7 +281,10 @@ export const HistoryScreen = ({ navigation, route }: any) => {
           <OptionChips label="Technique" options={TECHNIQUES} value={techniqueFilter || null} onChange={setTechniqueFilter} />
           <AppButton label="Clear Technique Filter" onPress={() => setTechniqueFilter('')} variant="ghost" />
         </SectionCard>
+          <AppButton label="Done" onPress={() => setActiveSheet(null)} surfaceTone="modal" />
+        </ModalSurface>
 
+        <ModalSurface visible={activeSheet === 'cleanup'} title="Cleanup Tools" subtitle="Archive or delete old records only when you are intentionally cleaning history." onClose={() => setActiveSheet(null)}>
         <SectionCard title="Cleanup Experiments" subtitle="Archive or delete old results without making the rest of history harder to scan.">
           {cleanupSyncStatus.pendingDeleteCount ? (
             <StatusBanner tone="info" text={`${cleanupSyncStatus.pendingDeleteCount} delete action${cleanupSyncStatus.pendingDeleteCount === 1 ? ' is' : 's are'} still syncing. Items stay hidden while cleanup finishes.`} />
@@ -309,6 +334,8 @@ export const HistoryScreen = ({ navigation, route }: any) => {
           <Text style={{ color: elevatedSoftTextColor }}>Matching experiments: {cleanupCount}</Text>
           <AppButton label={cleanupAction === 'archive' ? 'Archive Filtered Experiments' : 'Delete Filtered Experiments'} onPress={runCleanup} disabled={!cleanupCount} variant="danger" />
         </SectionCard>
+          <AppButton label="Done" onPress={() => setActiveSheet(null)} surfaceTone="modal" />
+        </ModalSurface>
 
       {!filteredSessions.length ? <StatusBanner tone="info" text="No trusted sessions match the current filters yet." /> : null}
 
@@ -326,6 +353,19 @@ export const HistoryScreen = ({ navigation, route }: any) => {
           0
         );
         const rate = totalCasts ? totalCatches / totalCasts : 0;
+        const topSpecies = [...sessionCatches.reduce((counts, event) => {
+          if (event.species) counts.set(event.species, (counts.get(event.species) ?? 0) + 1);
+          return counts;
+        }, new Map<string, number>()).entries()].sort((left, right) => right[1] - left[1])[0]?.[0] ?? null;
+        const takeaway =
+          session.mode === 'practice'
+            ? sessionCatches.length
+              ? `${topSpecies ?? 'Fish'} showed up in ${session.waterType} water. Repeat the context or change one variable next time.`
+              : `No catches logged yet. This entry is still useful for water, method, and timing context.`
+            : sessionExperiments.length
+              ? `${sessionExperiments.length} experiment${sessionExperiments.length === 1 ? '' : 's'} logged at ${(rate * 100).toFixed(1)}% catch rate.`
+              : 'No experiment records tied to this entry yet.';
+        const detailsVisible = expandedSessionId === session.id;
 
         return (
           <SectionCard key={session.id} title={new Date(session.date).toLocaleString()} subtitle={`${session.waterType} water | ${session.depthRange}`}>
@@ -342,6 +382,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
               <InlineSummaryRow label="Session Catch Rate" value={`${(rate * 100).toFixed(1)}%`} />
             )}
             <InlineSummaryRow label="Experiments Logged" value={`${sessionExperiments.length}`} />
+            <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>What this taught me: {takeaway}</Text>
             {session.mode === 'practice' ? (
               <AppButton
                 label="Review Journal Entry"
@@ -354,8 +395,13 @@ export const HistoryScreen = ({ navigation, route }: any) => {
               onPress={() => setSelectedIntelligenceSessionId(session.id)}
               variant="ghost"
             />
+            <AppButton
+              label={detailsVisible ? 'Hide Details' : 'Show Details'}
+              onPress={() => setExpandedSessionId(detailsVisible ? null : session.id)}
+              variant="ghost"
+            />
 
-            {!!sessionExperiments.length && (
+            {detailsVisible && !!sessionExperiments.length && (
               <View style={{ marginTop: 4, gap: 4 }}>
                 <Text style={{ fontWeight: '700', color: elevatedTextColor }}>Experiment history</Text>
                 {sessionExperiments.map((experiment) => {
@@ -430,6 +476,12 @@ export const HistoryScreen = ({ navigation, route }: any) => {
         );
       })}
 
+      <ModalSurface
+        visible={activeSheet === 'problem_records'}
+        title="Problem Records"
+        subtitle="These records stay out of trusted analytics, but cleanup and review are still available."
+        onClose={() => setActiveSheet(null)}
+      >
       {!!orphanedExperiments.length && (
         <SectionCard
           title="Legacy Orphaned Experiments"
@@ -528,6 +580,11 @@ export const HistoryScreen = ({ navigation, route }: any) => {
           ))}
         </SectionCard>
       )}
+      {!orphanedExperiments.length && !problemSessions.length ? (
+        <Text style={{ color: theme.colors.modalTextSoft }}>No problem records need attention right now.</Text>
+      ) : null}
+      <AppButton label="Done" onPress={() => setActiveSheet(null)} surfaceTone="modal" />
+      </ModalSurface>
       </ScrollView>
       <SessionIntelligenceDrawer
         visible={selectedIntelligenceSessionId !== null}
