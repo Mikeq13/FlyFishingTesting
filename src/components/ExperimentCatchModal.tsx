@@ -39,7 +39,7 @@ export const ExperimentCatchModal = ({
     <ModalSurface
       visible={visible}
       title={title}
-      subtitle="Choose the species and optionally add an approximate length so the app can track both catch rate and fish quality."
+      subtitle="Save a quick catch now, or choose species and length for richer experiment results later."
       onClose={onCancel}
     >
 
@@ -76,7 +76,7 @@ export const ExperimentCatchModal = ({
             <AppButton label="Cancel" onPress={onCancel} variant="neutral" surfaceTone="modal" />
           </View>
           <View style={{ flex: 1 }}>
-            <AppButton label="Save Catch" onPress={onConfirm} disabled={selectedSpecies === null} surfaceTone="modal" />
+            <AppButton label="Save Catch" onPress={onConfirm} surfaceTone="modal" />
           </View>
         </View>
     </ModalSurface>

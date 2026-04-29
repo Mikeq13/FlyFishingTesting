@@ -404,16 +404,17 @@ export const ExperimentScreen = ({ route, navigation }: any) => {
   };
 
   const confirmCatch = () => {
-    if (pendingFishEntryIndex === null || pendingFishSpecies === null) {
+    if (pendingFishEntryIndex === null) {
       return;
     }
 
     const index = pendingFishEntryIndex;
+    const catchSpecies = pendingFishSpecies ?? 'Fish';
     updateEntryWith(index, (entry) => ({
       ...entry,
       catches: entry.catches + 1,
       fishSizesInches: pendingFishSize === null ? entry.fishSizesInches : [...entry.fishSizesInches, pendingFishSize],
-      fishSpecies: [...entry.fishSpecies, pendingFishSpecies],
+      fishSpecies: [...entry.fishSpecies, catchSpecies],
       catchTimestamps: [...entry.catchTimestamps, new Date().toISOString()]
     }));
     setPendingFishEntryIndex(null);

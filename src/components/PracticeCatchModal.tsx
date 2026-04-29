@@ -44,7 +44,7 @@ export const PracticeCatchModal = ({
     <ModalSurface
       visible={visible}
       title={title}
-      subtitle="Choose the species. The app will timestamp the catch automatically for catch-rate insights later."
+      subtitle="Save a quick catch now, or choose species and length for richer catch-rate insights later."
       onClose={onCancel}
     >
         <SpeciesPicker
@@ -71,7 +71,7 @@ export const PracticeCatchModal = ({
             <AppButton label="Cancel" onPress={onCancel} variant="neutral" surfaceTone="modal" disabled={isSubmitting} />
           </View>
           <View style={{ flex: 1 }}>
-            <AppButton label={isSubmitting ? 'Saving...' : 'Save Catch'} onPress={onConfirm} disabled={selectedSpecies === null || isSubmitting} surfaceTone="modal" />
+            <AppButton label={isSubmitting ? 'Saving...' : 'Save Catch'} onPress={onConfirm} disabled={isSubmitting} surfaceTone="modal" />
           </View>
         </View>
     </ModalSurface>

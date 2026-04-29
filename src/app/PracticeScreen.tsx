@@ -294,7 +294,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
   };
 
   const confirmPracticeCatch = async () => {
-    if (catchSubmitLockedRef.current || (!pendingCatchFly && !pendingGeneralCatch) || !pendingCatchSpecies) return;
+    if (catchSubmitLockedRef.current || (!pendingCatchFly && !pendingGeneralCatch)) return;
     if (!activeSegment) {
       setFieldFeedback({
         tone: 'warning',
@@ -305,6 +305,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
     catchSubmitLockedRef.current = true;
     setIsSavingCatch(true);
     const parsedLength = Number(pendingCatchLength);
+    const catchSpecies = pendingCatchSpecies ?? 'Fish';
     try {
       await addCatchEvent({
         sessionId: session.id,
@@ -312,7 +313,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
         mode: 'practice',
         flyName: pendingCatchFly?.name,
         flySnapshot: pendingCatchFly ?? undefined,
-        species: pendingCatchSpecies,
+        species: catchSpecies,
         lengthValue:
           session.practiceMeasurementEnabled && Number.isFinite(parsedLength) && parsedLength > 0 ? parsedLength : undefined,
         lengthUnit: session.practiceLengthUnit ?? 'in',
