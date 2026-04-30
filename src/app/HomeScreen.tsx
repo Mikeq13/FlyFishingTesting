@@ -111,23 +111,20 @@ export const HomeScreen = ({ navigation }: any) => {
   });
   const guidedDemoSteps = [
     {
-      label: '1',
-      title: 'Review a journal entry',
+      title: 'Review what happened',
       body: demoPracticeSession?.riverName
-        ? `${demoPracticeSession.riverName}: water changes, rig decisions, and catch notes are already logged.`
-        : 'Open the seeded practice outing and inspect the river, water, setup, and catch timeline.'
+        ? `${demoPracticeSession.riverName} has a seeded outing ready to inspect.`
+        : 'Open a seeded outing and inspect the water, setup, and catch timeline.'
     },
     {
-      label: '2',
-      title: 'Read the signal',
+      title: 'See what worked',
       body: latestInsight
         ? latestInsight.message
-        : 'Insights wait for enough journal signal before turning logged trips into recommendations.'
+        : 'Insights wait for enough journal signal before turning trips into recommendations.'
     },
     {
-      label: '3',
-      title: 'Ask why it worked',
-      body: 'Coach context now belongs with the outing so the recommendation is grounded in what was actually logged.'
+      title: 'Know what to try next',
+      body: 'Coach context stays tied to the outing so recommendations are grounded in the journal.'
     }
   ];
   const themeToneLabel =
@@ -154,8 +151,8 @@ export const HomeScreen = ({ navigation }: any) => {
       <ScrollView style={{ flex: 1, minHeight: 0 }} contentContainerStyle={contentContainerStyle} keyboardShouldPersistTaps="handled">
         {!isWebDemoMode ? (
           <ScreenHeader
-            title="Fishing Lab"
-            subtitle="A hands-free fishing journal that turns outings, water changes, setups, and catches into patterns you can trust."
+            title="Fishing Journal"
+            subtitle="Turn every trip into applied fishing knowledge."
             eyebrow="On The Water"
           />
         ) : null}
@@ -192,7 +189,7 @@ export const HomeScreen = ({ navigation }: any) => {
                   textShadowRadius: 16
                 }}
               >
-                Fishing Lab turns a day on the water into patterns you can trust.
+                Fishing Journal
               </Text>
               <Text
                 style={{
@@ -204,7 +201,7 @@ export const HomeScreen = ({ navigation }: any) => {
                   textShadowRadius: 12
                 }}
               >
-                Review a logged outing, inspect the signal it produced, then ask the coach why the next recommendation exists.
+                Turn every trip into applied fishing knowledge. Start a journal entry, log what happens on the water, and review what worked before your next outing.
               </Text>
             </View>
             <View style={{ flexDirection: layout.stackDirection, gap: 10, maxWidth: 760 }}>
@@ -221,25 +218,26 @@ export const HomeScreen = ({ navigation }: any) => {
                 <AppButton label="Start Journal Entry" onPress={openSessionChooser} variant="secondary" />
               </View>
             </View>
-            <View style={{ flexDirection: layout.stackDirection, gap: 10, maxWidth: 880 }}>
-              {guidedDemoSteps.map((step) => (
-                <View
-                  key={step.label}
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    gap: 4,
-                    padding: 12,
-                    borderRadius: theme.radius.md,
-                    backgroundColor: theme.colors.surfaceAlt,
-                    borderWidth: 1,
-                    borderColor: theme.colors.border
-                  }}
-                >
-                  <Text style={{ color: theme.colors.text, fontWeight: '900' }}>{step.label}. {step.title}</Text>
-                  <Text style={{ color: theme.colors.textSoft, lineHeight: 19 }}>{step.body}</Text>
-                </View>
-              ))}
+            <View
+              style={{
+                maxWidth: 760,
+                gap: 8,
+                padding: 12,
+                borderRadius: theme.radius.md,
+                backgroundColor: theme.colors.surfaceAlt,
+                borderWidth: 1,
+                borderColor: theme.colors.border
+              }}
+            >
+              <Text style={{ color: theme.colors.text, fontWeight: '900' }}>What Fishing Journal Helps With</Text>
+              <View style={{ flexDirection: layout.stackDirection, gap: 8 }}>
+                {guidedDemoSteps.map((step) => (
+                  <View key={step.title} style={{ flex: 1, minWidth: 0, gap: 3 }}>
+                    <Text style={{ color: theme.colors.text, fontWeight: '800' }}>{step.title}</Text>
+                    <Text style={{ color: theme.colors.textSoft, lineHeight: 18 }}>{step.body}</Text>
+                  </View>
+                ))}
+              </View>
             </View>
             <View
               style={{
@@ -386,22 +384,12 @@ export const HomeScreen = ({ navigation }: any) => {
               </>
             ) : (
               <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
-                No active journal entry right now. Choose the style of fishing you are doing today, then Fishing Lab will guide you into the right setup.
+                No active journal entry right now. Choose the style of fishing you are doing today, then Fishing Journal will guide you into the right setup.
               </Text>
             )}
             <AppButton label="Start Journal Entry" onPress={openSessionChooser} variant="primary" />
           </SectionCard>
         ) : null}
-
-        <SectionCard
-          title="Voice Commands"
-          subtitle="Use structured voice shortcuts inside active journal entries for safe field actions like logging fish, adding notes, and changing water."
-          tone="light"
-        >
-          <Text style={{ color: isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft, lineHeight: 20 }}>
-            Open Voice Commands from a journal entry when you want the full list of supported phrases.
-          </Text>
-        </SectionCard>
 
         <View>
           <AppButton label="Settings" onPress={() => navigation.navigate('Access')} variant="tertiary" />
@@ -416,7 +404,7 @@ export const HomeScreen = ({ navigation }: any) => {
             ? selectedFishingStyle === 'fly'
               ? 'Choose how much structure you want. Journal Entry is the best default when you just want to fish and learn.'
               : 'This style starts with a lightweight journal entry so logging stays quick.'
-            : 'Start with the type of fishing you are doing today. Fishing Lab will only show the flows that fit that style.'
+            : 'Start with the type of fishing you are doing today. Fishing Journal will only show the flows that fit that style.'
         }
         onClose={() => {
           setShowSessionChooser(false);
