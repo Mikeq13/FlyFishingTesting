@@ -112,6 +112,10 @@ export const PracticeScreen = ({ route, navigation }: any) => {
     alertIntervalMinutes: session?.alertIntervalMinutes,
     alertMarkersMinutes: session?.alertMarkersMinutes
   });
+  const sessionTimerEnabled =
+    typeof getSessionPlannedDurationMinutes(session) === 'number' ||
+    typeof session?.alertIntervalMinutes === 'number' ||
+    !!session?.alertMarkersMinutes?.length;
   useSessionAlerts(session, timer.activeAlertMinute);
 
   useEffect(() => {
@@ -318,7 +322,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
           session.practiceMeasurementEnabled && Number.isFinite(parsedLength) && parsedLength > 0 ? parsedLength : undefined,
         lengthUnit: session.practiceLengthUnit ?? 'in',
         caughtAt: new Date().toISOString(),
-        notes: pendingGeneralCatch ? [fishingStyleSetup.styleLabel, fishingStyleSetup.method, fishingStyleSetup.tackleNotes].filter(Boolean).join(' | ') : undefined
+        notes: pendingGeneralCatch ? [fishingStyleSetup.styleLabel, fishingStyleSetup.setupName, fishingStyleSetup.method, fishingStyleSetup.tackleNotes].filter(Boolean).join(' | ') : undefined
       });
       setPendingCatchFly(null);
       setPendingGeneralCatch(false);
@@ -412,18 +416,25 @@ export const PracticeScreen = ({ route, navigation }: any) => {
         {syncFeedback ? <StatusBanner tone={getPendingSyncFeedbackTone(syncStatus)} text={syncFeedback} /> : null}
         {fieldFeedback ? <StatusBanner tone={fieldFeedback.tone} text={fieldFeedback.text} /> : null}
 
-        {timer.activeAlertMinute ? (
+        {sessionTimerEnabled && timer.activeAlertMinute ? (
           <StatusBanner tone="warning" text={`Time marker: ${timer.activeAlertMinute} minutes into your journal entry.`} />
         ) : null}
-        {notificationPermissionStatus === 'denied' ? (
+        {sessionTimerEnabled && notificationPermissionStatus === 'denied' ? (
           <StatusBanner tone="info" text="Phone notifications are off on this device, so reminder banners will only appear while the app is open." />
         ) : null}
 
-        <SectionCard title="Journal Timer" subtitle="Keep timing, reminders, and catch measuring in one glance.">
+        <SectionCard
+          title={sessionTimerEnabled ? 'Journal Timer' : 'Journal Controls'}
+          subtitle={sessionTimerEnabled ? 'Keep timing, reminders, and catch measuring in one glance.' : 'No timer is running for this entry. Keep logging catches, then end and review when you are ready.'}
+        >
+          {sessionTimerEnabled ? (
+            <>
             <Text style={{ color: theme.colors.text }}>Elapsed: {timer.elapsedLabel}</Text>
           {timer.remainingLabel ? <Text style={{ color: theme.colors.text }}>Remaining: {timer.remainingLabel}</Text> : null}
           {timer.hasEnded ? <StatusBanner tone="error" text="Session ended early." /> : null}
           {!timer.hasEnded && timer.nextAlertMinute ? <Text style={{ color: theme.colors.text }}>Next alert: {timer.nextAlertMinute} min</Text> : null}
+            </>
+          ) : null}
           {session.practiceMeasurementEnabled ? (
             <Text style={{ color: theme.colors.textSoft }}>
               Measuring is on. Add length in {session.practiceLengthUnit ?? 'in'} whenever it helps your journal notes.
@@ -496,9 +507,12 @@ export const PracticeScreen = ({ route, navigation }: any) => {
         }) : null}
 
         {!isFlyJournal ? (
-          <SectionCard title="Tackle Setup" subtitle="Lightweight setup for the fishing style you chose.">
+          <SectionCard title="Setup Used" subtitle="Lightweight setup for the fishing style you chose.">
             <Text style={{ color: theme.colors.text }}>Style: {fishingStyleSetup.styleLabel}</Text>
             <Text style={{ color: theme.colors.text }}>Method: {fishingStyleSetup.method ?? 'Not set'}</Text>
+            {fishingStyleSetup.setupName ? (
+              <Text style={{ color: theme.colors.text, fontWeight: '800' }}>Setup: {fishingStyleSetup.setupName}</Text>
+            ) : null}
             {fishingStyleSetup.tackleNotes ? (
               <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>{fishingStyleSetup.tackleNotes}</Text>
             ) : (
@@ -514,7 +528,12 @@ export const PracticeScreen = ({ route, navigation }: any) => {
             tone="light"
           >
             <InlineSummaryRow label="Catches This Entry" value={`${recentCatches.length}`} tone="light" />
-            <InlineSummaryRow label="Current Method" value={fishingStyleSetup.method ?? 'Not set'} valueMuted={!fishingStyleSetup.method} tone="light" />
+            <InlineSummaryRow
+              label="Current Setup"
+              value={fishingStyleSetup.setupName ?? fishingStyleSetup.method ?? 'Not set'}
+              valueMuted={!fishingStyleSetup.setupName && !fishingStyleSetup.method}
+              tone="light"
+            />
             <InlineSummaryRow label="Best Early Species" value={topSessionSpecies ?? 'Need a few catches'} valueMuted={!topSessionSpecies} tone="light" />
             <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>{nonFlySignalHint}</Text>
           </SectionCard>
@@ -564,7 +583,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
           ) : (
             recentCatches.map((event) => (
               <Text key={event.id} style={{ color: theme.colors.textDarkSoft }}>
-                {new Date(event.caughtAt).toLocaleTimeString()} - {event.flyName || fishingStyleSetup.method || 'Catch'}{event.species ? ` - ${event.species}` : ''}
+                {new Date(event.caughtAt).toLocaleTimeString()} - {event.flyName || fishingStyleSetup.setupName || fishingStyleSetup.method || 'Catch'}{event.species ? ` - ${event.species}` : ''}
               </Text>
             ))
           )}

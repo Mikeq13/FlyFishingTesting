@@ -73,13 +73,14 @@ export const SessionIntelligenceDrawer = ({
       const label =
         event.flyName ||
         event.flySnapshot?.name ||
+        styleSetup.setupName ||
         styleSetup.method ||
         styleSetup.tackleNotes ||
         'Logged catch';
       counts.set(label, (counts.get(label) ?? 0) + 1);
     });
     return [...counts.entries()].sort((left, right) => right[1] - left[1]).slice(0, 3);
-  }, [sessionCatches, styleSetup.method, styleSetup.tackleNotes]);
+  }, [sessionCatches, styleSetup.method, styleSetup.setupName, styleSetup.tackleNotes]);
   const improvementFocus = styleSetup.style === 'boat_trolling'
     ? 'Log depth, speed, lure, and location together so lake patterns become easier to repeat.'
     : styleSetup.style === 'spin_bait'
@@ -116,7 +117,7 @@ export const SessionIntelligenceDrawer = ({
                     : bestInsight?.message ??
                       'This journal does not have enough repeated evidence yet. Keep logging water, method, setup, and catches so the app can separate hunches from patterns.'}
                 </Text>
-                <InlineSummaryRow label="What You Fished Best" value={bestSegment ? `${bestSegment.segment.waterType} | ${bestSegment.segment.depthRange} | ${bestSegment.segment.technique ?? styleSetup.method ?? 'method not set'}` : `${session.waterType} | ${session.depthRange}`} tone="modal" />
+                <InlineSummaryRow label="What You Fished Best" value={bestSegment ? `${bestSegment.segment.waterType} | ${bestSegment.segment.depthRange} | ${bestSegment.segment.technique ?? styleSetup.setupName ?? styleSetup.method ?? 'method not set'}` : `${session.waterType} | ${session.depthRange}`} tone="modal" />
                 <InlineSummaryRow label="Catch Context" value={`${sessionCatches.length} catch${sessionCatches.length === 1 ? '' : 'es'}, ${segmentsForSession.length} segment${segmentsForSession.length === 1 ? '' : 's'}, ${sessionExperimentList.length} structured test${sessionExperimentList.length === 1 ? '' : 's'}.`} tone="modal" />
               </SectionCard>
 

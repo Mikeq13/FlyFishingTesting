@@ -15,7 +15,9 @@ export interface FishingStyleOption {
 export interface FishingStyleSetup {
   style: FishingStyle;
   method?: string;
+  setupName?: string;
   tackleNotes?: string;
+  saveSetup?: boolean;
 }
 
 export const FISHING_STYLE_OPTIONS: FishingStyleOption[] = [
@@ -67,7 +69,9 @@ export const parseFishingStyleSetup = (notes?: string | null): FishingStyleSetup
   return {
     style,
     method: values.method || undefined,
-    tackleNotes: values.tackle || undefined
+    setupName: values.setupName || undefined,
+    tackleNotes: values.tackle || undefined,
+    saveSetup: values.saveSetup === 'true'
   };
 };
 
@@ -85,7 +89,9 @@ export const serializeFishingStyleNotes = (notes: string, setup: FishingStyleSet
     SETUP_START,
     `style: ${setup.style}`,
     setup.method ? `method: ${setup.method}` : null,
+    setup.setupName?.trim() ? `setupName: ${setup.setupName.trim().replace(/\s+/g, ' ')}` : null,
     setup.tackleNotes?.trim() ? `tackle: ${setup.tackleNotes.trim().replace(/\s+/g, ' ')}` : null,
+    setup.saveSetup ? 'saveSetup: true' : null,
     SETUP_END
   ]
     .filter(Boolean)
@@ -103,7 +109,9 @@ export const describeFishingStyleSetup = (session: Pick<Session, 'notes'> | null
     style: setup?.style ?? 'fly',
     styleLabel: option.title,
     method: setup?.method,
+    setupName: setup?.setupName,
     tackleNotes: setup?.tackleNotes,
+    saveSetup: setup?.saveSetup ?? false,
     journalNotes: stripFishingStyleSetupBlock(session?.notes)
   };
 };
