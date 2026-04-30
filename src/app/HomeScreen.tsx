@@ -50,6 +50,7 @@ export const HomeScreen = ({ navigation }: any) => {
     insights,
     topFlyInsights,
     isWebDemoMode,
+    resetWebDemoData,
     activeOuting,
     clearActiveOuting,
     autoResumePromptEnabled,
@@ -62,6 +63,7 @@ export const HomeScreen = ({ navigation }: any) => {
   const [showSessionChooser, setShowSessionChooser] = React.useState(false);
   const [selectedFishingStyle, setSelectedFishingStyle] = React.useState<FishingStyle | null>(null);
   const [resumeFeedback, setResumeFeedback] = React.useState<{ tone: 'success' | 'warning'; text: string } | null>(null);
+  const [demoResetFeedback, setDemoResetFeedback] = React.useState<{ tone: 'success' | 'warning'; text: string } | null>(null);
   const shouldCenterContent = Platform.OS !== 'web' && !layout.isCompactLayout;
   const latestInsight = React.useMemo(
     () => [...topFlyInsights, ...insights].find((insight) => insight.confidence !== 'low') ?? topFlyInsights[0] ?? insights[0] ?? null,
@@ -148,6 +150,23 @@ export const HomeScreen = ({ navigation }: any) => {
     setShowSessionChooser(true);
   };
 
+  const resetDemoData = () => {
+    setDemoResetFeedback(null);
+    resetWebDemoData()
+      .then(() =>
+        setDemoResetFeedback({
+          tone: 'success',
+          text: 'Demo data reset. The seeded journal, catches, and insights are ready again.'
+        })
+      )
+      .catch(() =>
+        setDemoResetFeedback({
+          tone: 'warning',
+          text: 'Demo reset did not finish. Refresh the page and try again.'
+        })
+      );
+  };
+
   return (
     <ScreenBackground>
       <KeyboardDismissView>
@@ -221,6 +240,7 @@ export const HomeScreen = ({ navigation }: any) => {
                 <AppButton label="Start Journal Entry" onPress={openSessionChooser} variant="secondary" />
               </View>
             </View>
+            {demoResetFeedback ? <StatusBanner tone={demoResetFeedback.tone} text={demoResetFeedback.text} /> : null}
             <View style={{ gap: 10, maxWidth: 820 }}>
               <Text style={{ color: theme.colors.text, fontWeight: '800', textShadowColor: theme.colors.overlay, textShadowRadius: 10 }}>
                 River theme: {themeToneLabel}
@@ -235,6 +255,9 @@ export const HomeScreen = ({ navigation }: any) => {
                     />
                   </View>
                 ))}
+              </View>
+              <View style={{ maxWidth: 360 }}>
+                <AppButton label="Reset Demo Data" onPress={resetDemoData} variant="ghost" />
               </View>
             </View>
             <View style={{ flexDirection: layout.stackDirection, gap: 10, maxWidth: 880 }}>
@@ -274,106 +297,108 @@ export const HomeScreen = ({ navigation }: any) => {
           </Text>
         </SectionCard>
         ) : null}
-        <SectionCard
-          title={activeOuting && autoResumePromptEnabled ? 'Current Journal Entry' : 'Today\'s Journal'}
-          subtitle={
-            activeOuting && autoResumePromptEnabled
-              ? 'Jump back into the live entry without digging through old records.'
-              : 'Start with the water in front of you, log what happens, then review what the day taught you.'
-          }
-        >
-          {activeOuting && autoResumePromptEnabled ? (
-            <>
-              {activeOutingIsStale ? (
-                <>
-                  <StatusBanner
-                    tone="warning"
-                    text="Repair needed: the stored outing points to a session that is missing or already ended. This outing cannot be resumed safely."
-                  />
-                  <View
-                    style={{
-                      gap: 6,
-                      borderRadius: theme.radius.md,
-                      padding: 12,
-                      backgroundColor: theme.colors.surfaceAlt,
-                      borderWidth: 1,
-                      borderColor: theme.colors.border
-                    }}
-                  >
-                    <Text style={{ color: theme.colors.textSoft }}>Mode: {activeOuting.mode}</Text>
-                    <Text style={{ color: theme.colors.textSoft }}>Resume target: {activeOutingResumeRoute}</Text>
-                    <Text style={{ color: theme.colors.textSoft }}>Last action: {new Date(activeOuting.lastActiveAt).toLocaleString()}</Text>
-                    <Text style={{ color: theme.colors.textSoft }}>Repair: dismiss stale entry, then start a clean journal flow.</Text>
-                  </View>
-                  <AppButton
-                    label="Dismiss Stale Entry"
-                    onPress={() => {
-                      clearActiveOuting().catch(() => undefined);
-                    }}
-                    variant="secondary"
-                  />
-                </>
-              ) : (
-                <>
-                  <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 18 }}>{buildActiveOutingLabel(activeOuting)}</Text>
-                  {resumeFeedback ? <StatusBanner tone={resumeFeedback.tone} text={resumeFeedback.text} /> : null}
-                  <View
-                    style={{
-                      gap: 6,
-                      borderRadius: theme.radius.md,
-                      padding: 12,
-                      backgroundColor: theme.colors.surfaceAlt,
-                      borderWidth: 1,
-                      borderColor: theme.colors.border
-                    }}
-                  >
-                    <Text style={{ color: theme.colors.textSoft }}>
-                      Mode: {activeOutingSession?.mode ?? activeOuting.mode}
-                    </Text>
-                    <Text style={{ color: theme.colors.textSoft }}>
-                      River: {activeOutingSession?.riverName ?? activeOutingSegment?.riverName ?? 'Not set'}
-                    </Text>
-                    <Text style={{ color: theme.colors.textSoft }}>
-                      Water: {activeOutingSegment?.waterType ?? activeOutingSession?.waterType ?? 'Not set'}
-                    </Text>
-                    <Text style={{ color: theme.colors.textSoft }}>
-                      Technique: {activeOutingSegment?.technique ?? activeOutingSession?.startingTechnique ?? 'Not set'}
-                    </Text>
-                    <Text style={{ color: theme.colors.textSoft }}>
-                      Last action: {new Date(activeOuting.lastActiveAt).toLocaleString()}
-                    </Text>
-                    <Text style={{ color: theme.colors.textSoft }}>
-                      Resume target: {activeOutingResumeRoute}
-                    </Text>
-                  </View>
-                  {syncTrustFeedback ? <StatusBanner tone={syncTrustFeedback.tone} text={syncTrustFeedback.text} /> : null}
-                  <AppButton
-                    label="Resume Journal Entry"
-                    onPress={() => {
-                      if (activeOutingTarget) {
-                        setResumeFeedback({
-                          tone: 'success',
-                          text: 'Current outing is ready to resume. Saved state should survive relaunch.'
-                        });
-                        navigation.navigate(activeOutingTarget.route, activeOutingTarget.params);
-                      } else {
-                        setResumeFeedback({
-                          tone: 'warning',
-                          text: 'Resume target is unavailable. Start a clean outing or dismiss the stale recovery state.'
-                        });
-                      }
-                    }}
-                  />
-                </>
-              )}
-            </>
-          ) : (
-            <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
-              No active journal entry right now. Choose the style of fishing you are doing today, then Fishing Lab will guide you into the right setup.
-            </Text>
-          )}
-          <AppButton label="Start Journal Entry" onPress={openSessionChooser} variant="primary" />
-        </SectionCard>
+        {!isWebDemoMode ? (
+          <SectionCard
+            title={activeOuting && autoResumePromptEnabled ? 'Current Journal Entry' : 'Today\'s Journal'}
+            subtitle={
+              activeOuting && autoResumePromptEnabled
+                ? 'Jump back into the live entry without digging through old records.'
+                : 'Start with the water in front of you, log what happens, then review what the day taught you.'
+            }
+          >
+            {activeOuting && autoResumePromptEnabled ? (
+              <>
+                {activeOutingIsStale ? (
+                  <>
+                    <StatusBanner
+                      tone="warning"
+                      text="Repair needed: the stored outing points to a session that is missing or already ended. This outing cannot be resumed safely."
+                    />
+                    <View
+                      style={{
+                        gap: 6,
+                        borderRadius: theme.radius.md,
+                        padding: 12,
+                        backgroundColor: theme.colors.surfaceAlt,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border
+                      }}
+                    >
+                      <Text style={{ color: theme.colors.textSoft }}>Mode: {activeOuting.mode}</Text>
+                      <Text style={{ color: theme.colors.textSoft }}>Resume target: {activeOutingResumeRoute}</Text>
+                      <Text style={{ color: theme.colors.textSoft }}>Last action: {new Date(activeOuting.lastActiveAt).toLocaleString()}</Text>
+                      <Text style={{ color: theme.colors.textSoft }}>Repair: dismiss stale entry, then start a clean journal flow.</Text>
+                    </View>
+                    <AppButton
+                      label="Dismiss Stale Entry"
+                      onPress={() => {
+                        clearActiveOuting().catch(() => undefined);
+                      }}
+                      variant="secondary"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 18 }}>{buildActiveOutingLabel(activeOuting)}</Text>
+                    {resumeFeedback ? <StatusBanner tone={resumeFeedback.tone} text={resumeFeedback.text} /> : null}
+                    <View
+                      style={{
+                        gap: 6,
+                        borderRadius: theme.radius.md,
+                        padding: 12,
+                        backgroundColor: theme.colors.surfaceAlt,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border
+                      }}
+                    >
+                      <Text style={{ color: theme.colors.textSoft }}>
+                        Mode: {activeOutingSession?.mode ?? activeOuting.mode}
+                      </Text>
+                      <Text style={{ color: theme.colors.textSoft }}>
+                        River: {activeOutingSession?.riverName ?? activeOutingSegment?.riverName ?? 'Not set'}
+                      </Text>
+                      <Text style={{ color: theme.colors.textSoft }}>
+                        Water: {activeOutingSegment?.waterType ?? activeOutingSession?.waterType ?? 'Not set'}
+                      </Text>
+                      <Text style={{ color: theme.colors.textSoft }}>
+                        Technique: {activeOutingSegment?.technique ?? activeOutingSession?.startingTechnique ?? 'Not set'}
+                      </Text>
+                      <Text style={{ color: theme.colors.textSoft }}>
+                        Last action: {new Date(activeOuting.lastActiveAt).toLocaleString()}
+                      </Text>
+                      <Text style={{ color: theme.colors.textSoft }}>
+                        Resume target: {activeOutingResumeRoute}
+                      </Text>
+                    </View>
+                    {syncTrustFeedback ? <StatusBanner tone={syncTrustFeedback.tone} text={syncTrustFeedback.text} /> : null}
+                    <AppButton
+                      label="Resume Journal Entry"
+                      onPress={() => {
+                        if (activeOutingTarget) {
+                          setResumeFeedback({
+                            tone: 'success',
+                            text: 'Current outing is ready to resume. Saved state should survive relaunch.'
+                          });
+                          navigation.navigate(activeOutingTarget.route, activeOutingTarget.params);
+                        } else {
+                          setResumeFeedback({
+                            tone: 'warning',
+                            text: 'Resume target is unavailable. Start a clean outing or dismiss the stale recovery state.'
+                          });
+                        }
+                      }}
+                    />
+                  </>
+                )}
+              </>
+            ) : (
+              <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
+                No active journal entry right now. Choose the style of fishing you are doing today, then Fishing Lab will guide you into the right setup.
+              </Text>
+            )}
+            <AppButton label="Start Journal Entry" onPress={openSessionChooser} variant="primary" />
+          </SectionCard>
+        ) : null}
 
         <SectionCard
           title="Best Current Signal"
