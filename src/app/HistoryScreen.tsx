@@ -343,6 +343,7 @@ export const HistoryScreen = ({ navigation, route }: any) => {
         const sessionExperiments = experiments.filter((experiment) => experiment.sessionId === session.id);
         const fishingStyleSetup = describeFishingStyleSetup(session);
         const isFlyJournal = fishingStyleSetup.style === 'fly';
+        const isSpinBaitJournal = fishingStyleSetup.style === 'spin_bait';
         const sessionCatches = catchEvents.filter((event) => event.sessionId === session.id);
         const totalCasts = sessionExperiments.reduce(
           (sum, experiment) => sum + getExperimentEntries(experiment).reduce((entrySum, entry) => entrySum + entry.casts, 0),
@@ -368,12 +369,12 @@ export const HistoryScreen = ({ navigation, route }: any) => {
         const detailsVisible = expandedSessionId === session.id;
 
         return (
-          <SectionCard key={session.id} title={new Date(session.date).toLocaleString()} subtitle={`${session.waterType} water | ${session.depthRange}`}>
+          <SectionCard key={session.id} title={new Date(session.date).toLocaleString()} subtitle={isSpinBaitJournal ? `${session.waterType} water` : `${session.waterType} water | ${session.depthRange}`}>
             <InlineSummaryRow label="Mode" value={modeSummaryLabel(session.mode)} />
             {session.mode === 'practice' ? <InlineSummaryRow label="Style" value={fishingStyleSetup.styleLabel} /> : null}
             {session.mode === 'practice' && !isFlyJournal && fishingStyleSetup.method ? <InlineSummaryRow label="Method" value={fishingStyleSetup.method} /> : null}
             <InlineSummaryRow label="Month" value={new Date(session.date).toLocaleString('en-US', { month: 'long' })} />
-            {session.riverName ? <InlineSummaryRow label="River" value={session.riverName} /> : null}
+            {session.riverName ? <InlineSummaryRow label="Location" value={session.riverName} /> : null}
             {session.startingTechnique && (session.mode !== 'practice' || isFlyJournal) ? <InlineSummaryRow label="Technique" value={session.startingTechnique} /> : null}
             {session.hypothesis ? <InlineSummaryRow label="Session Hypothesis" value={session.hypothesis} /> : null}
             {session.mode === 'practice' ? (

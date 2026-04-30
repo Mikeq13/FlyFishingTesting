@@ -647,6 +647,8 @@ export const SessionScreen = ({ navigation, route }: any) => {
                   if (nextStyle === 'boat_trolling') {
                     setWaterType('lake');
                     setDepthRange('10-20 ft');
+                  } else if (nextStyle === 'spin_bait') {
+                    setDepthRange('1.5-3 ft');
                   }
                 }}
               />

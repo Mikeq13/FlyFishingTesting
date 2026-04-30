@@ -44,6 +44,7 @@ export const PracticeReviewScreen = ({ route, navigation }: any) => {
   const sessionDurationMs = session ? getPracticeSessionDurationMs(session) : null;
   const fishingStyleSetup = describeFishingStyleSetup(session);
   const isFlyJournal = fishingStyleSetup.style === 'fly';
+  const isSpinBaitJournal = fishingStyleSetup.style === 'spin_bait';
   const sessionDurationLabel = formatPracticeDuration(sessionDurationMs);
   const catchesPerHour = session ? getPracticeCatchesPerHour(session, practiceCatches) : null;
   const unassignedCatchCount = practiceCatches.filter((event) => !event.segmentId).length;
@@ -65,13 +66,13 @@ export const PracticeReviewScreen = ({ route, navigation }: any) => {
               subtitle={new Date(session.date).toLocaleString()}
               tone="light"
             >
-              {session.riverName ? <InlineSummaryRow label="River" value={session.riverName} tone="light" /> : null}
+              {session.riverName ? <InlineSummaryRow label="Location" value={session.riverName} tone="light" /> : null}
               <InlineSummaryRow label="Style" value={fishingStyleSetup.styleLabel} tone="light" />
               {!isFlyJournal && fishingStyleSetup.setupName ? <InlineSummaryRow label="Setup" value={fishingStyleSetup.setupName} tone="light" /> : null}
               {!isFlyJournal && fishingStyleSetup.method ? <InlineSummaryRow label="Method" value={fishingStyleSetup.method} tone="light" /> : null}
               {!isFlyJournal && fishingStyleSetup.tackleNotes ? <InlineSummaryRow label="Setup Notes" value={fishingStyleSetup.tackleNotes} tone="light" /> : null}
               <InlineSummaryRow label="Water" value={session.waterType} tone="light" />
-              <InlineSummaryRow label="Depth" value={session.depthRange} tone="light" />
+              {!isSpinBaitJournal ? <InlineSummaryRow label="Depth" value={session.depthRange} tone="light" /> : null}
               {session.startingTechnique ? <InlineSummaryRow label="Starting Technique" value={session.startingTechnique} tone="light" /> : null}
               <InlineSummaryRow label="Segments Logged" value={`${reviewSegments.length}`} tone="light" />
               <InlineSummaryRow label="Total Catches" value={`${practiceCatches.length}`} tone="light" />
@@ -108,7 +109,7 @@ export const PracticeReviewScreen = ({ route, navigation }: any) => {
                   >
                     <Text style={{ color: elevatedTextColor, fontWeight: '800' }}>Segment {index + 1}</Text>
                     <InlineSummaryRow label="Water" value={segment.waterType} tone="light" />
-                    <InlineSummaryRow label="Depth" value={segment.depthRange} tone="light" />
+                    {!isSpinBaitJournal ? <InlineSummaryRow label="Depth" value={segment.depthRange} tone="light" /> : null}
                     <InlineSummaryRow label={isFlyJournal ? 'Technique' : 'Setup'} value={isFlyJournal ? segment.technique ?? 'Technique not set' : fishingStyleSetup.setupName ?? fishingStyleSetup.method ?? 'Setup not set'} tone="light" />
                     <InlineSummaryRow label="Started" value={new Date(segment.startedAt).toLocaleTimeString()} tone="light" />
                     {segment.endedAt ? <InlineSummaryRow label="Ended" value={new Date(segment.endedAt).toLocaleTimeString()} tone="light" /> : null}

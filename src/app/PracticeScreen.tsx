@@ -191,6 +191,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
   const fishingStyle = getFishingStyleForSession(session);
   const fishingStyleSetup = describeFishingStyleSetup(session);
   const isFlyJournal = fishingStyle === 'fly';
+  const isSpinBaitJournal = fishingStyle === 'spin_bait';
   const nonFlySignalLabel = fishingStyle === 'boat_trolling' ? 'Boat Signal' : 'Tackle Signal';
   const nonFlySignalHint =
     fishingStyle === 'boat_trolling'
@@ -453,11 +454,17 @@ export const PracticeScreen = ({ route, navigation }: any) => {
 
         <SectionCard title="Active Water" subtitle="Track the current water, then move fast when you want a new segment.">
           <Text style={{ color: theme.colors.text }}>Current water: {activeSegment?.waterType ?? session.waterType}</Text>
-          <Text style={{ color: theme.colors.text }}>Current depth: {activeSegment?.depthRange ?? session.depthRange}</Text>
+          {!isSpinBaitJournal ? (
+            <Text style={{ color: theme.colors.text }}>Current depth: {activeSegment?.depthRange ?? session.depthRange}</Text>
+          ) : null}
           <AppButton label="Open Water Guide" onPress={() => setShowWaterGuide(true)} variant="ghost" />
           <OptionChips label="Next Water Type" options={WATER_TYPES} value={nextWaterType} onChange={setNextWaterType} />
-          <Text style={{ color: theme.colors.text, fontWeight: '700' }}>Next Water Depth</Text>
-          <DepthSelector value={nextDepthRange} onChange={setNextDepthRange} />
+          {!isSpinBaitJournal ? (
+            <>
+              <Text style={{ color: theme.colors.text, fontWeight: '700' }}>Next Water Depth</Text>
+              <DepthSelector value={nextDepthRange} onChange={setNextDepthRange} />
+            </>
+          ) : null}
           <AppButton
             label="Change Water"
             onPress={() => {

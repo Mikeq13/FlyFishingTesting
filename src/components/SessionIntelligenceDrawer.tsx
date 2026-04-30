@@ -54,6 +54,7 @@ export const SessionIntelligenceDrawer = ({
   const changedWaterTypes = [...new Set(segmentsForSession.map((segment) => segment.waterType))];
   const changedTechniques = [...new Set(segmentsForSession.map((segment) => segment.technique).filter(Boolean))];
   const styleSetup = React.useMemo(() => describeFishingStyleSetup(session), [session]);
+  const isSpinBaitJournal = styleSetup.style === 'spin_bait';
   const bestSegment = React.useMemo(() => {
     const catchCountBySegmentId = new Map<number, number>();
     sessionCatches.forEach((event) => {
@@ -101,9 +102,9 @@ export const SessionIntelligenceDrawer = ({
             <>
               <SectionCard title="What Happened" subtitle={new Date(session.date).toLocaleString()} tone="modal">
                 <InlineSummaryRow label="Mode" value={getSessionModeLabel(session.mode)} tone="modal" />
-                {session.riverName ? <InlineSummaryRow label="River" value={session.riverName} tone="modal" /> : null}
+                {session.riverName ? <InlineSummaryRow label="Location" value={session.riverName} tone="modal" /> : null}
                 <InlineSummaryRow label="Water" value={changedWaterTypes.length > 1 ? changedWaterTypes.join(' | ') : session.waterType} tone="modal" />
-                <InlineSummaryRow label="Depth" value={session.depthRange} tone="modal" />
+                {!isSpinBaitJournal ? <InlineSummaryRow label="Depth" value={session.depthRange} tone="modal" /> : null}
                 {changedTechniques.length ? <InlineSummaryRow label="Technique" value={changedTechniques.join(' | ')} tone="modal" /> : null}
                 <InlineSummaryRow label="Catches" value={`${sessionCatches.length}`} tone="modal" />
                 <InlineSummaryRow label="Experiments" value={`${sessionExperimentList.length}`} tone="modal" />
@@ -113,11 +114,25 @@ export const SessionIntelligenceDrawer = ({
               <SectionCard title="Session Summary" subtitle={getConfidenceLabel(bestInsight?.confidence)} tone="modal">
                 <Text style={{ color: theme.colors.modalTextSoft, lineHeight: 20 }}>
                   {bestSegment && bestSegment.catches > 0
-                    ? `${bestSegment.segment.waterType} water at ${bestSegment.segment.depthRange} produced the strongest result in this outing.`
+                    ? isSpinBaitJournal
+                      ? `${bestSegment.segment.waterType} water produced the strongest result in this outing.`
+                      : `${bestSegment.segment.waterType} water at ${bestSegment.segment.depthRange} produced the strongest result in this outing.`
                     : bestInsight?.message ??
                       'This journal does not have enough repeated evidence yet. Keep logging water, setup names, notes, and catches so the app can separate hunches from patterns.'}
                 </Text>
-                <InlineSummaryRow label="What You Fished Best" value={bestSegment ? `${bestSegment.segment.waterType} | ${bestSegment.segment.depthRange} | ${bestSegment.segment.technique ?? styleSetup.setupName ?? styleSetup.method ?? 'method not set'}` : `${session.waterType} | ${session.depthRange}`} tone="modal" />
+                <InlineSummaryRow
+                  label="What You Fished Best"
+                  value={
+                    bestSegment
+                      ? isSpinBaitJournal
+                        ? `${bestSegment.segment.waterType} | ${styleSetup.setupName ?? styleSetup.method ?? 'method not set'}`
+                        : `${bestSegment.segment.waterType} | ${bestSegment.segment.depthRange} | ${bestSegment.segment.technique ?? styleSetup.setupName ?? styleSetup.method ?? 'method not set'}`
+                      : isSpinBaitJournal
+                        ? session.waterType
+                        : `${session.waterType} | ${session.depthRange}`
+                  }
+                  tone="modal"
+                />
                 <InlineSummaryRow label="Catch Context" value={`${sessionCatches.length} catch${sessionCatches.length === 1 ? '' : 'es'}, ${segmentsForSession.length} segment${segmentsForSession.length === 1 ? '' : 's'}, ${sessionExperimentList.length} structured test${sessionExperimentList.length === 1 ? '' : 's'}.`} tone="modal" />
               </SectionCard>
 

@@ -76,20 +76,21 @@ export const SessionEnvironmentSection = ({
   const { theme } = useTheme();
   const formInputStyle = getFormInputStyle(theme);
   const isBoatStyle = fishingStyle === 'boat_trolling';
+  const showDepthControl = fishingStyle !== 'spin_bait';
 
   return (
   <View style={{ gap: 12, backgroundColor: theme.colors.surfaceAlt, padding: 14, borderRadius: 18, borderWidth: 1, borderColor: theme.colors.border }}>
     {mode !== 'competition' ? (
       <>
-        <Text style={{ color: theme.colors.text, fontWeight: '700', fontSize: 16 }}>{isBoatStyle ? 'Lake' : 'River'}</Text>
+        <Text style={{ color: theme.colors.text, fontWeight: '700', fontSize: 16 }}>Fishing Location</Text>
         {isBoatStyle ? (
           <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
             Boat and trolling journals default to lake water so depth, speed, and location notes match how you fish from the boat.
           </Text>
         ) : null}
-        {!isBoatStyle && !!savedRivers.length && (
+        {!!savedRivers.length && (
           <View style={{ gap: 8 }}>
-            <AppButton label={showSavedRiverList ? 'Hide Saved Rivers' : 'Choose Saved River'} onPress={onToggleSavedRiverList} variant="secondary" />
+            <AppButton label={showSavedRiverList ? 'Hide Saved Locations' : 'Choose Saved Location'} onPress={onToggleSavedRiverList} variant="secondary" />
             {showSavedRiverList ? (
               <SelectableListPanel
                 items={savedRivers.map((river) => ({
@@ -101,13 +102,15 @@ export const SessionEnvironmentSection = ({
             ) : null}
           </View>
         )}
-        <FormField label={isBoatStyle ? 'Lake Name' : 'River Name'}>
-              <TextInput value={riverName} onChangeText={onRiverNameChange} placeholder={isBoatStyle ? 'Lake name' : 'River name'} placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
+        <FormField label="Fishing Location">
+              <TextInput value={riverName} onChangeText={onRiverNameChange} placeholder={isBoatStyle ? 'Example: Strawberry Reservoir, east shore' : 'River, lake, pond, reservoir, canal, or access point'} placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
         </FormField>
         <OptionChips label="Water Type" options={waterTypeOptions} value={waterType} onChange={(value) => onWaterTypeChange(value as WaterType)} disabled={isBoatStyle} />
-        <FormField label="Water Depth">
-          <DepthSelector value={depthRange} onChange={onDepthRangeChange} options={depthRangeOptions} />
-        </FormField>
+        {showDepthControl ? (
+          <FormField label="Water Depth">
+            <DepthSelector value={depthRange} onChange={onDepthRangeChange} options={depthRangeOptions} />
+          </FormField>
+        ) : null}
       </>
     ) : (
       <>
