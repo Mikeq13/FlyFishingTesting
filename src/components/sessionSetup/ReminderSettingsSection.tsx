@@ -57,7 +57,7 @@ export const ReminderSettingsSection = ({
 
   return (
   <>
-    <Text style={{ color: theme.colors.text, fontWeight: '700', fontSize: 16 }}>Session Timer</Text>
+    <Text style={{ color: theme.colors.text, fontWeight: '700', fontSize: 16 }}>Fishing Timer</Text>
     <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
       {mode === 'competition'
         ? 'Competition reminders follow the absolute start and end times above.'

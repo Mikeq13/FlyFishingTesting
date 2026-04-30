@@ -158,7 +158,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
     const endedAt = new Date().toISOString();
     const finishAndPrompt = async () => {
       await finalizePracticeSession(activeSession, endedAt);
-      Alert.alert('Journal timer complete', 'Your planned journal time is up. Review this entry now, or come back from History later.', [
+      Alert.alert('Fishing timer complete', 'Your planned fishing time is up. Review this entry now, or come back from History later.', [
         { text: 'Later', style: 'cancel' },
         {
           text: 'Review Session',
@@ -194,8 +194,8 @@ export const PracticeScreen = ({ route, navigation }: any) => {
   const nonFlySignalLabel = fishingStyle === 'boat_trolling' ? 'Boat Signal' : 'Tackle Signal';
   const nonFlySignalHint =
     fishingStyle === 'boat_trolling'
-      ? 'Keep logging species, depth, speed, and lure notes so Fishing Lab can compare productive passes instead of only counting fish.'
-      : 'Keep logging species, lure or bait, retrieve, and water notes so Fishing Lab can compare what worked across banks, structure, and conditions.';
+      ? 'Setup names create the pattern. Depth, speed, lure, and location notes make the boat signal stronger over time.'
+      : 'Setup names create the pattern. Lure, bait, retrieve, structure, and water notes make the tackle signal stronger over time.';
   const leaderSummary = currentRigSetup.leaderFormulaName ?? (currentRigSetup.leaderFormulaSectionsSnapshot.length ? 'Custom leader' : 'Not chosen');
   const rigSummary = `${currentRigSetup.assignments.length} ${currentRigSetup.assignments.length === 1 ? 'fly' : 'flies'} | ${currentRigSetup.assignments.map((assignment) => assignment.position).join(' | ')}`;
   const flySummary = currentRigSetup.assignments.length
@@ -424,8 +424,8 @@ export const PracticeScreen = ({ route, navigation }: any) => {
         ) : null}
 
         <SectionCard
-          title={sessionTimerEnabled ? 'Journal Timer' : 'Journal Controls'}
-          subtitle={sessionTimerEnabled ? 'Keep timing, reminders, and catch measuring in one glance.' : 'No timer is running for this entry. Keep logging catches, then end and review when you are ready.'}
+          title={sessionTimerEnabled ? 'Fishing Timer' : 'Journal Controls'}
+          subtitle={sessionTimerEnabled ? 'Keep timing, reminders, and catch measuring in one glance.' : 'No fishing timer is running for this entry. Keep logging catches, then end and review when you are ready.'}
         >
           {sessionTimerEnabled ? (
             <>

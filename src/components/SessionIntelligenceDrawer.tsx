@@ -82,9 +82,9 @@ export const SessionIntelligenceDrawer = ({
     return [...counts.entries()].sort((left, right) => right[1] - left[1]).slice(0, 3);
   }, [sessionCatches, styleSetup.method, styleSetup.setupName, styleSetup.tackleNotes]);
   const improvementFocus = styleSetup.style === 'boat_trolling'
-    ? 'Log depth, speed, lure, and location together so lake patterns become easier to repeat.'
+    ? 'Keep naming the setup, then add depth, speed, lure, and location notes so lake patterns become easier to repeat.'
     : styleSetup.style === 'spin_bait'
-      ? 'Log structure, retrieve speed, and method with each catch so tackle signals get cleaner.'
+      ? 'Keep naming the setup, then add lure, bait, retrieve, structure, and water notes so tackle signals get cleaner.'
       : activePlaybook.commonMistake;
 
   return (
@@ -115,13 +115,13 @@ export const SessionIntelligenceDrawer = ({
                   {bestSegment && bestSegment.catches > 0
                     ? `${bestSegment.segment.waterType} water at ${bestSegment.segment.depthRange} produced the strongest result in this outing.`
                     : bestInsight?.message ??
-                      'This journal does not have enough repeated evidence yet. Keep logging water, method, setup, and catches so the app can separate hunches from patterns.'}
+                      'This journal does not have enough repeated evidence yet. Keep logging water, setup names, notes, and catches so the app can separate hunches from patterns.'}
                 </Text>
                 <InlineSummaryRow label="What You Fished Best" value={bestSegment ? `${bestSegment.segment.waterType} | ${bestSegment.segment.depthRange} | ${bestSegment.segment.technique ?? styleSetup.setupName ?? styleSetup.method ?? 'method not set'}` : `${session.waterType} | ${session.depthRange}`} tone="modal" />
                 <InlineSummaryRow label="Catch Context" value={`${sessionCatches.length} catch${sessionCatches.length === 1 ? '' : 'es'}, ${segmentsForSession.length} segment${segmentsForSession.length === 1 ? '' : 's'}, ${sessionExperimentList.length} structured test${sessionExperimentList.length === 1 ? '' : 's'}.`} tone="modal" />
               </SectionCard>
 
-              <SectionCard title="What Worked" subtitle="The flies, tackle, or methods tied to catches in this outing." tone="modal">
+              <SectionCard title="What Worked" subtitle="The flies, named setups, tackle, or methods tied to catches in this outing." tone="modal">
                 {workedItems.length ? (
                   workedItems.map(([label, count]) => (
                     <InlineSummaryRow key={label} label={label} value={`${count} catch${count === 1 ? '' : 'es'}`} tone="modal" />

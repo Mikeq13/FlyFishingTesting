@@ -761,7 +761,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
                 value={saveSetupForFuture ? 'Yes' : 'No'}
                 onChange={(value) => setSaveSetupForFuture(value === 'Yes')}
               />
-              <OptionChips label="Measure Fish?" options={['Yes', 'No'] as const} value={practiceMeasurementEnabled ? 'Yes' : 'No'} onChange={(value) => setPracticeMeasurementEnabled(value === 'Yes')} />
+              <OptionChips label="Measure Fish?" options={['No', 'Yes'] as const} value={practiceMeasurementEnabled ? 'Yes' : 'No'} onChange={(value) => setPracticeMeasurementEnabled(value === 'Yes')} />
               {practiceMeasurementEnabled ? (
                 <OptionChips label="Length Unit" options={['in', 'cm', 'mm'] as const} value={practiceLengthUnit} onChange={(value) => setPracticeLengthUnit(value as 'in' | 'cm' | 'mm')} />
               ) : null}
@@ -826,12 +826,12 @@ export const SessionScreen = ({ navigation, route }: any) => {
             />
           ) : mode === 'practice' ? (
             <SectionCard
-              title="Optional Timer"
+              title="Fishing Timer"
               subtitle="Leave this off when you only want a simple journal entry. Turn it on when elapsed time and reminders help."
               tone="light"
             >
               <OptionChips
-                label="Use Session Timer?"
+                label="Use Fishing Timer?"
                 options={['No', 'Yes'] as const}
                 value={useSessionTimer ? 'Yes' : 'No'}
                 onChange={(value) => {
@@ -923,7 +923,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
       />
       <BottomSheetSurface
         visible={showTimerSheet}
-        title="Optional Timer"
+        title="Fishing Timer"
         subtitle="Set a planned duration and reminder markers only when timing helps this journal entry."
         onClose={() => setShowTimerSheet(false)}
       >
