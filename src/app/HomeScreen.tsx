@@ -50,7 +50,6 @@ export const HomeScreen = ({ navigation }: any) => {
     insights,
     topFlyInsights,
     isWebDemoMode,
-    resetWebDemoData,
     activeOuting,
     clearActiveOuting,
     autoResumePromptEnabled,
@@ -63,7 +62,6 @@ export const HomeScreen = ({ navigation }: any) => {
   const [showSessionChooser, setShowSessionChooser] = React.useState(false);
   const [selectedFishingStyle, setSelectedFishingStyle] = React.useState<FishingStyle | null>(null);
   const [resumeFeedback, setResumeFeedback] = React.useState<{ tone: 'success' | 'warning'; text: string } | null>(null);
-  const [demoResetFeedback, setDemoResetFeedback] = React.useState<{ tone: 'success' | 'warning'; text: string } | null>(null);
   const shouldCenterContent = Platform.OS !== 'web' && !layout.isCompactLayout;
   const latestInsight = React.useMemo(
     () => [...topFlyInsights, ...insights].find((insight) => insight.confidence !== 'low') ?? topFlyInsights[0] ?? insights[0] ?? null,
@@ -150,23 +148,6 @@ export const HomeScreen = ({ navigation }: any) => {
     setShowSessionChooser(true);
   };
 
-  const resetDemoData = () => {
-    setDemoResetFeedback(null);
-    resetWebDemoData()
-      .then(() =>
-        setDemoResetFeedback({
-          tone: 'success',
-          text: 'Demo data reset. The seeded journal, catches, and insights are ready again.'
-        })
-      )
-      .catch(() =>
-        setDemoResetFeedback({
-          tone: 'warning',
-          text: 'Demo reset did not finish. Refresh the page and try again.'
-        })
-      );
-  };
-
   return (
     <ScreenBackground>
       <KeyboardDismissView>
@@ -240,26 +221,6 @@ export const HomeScreen = ({ navigation }: any) => {
                 <AppButton label="Start Journal Entry" onPress={openSessionChooser} variant="secondary" />
               </View>
             </View>
-            {demoResetFeedback ? <StatusBanner tone={demoResetFeedback.tone} text={demoResetFeedback.text} /> : null}
-            <View style={{ gap: 10, maxWidth: 820 }}>
-              <Text style={{ color: theme.colors.text, fontWeight: '800', textShadowColor: theme.colors.overlay, textShadowRadius: 10 }}>
-                River theme: {themeToneLabel}
-              </Text>
-              <View style={{ flexDirection: layout.stackDirection, gap: 8 }}>
-                {themeOptions.map((themeOption) => (
-                  <View key={themeOption.id} style={{ flex: 1 }}>
-                    <AppButton
-                      label={themeOption.label}
-                      onPress={() => setThemeId(themeOption.id)}
-                      variant={themeOption.id === themeId ? 'primary' : 'ghost'}
-                    />
-                  </View>
-                ))}
-              </View>
-              <View style={{ maxWidth: 360 }}>
-                <AppButton label="Reset Demo Data" onPress={resetDemoData} variant="ghost" />
-              </View>
-            </View>
             <View style={{ flexDirection: layout.stackDirection, gap: 10, maxWidth: 880 }}>
               {guidedDemoSteps.map((step) => (
                 <View
@@ -279,6 +240,38 @@ export const HomeScreen = ({ navigation }: any) => {
                   <Text style={{ color: theme.colors.textSoft, lineHeight: 19 }}>{step.body}</Text>
                 </View>
               ))}
+            </View>
+            <View
+              style={{
+                flexDirection: layout.stackDirection,
+                alignItems: layout.isCompactLayout ? 'stretch' : 'center',
+                gap: 8,
+                maxWidth: 760
+              }}
+            >
+              <Text style={{ color: theme.colors.textSoft, fontWeight: '800', textShadowColor: theme.colors.overlay, textShadowRadius: 10 }}>
+                Theme: {themeToneLabel}
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {themeOptions.map((themeOption) => (
+                  <Pressable
+                    key={themeOption.id}
+                    onPress={() => setThemeId(themeOption.id)}
+                    style={{
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: theme.radius.pill,
+                      borderWidth: 1,
+                      borderColor: themeOption.id === themeId ? theme.colors.chipSelectedBorder : theme.colors.chipBorder,
+                      backgroundColor: themeOption.id === themeId ? theme.colors.chipSelectedBg : theme.colors.chipBg
+                    }}
+                  >
+                    <Text style={{ color: themeOption.id === themeId ? theme.colors.chipSelectedText : theme.colors.chipText, fontSize: 12, fontWeight: '800' }}>
+                      {themeOption.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
             </View>
           </View>
         ) : null}
@@ -399,24 +392,6 @@ export const HomeScreen = ({ navigation }: any) => {
             <AppButton label="Start Journal Entry" onPress={openSessionChooser} variant="primary" />
           </SectionCard>
         ) : null}
-
-        <SectionCard
-          title="Best Current Signal"
-          subtitle="Insights stay useful by favoring clean records and confidence over flashy guesses."
-        >
-          {latestInsight ? (
-            <>
-              <Text style={{ color: theme.colors.text, fontWeight: '800' }}>
-                {latestInsight.confidence === 'high' ? 'Strong pattern' : latestInsight.confidence === 'medium' ? 'Moderate evidence' : 'Early signal'}
-              </Text>
-              <Text style={{ color: theme.colors.textSoft, lineHeight: 21 }}>{latestInsight.message}</Text>
-            </>
-          ) : (
-            <Text style={{ color: theme.colors.textSoft, lineHeight: 21 }}>
-              Log a few complete sessions with water, setup, method, and catch details. Fishing Lab will wait until the journal has enough signal before calling something a pattern.
-            </Text>
-          )}
-        </SectionCard>
 
         <SectionCard
           title="Voice Commands"

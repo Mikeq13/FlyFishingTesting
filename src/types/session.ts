@@ -2,7 +2,7 @@ import { RigSetup } from './rig';
 import { CompetitionSessionRole } from './group';
 
 export type WaterType = 'riffle' | 'run' | 'glide' | 'pool' | 'pocket water' | 'lake';
-export type DepthRange = '<1.5 ft' | '1.5-3 ft' | '3-5 ft' | '>5 ft';
+export type DepthRange = '<1.5 ft' | '1.5-3 ft' | '3-5 ft' | '>5 ft' | '0-10 ft' | '10-20 ft' | '20-40 ft' | '40+ ft';
 export type SessionMode = 'experiment' | 'practice' | 'competition';
 export type Technique = 'Dry Fly' | 'Dry Dropper' | 'Euro Nymphing';
 export type CompetitionLengthUnit = 'mm' | 'cm';

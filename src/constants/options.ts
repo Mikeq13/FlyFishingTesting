@@ -1,8 +1,9 @@
 import { BeadColor, BodyType, CollarType, FlyIntent, TailType } from '@/types/fly';
 import { Confidence, DepthRange, InsectStage, InsectType, Technique, WaterType } from '@/types/session';
 
-export const WATER_TYPES: WaterType[] = ['glide', 'pocket water', 'pool', 'riffle', 'run'];
+export const WATER_TYPES: WaterType[] = ['glide', 'lake', 'pocket water', 'pool', 'riffle', 'run'];
 export const DEPTH_RANGES: DepthRange[] = ['<1.5 ft', '1.5-3 ft', '3-5 ft', '>5 ft'];
+export const LAKE_DEPTH_RANGES: DepthRange[] = ['0-10 ft', '10-20 ft', '20-40 ft', '40+ ft'];
 export const TECHNIQUES: Technique[] = ['Dry Fly', 'Dry Dropper', 'Euro Nymphing'];
 export const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] as const;
 export const SESSION_ALERT_INTERVALS = ['Off', '15 min', '30 min', '60 min'] as const;

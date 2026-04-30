@@ -7,9 +7,10 @@ import { FormField, getFormInputStyle } from '@/components/ui/FormField';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { SelectableListPanel } from '@/components/ui/SelectableListPanel';
 import { useTheme } from '@/design/theme';
-import { CompetitionLengthUnit, SessionMode, WaterType } from '@/types/session';
+import { CompetitionLengthUnit, DepthRange, SessionMode, WaterType } from '@/types/session';
 import { Competition, CompetitionSessionRole } from '@/types/group';
 import { DEPTH_RANGES, WATER_TYPES } from '@/constants/options';
+import { FishingStyle } from '@/utils/fishingStyle';
 
 interface SessionEnvironmentSectionProps {
   mode: SessionMode;
@@ -21,8 +22,11 @@ interface SessionEnvironmentSectionProps {
   onSelectSavedRiver: (name: string) => void;
   waterType: WaterType;
   onWaterTypeChange: (value: WaterType) => void;
-  depthRange: (typeof DEPTH_RANGES)[number];
-  onDepthRangeChange: (value: (typeof DEPTH_RANGES)[number]) => void;
+  depthRange: DepthRange;
+  onDepthRangeChange: (value: DepthRange) => void;
+  fishingStyle?: FishingStyle;
+  waterTypeOptions?: readonly WaterType[];
+  depthRangeOptions?: readonly DepthRange[];
   joinedCompetitions: Competition[];
   selectedCompetitionId: number | null;
   onCompetitionSelect: (competitionId: number | null) => void;
@@ -51,6 +55,9 @@ export const SessionEnvironmentSection = ({
   onWaterTypeChange,
   depthRange,
   onDepthRangeChange,
+  fishingStyle = 'fly',
+  waterTypeOptions = WATER_TYPES,
+  depthRangeOptions = DEPTH_RANGES,
   joinedCompetitions,
   selectedCompetitionId,
   onCompetitionSelect,
@@ -68,13 +75,19 @@ export const SessionEnvironmentSection = ({
 }: SessionEnvironmentSectionProps) => {
   const { theme } = useTheme();
   const formInputStyle = getFormInputStyle(theme);
+  const isBoatStyle = fishingStyle === 'boat_trolling';
 
   return (
   <View style={{ gap: 12, backgroundColor: theme.colors.surfaceAlt, padding: 14, borderRadius: 18, borderWidth: 1, borderColor: theme.colors.border }}>
     {mode !== 'competition' ? (
       <>
-        <Text style={{ color: theme.colors.text, fontWeight: '700', fontSize: 16 }}>River</Text>
-        {!!savedRivers.length && (
+        <Text style={{ color: theme.colors.text, fontWeight: '700', fontSize: 16 }}>{isBoatStyle ? 'Lake' : 'River'}</Text>
+        {isBoatStyle ? (
+          <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
+            Boat and trolling journals default to lake water so depth, speed, and location notes match how you fish from the boat.
+          </Text>
+        ) : null}
+        {!isBoatStyle && !!savedRivers.length && (
           <View style={{ gap: 8 }}>
             <AppButton label={showSavedRiverList ? 'Hide Saved Rivers' : 'Choose Saved River'} onPress={onToggleSavedRiverList} variant="secondary" />
             {showSavedRiverList ? (
@@ -88,12 +101,12 @@ export const SessionEnvironmentSection = ({
             ) : null}
           </View>
         )}
-        <FormField label="River Name">
-              <TextInput value={riverName} onChangeText={onRiverNameChange} placeholder="River name" placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
+        <FormField label={isBoatStyle ? 'Lake Name' : 'River Name'}>
+              <TextInput value={riverName} onChangeText={onRiverNameChange} placeholder={isBoatStyle ? 'Lake name' : 'River name'} placeholderTextColor={theme.colors.inputPlaceholder} style={formInputStyle} />
         </FormField>
-        <OptionChips label="Water Type" options={WATER_TYPES} value={waterType} onChange={(value) => onWaterTypeChange(value as WaterType)} />
+        <OptionChips label="Water Type" options={waterTypeOptions} value={waterType} onChange={(value) => onWaterTypeChange(value as WaterType)} disabled={isBoatStyle} />
         <FormField label="Water Depth">
-          <DepthSelector value={depthRange} onChange={onDepthRangeChange} />
+          <DepthSelector value={depthRange} onChange={onDepthRangeChange} options={depthRangeOptions} />
         </FormField>
       </>
     ) : (

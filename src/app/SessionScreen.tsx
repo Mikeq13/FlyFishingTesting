@@ -2,9 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { KeyboardDismissView } from '@/components/KeyboardDismissView';
 import { OptionChips } from '@/components/OptionChips';
-import { DEPTH_RANGES } from '@/constants/options';
+import { DEPTH_RANGES, LAKE_DEPTH_RANGES } from '@/constants/options';
 import { useAppStore } from './store';
-import { CompetitionLengthUnit, SessionMode, Technique, WaterType } from '@/types/session';
+import { CompetitionLengthUnit, DepthRange, SessionMode, Technique, WaterType } from '@/types/session';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { AppButton } from '@/components/ui/AppButton';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
@@ -59,7 +59,7 @@ const getTackleNotesPlaceholder = (style: FishingStyle) =>
 export const SessionScreen = ({ navigation, route }: any) => {
   const { theme } = useTheme();
   const layout = useResponsiveLayout();
-  const { addSession, updateSessionEntry, addSavedFly, addSavedLeaderFormula, deleteSavedLeaderFormula, addSavedRigPreset, deleteSavedRigPreset, addSavedRiver, savedFlies, savedLeaderFormulas, savedRigPresets, savedRivers, users, activeUserId, sessions, experiments, groups, groupMemberships, competitions, competitionGroups, competitionSessions, competitionParticipants, competitionAssignments, upsertCompetitionAssignment, sharedDataStatus, syncStatus, notificationPermissionStatus, authStatus, remoteSession, getGroupIntegrity } = useAppStore();
+  const { addSession, updateSessionEntry, addSavedFly, addSavedLeaderFormula, deleteSavedLeaderFormula, addSavedRigPreset, deleteSavedRigPreset, addSavedRiver, savedFlies, savedLeaderFormulas, savedRigPresets, savedRivers, users, activeUserId, sessions, catchEvents, experiments, insights, topFlyRecords, topFlyInsights, groups, groupMemberships, competitions, competitionGroups, competitionSessions, competitionParticipants, competitionAssignments, upsertCompetitionAssignment, sharedDataStatus, syncStatus, notificationPermissionStatus, authStatus, remoteSession, getGroupIntegrity } = useAppStore();
   const sessionId = route?.params?.sessionId as number | undefined;
   const routeFishingStyle = route?.params?.fishingStyle as FishingStyle | undefined;
   const existingSession = useMemo(
@@ -79,7 +79,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
   const isEditingExistingSession = !!existingSession;
   const activeUser = users.find((user) => user.id === activeUserId);
   const [waterType, setWaterType] = useState<WaterType>('run');
-  const [depthRange, setDepthRange] = useState<typeof DEPTH_RANGES[number]>('1.5-3 ft');
+  const [depthRange, setDepthRange] = useState<DepthRange>('1.5-3 ft');
   const [riverName, setRiverName] = useState('');
   const [hypothesis, setHypothesis] = useState('');
   const [notes, setNotes] = useState('');
@@ -240,11 +240,63 @@ export const SessionScreen = ({ navigation, route }: any) => {
     setTackleMethod((current) => current || option.methods[0] || '');
   }, [fishingStyle]);
 
+  React.useEffect(() => {
+    if (existingSession || fishingStyle !== 'boat_trolling') return;
+    setWaterType('lake');
+    setDepthRange((current) => (LAKE_DEPTH_RANGES.includes(current) ? current : '10-20 ft'));
+  }, [existingSession, fishingStyle]);
+
   const selectedSharedGroups = useMemo(
     () => joinedGroups.filter((group) => selectedSharedGroupIds.includes(group.id)),
     [joinedGroups, selectedSharedGroupIds]
   );
   const shareIntentSummary = useMemo(() => describeSessionShareIntent(selectedSharedGroups), [selectedSharedGroups]);
+  const environmentWaterOptions = useMemo<readonly WaterType[]>(
+    () => (mode === 'practice' && fishingStyle === 'boat_trolling' ? ['lake'] : ['glide', 'lake', 'pocket water', 'pool', 'riffle', 'run']),
+    [fishingStyle, mode]
+  );
+  const environmentDepthOptions = useMemo<readonly DepthRange[]>(
+    () => (mode === 'practice' && fishingStyle === 'boat_trolling' ? LAKE_DEPTH_RANGES : DEPTH_RANGES),
+    [fishingStyle, mode]
+  );
+  const recommendedPattern = useMemo(() => {
+    const styleSessions = sessions.filter((session) => describeFishingStyleSetup(session).style === fishingStyle);
+    const catchCountByMethod = new Map<string, number>();
+    styleSessions.forEach((session) => {
+      const setup = describeFishingStyleSetup(session);
+      const method = setup.method || (fishingStyle === 'fly' ? session.startingTechnique : undefined) || getFishingStyleOption(fishingStyle).methods[0] || 'Current method';
+      const sessionCatchCount = catchEvents.filter((event) => event.sessionId === session.id).length;
+      catchCountByMethod.set(method, (catchCountByMethod.get(method) ?? 0) + sessionCatchCount);
+    });
+    const bestMethod = [...catchCountByMethod.entries()].sort((left, right) => right[1] - left[1])[0] ?? null;
+    const bestInsight = [...topFlyInsights, ...insights].find((insight) => insight.confidence !== 'low') ?? topFlyInsights[0] ?? insights[0] ?? null;
+    if (fishingStyle === 'fly') {
+      const bestFly = topFlyRecords[0];
+      return {
+        title: bestFly ? `Start with ${bestFly.name}` : 'Start with a proven fly and clean notes',
+        confidence: bestInsight?.confidence === 'high' ? 'Strong pattern' : bestInsight?.confidence === 'medium' ? 'Moderate evidence' : 'Early signal',
+        reason: bestFly
+          ? `${bestFly.name} has ${bestFly.catches} catch${bestFly.catches === 1 ? '' : 'es'} across ${bestFly.casts} logged cast${bestFly.casts === 1 ? '' : 's'}.`
+          : 'Pick the fly you trust most, then log water, depth, and technique so the next recommendation gets sharper.'
+      };
+    }
+    if (fishingStyle === 'boat_trolling') {
+      return {
+        title: bestMethod ? `Start with ${bestMethod[0]} on lake water` : 'Start with your lake depth and boat method',
+        confidence: bestMethod && bestMethod[1] >= 3 ? 'Moderate evidence' : 'Early signal',
+        reason: bestMethod
+          ? `${bestMethod[0]} has produced ${bestMethod[1]} logged catch${bestMethod[1] === 1 ? '' : 'es'} in boat/trolling journals.`
+          : 'Track depth, speed, lure, and location so Fishing Lab can find your strongest lake pattern.'
+      };
+    }
+    return {
+      title: bestMethod ? `Start with ${bestMethod[0]}` : 'Start with the method you expect to fish most',
+      confidence: bestMethod && bestMethod[1] >= 3 ? 'Moderate evidence' : 'Early signal',
+      reason: bestMethod
+        ? `${bestMethod[0]} has produced ${bestMethod[1]} logged catch${bestMethod[1] === 1 ? '' : 'es'} in spin/bait journals.`
+        : 'Track method, structure, water, and catches so simple logs turn into useful tackle signals.'
+    };
+  }, [catchEvents, fishingStyle, insights, sessions, topFlyInsights, topFlyRecords]);
 
   const saveRiver = async () => {
     const normalizedRiverName = riverName.trim();
@@ -486,6 +538,9 @@ export const SessionScreen = ({ navigation, route }: any) => {
           onWaterTypeChange={setWaterType}
           depthRange={depthRange}
           onDepthRangeChange={setDepthRange}
+          fishingStyle={mode === 'practice' ? fishingStyle : 'fly'}
+          waterTypeOptions={environmentWaterOptions}
+          depthRangeOptions={environmentDepthOptions}
           joinedCompetitions={joinedCompetitions}
           selectedCompetitionId={selectedCompetitionId}
           onCompetitionSelect={setSelectedCompetitionId}
@@ -557,8 +612,23 @@ export const SessionScreen = ({ navigation, route }: any) => {
                 onChange={(value) => {
                   const nextStyle = FISHING_STYLE_OPTIONS.find((option) => option.title === value)?.key ?? 'fly';
                   setFishingStyle(nextStyle);
+                  if (nextStyle === 'boat_trolling') {
+                    setWaterType('lake');
+                    setDepthRange('10-20 ft');
+                  }
                 }}
               />
+            </SectionCard>
+          ) : null}
+          {mode === 'practice' || mode === 'experiment' ? (
+            <SectionCard
+              title="Recommended Pattern"
+              subtitle="A compact starting point from your logged history. Treat it as a suggestion, then log what actually happens."
+              tone="light"
+            >
+              <Text style={{ color: theme.colors.textDark, fontWeight: '800' }}>{recommendedPattern.title}</Text>
+              <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>{recommendedPattern.reason}</Text>
+              <Text style={{ color: theme.colors.textDarkSoft, fontWeight: '700' }}>Confidence: {recommendedPattern.confidence}</Text>
             </SectionCard>
           ) : null}
           {mode === 'experiment' || (mode === 'practice' && fishingStyle === 'fly') ? (
