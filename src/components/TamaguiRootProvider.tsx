@@ -9,7 +9,7 @@ export const TamaguiRootProvider = ({ children }: { children: React.ReactNode })
 
   return (
     <TamaguiProvider config={tamaguiConfig} defaultTheme={themeId}>
-      <PortalProvider shouldAddRootHost>
+      <PortalProvider shouldAddRootHost={false}>
         <TamaguiTheme name={themeId}>{children}</TamaguiTheme>
       </PortalProvider>
     </TamaguiProvider>
