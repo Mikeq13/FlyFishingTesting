@@ -268,8 +268,9 @@ export const AppStoreProvider = ({ children }: { children: React.ReactNode }) =>
   }, [activeUserId, isAuthenticatedOwner, ownerUser]);
 
   useEffect(() => {
+    if (!localBootstrapReady) return;
     loadHandsFreePreferences().catch((error) => reportRuntimeIssue('hands-free preference bootstrap failed', error));
-  }, []);
+  }, [localBootstrapReady]);
 
   useEffect(() => {
     syncHandsFreeActiveOutingNative(activeOuting).catch((error) => reportRuntimeIssue('hands-free outing sync failed', error));
