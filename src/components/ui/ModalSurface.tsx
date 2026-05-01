@@ -1,6 +1,6 @@
 import React from 'react';
-import { ScrollView } from 'react-native';
-import { Sheet, Text, YStack } from 'tamagui';
+import { Modal, ScrollView, View } from 'react-native';
+import { Text, YStack } from 'tamagui';
 import { useTheme } from '@/design/theme';
 import { useResponsiveLayout } from '@/design/layout';
 
@@ -25,6 +25,10 @@ export const ModalSurface = ({
   const layout = useResponsiveLayout();
   const maxPanelHeight = Math.max(260, layout.height - layout.horizontalPadding * 2);
   const maxBodyHeight = Math.max(220, maxPanelHeight - theme.spacing.lg * 8);
+  const closeModal = () => {
+    onOpenChange?.(false);
+    onClose?.();
+  };
   const body = scrollable ? (
     <ScrollView
       style={{ maxHeight: maxBodyHeight, flexShrink: 1 }}
@@ -76,33 +80,18 @@ export const ModalSurface = ({
     if (!visible) return null;
 
     return (
-      <Sheet
-        modal
-        open={visible}
-        snapPoints={[92]}
-        dismissOnSnapToBottom
-        onOpenChange={(open: boolean) => {
-          onOpenChange?.(open);
-          if (!open) onClose?.();
-        }}
-      >
-        <Sheet.Overlay
+      <Modal visible={visible} transparent animationType="fade" onRequestClose={closeModal}>
+        <View
           style={{
-            backgroundColor: theme.colors.overlay
-          }}
-          onPress={onClose}
-        />
-        <Sheet.Frame
-          style={{
-            backgroundColor: 'transparent',
-            padding: layout.horizontalPadding,
-            paddingBottom: theme.spacing.md,
-            maxHeight: layout.height
+            flex: 1,
+            justifyContent: 'center',
+            backgroundColor: theme.colors.overlay,
+            padding: layout.horizontalPadding
           }}
         >
           {panel}
-        </Sheet.Frame>
-      </Sheet>
+        </View>
+      </Modal>
     );
   }
 
