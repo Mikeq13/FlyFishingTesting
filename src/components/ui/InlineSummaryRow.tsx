@@ -14,14 +14,11 @@ export const InlineSummaryRow = ({
   tone?: SurfaceTone;
 }) => {
   const { theme } = useTheme();
-  const useThemeElevatedPalette = tone === 'light' && theme.id !== 'daylight_light';
   const labelColor =
     tone === 'modal'
       ? theme.colors.modalTextSoft
       : tone === 'light'
-        ? useThemeElevatedPalette
-          ? theme.colors.textSoft
-          : theme.colors.textDarkSoft
+        ? theme.colors.textDarkSoft
         : theme.colors.textSoft;
   const valueColor =
     tone === 'modal'
@@ -29,13 +26,9 @@ export const InlineSummaryRow = ({
         ? theme.colors.modalTextSoft
         : theme.colors.modalText
       : tone === 'light'
-        ? useThemeElevatedPalette
-          ? valueMuted
-            ? theme.colors.textSoft
-            : theme.colors.text
-          : valueMuted
-            ? theme.colors.textDarkSoft
-            : theme.colors.textDark
+        ? valueMuted
+          ? theme.colors.textDarkSoft
+          : theme.colors.textDark
         : valueMuted
           ? theme.colors.textMuted
           : theme.colors.text;

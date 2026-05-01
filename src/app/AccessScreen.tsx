@@ -48,10 +48,10 @@ export const AccessScreen = ({ navigation }: any) => {
   const layout = useResponsiveLayout();
   const { theme, themeId, setThemeId, themeOptions } = useTheme();
   const isDaylightTheme = theme.id === 'daylight_light';
-  const elevatedTextColor = isDaylightTheme ? theme.colors.textDark : theme.colors.text;
-  const elevatedSoftTextColor = isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft;
-  const elevatedNestedSurface = isDaylightTheme ? theme.colors.nestedSurface : theme.colors.surface;
-  const elevatedNestedBorder = isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.borderStrong;
+  const elevatedTextColor = theme.colors.textDark;
+  const elevatedSoftTextColor = theme.colors.textDarkSoft;
+  const elevatedNestedSurface = theme.colors.nestedSurface;
+  const elevatedNestedBorder = theme.colors.nestedSurfaceBorder;
   const [watchStatus, setWatchStatus] = useState<WatchCompanionStatus>({
     isSupported: false,
     isPaired: false,
@@ -786,10 +786,10 @@ export const AccessScreen = ({ navigation }: any) => {
         }}
       >
         <Text style={{ color: elevatedSoftTextColor, fontWeight: '700' }}>
-          {expandedSections[sectionKey] ? 'Hide details' : 'Show details'}
+          {expandedSections[sectionKey] ? 'Close' : 'Open'}
         </Text>
-        <Text style={{ color: elevatedTextColor, fontSize: 18, fontWeight: '800' }}>
-          {expandedSections[sectionKey] ? '-' : '+'}
+        <Text style={{ color: elevatedTextColor, fontSize: 14, fontWeight: '800' }}>
+          {expandedSections[sectionKey] ? 'Done' : 'Manage'}
         </Text>
       </Pressable>
       {expandedSections[sectionKey] ? children : null}
@@ -814,9 +814,9 @@ export const AccessScreen = ({ navigation }: any) => {
         gap: 8,
         borderRadius: theme.radius.md,
         padding: 12,
-        backgroundColor: isDaylightTheme ? theme.colors.nestedSurface : theme.colors.surfaceAlt,
+        backgroundColor: elevatedNestedSurface,
         borderWidth: 1,
-        borderColor: isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.borderStrong
+        borderColor: elevatedNestedBorder
       }}
     >
       <Pressable
@@ -832,8 +832,8 @@ export const AccessScreen = ({ navigation }: any) => {
           <Text style={{ color: elevatedTextColor, fontWeight: '800' }}>{title}</Text>
           <Text style={{ color: elevatedSoftTextColor, lineHeight: 18 }}>{subtitle}</Text>
         </View>
-        <Text style={{ color: elevatedTextColor, fontSize: 18, fontWeight: '800' }}>
-          {expanded ? '-' : '+'}
+        <Text style={{ color: elevatedTextColor, fontSize: 14, fontWeight: '800' }}>
+          {expanded ? 'Close' : 'Open'}
         </Text>
       </Pressable>
       {expanded ? children : null}

@@ -595,6 +595,58 @@ export const SessionScreen = ({ navigation, route }: any) => {
           competitionLengthUnit={competitionLengthUnit}
           onCompetitionLengthUnitChange={setCompetitionLengthUnit}
         />
+        <SectionCard
+          title="Setup Cockpit"
+          subtitle="Confirm the core plan first, then adjust details only where needed."
+        >
+          <View
+            style={{
+              gap: 8,
+              borderRadius: theme.radius.md,
+              padding: 12,
+              backgroundColor: theme.colors.surfaceMuted,
+              borderWidth: 1,
+              borderColor: theme.colors.border
+            }}
+          >
+            <View style={{ flexDirection: layout.stackDirection, gap: 8 }}>
+              <View style={{ flex: 1 }}>
+                <InlineSummaryRow label="Journal" value={mode === 'practice' ? getFishingStyleOption(fishingStyle).title : modeCopy.title} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <InlineSummaryRow label="Location" value={riverName.trim() || 'Not chosen'} valueMuted={!riverName.trim()} />
+              </View>
+            </View>
+            <View style={{ flexDirection: layout.stackDirection, gap: 8 }}>
+              <View style={{ flex: 1 }}>
+                <InlineSummaryRow label="Water" value={waterType} />
+              </View>
+              {mode !== 'practice' || fishingStyle !== 'spin_bait' ? (
+                <View style={{ flex: 1 }}>
+                  <InlineSummaryRow label="Depth" value={depthRange} />
+                </View>
+              ) : null}
+            </View>
+            <View style={{ flexDirection: layout.stackDirection, gap: 8 }}>
+              <View style={{ flex: 1 }}>
+                <InlineSummaryRow
+                  label={mode === 'practice' && fishingStyle !== 'fly' ? 'Setup' : 'Technique'}
+                  value={mode === 'practice' && fishingStyle !== 'fly' ? setupName.trim() || tackleMethod || 'Not chosen' : startingTechnique ?? 'Not chosen'}
+                  valueMuted={mode === 'practice' && fishingStyle !== 'fly' ? !setupName.trim() && !tackleMethod : !startingTechnique}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <InlineSummaryRow
+                  label="Options"
+                  value={[
+                    practiceMeasurementEnabled ? `Measure ${practiceLengthUnit}` : 'No measuring',
+                    mode === 'practice' ? (useSessionTimer ? 'Fishing timer on' : 'No timer') : null
+                  ].filter(Boolean).join(' | ')}
+                />
+              </View>
+            </View>
+          </View>
+        </SectionCard>
         {mode !== 'competition' ? (
           <SectionCard
             title="Water Guide"
@@ -622,10 +674,10 @@ export const SessionScreen = ({ navigation, route }: any) => {
           <StatusBanner tone="warning" text="This saved assignment is missing its synced group or session details. Open Settings, review the assignment, and sync again before starting." />
         ) : null}
         <SectionCard
-          title={mode === 'practice' ? 'Journal Setup' : mode === 'competition' ? 'Competition Setup' : 'Experiment Setup'}
+          title={mode === 'practice' ? 'Setup Details' : mode === 'competition' ? 'Competition Details' : 'Experiment Details'}
           subtitle={
             mode === 'practice'
-              ? 'Keep the important setup close at hand without turning this into a long form.'
+              ? 'Use these focused controls only for the pieces you want to change before starting.'
               : mode === 'competition'
                 ? 'Confirm the assignment, alerts, and measurement rules before the session starts.'
                 : 'Capture the hypothesis and notes you want to test today.'
