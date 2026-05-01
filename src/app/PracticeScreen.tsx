@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, Text, View } from 'react-native';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { OptionChips } from '@/components/OptionChips';
 import { DepthSelector } from '@/components/DepthSelector';
@@ -21,7 +21,6 @@ import { SectionCard } from '@/components/ui/SectionCard';
 import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { StatusBanner } from '@/components/ui/StatusBanner';
 import { AppButton } from '@/components/ui/AppButton';
-import { BottomSheetSurface } from '@/components/ui/BottomSheetSurface';
 import { useTheme } from '@/design/theme';
 import { useResponsiveLayout } from '@/design/layout';
 import { formatSharedBackendError, getPendingSyncFeedback, getPendingSyncFeedbackTone } from '@/utils/syncFeedback';
@@ -72,9 +71,11 @@ export const PracticeScreen = ({ route, navigation }: any) => {
   const [activeSetupSheet, setActiveSetupSheet] = useState<SetupSheetKey>(null);
   const [showWaterGuide, setShowWaterGuide] = useState(false);
   const [reviewPromptShown, setReviewPromptShown] = useState(false);
+  const [isFinishingSession, setIsFinishingSession] = useState(false);
   const [fieldFeedback, setFieldFeedback] = useState<FieldFeedback | null>(null);
   const catchSubmitLockedRef = useRef(false);
   const [showDictationHelp, setShowDictationHelp] = useState(false);
+  const activeOutingSignatureRef = useRef<string | null>(null);
   const syncFeedback = remoteSession ? getPendingSyncFeedback(syncStatus, 'practice', 'practice') : null;
   const activeSegment = useMemo(
     () =>
@@ -112,6 +113,10 @@ export const PracticeScreen = ({ route, navigation }: any) => {
     alertIntervalMinutes: session?.alertIntervalMinutes,
     alertMarkersMinutes: session?.alertMarkersMinutes
   });
+  const sessionTimerEnabled =
+    typeof getSessionPlannedDurationMinutes(session) === 'number' ||
+    typeof session?.alertIntervalMinutes === 'number' ||
+    !!session?.alertMarkersMinutes?.length;
   useSessionAlerts(session, timer.activeAlertMinute);
 
   useEffect(() => {
@@ -147,6 +152,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
 
   useEffect(() => {
     if (!session || session.endedAt || reviewPromptShown) return;
+    if (!sessionTimerEnabled) return;
     if (timer.remainingSeconds !== 0) return;
     const activeSession = session;
 
@@ -154,7 +160,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
     const endedAt = new Date().toISOString();
     const finishAndPrompt = async () => {
       await finalizePracticeSession(activeSession, endedAt);
-      Alert.alert('Journal timer complete', 'Your planned journal time is up. Review this entry now, or come back from History later.', [
+      Alert.alert('Fishing timer complete', 'Your planned fishing time is up. Review this entry now, or come back from History later.', [
         { text: 'Later', style: 'cancel' },
         {
           text: 'Review Session',
@@ -167,26 +173,39 @@ export const PracticeScreen = ({ route, navigation }: any) => {
       setReviewPromptShown(false);
       Alert.alert('Unable to finish journal entry', formatSharedBackendError(error, 'practice'));
     });
-  }, [finalizePracticeSession, navigation, reviewPromptShown, session, timer.remainingSeconds]);
+  }, [finalizePracticeSession, navigation, reviewPromptShown, session, sessionTimerEnabled, timer.remainingSeconds]);
 
   useEffect(() => {
     if (!session || session.endedAt) {
+      if (activeOutingSignatureRef.current === 'cleared') return;
+      activeOutingSignatureRef.current = 'cleared';
       clearActiveOuting().catch(() => undefined);
       return;
     }
+    const activeOutingSignature = JSON.stringify({
+      sessionId: session.id,
+      mode: session.mode,
+      segmentId: activeSegment?.id ?? null,
+      waterType: activeSegment?.waterType ?? session.waterType,
+      depthRange: activeSegment?.depthRange ?? session.depthRange,
+      technique: activeSegment?.technique ?? session.startingTechnique ?? null
+    });
+    if (activeOutingSignatureRef.current === activeOutingSignature) return;
+    activeOutingSignatureRef.current = activeOutingSignature;
     setActiveOuting({
       mode: session.mode,
       targetRoute: 'Practice',
       sessionId: session.id,
       lastActiveAt: new Date().toISOString()
     }).catch(() => undefined);
-  }, [clearActiveOuting, session, setActiveOuting, activeSegment?.id]);
+  }, [activeSegment, clearActiveOuting, session, setActiveOuting]);
 
   const currentRigSetup = activeSegment?.rigSetup ?? createDefaultRigSetup(activeSegment?.flySnapshots ?? []);
   const activeTechnique = activeSegment?.technique ?? session?.startingTechnique;
   const fishingStyle = getFishingStyleForSession(session);
   const fishingStyleSetup = describeFishingStyleSetup(session);
   const isFlyJournal = fishingStyle === 'fly';
+  const isSpinBaitJournal = fishingStyle === 'spin_bait';
   const nonFlySignalLabel = fishingStyle === 'boat_trolling' ? 'Boat Signal' : 'Tackle Signal';
   const nonFlySignalHint =
     fishingStyle === 'boat_trolling'
@@ -346,7 +365,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
   };
 
   const endSessionEarly = () => {
-    if (!session || session.endedAt) return;
+    if (!session || session.endedAt || !sessionTimerEnabled) return;
 
     Alert.alert('End Journal Entry Early?', 'This will stop the timer and cancel any remaining reminders for this journal entry.', [
       { text: 'Keep Fishing', style: 'cancel' },
@@ -368,35 +387,157 @@ export const PracticeScreen = ({ route, navigation }: any) => {
     ]);
   };
 
-  const renderSetupSummaryCard = ({
-    title,
-    subtitle,
-    summaryTitle,
-    summaryText,
-    buttonLabel,
-    sheetKey
-  }: {
-    title: string;
-    subtitle: string;
-    summaryTitle: string;
-    summaryText: string;
-    buttonLabel: string;
-    sheetKey: Exclude<SetupSheetKey, null>;
-  }) => (
-    <SectionCard title={title} subtitle={subtitle}>
+  const finishJournalEntry = async () => {
+    if (!session || isFinishingSession) return;
+    setIsFinishingSession(true);
+    try {
+      if (!session.endedAt) {
+        await finalizePracticeSession(session, new Date().toISOString());
+      }
+      navigation.navigate('PracticeReview', { sessionId: session.id });
+    } catch (error) {
+      Alert.alert('Unable to finish journal entry', formatSharedBackendError(error, 'practice'));
+    } finally {
+      setIsFinishingSession(false);
+    }
+  };
+
+  const renderFlySetupRow = (label: string, value: string, sheetKey: Exclude<SetupSheetKey, null>) => (
+    <View
+      style={{
+        gap: 8,
+        borderRadius: theme.radius.md,
+        padding: 12,
+        backgroundColor: activeSetupSheet === sheetKey ? theme.colors.surfaceMuted : theme.colors.surfaceAlt,
+        borderWidth: 1,
+        borderColor: activeSetupSheet === sheetKey ? theme.colors.borderStrong : theme.colors.border
+      }}
+    >
+      <View style={{ flexDirection: layout.stackDirection, gap: 8, alignItems: layout.isCompactLayout ? 'stretch' : 'center' }}>
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text style={{ color: theme.colors.text, fontWeight: '800' }}>{label}</Text>
+          <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>{value}</Text>
+        </View>
+        <AppButton
+          label={activeSetupSheet === sheetKey ? 'Done' : 'Edit'}
+          onPress={() => setActiveSetupSheet((current) => (current === sheetKey ? null : sheetKey))}
+          variant={activeSetupSheet === sheetKey ? 'secondary' : 'ghost'}
+        />
+      </View>
+      {activeSetupSheet === sheetKey ? renderFlySetupEditor(sheetKey) : null}
+    </View>
+  );
+
+  const renderFlySetupEditor = (sheetKey: Exclude<SetupSheetKey, null>) => (
+    <View style={{ gap: 12 }}>
+      {sheetKey === 'technique' ? (
+        <View style={{ gap: 10 }}>
+          <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>Switch methods without leaving the active practice flow.</Text>
+          <OptionChips
+            label="Technique"
+            options={TECHNIQUES}
+            value={activeTechnique ?? null}
+            onChange={(value) => {
+              updateActiveTechnique(value as Technique).catch((error) => {
+                Alert.alert('Unable to change technique', formatSharedBackendError(error, 'practice'));
+              });
+            }}
+          />
+        </View>
+      ) : null}
+      {sheetKey === 'leader' ? (
+        <RigSetupPanel
+          title="Leader"
+          rigSetup={currentRigSetup}
+          flyCount={currentRigSetup.assignments.length}
+          editMode="leader"
+          forceEditorOpen
+          tone="light"
+          foregroundQuickAdd
+          savedLeaderFormulas={savedLeaderFormulas}
+          savedRigPresets={savedRigPresets}
+          onChange={(nextRigSetup) => {
+            updateActiveSegment(nextRigSetup).catch((error) => {
+              Alert.alert('Unable to update leader', formatSharedBackendError(error, 'practice'));
+            });
+          }}
+          onCreateLeaderFormula={saveLeaderFormula}
+          onCreateRigPreset={saveRigPreset}
+          onApplyRigPreset={(preset) => {
+            updateActiveSegment(applyRigPresetToRig(currentRigSetup, preset, { clearSinglePointFly: preset.flyCount === 1 })).catch((error) => {
+              Alert.alert('Unable to apply rig preset', formatSharedBackendError(error, 'practice'));
+            });
+          }}
+          onDeleteLeaderFormula={deleteSavedLeaderFormula}
+          onDeleteRigPreset={deleteSavedRigPreset}
+        />
+      ) : null}
+      {sheetKey === 'rigging' ? (
+        <RigSetupPanel
+          title="Rigging"
+          rigSetup={currentRigSetup}
+          flyCount={currentRigSetup.assignments.length}
+          onFlyCountChange={(nextCount) => {
+            updateActiveSegment(
+              setRigFlyCount(currentRigSetup, nextCount, {
+                clearPointFly: nextCount === 1 && currentRigSetup.assignments.length > 1
+              })
+            ).catch((error) => {
+              Alert.alert('Unable to update rigging', formatSharedBackendError(error, 'practice'));
+            });
+          }}
+          editMode="rig"
+          forceEditorOpen
+          tone="light"
+          foregroundQuickAdd
+          savedLeaderFormulas={savedLeaderFormulas}
+          savedRigPresets={savedRigPresets}
+          onChange={(nextRigSetup) => {
+            updateActiveSegment(nextRigSetup).catch((error) => {
+              Alert.alert('Unable to update rigging', formatSharedBackendError(error, 'practice'));
+            });
+          }}
+          onCreateLeaderFormula={saveLeaderFormula}
+          onCreateRigPreset={saveRigPreset}
+          onApplyRigPreset={(preset) => {
+            updateActiveSegment(applyRigPresetToRig(currentRigSetup, preset, { clearSinglePointFly: preset.flyCount === 1 })).catch((error) => {
+              Alert.alert('Unable to apply rig preset', formatSharedBackendError(error, 'practice'));
+            });
+          }}
+          onDeleteLeaderFormula={deleteSavedLeaderFormula}
+          onDeleteRigPreset={deleteSavedRigPreset}
+        />
+      ) : null}
+      {sheetKey === 'flies' ? (
+        <RigFlyManager
+          title="Fly Assignments"
+          rigSetup={currentRigSetup}
+          savedFlies={savedFlies}
+          onChange={(nextRigSetup) => {
+            updateActiveSegment(nextRigSetup).catch((error) => {
+              Alert.alert('Unable to update flies', formatSharedBackendError(error, 'practice'));
+            });
+          }}
+          onCreateFly={saveFlyToLibrary}
+          tone="light"
+          editorOnly
+          foregroundQuickAdd
+        />
+      ) : null}
+    </View>
+  );
+
+  const renderFlySetupCard = () => (
+    <SectionCard title="Fly Setup" subtitle="Technique, leader, rigging, and flies stay compact until you need to change one thing.">
       <View
         style={{
           gap: 8,
-          borderRadius: theme.radius.md,
-          padding: 12,
-          backgroundColor: theme.colors.surfaceAlt,
-          borderWidth: 1,
-          borderColor: theme.colors.border
         }}
       >
-        <Text style={{ color: theme.colors.text, fontWeight: '800' }}>{summaryTitle}</Text>
-        <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>{summaryText}</Text>
-        <AppButton label={buttonLabel} onPress={() => setActiveSetupSheet(sheetKey)} variant="ghost" />
+        {renderFlySetupRow('Technique', activeTechnique ?? 'Not chosen', 'technique')}
+        {renderFlySetupRow('Leader', leaderSummary, 'leader')}
+        {renderFlySetupRow('Rigging', rigSummary, 'rigging')}
+        {renderFlySetupRow('Flies', flySummary, 'flies')}
       </View>
     </SectionCard>
   );
@@ -412,113 +553,56 @@ export const PracticeScreen = ({ route, navigation }: any) => {
         {syncFeedback ? <StatusBanner tone={getPendingSyncFeedbackTone(syncStatus)} text={syncFeedback} /> : null}
         {fieldFeedback ? <StatusBanner tone={fieldFeedback.tone} text={fieldFeedback.text} /> : null}
 
-        {timer.activeAlertMinute ? (
+        {sessionTimerEnabled && timer.activeAlertMinute ? (
           <StatusBanner tone="warning" text={`Time marker: ${timer.activeAlertMinute} minutes into your journal entry.`} />
         ) : null}
-        {notificationPermissionStatus === 'denied' ? (
+        {sessionTimerEnabled && notificationPermissionStatus === 'denied' ? (
           <StatusBanner tone="info" text="Phone notifications are off on this device, so reminder banners will only appear while the app is open." />
         ) : null}
 
-        <SectionCard title="Journal Timer" subtitle="Keep timing, reminders, and catch measuring in one glance.">
-            <Text style={{ color: theme.colors.text }}>Elapsed: {timer.elapsedLabel}</Text>
-          {timer.remainingLabel ? <Text style={{ color: theme.colors.text }}>Remaining: {timer.remainingLabel}</Text> : null}
-          {timer.hasEnded ? <StatusBanner tone="error" text="Session ended early." /> : null}
-          {!timer.hasEnded && timer.nextAlertMinute ? <Text style={{ color: theme.colors.text }}>Next alert: {timer.nextAlertMinute} min</Text> : null}
-          {session.practiceMeasurementEnabled ? (
-            <Text style={{ color: theme.colors.textSoft }}>
-              Measuring is on. Add length in {session.practiceLengthUnit ?? 'in'} whenever it helps your journal notes.
-            </Text>
-          ) : null}
-          {!timer.hasEnded ? (
-            <AppButton label="End Session Early" onPress={endSessionEarly} variant="danger" />
-          ) : null}
-          {(timer.hasEnded || timer.remainingSeconds === 0) ? (
-            <AppButton label="Review Journal Entry" onPress={() => navigation.navigate('PracticeReview', { sessionId: session.id })} variant="secondary" />
-          ) : null}
-          {showDictationHelpInSessions ? (
-            <AppButton label="Voice Commands" onPress={() => setShowDictationHelp(true)} variant="ghost" />
-          ) : null}
-        </SectionCard>
-
-        <SectionCard title="Active Water" subtitle="Track the current water, then move fast when you want a new segment.">
-          <Text style={{ color: theme.colors.text }}>Current water: {activeSegment?.waterType ?? session.waterType}</Text>
-          <Text style={{ color: theme.colors.text }}>Current depth: {activeSegment?.depthRange ?? session.depthRange}</Text>
-          <AppButton label="Open Water Guide" onPress={() => setShowWaterGuide(true)} variant="ghost" />
-          <OptionChips label="Next Water Type" options={WATER_TYPES} value={nextWaterType} onChange={setNextWaterType} />
-          <Text style={{ color: theme.colors.text, fontWeight: '700' }}>Next Water Depth</Text>
-          <DepthSelector value={nextDepthRange} onChange={setNextDepthRange} />
-          <AppButton
-            label="Change Water"
-            onPress={() => {
-              changeWater().catch((error) => {
-                Alert.alert('Unable to change water', formatSharedBackendError(error, 'practice'));
-              });
+        <SectionCard title="Practice Cockpit" subtitle="The essentials stay visible while logging stays one tap away.">
+          <View
+            style={{
+              gap: 8,
+              borderRadius: theme.radius.md,
+              padding: 12,
+              backgroundColor: theme.colors.surfaceMuted,
+              borderWidth: 1,
+              borderColor: theme.colors.border
             }}
-            disabled={timer.hasEnded}
-            variant="secondary"
-          />
-        </SectionCard>
-
-        {isFlyJournal ? renderSetupSummaryCard({
-          title: 'Technique',
-          subtitle: 'Change approach quickly as you cover different water levels in the same session.',
-          summaryTitle: 'Current Technique',
-          summaryText: activeTechnique ?? 'Not chosen',
-          buttonLabel: 'Change Technique',
-          sheetKey: 'technique'
-        }) : null}
-
-        {isFlyJournal ? renderSetupSummaryCard({
-          title: 'Leader',
-          subtitle: 'Adjust the current leader quickly without burying the practice flow under setup controls.',
-          summaryTitle: 'Current Leader',
-          summaryText: leaderSummary,
-          buttonLabel: 'Change Leader',
-          sheetKey: 'leader'
-        }) : null}
-
-        {isFlyJournal ? renderSetupSummaryCard({
-          title: 'Rigging',
-          subtitle: 'Adjust fly count, rig preset, or tippet details in one focused step.',
-          summaryTitle: 'Current Rigging',
-          summaryText: rigSummary,
-          buttonLabel: 'Change Rigging',
-          sheetKey: 'rigging'
-        }) : null}
-
-        {isFlyJournal ? renderSetupSummaryCard({
-          title: 'Flies',
-          subtitle: 'Swap or add flies without pushing timer and catch logging off screen.',
-          summaryTitle: 'Current Flies',
-          summaryText: flySummary,
-          buttonLabel: 'Change Flies',
-          sheetKey: 'flies'
-        }) : null}
-
-        {!isFlyJournal ? (
-          <SectionCard title="Tackle Setup" subtitle="Lightweight setup for the fishing style you chose.">
-            <Text style={{ color: theme.colors.text }}>Style: {fishingStyleSetup.styleLabel}</Text>
-            <Text style={{ color: theme.colors.text }}>Method: {fishingStyleSetup.method ?? 'Not set'}</Text>
-            {fishingStyleSetup.tackleNotes ? (
-              <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>{fishingStyleSetup.tackleNotes}</Text>
-            ) : (
-              <Text style={{ color: theme.colors.textSoft }}>No tackle notes added yet.</Text>
-            )}
-          </SectionCard>
-        ) : null}
-
-        {!isFlyJournal ? (
-          <SectionCard
-            title={nonFlySignalLabel}
-            subtitle="Simple logging still creates useful patterns when the method, species, and water context stay connected."
-            tone="light"
           >
-            <InlineSummaryRow label="Catches This Entry" value={`${recentCatches.length}`} tone="light" />
-            <InlineSummaryRow label="Current Method" value={fishingStyleSetup.method ?? 'Not set'} valueMuted={!fishingStyleSetup.method} tone="light" />
-            <InlineSummaryRow label="Best Early Species" value={topSessionSpecies ?? 'Need a few catches'} valueMuted={!topSessionSpecies} tone="light" />
-            <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>{nonFlySignalHint}</Text>
-          </SectionCard>
-        ) : null}
+            <View style={{ flexDirection: layout.stackDirection, gap: 8 }}>
+              <View style={{ flex: 1 }}>
+                <InlineSummaryRow label="Water" value={activeSegment?.waterType ?? session.waterType} />
+              </View>
+              {!isSpinBaitJournal ? (
+                <View style={{ flex: 1 }}>
+                  <InlineSummaryRow label="Depth" value={activeSegment?.depthRange ?? session.depthRange} />
+                </View>
+              ) : null}
+            </View>
+            <View style={{ flexDirection: layout.stackDirection, gap: 8 }}>
+              {isFlyJournal ? (
+                <View style={{ flex: 1 }}>
+                  <InlineSummaryRow label="Technique" value={activeTechnique ?? 'Not chosen'} valueMuted={!activeTechnique} />
+                </View>
+              ) : null}
+              <View style={{ flex: 1 }}>
+                <InlineSummaryRow label="Catches" value={`${recentCatches.length}`} />
+              </View>
+              {sessionTimerEnabled ? (
+                <View style={{ flex: 1 }}>
+                  <InlineSummaryRow label="Timer" value={timer.remainingLabel ? `${timer.elapsedLabel} elapsed` : timer.elapsedLabel} />
+                </View>
+              ) : null}
+            </View>
+            {session.practiceMeasurementEnabled ? (
+              <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
+                Measuring is on. Add length in {session.practiceLengthUnit ?? 'in'} when it helps this journal entry.
+              </Text>
+            ) : null}
+          </View>
+        </SectionCard>
 
         <SectionCard title="Log Catches" subtitle="Quick tap logging stays front and center while you practice.">
           {!isFlyJournal ? (
@@ -558,6 +642,61 @@ export const PracticeScreen = ({ route, navigation }: any) => {
           )}
         </SectionCard>
 
+        <SectionCard title="Quick Changes" subtitle="Change field context without hunting through setup cards.">
+          <View style={{ gap: 10 }}>
+            <AppButton label="Open Water Guide" onPress={() => setShowWaterGuide(true)} variant="ghost" />
+            <OptionChips label="Next Water Type" options={WATER_TYPES} value={nextWaterType} onChange={setNextWaterType} />
+            {!isSpinBaitJournal ? (
+              <>
+                <Text style={{ color: theme.colors.text, fontWeight: '700' }}>Next Water Depth</Text>
+                <DepthSelector value={nextDepthRange} onChange={setNextDepthRange} />
+              </>
+            ) : null}
+            <AppButton
+              label="Change Water"
+              onPress={() => {
+                changeWater().catch((error) => {
+                  Alert.alert('Unable to change water', formatSharedBackendError(error, 'practice'));
+                });
+              }}
+              disabled={timer.hasEnded}
+              variant="secondary"
+            />
+          </View>
+        </SectionCard>
+
+        {isFlyJournal ? renderFlySetupCard() : null}
+
+        {!isFlyJournal ? (
+          <SectionCard title="Setup Used" subtitle="Lightweight setup for the fishing style you chose.">
+            <Text style={{ color: theme.colors.text }}>Style: {fishingStyleSetup.styleLabel}</Text>
+            <Text style={{ color: theme.colors.text }}>Method: {fishingStyleSetup.method ?? 'Not set'}</Text>
+            {fishingStyleSetup.tackleNotes ? (
+              <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>{fishingStyleSetup.tackleNotes}</Text>
+            ) : (
+              <Text style={{ color: theme.colors.textSoft }}>No tackle notes added yet.</Text>
+            )}
+          </SectionCard>
+        ) : null}
+
+        {!isFlyJournal ? (
+          <SectionCard
+            title={nonFlySignalLabel}
+            subtitle="Simple logging still creates useful patterns when the method, species, and water context stay connected."
+            tone="light"
+          >
+            <InlineSummaryRow label="Catches This Entry" value={`${recentCatches.length}`} tone="light" />
+            <InlineSummaryRow
+              label="Current Setup"
+              value={fishingStyleSetup.method ?? 'Not set'}
+              valueMuted={!fishingStyleSetup.method}
+              tone="light"
+            />
+            <InlineSummaryRow label="Best Early Species" value={topSessionSpecies ?? 'Need a few catches'} valueMuted={!topSessionSpecies} tone="light" />
+            <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>{nonFlySignalHint}</Text>
+          </SectionCard>
+        ) : null}
+
         <SectionCard title="Recent Catches" subtitle="A quick read on what has connected lately." tone="light">
           {!recentCatches.length ? (
             <Text style={{ color: theme.colors.textDarkSoft }}>No catches logged yet in this journal entry.</Text>
@@ -569,127 +708,47 @@ export const PracticeScreen = ({ route, navigation }: any) => {
             ))
           )}
         </SectionCard>
-      </ScrollView>
-        <BottomSheetSurface
-          visible={activeSetupSheet !== null}
-          title={
-            activeSetupSheet === 'technique'
-              ? 'Change Technique'
-              : activeSetupSheet === 'leader'
-              ? 'Change Leader'
-              : activeSetupSheet === 'rigging'
-                ? 'Change Rigging'
-                : 'Change Flies'
-          }
+
+        <SectionCard
+          title={session.endedAt ? 'Journal Entry Finished' : 'Journal Controls'}
           subtitle={
-            activeSetupSheet === 'technique'
-              ? 'Switch methods quickly without slowing down the active journal entry.'
-              : activeSetupSheet === 'leader'
-              ? 'Update the active segment leader in the foreground, then return right to practice.'
-              : activeSetupSheet === 'rigging'
-                ? 'Adjust rig count, preset, and tippet details without interrupting catch logging.'
-                : 'Replace flies or fill empty slots in one focused editor.'
+            session.endedAt
+              ? 'This entry is saved and ready to review whenever you need it.'
+              : sessionTimerEnabled
+                ? 'Timer controls live here so logging stays cleaner above.'
+                : 'Finish when you are done fishing for the day.'
           }
-          onClose={() => setActiveSetupSheet(null)}
+          tone="light"
         >
-          <View style={{ gap: 12 }}>
-            {activeSetupSheet === 'technique' ? (
-              <SectionCard title="Technique" subtitle="Use the same active session and switch methods without leaving the water flow." tone="modal">
-                <OptionChips
-                  label="Technique"
-                  options={TECHNIQUES}
-                  value={activeTechnique ?? null}
-                  onChange={(value) => {
-                    updateActiveTechnique(value as Technique).catch((error) => {
-                      Alert.alert('Unable to change technique', formatSharedBackendError(error, 'practice'));
-                    });
-                  }}
-                  tone="modal"
-                />
-              </SectionCard>
-            ) : null}
-            {activeSetupSheet === 'leader' ? (
-              <RigSetupPanel
-                title="Leader"
-                rigSetup={currentRigSetup}
-                flyCount={currentRigSetup.assignments.length}
-                editMode="leader"
-                forceEditorOpen
-                tone="modal"
-                foregroundQuickAdd
-                savedLeaderFormulas={savedLeaderFormulas}
-                savedRigPresets={savedRigPresets}
-                onChange={(nextRigSetup) => {
-                  updateActiveSegment(nextRigSetup).catch((error) => {
-                    Alert.alert('Unable to update leader', formatSharedBackendError(error, 'practice'));
-                  });
-                }}
-                onCreateLeaderFormula={saveLeaderFormula}
-                onCreateRigPreset={saveRigPreset}
-                onApplyRigPreset={(preset) => {
-                  updateActiveSegment(applyRigPresetToRig(currentRigSetup, preset, { clearSinglePointFly: preset.flyCount === 1 })).catch((error) => {
-                    Alert.alert('Unable to apply rig preset', formatSharedBackendError(error, 'practice'));
-                  });
-                }}
-                onDeleteLeaderFormula={deleteSavedLeaderFormula}
-                onDeleteRigPreset={deleteSavedRigPreset}
-              />
-            ) : null}
-            {activeSetupSheet === 'rigging' ? (
-              <RigSetupPanel
-                title="Rigging"
-                rigSetup={currentRigSetup}
-                flyCount={currentRigSetup.assignments.length}
-                onFlyCountChange={(nextCount) => {
-                  updateActiveSegment(
-                    setRigFlyCount(currentRigSetup, nextCount, {
-                      clearPointFly: nextCount === 1 && currentRigSetup.assignments.length > 1
-                    })
-                  ).catch((error) => {
-                    Alert.alert('Unable to update rigging', formatSharedBackendError(error, 'practice'));
-                  });
-                }}
-                editMode="rig"
-                forceEditorOpen
-                tone="modal"
-                foregroundQuickAdd
-                savedLeaderFormulas={savedLeaderFormulas}
-                savedRigPresets={savedRigPresets}
-                onChange={(nextRigSetup) => {
-                  updateActiveSegment(nextRigSetup).catch((error) => {
-                    Alert.alert('Unable to update rigging', formatSharedBackendError(error, 'practice'));
-                  });
-                }}
-                onCreateLeaderFormula={saveLeaderFormula}
-                onCreateRigPreset={saveRigPreset}
-                onApplyRigPreset={(preset) => {
-                  updateActiveSegment(applyRigPresetToRig(currentRigSetup, preset, { clearSinglePointFly: preset.flyCount === 1 })).catch((error) => {
-                    Alert.alert('Unable to apply rig preset', formatSharedBackendError(error, 'practice'));
-                  });
-                }}
-                onDeleteLeaderFormula={deleteSavedLeaderFormula}
-                onDeleteRigPreset={deleteSavedRigPreset}
-              />
-            ) : null}
-            {activeSetupSheet === 'flies' ? (
-              <RigFlyManager
-                title="Fly Assignments"
-                rigSetup={currentRigSetup}
-                savedFlies={savedFlies}
-                onChange={(nextRigSetup) => {
-                  updateActiveSegment(nextRigSetup).catch((error) => {
-                    Alert.alert('Unable to update flies', formatSharedBackendError(error, 'practice'));
-                  });
-                }}
-                onCreateFly={saveFlyToLibrary}
-                tone="modal"
-                editorOnly
-                foregroundQuickAdd
-              />
-            ) : null}
-            <AppButton label="Done" onPress={() => setActiveSetupSheet(null)} />
-          </View>
-        </BottomSheetSurface>
+          {sessionTimerEnabled ? (
+            <>
+              <InlineSummaryRow label="Elapsed" value={timer.elapsedLabel} tone="light" />
+              {timer.remainingLabel ? <InlineSummaryRow label="Remaining" value={timer.remainingLabel} tone="light" /> : null}
+              {timer.hasEnded ? <StatusBanner tone="error" text="Session ended early." /> : null}
+              {!timer.hasEnded && timer.nextAlertMinute ? (
+                <Text style={{ color: theme.colors.textDarkSoft }}>Next alert: {timer.nextAlertMinute} min</Text>
+              ) : null}
+            </>
+          ) : null}
+          {sessionTimerEnabled && !timer.hasEnded && !session.endedAt ? (
+            <AppButton label="End Session Early" onPress={endSessionEarly} variant="danger" surfaceTone="light" />
+          ) : null}
+          <AppButton
+            label={session.endedAt ? 'Review Journal Entry' : isFinishingSession ? 'Finishing...' : 'Finish Journal Entry'}
+            onPress={() => {
+              finishJournalEntry().catch((error) => {
+                Alert.alert('Unable to finish journal entry', formatSharedBackendError(error, 'practice'));
+              });
+            }}
+            disabled={isFinishingSession}
+            variant="secondary"
+            surfaceTone="light"
+          />
+          {showDictationHelpInSessions ? (
+            <AppButton label="Voice Commands" onPress={() => setShowDictationHelp(true)} variant="ghost" surfaceTone="light" />
+          ) : null}
+        </SectionCard>
+      </ScrollView>
       <PracticeCatchModal
         visible={pendingCatchFly !== null || pendingGeneralCatch}
         title={pendingGeneralCatch ? 'Log Catch' : `Log catch for ${pendingCatchFly?.name ?? 'Fly'}`}

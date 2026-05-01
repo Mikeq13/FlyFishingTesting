@@ -8,7 +8,6 @@ import { OptionChips } from './OptionChips';
 import { SectionCard } from '@/components/ui/SectionCard';
 import { AppButton } from '@/components/ui/AppButton';
 import { SurfaceTone, useTheme } from '@/design/theme';
-import { ModalSurface } from '@/components/ui/ModalSurface';
 
 const sameFly = (left: FlySetup, right: FlySetup) =>
   left.name === right.name &&
@@ -80,10 +79,6 @@ export const RigFlyManager = ({
   const openChooserForIndex = (index: number) => {
     setTargetAssignmentIndex(index);
     setEditorMode(null);
-    if (foregroundQuickAdd) {
-      setShowSavedFlyList(false);
-      return;
-    }
     setShowSavedFlyList(true);
   };
 
@@ -212,7 +207,7 @@ export const RigFlyManager = ({
       ) : (
         selectedAssignments.map((assignment, index) => renderAssignmentCard(assignment, index))
       )}
-      {!foregroundQuickAdd && !!sortedSavedFlies.length && targetAssignmentIndex !== null ? (
+      {!!sortedSavedFlies.length && targetAssignmentIndex !== null && editorMode === null ? (
         <>
           {!editorOnly ? (
             <AppButton
@@ -235,8 +230,8 @@ export const RigFlyManager = ({
                     onPress={() => assignFlyAtIndex(targetAssignmentIndex, { ...savedFly })}
                     style={{ paddingHorizontal: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.borderLight, backgroundColor: selected ? theme.colors.chipSelectedBg : 'transparent' }}
                   >
-                    <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>{savedFly.name}</Text>
-                    <Text style={{ color: theme.colors.textDarkSoft, fontSize: 12 }}>
+                    <Text style={{ color: primaryTextColor, fontWeight: '700' }}>{savedFly.name}</Text>
+                    <Text style={{ color: secondaryTextColor, fontSize: 12 }}>
                       #{savedFly.hookSize} | {savedFly.beadColor} | {savedFly.beadSizeMm}
                     </Text>
                   </Pressable>
@@ -247,25 +242,25 @@ export const RigFlyManager = ({
         </>
       ) : null}
 
-      {!foregroundQuickAdd && !sortedSavedFlies.length && targetAssignmentIndex !== null && editorMode === null ? (
+      {!sortedSavedFlies.length && targetAssignmentIndex !== null && editorMode === null ? (
         <View
           style={{
             gap: 6,
             borderRadius: theme.radius.md,
             padding: 12,
-            backgroundColor: theme.colors.surfaceLight,
+            backgroundColor: listBackground,
             borderWidth: 1,
-            borderColor: theme.colors.borderStrong
+            borderColor: listBorder
           }}
         >
-          <Text style={{ color: theme.colors.textDark, fontWeight: '700' }}>No saved flies for this angler yet</Text>
-          <Text style={{ color: theme.colors.textDarkSoft }}>
+          <Text style={{ color: primaryTextColor, fontWeight: '700' }}>No saved flies for this angler yet</Text>
+          <Text style={{ color: secondaryTextColor }}>
             Build a fly for this slot in the foreground editor, then save it to the current angler&apos;s library when you want to reuse it later.
           </Text>
         </View>
       ) : null}
 
-      {targetAssignmentIndex !== null && editorMode !== null && !foregroundQuickAdd ? (
+      {targetAssignmentIndex !== null && editorMode !== null ? (
         <FlySelector
           title={`${editorMode === 'adjust' ? 'Adjust Fly For' : 'New Fly For'} ${selectedAssignments[targetAssignmentIndex]?.position ?? 'Slot'}`}
           value={draftFly}
@@ -302,110 +297,9 @@ export const RigFlyManager = ({
       ) : null}
         </>
       ) : null}
-        <ModalSurface
-          visible={targetAssignmentIndex !== null && editorMode !== null && foregroundQuickAdd}
-          title={`${editorMode === 'adjust' ? 'Adjust Fly For' : 'New Fly For'} ${targetAssignmentIndex !== null ? selectedAssignments[targetAssignmentIndex]?.position ?? 'Slot' : 'Slot'}`}
-          subtitle={
-            editorMode === 'adjust'
-              ? 'Tune the current fly in the foreground, then return to the same setup flow.'
-              : 'Build the fly in the foreground, then return to the same setup flow.'
-          }
-          onClose={() => setEditorMode(null)}
-        >
-          <FlySelector
-            title={editorMode === 'adjust' ? 'Adjust Current Fly' : 'New Fly'}
-            value={draftFly}
-            savedFlies={[]}
-            onChange={setDraftFly}
-            onSave={async () => {
-              try {
-                await onCreateFly(draftFly);
-                if (targetAssignmentIndex !== null) {
-                  assignFlyAtIndex(targetAssignmentIndex, draftFly);
-                }
-                setEditorMode(null);
-                setDraftFly(createEmptyFly());
-                if (!editorOnly) {
-                  setShowFlyManager(false);
-                }
-              } catch (error) {
-                Alert.alert('Unable to save fly', error instanceof Error ? error.message : 'Please try again.');
-              }
-            }}
-            onConfirm={() => {
-              if (targetAssignmentIndex !== null) {
-                assignFlyAtIndex(targetAssignmentIndex, draftFly);
-                setEditorMode(null);
-                setDraftFly(createEmptyFly());
-              }
-            }}
-            confirmLabel={editorMode === 'adjust' ? 'Apply Adjustments' : 'Use This Fly'}
-            tone="modal"
-            fieldMode={editorMode === 'adjust' ? 'adjust' : 'full'}
-          />
-          <AppButton label="Cancel" onPress={() => setEditorMode(null)} variant="ghost" surfaceTone="modal" />
-        </ModalSurface>
-        <ModalSurface
-          visible={targetAssignmentIndex !== null && editorMode === null && foregroundQuickAdd}
-          title={`Saved Flies For ${targetAssignmentIndex !== null ? selectedAssignments[targetAssignmentIndex]?.position ?? 'Slot' : 'Slot'}`}
-          subtitle="Pick from the current angler's saved flies for this slot."
-          onClose={closeForegroundPicker}
-        >
-          {sortedSavedFlies.length ? (
-            <ScrollView
-              style={{
-                maxHeight: 260,
-                borderWidth: 1,
-                borderColor: theme.colors.modalNestedBorder,
-                borderRadius: theme.radius.md,
-                backgroundColor: theme.colors.modalSurfaceAlt
-              }}
-            >
-              {sortedSavedFlies.map((savedFly, index) => {
-                const selected = selectedAssignments.some((assignment) => sameFly(assignment.fly, savedFly));
-                return (
-                  <Pressable
-                    key={savedFly.id}
-                    onPress={() => {
-                      if (targetAssignmentIndex !== null) {
-                        assignFlyAtIndex(targetAssignmentIndex, { ...savedFly });
-                      }
-                    }}
-                    style={{
-                      paddingHorizontal: 12,
-                      paddingVertical: 12,
-                      borderBottomWidth: index === sortedSavedFlies.length - 1 ? 0 : 1,
-                      borderBottomColor: theme.colors.borderLight,
-                      backgroundColor: selected ? theme.colors.chipSelectedBg : 'transparent'
-                    }}
-                  >
-                    <Text style={{ color: primaryTextColor, fontWeight: '700' }}>{savedFly.name}</Text>
-                    <Text style={{ color: secondaryTextColor, fontSize: 12 }}>
-                      {savedFly.bugFamily} | {savedFly.bugStage} | #{savedFly.hookSize} | {savedFly.beadColor}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          ) : (
-            <View
-              style={{
-                gap: 8,
-                borderRadius: theme.radius.md,
-                padding: 12,
-                backgroundColor: theme.colors.modalSurfaceAlt,
-                borderWidth: 1,
-                borderColor: theme.colors.modalNestedBorder
-              }}
-            >
-              <Text style={{ color: theme.colors.modalText, fontWeight: '700' }}>No saved flies for this angler yet</Text>
-              <Text style={{ color: theme.colors.modalTextSoft }}>
-                This picker only shows the current angler&apos;s personal fly library.
-              </Text>
-            </View>
-          )}
-          <AppButton label="Cancel" onPress={closeForegroundPicker} variant="ghost" surfaceTone="modal" />
-        </ModalSurface>
+      {targetAssignmentIndex !== null && (editorMode !== null || showSavedFlyList) ? (
+        <AppButton label="Cancel Fly Edit" onPress={closeForegroundPicker} variant="ghost" surfaceTone={tone} />
+      ) : null}
     </SectionCard>
   );
 };
