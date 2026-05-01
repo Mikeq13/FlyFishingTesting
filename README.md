@@ -18,6 +18,7 @@ Use these before submitting the web build or cutting wider beta builds:
 - [9.5 beta readiness gate](docs/beta-readiness-9-5-gate.md)
 - [Non-fly beta smoke checklist](docs/non-fly-beta-smoke-checklist.md)
 - [Live regression checklist](docs/live-regression-checklist.md)
+- [iOS crash triage note](docs/ios-crash-triage.md)
 
 Run the full local submission gate with:
 
@@ -26,6 +27,14 @@ npm run verify:submission
 ```
 
 Vercel is configured to run `npm run build:web` and publish `dist`.
+
+For the Codex challenge review, set this Vercel environment variable so judges land directly in the seeded web demo instead of an auth gate:
+
+```env
+EXPO_PUBLIC_WEB_DEMO_MODE=true
+```
+
+The web build also defaults to demo mode when this flag is unset. Set `EXPO_PUBLIC_WEB_DEMO_MODE=false` only when you intentionally want web to require real Supabase auth.
 
 ## Local Supabase Setup
 

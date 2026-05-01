@@ -2,15 +2,17 @@ import React, { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { KeyboardDismissView } from '@/components/KeyboardDismissView';
 import { OptionChips } from '@/components/OptionChips';
-import { DEPTH_RANGES } from '@/constants/options';
+import { DEPTH_RANGES, LAKE_DEPTH_RANGES } from '@/constants/options';
 import { useAppStore } from './store';
-import { CompetitionLengthUnit, SessionMode, Technique, WaterType } from '@/types/session';
+import { CompetitionLengthUnit, DepthRange, SessionMode, Technique, WaterType } from '@/types/session';
 import { ScreenBackground } from '@/components/ScreenBackground';
 import { AppButton } from '@/components/ui/AppButton';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SectionCard } from '@/components/ui/SectionCard';
+import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { StatusBanner } from '@/components/ui/StatusBanner';
 import { SelectableListPanel } from '@/components/ui/SelectableListPanel';
+import { BottomSheetSurface } from '@/components/ui/BottomSheetSurface';
 import { WaterGuideDrawer } from '@/components/WaterGuideDrawer';
 import { FormField, getFormInputStyle } from '@/components/ui/FormField';
 import { useTheme } from '@/design/theme';
@@ -56,10 +58,13 @@ const getTackleNotesPlaceholder = (style: FishingStyle) =>
     ? 'Example: downrigger at 35 ft, 1.8 mph, pink spoon, outside weed edge'
     : 'Example: orange spinner, slow retrieve near current seam, PowerBait off bottom';
 
+const getSetupNamePlaceholder = (style: FishingStyle) =>
+  style === 'boat_trolling' ? 'Example: Pink spoon 35 ft' : 'Example: Orange spinner';
+
 export const SessionScreen = ({ navigation, route }: any) => {
   const { theme } = useTheme();
   const layout = useResponsiveLayout();
-  const { addSession, updateSessionEntry, addSavedFly, addSavedLeaderFormula, deleteSavedLeaderFormula, addSavedRigPreset, deleteSavedRigPreset, addSavedRiver, savedFlies, savedLeaderFormulas, savedRigPresets, savedRivers, users, activeUserId, sessions, experiments, groups, groupMemberships, competitions, competitionGroups, competitionSessions, competitionParticipants, competitionAssignments, upsertCompetitionAssignment, sharedDataStatus, syncStatus, notificationPermissionStatus, authStatus, remoteSession, getGroupIntegrity } = useAppStore();
+  const { addSession, updateSessionEntry, addSavedFly, addSavedLeaderFormula, deleteSavedLeaderFormula, addSavedRigPreset, deleteSavedRigPreset, addSavedRiver, savedFlies, savedLeaderFormulas, savedRigPresets, savedRivers, users, activeUserId, sessions, catchEvents, experiments, insights, topFlyRecords, topFlyInsights, groups, groupMemberships, competitions, competitionGroups, competitionSessions, competitionParticipants, competitionAssignments, upsertCompetitionAssignment, sharedDataStatus, syncStatus, notificationPermissionStatus, authStatus, remoteSession, getGroupIntegrity } = useAppStore();
   const sessionId = route?.params?.sessionId as number | undefined;
   const routeFishingStyle = route?.params?.fishingStyle as FishingStyle | undefined;
   const existingSession = useMemo(
@@ -79,7 +84,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
   const isEditingExistingSession = !!existingSession;
   const activeUser = users.find((user) => user.id === activeUserId);
   const [waterType, setWaterType] = useState<WaterType>('run');
-  const [depthRange, setDepthRange] = useState<typeof DEPTH_RANGES[number]>('1.5-3 ft');
+  const [depthRange, setDepthRange] = useState<DepthRange>('1.5-3 ft');
   const [riverName, setRiverName] = useState('');
   const [hypothesis, setHypothesis] = useState('');
   const [notes, setNotes] = useState('');
@@ -94,7 +99,10 @@ export const SessionScreen = ({ navigation, route }: any) => {
   const [startingTechnique, setStartingTechnique] = useState<Technique | undefined>(undefined);
   const [fishingStyle, setFishingStyle] = useState<FishingStyle>(routeFishingStyle ?? existingFishingStyleSetup.style ?? 'fly');
   const [tackleMethod, setTackleMethod] = useState('');
+  const [setupName, setSetupName] = useState('');
   const [tackleNotes, setTackleNotes] = useState('');
+  const [saveSetupForFuture, setSaveSetupForFuture] = useState(false);
+  const [useSessionTimer, setUseSessionTimer] = useState(mode === 'competition');
   const [practiceMeasurementEnabled, setPracticeMeasurementEnabled] = useState(false);
   const [practiceLengthUnit, setPracticeLengthUnit] = useState<'in' | 'cm' | 'mm'>('in');
   const [selectedCompetitionId, setSelectedCompetitionId] = useState<number | null>(null);
@@ -105,7 +113,9 @@ export const SessionScreen = ({ navigation, route }: any) => {
   const [experimentRigSetup, setExperimentRigSetup] = useState(() => createDefaultRigSetup([]));
   const [showSavedRiverList, setShowSavedRiverList] = useState(false);
   const [showSavedHypothesisList, setShowSavedHypothesisList] = useState(false);
+  const [showSavedSetupList, setShowSavedSetupList] = useState(false);
   const [showWaterGuide, setShowWaterGuide] = useState(false);
+  const [showTimerSheet, setShowTimerSheet] = useState(false);
   const sortedSavedRivers = useMemo(() => [...savedRivers].sort((a, b) => a.name.localeCompare(b.name)), [savedRivers]);
   const savedHypotheses = useMemo(
     () =>
@@ -222,7 +232,10 @@ export const SessionScreen = ({ navigation, route }: any) => {
     setStartingTechnique(existingSession.startingTechnique);
     setFishingStyle(existingFishingStyleSetup.style);
     setTackleMethod(existingFishingStyleSetup.method ?? '');
+    setSetupName(existingFishingStyleSetup.setupName ?? '');
     setTackleNotes(existingFishingStyleSetup.tackleNotes ?? '');
+    setSaveSetupForFuture(existingFishingStyleSetup.saveSetup ?? false);
+    setUseSessionTimer(mode === 'competition' || !!existingSession.plannedDurationMinutes || !!existingSession.alertMarkersMinutes?.length);
     setPracticeMeasurementEnabled(existingSession.practiceMeasurementEnabled ?? false);
     setPracticeLengthUnit(existingSession.practiceLengthUnit ?? 'in');
     setSelectedCompetitionId(existingSession.competitionId ?? null);
@@ -232,7 +245,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
     setPracticeRigSetup(existingSession.startingRigSetup ?? createDefaultRigSetup([]));
     setExperimentRigSetup(existingSession.startingRigSetup ?? createDefaultRigSetup([]));
     setNotes(existingFishingStyleSetup.journalNotes);
-  }, [existingFishingStyleSetup.journalNotes, existingFishingStyleSetup.method, existingFishingStyleSetup.style, existingFishingStyleSetup.tackleNotes, existingSession, mode]);
+  }, [existingFishingStyleSetup.journalNotes, existingFishingStyleSetup.method, existingFishingStyleSetup.saveSetup, existingFishingStyleSetup.setupName, existingFishingStyleSetup.style, existingFishingStyleSetup.tackleNotes, existingSession, mode]);
 
   React.useEffect(() => {
     if (fishingStyle === 'fly') return;
@@ -240,11 +253,79 @@ export const SessionScreen = ({ navigation, route }: any) => {
     setTackleMethod((current) => current || option.methods[0] || '');
   }, [fishingStyle]);
 
+  React.useEffect(() => {
+    if (existingSession || fishingStyle !== 'boat_trolling') return;
+    setWaterType('lake');
+    setDepthRange((current) => (LAKE_DEPTH_RANGES.includes(current) ? current : '10-20 ft'));
+  }, [existingSession, fishingStyle]);
+
   const selectedSharedGroups = useMemo(
     () => joinedGroups.filter((group) => selectedSharedGroupIds.includes(group.id)),
     [joinedGroups, selectedSharedGroupIds]
   );
   const shareIntentSummary = useMemo(() => describeSessionShareIntent(selectedSharedGroups), [selectedSharedGroups]);
+  const savedStyleSetups = useMemo(() => {
+    const setupMap = new Map<string, { setupName: string; method?: string; tackleNotes?: string }>();
+    sessions.forEach((session) => {
+      const setup = describeFishingStyleSetup(session);
+      if (setup.style !== fishingStyle || setup.style === 'fly' || !setup.saveSetup || !setup.setupName?.trim()) return;
+      const normalizedName = setup.setupName.trim().toLowerCase();
+      if (!setupMap.has(normalizedName)) {
+        setupMap.set(normalizedName, {
+          setupName: setup.setupName.trim(),
+          method: setup.method,
+          tackleNotes: setup.tackleNotes
+        });
+      }
+    });
+    return [...setupMap.values()].sort((left, right) => left.setupName.localeCompare(right.setupName));
+  }, [fishingStyle, sessions]);
+  const environmentWaterOptions = useMemo<readonly WaterType[]>(
+    () => (mode === 'practice' && fishingStyle === 'boat_trolling' ? ['lake'] : ['glide', 'lake', 'pocket water', 'pool', 'riffle', 'run']),
+    [fishingStyle, mode]
+  );
+  const environmentDepthOptions = useMemo<readonly DepthRange[]>(
+    () => (mode === 'practice' && fishingStyle === 'boat_trolling' ? LAKE_DEPTH_RANGES : DEPTH_RANGES),
+    [fishingStyle, mode]
+  );
+  const recommendedPattern = useMemo(() => {
+    const styleSessions = sessions.filter((session) => describeFishingStyleSetup(session).style === fishingStyle);
+    const catchCountByMethod = new Map<string, number>();
+    styleSessions.forEach((session) => {
+      const setup = describeFishingStyleSetup(session);
+      const method = setup.setupName || setup.method || (fishingStyle === 'fly' ? session.startingTechnique : undefined) || getFishingStyleOption(fishingStyle).methods[0] || 'Current method';
+      const sessionCatchCount = catchEvents.filter((event) => event.sessionId === session.id).length;
+      catchCountByMethod.set(method, (catchCountByMethod.get(method) ?? 0) + sessionCatchCount);
+    });
+    const bestMethod = [...catchCountByMethod.entries()].sort((left, right) => right[1] - left[1])[0] ?? null;
+    const bestInsight = [...topFlyInsights, ...insights].find((insight) => insight.confidence !== 'low') ?? topFlyInsights[0] ?? insights[0] ?? null;
+    if (fishingStyle === 'fly') {
+      const bestFly = topFlyRecords[0];
+      return {
+        title: bestFly ? `Start with ${bestFly.name}` : 'Start with a proven fly and clean notes',
+        confidence: bestInsight?.confidence === 'high' ? 'Strong pattern' : bestInsight?.confidence === 'medium' ? 'Moderate evidence' : 'Early signal',
+        reason: bestFly
+          ? `${bestFly.name} has ${bestFly.catches} catch${bestFly.catches === 1 ? '' : 'es'} across ${bestFly.casts} logged cast${bestFly.casts === 1 ? '' : 's'}.`
+          : 'Pick the fly you trust most, then log water, depth, and technique so the next recommendation gets sharper.'
+      };
+    }
+    if (fishingStyle === 'boat_trolling') {
+      return {
+        title: bestMethod ? `Start with ${bestMethod[0]} on lake water` : 'Start with your lake depth and boat method',
+        confidence: bestMethod && bestMethod[1] >= 3 ? 'Moderate evidence' : 'Early signal',
+        reason: bestMethod
+          ? `${bestMethod[0]} has produced ${bestMethod[1]} logged catch${bestMethod[1] === 1 ? '' : 'es'} in boat/trolling journals.`
+          : 'Track depth, speed, lure, and location so Fishing Lab can find your strongest lake pattern.'
+      };
+    }
+    return {
+      title: bestMethod ? `Start with ${bestMethod[0]}` : 'Start with the method you expect to fish most',
+      confidence: bestMethod && bestMethod[1] >= 3 ? 'Moderate evidence' : 'Early signal',
+      reason: bestMethod
+        ? `${bestMethod[0]} has produced ${bestMethod[1]} logged catch${bestMethod[1] === 1 ? '' : 'es'} in spin/bait journals.`
+        : 'Track method, structure, water, and catches so simple logs turn into useful tackle signals.'
+    };
+  }, [catchEvents, fishingStyle, insights, sessions, topFlyInsights, topFlyRecords]);
 
   const saveRiver = async () => {
     const normalizedRiverName = riverName.trim();
@@ -282,6 +363,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
 
   const plannedDurationMinutes = useMemo(() => {
     if (mode === 'experiment') return undefined;
+    if (mode === 'practice' && !useSessionTimer) return undefined;
     if (mode === 'competition') {
       if (!selectedCompetitionSession) return undefined;
       const start = combineDateAndTime(new Date(), selectedCompetitionSession.startTime);
@@ -293,7 +375,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
     const minutes = Math.max(0, Number(durationMinutes || '0'));
     const total = hours * 60 + minutes;
     return Number.isFinite(total) && total > 0 ? total : undefined;
-  }, [durationHours, durationMinutes, mode, selectedCompetitionSession]);
+  }, [durationHours, durationMinutes, mode, selectedCompetitionSession, useSessionTimer]);
 
   const plannedEndLabel = useMemo(() => {
     if (mode === 'experiment' || !plannedDurationMinutes) return null;
@@ -308,12 +390,13 @@ export const SessionScreen = ({ navigation, route }: any) => {
 
   const alertIntervalMinutes = useMemo(() => {
     if (mode === 'experiment') return undefined;
+    if (mode === 'practice' && !useSessionTimer) return null;
     return alertMarkersMinutes.length ? alertMarkersMinutes[0] : null;
-  }, [alertMarkersMinutes, mode]);
+  }, [alertMarkersMinutes, mode, useSessionTimer]);
 
   const invalidReminderMarkers = useMemo(
-    () => (mode === 'experiment' ? [] : getInvalidReminderMarkers(alertMarkersMinutes, plannedDurationMinutes)),
-    [alertMarkersMinutes, mode, plannedDurationMinutes]
+    () => (mode === 'experiment' || (mode === 'practice' && !useSessionTimer) ? [] : getInvalidReminderMarkers(alertMarkersMinutes, plannedDurationMinutes)),
+    [alertMarkersMinutes, mode, plannedDurationMinutes, useSessionTimer]
   );
 
   const reminderValidationMessage = useMemo(() => {
@@ -367,16 +450,17 @@ export const SessionScreen = ({ navigation, route }: any) => {
 
     const savedNotes =
       mode === 'practice' && fishingStyle !== 'fly'
-        ? serializeFishingStyleNotes(notes, { style: fishingStyle, method: tackleMethod, tackleNotes })
+        ? serializeFishingStyleNotes(notes, { style: fishingStyle, method: tackleMethod, setupName, tackleNotes, saveSetup: saveSetupForFuture })
         : stripFishingStyleSetupBlock(notes);
+    const sessionTimerEnabled = mode !== 'practice' || useSessionTimer;
     const sessionPayload = {
       date: mode === 'competition' ? competitionStartAt! : existingSession?.date ?? new Date().toISOString(),
       mode,
-      plannedDurationMinutes,
-      alertIntervalMinutes,
-      alertMarkersMinutes,
-      notificationSoundEnabled: mode === 'experiment' ? undefined : notificationSoundEnabled,
-      notificationVibrationEnabled: mode === 'experiment' ? undefined : notificationVibrationEnabled,
+      plannedDurationMinutes: sessionTimerEnabled ? plannedDurationMinutes : undefined,
+      alertIntervalMinutes: sessionTimerEnabled ? alertIntervalMinutes : null,
+      alertMarkersMinutes: sessionTimerEnabled ? alertMarkersMinutes : [],
+      notificationSoundEnabled: mode === 'experiment' ? undefined : sessionTimerEnabled ? notificationSoundEnabled : false,
+      notificationVibrationEnabled: mode === 'experiment' ? undefined : sessionTimerEnabled ? notificationVibrationEnabled : false,
       startAt: mode === 'competition' ? competitionStartAt! : existingSession?.startAt,
       endAt: mode === 'competition' ? competitionEndAt! : existingSession?.endAt,
       endedAt: existingSession?.endedAt,
@@ -486,6 +570,9 @@ export const SessionScreen = ({ navigation, route }: any) => {
           onWaterTypeChange={setWaterType}
           depthRange={depthRange}
           onDepthRangeChange={setDepthRange}
+          fishingStyle={mode === 'practice' ? fishingStyle : 'fly'}
+          waterTypeOptions={environmentWaterOptions}
+          depthRangeOptions={environmentDepthOptions}
           joinedCompetitions={joinedCompetitions}
           selectedCompetitionId={selectedCompetitionId}
           onCompetitionSelect={setSelectedCompetitionId}
@@ -557,8 +644,25 @@ export const SessionScreen = ({ navigation, route }: any) => {
                 onChange={(value) => {
                   const nextStyle = FISHING_STYLE_OPTIONS.find((option) => option.title === value)?.key ?? 'fly';
                   setFishingStyle(nextStyle);
+                  if (nextStyle === 'boat_trolling') {
+                    setWaterType('lake');
+                    setDepthRange('10-20 ft');
+                  } else if (nextStyle === 'spin_bait') {
+                    setDepthRange('1.5-3 ft');
+                  }
                 }}
               />
+            </SectionCard>
+          ) : null}
+          {mode === 'practice' || mode === 'experiment' ? (
+            <SectionCard
+              title="Recommended Pattern"
+              subtitle="A compact starting point from your logged history. Treat it as a suggestion, then log what actually happens."
+              tone="light"
+            >
+              <Text style={{ color: theme.colors.textDark, fontWeight: '800' }}>{recommendedPattern.title}</Text>
+              <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>{recommendedPattern.reason}</Text>
+              <Text style={{ color: theme.colors.textDarkSoft, fontWeight: '700' }}>Confidence: {recommendedPattern.confidence}</Text>
             </SectionCard>
           ) : null}
           {mode === 'experiment' || (mode === 'practice' && fishingStyle === 'fly') ? (
@@ -599,10 +703,10 @@ export const SessionScreen = ({ navigation, route }: any) => {
           ) : null}
           {mode === 'practice' && fishingStyle !== 'fly' ? (
             <SectionCard
-              title="Tackle Setup"
+              title="Setup Used"
               subtitle={fishingStyle === 'boat_trolling'
-                ? 'Capture depth, speed, lure, and location notes without forcing fly-specific rig fields.'
-                : 'Capture lure, bait, retrieve, and structure notes without forcing fly-specific rig fields.'}
+                ? 'Name the lake setup you are trolling so good depth, speed, lure, and location patterns are easier to repeat.'
+                : 'Name the tackle setup you are using so productive lure, bait, retrieve, and structure patterns are easier to repeat.'}
               tone="light"
             >
               <OptionChips
@@ -611,7 +715,39 @@ export const SessionScreen = ({ navigation, route }: any) => {
                 value={tackleMethod || null}
                 onChange={setTackleMethod}
               />
-              <FormField label="Lure, Bait, Or Tackle Notes">
+              {!!savedStyleSetups.length ? (
+                <>
+                  <AppButton
+                    label={showSavedSetupList ? 'Hide Previous Setups' : 'Choose Previous Setup'}
+                    onPress={() => setShowSavedSetupList((current) => !current)}
+                    variant="secondary"
+                  />
+                  {showSavedSetupList ? (
+                    <SelectableListPanel
+                      items={savedStyleSetups.map((savedSetup) => ({
+                        key: `${savedSetup.setupName}-${savedSetup.method ?? ''}`,
+                        label: [savedSetup.setupName, savedSetup.method].filter(Boolean).join(' | '),
+                        onPress: () => {
+                          setSetupName(savedSetup.setupName);
+                          if (savedSetup.method) setTackleMethod(savedSetup.method);
+                          if (savedSetup.tackleNotes) setTackleNotes(savedSetup.tackleNotes);
+                          setShowSavedSetupList(false);
+                        }
+                      }))}
+                    />
+                  ) : null}
+                </>
+              ) : null}
+              <FormField label="Setup Name">
+                <TextInput
+                  value={setupName}
+                  onChangeText={setSetupName}
+                  placeholder={getSetupNamePlaceholder(fishingStyle)}
+                  placeholderTextColor={theme.colors.inputPlaceholder}
+                  style={formInputStyle}
+                />
+              </FormField>
+              <FormField label={fishingStyle === 'boat_trolling' ? 'Depth, Speed, Lure, Or Location Notes' : 'Lure, Bait, Retrieve, Or Structure Notes'}>
                 <TextInput
                   value={tackleNotes}
                   onChangeText={setTackleNotes}
@@ -621,7 +757,13 @@ export const SessionScreen = ({ navigation, route }: any) => {
                   style={{ ...formInputStyle, minHeight: 72, textAlignVertical: 'top' }}
                 />
               </FormField>
-              <OptionChips label="Measure Fish?" options={['Yes', 'No'] as const} value={practiceMeasurementEnabled ? 'Yes' : 'No'} onChange={(value) => setPracticeMeasurementEnabled(value === 'Yes')} />
+              <OptionChips
+                label="Save For Future Journals?"
+                options={['No', 'Yes'] as const}
+                value={saveSetupForFuture ? 'Yes' : 'No'}
+                onChange={(value) => setSaveSetupForFuture(value === 'Yes')}
+              />
+              <OptionChips label="Measure Fish?" options={['No', 'Yes'] as const} value={practiceMeasurementEnabled ? 'Yes' : 'No'} onChange={(value) => setPracticeMeasurementEnabled(value === 'Yes')} />
               {practiceMeasurementEnabled ? (
                 <OptionChips label="Length Unit" options={['in', 'cm', 'mm'] as const} value={practiceLengthUnit} onChange={(value) => setPracticeLengthUnit(value as 'in' | 'cm' | 'mm')} />
               ) : null}
@@ -662,7 +804,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
               </View>
             </View>
           ) : null}
-          {mode !== 'experiment' ? (
+          {mode === 'competition' ? (
             <ReminderSettingsSection
               mode={mode}
               durationHours={durationHours}
@@ -684,9 +826,52 @@ export const SessionScreen = ({ navigation, route }: any) => {
               onNotificationVibrationEnabledChange={setNotificationVibrationEnabled}
               notificationPermissionStatus={notificationPermissionStatus}
             />
+          ) : mode === 'practice' ? (
+            <SectionCard
+              title="Fishing Timer"
+              subtitle="Leave this off when you only want a simple journal entry. Turn it on when elapsed time and reminders help."
+              tone="light"
+            >
+              <OptionChips
+                label="Use Fishing Timer?"
+                options={['No', 'Yes'] as const}
+                value={useSessionTimer ? 'Yes' : 'No'}
+                onChange={(value) => {
+                  const enabled = value === 'Yes';
+                  setUseSessionTimer(enabled);
+                  if (enabled && !alertMarkersMinutes.length) {
+                    setAlertMarkersMinutes([15]);
+                  }
+                  if (!enabled) {
+                    setShowTimerSheet(false);
+                    setAlertMarkersMinutes([]);
+                    setCustomAlertError('');
+                  }
+                }}
+              />
+              {useSessionTimer ? (
+                <>
+                  <InlineSummaryRow
+                    label="Duration"
+                    value={`${durationHours || '0'}h ${durationMinutes || '0'}m`}
+                    tone="light"
+                  />
+                  <InlineSummaryRow
+                    label="Reminders"
+                    value={alertMarkersMinutes.length ? alertMarkersMinutes.map((minute) => `${minute} min`).join(', ') : 'None set'}
+                    tone="light"
+                  />
+                  <AppButton label="Edit Timer" onPress={() => setShowTimerSheet(true)} variant="secondary" />
+                </>
+              ) : (
+                <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+                  Timer controls stay hidden so the setup remains focused on water, style, and logging catches.
+                </Text>
+              )}
+            </SectionCard>
           ) : null}
-          {reminderValidationMessage ? <StatusBanner tone="warning" text={reminderValidationMessage} /> : null}
-          {customAlertError && !reminderValidationMessage ? <StatusBanner tone="error" text={customAlertError} /> : null}
+          {(mode === 'competition' || useSessionTimer) && reminderValidationMessage ? <StatusBanner tone="warning" text={reminderValidationMessage} /> : null}
+          {(mode === 'competition' || useSessionTimer) && customAlertError && !reminderValidationMessage ? <StatusBanner tone="error" text={customAlertError} /> : null}
           {mode === 'experiment' && !!savedHypotheses.length && (
             <>
               <AppButton
@@ -738,6 +923,35 @@ export const SessionScreen = ({ navigation, route }: any) => {
         onSelectWaterType={setWaterType}
         onClose={() => setShowWaterGuide(false)}
       />
+      <BottomSheetSurface
+        visible={showTimerSheet}
+        title="Fishing Timer"
+        subtitle="Set a planned duration and reminder markers only when timing helps this journal entry."
+        onClose={() => setShowTimerSheet(false)}
+      >
+        <ReminderSettingsSection
+          mode="practice"
+          durationHours={durationHours}
+          onDurationHoursChange={setDurationHours}
+          durationMinutes={durationMinutes}
+          onDurationMinutesChange={setDurationMinutes}
+          plannedDurationMinutes={plannedDurationMinutes}
+          plannedEndLabel={plannedEndLabel}
+          alertMarkersMinutes={alertMarkersMinutes}
+          onAlertMarkersChange={setAlertMarkersMinutes}
+          customAlertMinute={customAlertMinute}
+          onCustomAlertMinuteChange={setCustomAlertMinute}
+          customAlertError={customAlertError}
+          reminderValidationMessage={reminderValidationMessage}
+          onAddCustomAlertMarker={addCustomAlertMarker}
+          notificationSoundEnabled={notificationSoundEnabled}
+          onNotificationSoundEnabledChange={setNotificationSoundEnabled}
+          notificationVibrationEnabled={notificationVibrationEnabled}
+          onNotificationVibrationEnabledChange={setNotificationVibrationEnabled}
+          notificationPermissionStatus={notificationPermissionStatus}
+        />
+        <AppButton label="Done" onPress={() => setShowTimerSheet(false)} />
+      </BottomSheetSurface>
     </ScreenBackground>
   );
 };

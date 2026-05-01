@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { requireNativeModule } from 'expo';
 import { ActiveOuting, HandsFreePreferences, WatchCompanionStatus } from '@/types/handsFree';
 import { serializeActiveOuting, serializeHandsFreePreferences } from '@/utils/handsFree';
 
@@ -16,7 +17,7 @@ const getNativeModule = (): NativeHandsFreeModule | null => {
   if (cachedModule !== undefined) return cachedModule;
 
   try {
-    cachedModule = require('../../modules/fishing-lab-hands-free').default as NativeHandsFreeModule;
+    cachedModule = requireNativeModule<NativeHandsFreeModule>('FishingLabHandsFree');
   } catch (error) {
     cachedModule = null;
   }

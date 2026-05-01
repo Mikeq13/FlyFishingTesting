@@ -152,8 +152,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
 
   useEffect(() => {
     if (!session || session.endedAt || reviewPromptShown) return;
-    if (!sessionTimerEnabled) return;
-    if (timer.remainingSeconds !== 0) return;
+    if (!sessionTimerEnabled || timer.remainingSeconds !== 0) return;
     const activeSession = session;
 
     setReviewPromptShown(true);
@@ -209,8 +208,8 @@ export const PracticeScreen = ({ route, navigation }: any) => {
   const nonFlySignalLabel = fishingStyle === 'boat_trolling' ? 'Boat Signal' : 'Tackle Signal';
   const nonFlySignalHint =
     fishingStyle === 'boat_trolling'
-      ? 'Keep logging species, depth, speed, and lure notes so Fishing Lab can compare productive passes instead of only counting fish.'
-      : 'Keep logging species, lure or bait, retrieve, and water notes so Fishing Lab can compare what worked across banks, structure, and conditions.';
+      ? 'Setup names create the pattern. Depth, speed, lure, and location notes make the boat signal stronger over time.'
+      : 'Setup names create the pattern. Lure, bait, retrieve, structure, and water notes make the tackle signal stronger over time.';
   const leaderSummary = currentRigSetup.leaderFormulaName ?? (currentRigSetup.leaderFormulaSectionsSnapshot.length ? 'Custom leader' : 'Not chosen');
   const rigSummary = `${currentRigSetup.assignments.length} ${currentRigSetup.assignments.length === 1 ? 'fly' : 'flies'} | ${currentRigSetup.assignments.map((assignment) => assignment.position).join(' | ')}`;
   const flySummary = currentRigSetup.assignments.length
@@ -337,7 +336,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
           session.practiceMeasurementEnabled && Number.isFinite(parsedLength) && parsedLength > 0 ? parsedLength : undefined,
         lengthUnit: session.practiceLengthUnit ?? 'in',
         caughtAt: new Date().toISOString(),
-        notes: pendingGeneralCatch ? [fishingStyleSetup.styleLabel, fishingStyleSetup.method, fishingStyleSetup.tackleNotes].filter(Boolean).join(' | ') : undefined
+        notes: pendingGeneralCatch ? [fishingStyleSetup.styleLabel, fishingStyleSetup.setupName, fishingStyleSetup.method, fishingStyleSetup.tackleNotes].filter(Boolean).join(' | ') : undefined
       });
       setPendingCatchFly(null);
       setPendingGeneralCatch(false);
@@ -431,8 +430,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
   const renderFlySetupEditor = (sheetKey: Exclude<SetupSheetKey, null>) => (
     <View style={{ gap: 12 }}>
       {sheetKey === 'technique' ? (
-        <View style={{ gap: 10 }}>
-          <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>Switch methods without leaving the active practice flow.</Text>
+        <SectionCard title="Technique" subtitle="Switch methods without leaving the active practice flow." tone="light">
           <OptionChips
             label="Technique"
             options={TECHNIQUES}
@@ -442,8 +440,9 @@ export const PracticeScreen = ({ route, navigation }: any) => {
                 Alert.alert('Unable to change technique', formatSharedBackendError(error, 'practice'));
               });
             }}
+            tone="light"
           />
-        </View>
+        </SectionCard>
       ) : null}
       {sheetKey === 'leader' ? (
         <RigSetupPanel
@@ -671,6 +670,9 @@ export const PracticeScreen = ({ route, navigation }: any) => {
           <SectionCard title="Setup Used" subtitle="Lightweight setup for the fishing style you chose.">
             <Text style={{ color: theme.colors.text }}>Style: {fishingStyleSetup.styleLabel}</Text>
             <Text style={{ color: theme.colors.text }}>Method: {fishingStyleSetup.method ?? 'Not set'}</Text>
+            {fishingStyleSetup.setupName ? (
+              <Text style={{ color: theme.colors.text, fontWeight: '800' }}>Setup: {fishingStyleSetup.setupName}</Text>
+            ) : null}
             {fishingStyleSetup.tackleNotes ? (
               <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>{fishingStyleSetup.tackleNotes}</Text>
             ) : (
@@ -688,8 +690,8 @@ export const PracticeScreen = ({ route, navigation }: any) => {
             <InlineSummaryRow label="Catches This Entry" value={`${recentCatches.length}`} tone="light" />
             <InlineSummaryRow
               label="Current Setup"
-              value={fishingStyleSetup.method ?? 'Not set'}
-              valueMuted={!fishingStyleSetup.method}
+              value={fishingStyleSetup.setupName ?? fishingStyleSetup.method ?? 'Not set'}
+              valueMuted={!fishingStyleSetup.setupName && !fishingStyleSetup.method}
               tone="light"
             />
             <InlineSummaryRow label="Best Early Species" value={topSessionSpecies ?? 'Need a few catches'} valueMuted={!topSessionSpecies} tone="light" />
@@ -703,7 +705,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
           ) : (
             recentCatches.map((event) => (
               <Text key={event.id} style={{ color: theme.colors.textDarkSoft }}>
-                {new Date(event.caughtAt).toLocaleTimeString()} - {event.flyName || fishingStyleSetup.method || 'Catch'}{event.species ? ` - ${event.species}` : ''}
+                {new Date(event.caughtAt).toLocaleTimeString()} - {event.flyName || fishingStyleSetup.setupName || fishingStyleSetup.method || 'Catch'}{event.species ? ` - ${event.species}` : ''}
               </Text>
             ))
           )}

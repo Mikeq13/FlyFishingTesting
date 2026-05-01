@@ -2,6 +2,14 @@
 
 Use this script when reviewing the web build or submitting the project for judging. It keeps the demo focused on the app's strongest promise: fast field logging that becomes useful insight.
 
+Recommended Vercel setting for the Codex review build:
+
+```env
+EXPO_PUBLIC_WEB_DEMO_MODE=true
+```
+
+If the demo has been changed during review, use `Reset Demo Data` on Home to restore the seeded journal, catches, and insights before walking through the script again.
+
 ## One-Minute Core Demo
 
 - Open the Vercel web app and confirm Home shows a journal-first welcome.

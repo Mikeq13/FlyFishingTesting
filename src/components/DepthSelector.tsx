@@ -4,12 +4,20 @@ import { DepthRange } from '@/types/session';
 import { DEPTH_RANGES } from '@/constants/options';
 import { useTheme } from '@/design/theme';
 
-export const DepthSelector = ({ value, onChange }: { value: DepthRange; onChange: (v: DepthRange) => void }) => {
+export const DepthSelector = ({
+  value,
+  onChange,
+  options = DEPTH_RANGES
+}: {
+  value: DepthRange;
+  onChange: (v: DepthRange) => void;
+  options?: readonly DepthRange[];
+}) => {
   const { theme } = useTheme();
 
   return (
   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-    {DEPTH_RANGES.map((o) => (
+    {options.map((o) => (
       <Pressable
         key={o}
         onPress={() => onChange(o)}

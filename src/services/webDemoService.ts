@@ -28,7 +28,9 @@ import { UserProfile } from '@/types/user';
 export const WEB_DEMO_SEED_VERSION = '2026-04-21-web-demo-v1';
 export const WEB_DEMO_SEED_VERSION_KEY = 'web_demo.seed_version';
 
-export const isWebDemoModeEnabled = () => isWeb && process.env.EXPO_PUBLIC_WEB_DEMO_MODE === 'true';
+const webDemoModeFlag = process.env.EXPO_PUBLIC_WEB_DEMO_MODE;
+
+export const isWebDemoModeEnabled = () => isWeb && webDemoModeFlag !== 'false';
 
 type DemoBootstrapResult = {
   users: UserProfile[];

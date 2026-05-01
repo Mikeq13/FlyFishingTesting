@@ -1,1 +1,0 @@
-__d(function(g,r,i,a,m,e,d){"use strict";Object.defineProperty(e,'__esModule',{value:!0}),Object.defineProperty(e,"openDatabaseAsync",{enumerable:!0,get:function(){return n}});const n=async n=>{throw new Error('SQLite is not available on web')}},1262,[]);

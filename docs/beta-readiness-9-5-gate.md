@@ -28,6 +28,7 @@ This gate defines what "ready enough to submit and cut new beta builds" means fo
 - Local storage persistence works for a complete journal entry.
 - The demo script in `docs/vercel-demo-script.md` can be completed without browser zoom changes.
 - The non-fly smoke checklist in `docs/non-fly-beta-smoke-checklist.md` passes for spinning and boating.
+- For the Codex grading window, web defaults to seeded demo mode unless `EXPO_PUBLIC_WEB_DEMO_MODE=false` is set.
 
 ## EAS Preview Build Gate
 
@@ -36,6 +37,7 @@ This gate defines what "ready enough to submit and cut new beta builds" means fo
 - Run `supabase/verify_friend_beta_schema.sql` against the live Supabase project.
 - Build Android preview with `npx eas build --platform android --profile preview`.
 - Build iOS preview with `npx eas build --platform ios --profile preview` when Apple credentials are ready.
+- If iOS closes immediately on launch, follow `docs/ios-crash-triage.md` and keep the Vercel demo as the primary submission surface until logs identify the startup failure.
 - Complete one owner-device pass before inviting testers:
   - One fly practice journal.
   - One experiment resume and save.

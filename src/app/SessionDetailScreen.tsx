@@ -13,6 +13,7 @@ import { InlineSummaryRow } from '@/components/ui/InlineSummaryRow';
 import { SessionIntelligenceDrawer } from '@/components/SessionIntelligenceDrawer';
 import { useTheme } from '@/design/theme';
 import { useResponsiveLayout } from '@/design/layout';
+import { describeFishingStyleSetup } from '@/utils/fishingStyle';
 
 export const SessionDetailScreen = ({ route, navigation }: any) => {
   const { theme } = useTheme();
@@ -28,6 +29,8 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
   const activeUser = users.find((user) => user.id === activeUserId);
 
   const session = sessions.find((s) => s.id === sessionId);
+  const fishingStyleSetup = describeFishingStyleSetup(session);
+  const isSpinBaitJournal = fishingStyleSetup.style === 'spin_bait';
   const sessionExperiments = experiments.filter((e) => e.sessionId === sessionId);
   const sessionIntegrity = session ? getSessionIntegrity(session.id) : null;
 
@@ -78,9 +81,9 @@ export const SessionDetailScreen = ({ route, navigation }: any) => {
         />
         {session ? (
           <SectionCard title="Session Summary" subtitle={new Date(session.date).toLocaleString()} tone="light">
-            {session.riverName ? <InlineSummaryRow label="River" value={session.riverName} tone="light" /> : null}
+            {session.riverName ? <InlineSummaryRow label="Location" value={session.riverName} tone="light" /> : null}
             <InlineSummaryRow label="Water" value={session.waterType} tone="light" />
-            <InlineSummaryRow label="Depth" value={session.depthRange} tone="light" />
+            {!isSpinBaitJournal ? <InlineSummaryRow label="Depth" value={session.depthRange} tone="light" /> : null}
             {session.hypothesis ? <InlineSummaryRow label="Hypothesis" value={session.hypothesis} tone="light" /> : null}
             {sessionIntegrity ? <InlineSummaryRow label="Status" value={sessionIntegrity.label} tone="light" /> : null}
             <InlineSummaryRow label="Catch Rate" value={`${(catchRate(totalCatches, totalCasts) * 100).toFixed(1)}%`} tone="light" />
