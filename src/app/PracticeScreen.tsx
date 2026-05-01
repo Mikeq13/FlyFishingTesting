@@ -72,6 +72,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
   const [activeSetupSheet, setActiveSetupSheet] = useState<SetupSheetKey>(null);
   const [showWaterGuide, setShowWaterGuide] = useState(false);
   const [reviewPromptShown, setReviewPromptShown] = useState(false);
+  const [isFinishingSession, setIsFinishingSession] = useState(false);
   const [fieldFeedback, setFieldFeedback] = useState<FieldFeedback | null>(null);
   const catchSubmitLockedRef = useRef(false);
   const [showDictationHelp, setShowDictationHelp] = useState(false);
@@ -151,7 +152,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
 
   useEffect(() => {
     if (!session || session.endedAt || reviewPromptShown) return;
-    if (timer.remainingSeconds !== 0) return;
+    if (!sessionTimerEnabled || timer.remainingSeconds !== 0) return;
     const activeSession = session;
 
     setReviewPromptShown(true);
@@ -171,7 +172,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
       setReviewPromptShown(false);
       Alert.alert('Unable to finish journal entry', formatSharedBackendError(error, 'practice'));
     });
-  }, [finalizePracticeSession, navigation, reviewPromptShown, session, timer.remainingSeconds]);
+  }, [finalizePracticeSession, navigation, reviewPromptShown, session, sessionTimerEnabled, timer.remainingSeconds]);
 
   useEffect(() => {
     if (!session || session.endedAt) {
@@ -351,7 +352,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
   };
 
   const endSessionEarly = () => {
-    if (!session || session.endedAt) return;
+    if (!session || session.endedAt || !sessionTimerEnabled) return;
 
     Alert.alert('End Journal Entry Early?', 'This will stop the timer and cancel any remaining reminders for this journal entry.', [
       { text: 'Keep Fishing', style: 'cancel' },
@@ -371,6 +372,21 @@ export const PracticeScreen = ({ route, navigation }: any) => {
         }
       }
     ]);
+  };
+
+  const finishJournalEntry = async () => {
+    if (!session || isFinishingSession) return;
+    setIsFinishingSession(true);
+    try {
+      if (!session.endedAt) {
+        await finalizePracticeSession(session, new Date().toISOString());
+      }
+      navigation.navigate('PracticeReview', { sessionId: session.id });
+    } catch (error) {
+      Alert.alert('Unable to finish journal entry', formatSharedBackendError(error, 'practice'));
+    } finally {
+      setIsFinishingSession(false);
+    }
   };
 
   const renderSetupSummaryCard = ({
@@ -426,7 +442,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
 
         <SectionCard
           title={sessionTimerEnabled ? 'Fishing Timer' : 'Journal Controls'}
-          subtitle={sessionTimerEnabled ? 'Keep timing, reminders, and catch measuring in one glance.' : 'No fishing timer is running for this entry. Keep logging catches, then end and review when you are ready.'}
+          subtitle={sessionTimerEnabled ? 'Keep timing, reminders, and catch measuring in one glance.' : 'No fishing timer is running. Log catches and water changes, then finish and review when you are done.'}
         >
           {sessionTimerEnabled ? (
             <>
@@ -441,10 +457,10 @@ export const PracticeScreen = ({ route, navigation }: any) => {
               Measuring is on. Add length in {session.practiceLengthUnit ?? 'in'} whenever it helps your journal notes.
             </Text>
           ) : null}
-          {!timer.hasEnded ? (
+          {sessionTimerEnabled && !timer.hasEnded ? (
             <AppButton label="End Session Early" onPress={endSessionEarly} variant="danger" />
           ) : null}
-          {(timer.hasEnded || timer.remainingSeconds === 0) ? (
+          {sessionTimerEnabled && (timer.hasEnded || timer.remainingSeconds === 0) ? (
             <AppButton label="Review Journal Entry" onPress={() => navigation.navigate('PracticeReview', { sessionId: session.id })} variant="secondary" />
           ) : null}
           {showDictationHelpInSessions ? (
@@ -595,6 +611,30 @@ export const PracticeScreen = ({ route, navigation }: any) => {
             ))
           )}
         </SectionCard>
+
+        {!sessionTimerEnabled || session.endedAt ? (
+          <SectionCard
+            title={session.endedAt ? 'Journal Entry Finished' : 'Ready To Wrap Up?'}
+            subtitle={
+              session.endedAt
+                ? 'This entry is saved and ready to review whenever you need it.'
+                : 'Use this when you are done fishing for the day. It saves the final segment and opens the review.'
+            }
+            tone="light"
+          >
+            <AppButton
+              label={session.endedAt ? 'Review Journal Entry' : isFinishingSession ? 'Finishing...' : 'Finish Journal Entry'}
+              onPress={() => {
+                finishJournalEntry().catch((error) => {
+                  Alert.alert('Unable to finish journal entry', formatSharedBackendError(error, 'practice'));
+                });
+              }}
+              disabled={isFinishingSession}
+              variant="secondary"
+              surfaceTone="light"
+            />
+          </SectionCard>
+        ) : null}
       </ScrollView>
         <BottomSheetSurface
           visible={activeSetupSheet !== null}
