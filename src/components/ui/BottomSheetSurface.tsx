@@ -1,6 +1,6 @@
 import React from 'react';
-import { ScrollView } from 'react-native';
-import { Sheet, Text, YStack } from 'tamagui';
+import { Modal, ScrollView, View } from 'react-native';
+import { Text, YStack } from 'tamagui';
 import { useTheme } from '@/design/theme';
 import { useResponsiveLayout } from '@/design/layout';
 
@@ -23,27 +23,25 @@ export const BottomSheetSurface = ({
   const layout = useResponsiveLayout();
   const maxFrameHeight = Math.max(260, layout.height - layout.horizontalPadding * 2);
   const maxBodyHeight = Math.max(220, maxFrameHeight - theme.spacing.lg * 7);
+  const closeSheet = () => {
+    onOpenChange?.(false);
+    onClose();
+  };
 
   if (!visible) return null;
 
   return (
-    <Sheet
-      modal
-      open={visible}
-      snapPoints={[92]}
-      dismissOnSnapToBottom
-      onOpenChange={(open: boolean) => {
-        onOpenChange?.(open);
-        if (!open) onClose();
-      }}
-    >
-      <Sheet.Overlay
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={closeSheet}>
+      <View
         style={{
-          backgroundColor: theme.colors.overlay
+          flex: 1,
+          justifyContent: 'flex-end',
+          backgroundColor: theme.colors.overlay,
+          padding: layout.horizontalPadding,
+          paddingBottom: theme.spacing.md
         }}
-        onPress={onClose}
-      />
-      <Sheet.Frame
+      >
+      <YStack
         style={{
           gap: theme.spacing.md,
           borderTopLeftRadius: theme.radius.xl,
@@ -53,10 +51,12 @@ export const BottomSheetSurface = ({
           padding: theme.spacing.lg,
           paddingBottom: theme.spacing.md,
           backgroundColor: theme.colors.modalSurface,
-          maxHeight: maxFrameHeight
+          maxHeight: maxFrameHeight,
+          width: '100%',
+          alignSelf: 'center'
         }}
       >
-        <Sheet.Handle
+        <View
           style={{
             width: 48,
             height: 4,
@@ -77,7 +77,8 @@ export const BottomSheetSurface = ({
         >
           {children}
         </ScrollView>
-      </Sheet.Frame>
-    </Sheet>
+      </YStack>
+      </View>
+    </Modal>
   );
 };
