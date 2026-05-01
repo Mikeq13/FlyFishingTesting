@@ -13,7 +13,8 @@ interface OptionChipsProps<T extends string> {
 
 export const OptionChips = <T extends string>({ label, options, value, onChange, tone = 'dark', disabled = false }: OptionChipsProps<T>) => {
   const { theme } = useTheme();
-  const labelColor = tone === 'light' ? theme.colors.textDark : tone === 'modal' ? theme.colors.modalText : theme.colors.text;
+  const useThemeElevatedPalette = tone === 'light' && theme.id !== 'daylight_light';
+  const labelColor = tone === 'light' ? (useThemeElevatedPalette ? theme.colors.text : theme.colors.textDark) : tone === 'modal' ? theme.colors.modalText : theme.colors.text;
 
   return (
     <View style={{ gap: 8 }}>

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { OptionChips } from '@/components/OptionChips';
 import { RigFlyManager } from '@/components/RigFlyManager';
 import { RigSetupPanel } from '@/components/RigSetupPanel';
@@ -82,31 +82,34 @@ export const PracticeSetupSection = ({
     [rigSetup.assignments]
   );
 
-  const renderSummaryCard = ({
+  const renderSetupRow = ({
     heading,
     summary,
-    buttonLabel,
     sheetKey
   }: {
     heading: string;
     summary: string;
-    buttonLabel: string;
     sheetKey: Exclude<SetupSheetKey, null>;
   }) => (
-    <View
+    <Pressable
+      onPress={() => setActiveSetupSheet(sheetKey)}
       style={{
-        gap: 8,
+        gap: 6,
         borderRadius: theme.radius.md,
-        padding: 12,
-        backgroundColor: theme.colors.surfaceAlt,
+        padding: theme.spacing.md,
+        backgroundColor: activeSetupSheet === sheetKey ? theme.colors.surfaceMuted : theme.colors.surfaceAlt,
         borderWidth: 1,
-        borderColor: theme.colors.border
+        borderColor: activeSetupSheet === sheetKey ? theme.colors.borderStrong : theme.colors.border
       }}
     >
-      <Text style={{ color: theme.colors.text, fontWeight: '800' }}>{heading}</Text>
-      <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>{summary}</Text>
-      <AppButton label={buttonLabel} onPress={() => setActiveSetupSheet(sheetKey)} variant="ghost" />
-    </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <View style={{ flex: 1, gap: 3 }}>
+          <Text style={{ color: theme.colors.text, fontWeight: '800' }}>{heading}</Text>
+          <Text style={{ color: theme.colors.textSoft, lineHeight: 19 }}>{summary}</Text>
+        </View>
+        <Text style={{ color: theme.colors.text, fontWeight: '800' }}>Edit</Text>
+      </View>
+    </Pressable>
   );
 
   if (!foregroundEditing) {
@@ -129,7 +132,7 @@ export const PracticeSetupSection = ({
         <RigFlyManager title="Fly Assignments" rigSetup={rigSetup} savedFlies={savedFlies} onChange={onRigSetupChange} onCreateFly={onCreateFly} />
         {showMeasurementControls ? (
       <SectionCard title="Journal Catch Measurement" subtitle="Keep quick logging fast, and only turn on length entry when this journal entry calls for it.">
-            <OptionChips label="Measure Fish In Practice?" options={['Yes', 'No'] as const} value={practiceMeasurementEnabled ? 'Yes' : 'No'} onChange={(value) => onPracticeMeasurementEnabledChange(value === 'Yes')} />
+            <OptionChips label="Measure Fish In Practice?" options={['No', 'Yes'] as const} value={practiceMeasurementEnabled ? 'Yes' : 'No'} onChange={(value) => onPracticeMeasurementEnabledChange(value === 'Yes')} />
             {practiceMeasurementEnabled ? (
               <OptionChips label="Practice Length Unit" options={['in', 'cm', 'mm'] as const} value={practiceLengthUnit} onChange={(value) => onPracticeLengthUnitChange(value as PracticeLengthUnit)} />
             ) : null}
@@ -141,33 +144,34 @@ export const PracticeSetupSection = ({
 
   return (
     <>
-      {renderSummaryCard({
-        heading: 'Technique',
-        summary: technique ?? 'Not chosen',
-        buttonLabel: presentationMode === 'setup' ? 'Choose Technique' : 'Change Technique',
-        sheetKey: 'technique'
-      })}
-      {renderSummaryCard({
-        heading: 'Leader',
-        summary: leaderSummary,
-        buttonLabel: presentationMode === 'setup' ? 'Select Leader' : 'Change Leader',
-        sheetKey: 'leader'
-      })}
-      {renderSummaryCard({
-        heading: 'Rigging',
-        summary: rigSummary,
-        buttonLabel: presentationMode === 'setup' ? 'Select Rig' : 'Change Rigging',
-        sheetKey: 'rigging'
-      })}
-      {renderSummaryCard({
-        heading: 'Flies',
-        summary: flySummary,
-        buttonLabel: presentationMode === 'setup' ? 'Select Flies' : 'Change Flies',
-        sheetKey: 'flies'
-      })}
+      <SectionCard
+        title={title}
+        subtitle="Open only the setup piece you want to change, then return to the journal start flow."
+      >
+        {renderSetupRow({
+          heading: 'Technique',
+          summary: technique ?? 'Not chosen',
+          sheetKey: 'technique'
+        })}
+        {renderSetupRow({
+          heading: 'Leader',
+          summary: leaderSummary,
+          sheetKey: 'leader'
+        })}
+        {renderSetupRow({
+          heading: 'Rigging',
+          summary: rigSummary,
+          sheetKey: 'rigging'
+        })}
+        {renderSetupRow({
+          heading: 'Flies',
+          summary: flySummary,
+          sheetKey: 'flies'
+        })}
+      </SectionCard>
       {showMeasurementControls ? (
           <SectionCard title="Journal Catch Measurement" subtitle="Keep quick logging fast, and only turn on length entry when this journal entry calls for it.">
-          <OptionChips label="Measure Fish In Practice?" options={['Yes', 'No'] as const} value={practiceMeasurementEnabled ? 'Yes' : 'No'} onChange={(value) => onPracticeMeasurementEnabledChange(value === 'Yes')} />
+          <OptionChips label="Measure Fish In Practice?" options={['No', 'Yes'] as const} value={practiceMeasurementEnabled ? 'Yes' : 'No'} onChange={(value) => onPracticeMeasurementEnabledChange(value === 'Yes')} />
           {practiceMeasurementEnabled ? (
             <OptionChips label="Practice Length Unit" options={['in', 'cm', 'mm'] as const} value={practiceLengthUnit} onChange={(value) => onPracticeLengthUnitChange(value as PracticeLengthUnit)} />
           ) : null}

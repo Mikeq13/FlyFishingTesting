@@ -75,6 +75,8 @@ export const PracticeScreen = ({ route, navigation }: any) => {
   const [fieldFeedback, setFieldFeedback] = useState<FieldFeedback | null>(null);
   const catchSubmitLockedRef = useRef(false);
   const [showDictationHelp, setShowDictationHelp] = useState(false);
+  const [showWaterChangePanel, setShowWaterChangePanel] = useState(false);
+  const [showFlySetupPanel, setShowFlySetupPanel] = useState(false);
   const activeOutingSignatureRef = useRef<string | null>(null);
   const syncFeedback = remoteSession ? getPendingSyncFeedback(syncStatus, 'practice', 'practice') : null;
   const activeSegment = useMemo(
@@ -206,6 +208,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
   const isFlyJournal = fishingStyle === 'fly';
   const isSpinBaitJournal = fishingStyle === 'spin_bait';
   const nonFlySignalLabel = fishingStyle === 'boat_trolling' ? 'Boat Signal' : 'Tackle Signal';
+  const lightToneSoftTextColor = theme.id === 'daylight_light' ? theme.colors.textDarkSoft : theme.colors.textSoft;
   const nonFlySignalHint =
     fishingStyle === 'boat_trolling'
       ? 'Setup names create the pattern. Depth, speed, lure, and location notes make the boat signal stronger over time.'
@@ -526,8 +529,14 @@ export const PracticeScreen = ({ route, navigation }: any) => {
     </View>
   );
 
-  const renderFlySetupCard = () => (
-    <SectionCard title="Fly Setup" subtitle="Technique, leader, rigging, and flies stay compact until you need to change one thing.">
+  const renderFlySetupPanel = () => (
+    <View style={{ gap: 10 }}>
+      <View style={{ gap: 4 }}>
+        <Text style={{ color: theme.colors.text, fontWeight: '800' }}>Fishing Setup</Text>
+        <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>
+          Technique, leader, rigging, and flies stay compact until you need to change one thing.
+        </Text>
+      </View>
       <View
         style={{
           gap: 8,
@@ -538,7 +547,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
         {renderFlySetupRow('Rigging', rigSummary, 'rigging')}
         {renderFlySetupRow('Flies', flySummary, 'flies')}
       </View>
-    </SectionCard>
+    </View>
   );
 
   return (
@@ -643,28 +652,93 @@ export const PracticeScreen = ({ route, navigation }: any) => {
 
         <SectionCard title="Quick Changes" subtitle="Change field context without hunting through setup cards.">
           <View style={{ gap: 10 }}>
-            <AppButton label="Open Water Guide" onPress={() => setShowWaterGuide(true)} variant="ghost" />
-            <OptionChips label="Next Water Type" options={WATER_TYPES} value={nextWaterType} onChange={setNextWaterType} />
-            {!isSpinBaitJournal ? (
-              <>
-                <Text style={{ color: theme.colors.text, fontWeight: '700' }}>Next Water Depth</Text>
-                <DepthSelector value={nextDepthRange} onChange={setNextDepthRange} />
-              </>
+            <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <AppButton
+                  label={showWaterChangePanel ? 'Hide Water Change' : 'Change Water'}
+                  onPress={() => setShowWaterChangePanel((current) => !current)}
+                  disabled={timer.hasEnded}
+                  variant="secondary"
+                />
+              </View>
+              {isFlyJournal ? (
+                <View style={{ flex: 1 }}>
+                  <AppButton
+                    label="Adjust Flies"
+                    onPress={() => {
+                      setShowFlySetupPanel(true);
+                      setActiveSetupSheet('flies');
+                    }}
+                    disabled={timer.hasEnded}
+                    variant="secondary"
+                  />
+                </View>
+              ) : null}
+            </View>
+            {isFlyJournal ? (
+              <View style={{ flexDirection: layout.stackDirection, gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <AppButton
+                    label="Change Technique"
+                    onPress={() => {
+                      setShowFlySetupPanel(true);
+                      setActiveSetupSheet('technique');
+                    }}
+                    disabled={timer.hasEnded}
+                    variant="tertiary"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <AppButton
+                    label={showFlySetupPanel ? 'Hide Fishing Setup' : 'Fishing Setup'}
+                    onPress={() => {
+                      setShowFlySetupPanel((current) => {
+                        if (current) setActiveSetupSheet(null);
+                        return !current;
+                      });
+                    }}
+                    disabled={timer.hasEnded}
+                    variant="tertiary"
+                  />
+                </View>
+              </View>
             ) : null}
-            <AppButton
-              label="Change Water"
-              onPress={() => {
-                changeWater().catch((error) => {
-                  Alert.alert('Unable to change water', formatSharedBackendError(error, 'practice'));
-                });
-              }}
-              disabled={timer.hasEnded}
-              variant="secondary"
-            />
+            {showWaterChangePanel ? (
+              <View
+                style={{
+                  gap: 10,
+                  borderRadius: theme.radius.md,
+                  padding: 12,
+                  backgroundColor: theme.colors.surfaceMuted,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border
+                }}
+              >
+                <AppButton label="Open Water Guide" onPress={() => setShowWaterGuide(true)} variant="ghost" />
+                <OptionChips label="Next Water Type" options={WATER_TYPES} value={nextWaterType} onChange={setNextWaterType} />
+                {!isSpinBaitJournal ? (
+                  <>
+                    <Text style={{ color: theme.colors.text, fontWeight: '700' }}>Next Water Depth</Text>
+                    <DepthSelector value={nextDepthRange} onChange={setNextDepthRange} />
+                  </>
+                ) : null}
+                <AppButton
+                  label="Apply Water Change"
+                  onPress={() => {
+                    changeWater()
+                      .then(() => setShowWaterChangePanel(false))
+                      .catch((error) => {
+                        Alert.alert('Unable to change water', formatSharedBackendError(error, 'practice'));
+                      });
+                  }}
+                  disabled={timer.hasEnded}
+                  variant="secondary"
+                />
+              </View>
+            ) : null}
+            {isFlyJournal && showFlySetupPanel ? renderFlySetupPanel() : null}
           </View>
         </SectionCard>
-
-        {isFlyJournal ? renderFlySetupCard() : null}
 
         {!isFlyJournal ? (
           <SectionCard title="Setup Used" subtitle="Lightweight setup for the fishing style you chose.">
@@ -695,16 +769,16 @@ export const PracticeScreen = ({ route, navigation }: any) => {
               tone="light"
             />
             <InlineSummaryRow label="Best Early Species" value={topSessionSpecies ?? 'Need a few catches'} valueMuted={!topSessionSpecies} tone="light" />
-            <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>{nonFlySignalHint}</Text>
+            <Text style={{ color: lightToneSoftTextColor, lineHeight: 20 }}>{nonFlySignalHint}</Text>
           </SectionCard>
         ) : null}
 
         <SectionCard title="Recent Catches" subtitle="A quick read on what has connected lately." tone="light">
           {!recentCatches.length ? (
-            <Text style={{ color: theme.colors.textDarkSoft }}>No catches logged yet in this journal entry.</Text>
+            <Text style={{ color: lightToneSoftTextColor }}>No catches logged yet in this journal entry.</Text>
           ) : (
             recentCatches.map((event) => (
-              <Text key={event.id} style={{ color: theme.colors.textDarkSoft }}>
+              <Text key={event.id} style={{ color: lightToneSoftTextColor }}>
                 {new Date(event.caughtAt).toLocaleTimeString()} - {event.flyName || fishingStyleSetup.setupName || fishingStyleSetup.method || 'Catch'}{event.species ? ` - ${event.species}` : ''}
               </Text>
             ))
@@ -728,7 +802,7 @@ export const PracticeScreen = ({ route, navigation }: any) => {
               {timer.remainingLabel ? <InlineSummaryRow label="Remaining" value={timer.remainingLabel} tone="light" /> : null}
               {timer.hasEnded ? <StatusBanner tone="error" text="Session ended early." /> : null}
               {!timer.hasEnded && timer.nextAlertMinute ? (
-                <Text style={{ color: theme.colors.textDarkSoft }}>Next alert: {timer.nextAlertMinute} min</Text>
+                <Text style={{ color: lightToneSoftTextColor }}>Next alert: {timer.nextAlertMinute} min</Text>
               ) : null}
             </>
           ) : null}

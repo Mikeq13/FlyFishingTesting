@@ -130,6 +130,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
     [experiments, sessions]
   );
   const formInputStyle = getFormInputStyle(theme);
+  const lightToneSoftTextColor = theme.id === 'daylight_light' ? theme.colors.textDarkSoft : theme.colors.textSoft;
   const joinedGroupMemberships = useMemo(
     () => groupMemberships.filter((membership) => membership.userId === activeUserId),
     [activeUserId, groupMemberships]
@@ -595,58 +596,6 @@ export const SessionScreen = ({ navigation, route }: any) => {
           competitionLengthUnit={competitionLengthUnit}
           onCompetitionLengthUnitChange={setCompetitionLengthUnit}
         />
-        <SectionCard
-          title="Setup Cockpit"
-          subtitle="Confirm the core plan first, then adjust details only where needed."
-        >
-          <View
-            style={{
-              gap: 8,
-              borderRadius: theme.radius.md,
-              padding: 12,
-              backgroundColor: theme.colors.surfaceMuted,
-              borderWidth: 1,
-              borderColor: theme.colors.border
-            }}
-          >
-            <View style={{ flexDirection: layout.stackDirection, gap: 8 }}>
-              <View style={{ flex: 1 }}>
-                <InlineSummaryRow label="Journal" value={mode === 'practice' ? getFishingStyleOption(fishingStyle).title : modeCopy.title} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <InlineSummaryRow label="Location" value={riverName.trim() || 'Not chosen'} valueMuted={!riverName.trim()} />
-              </View>
-            </View>
-            <View style={{ flexDirection: layout.stackDirection, gap: 8 }}>
-              <View style={{ flex: 1 }}>
-                <InlineSummaryRow label="Water" value={waterType} />
-              </View>
-              {mode !== 'practice' || fishingStyle !== 'spin_bait' ? (
-                <View style={{ flex: 1 }}>
-                  <InlineSummaryRow label="Depth" value={depthRange} />
-                </View>
-              ) : null}
-            </View>
-            <View style={{ flexDirection: layout.stackDirection, gap: 8 }}>
-              <View style={{ flex: 1 }}>
-                <InlineSummaryRow
-                  label={mode === 'practice' && fishingStyle !== 'fly' ? 'Setup' : 'Technique'}
-                  value={mode === 'practice' && fishingStyle !== 'fly' ? setupName.trim() || tackleMethod || 'Not chosen' : startingTechnique ?? 'Not chosen'}
-                  valueMuted={mode === 'practice' && fishingStyle !== 'fly' ? !setupName.trim() && !tackleMethod : !startingTechnique}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <InlineSummaryRow
-                  label="Options"
-                  value={[
-                    practiceMeasurementEnabled ? `Measure ${practiceLengthUnit}` : 'No measuring',
-                    mode === 'practice' ? (useSessionTimer ? 'Fishing timer on' : 'No timer') : null
-                  ].filter(Boolean).join(' | ')}
-                />
-              </View>
-            </View>
-          </View>
-        </SectionCard>
         {mode !== 'competition' ? (
           <SectionCard
             title="Water Guide"
@@ -710,16 +659,15 @@ export const SessionScreen = ({ navigation, route }: any) => {
             <SectionCard
               title="Recommended Pattern"
               subtitle="A compact starting point from your logged history. Treat it as a suggestion, then log what actually happens."
-              tone="light"
             >
-              <Text style={{ color: theme.colors.textDark, fontWeight: '800' }}>{recommendedPattern.title}</Text>
-              <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>{recommendedPattern.reason}</Text>
-              <Text style={{ color: theme.colors.textDarkSoft, fontWeight: '700' }}>Confidence: {recommendedPattern.confidence}</Text>
+              <Text style={{ color: theme.colors.text, fontWeight: '800' }}>{recommendedPattern.title}</Text>
+              <Text style={{ color: theme.colors.textSoft, lineHeight: 20 }}>{recommendedPattern.reason}</Text>
+              <Text style={{ color: theme.colors.textSoft, fontWeight: '700' }}>Confidence: {recommendedPattern.confidence}</Text>
             </SectionCard>
           ) : null}
           {mode === 'experiment' || (mode === 'practice' && fishingStyle === 'fly') ? (
             <PracticeSetupSection
-              title={mode === 'experiment' ? 'Starting Rig Setup' : 'Starting Rig Setup'}
+              title="Fishing Setup"
               rigSetup={mode === 'experiment' ? experimentRigSetup : practiceRigSetup}
               savedFlies={savedFlies}
               savedLeaderFormulas={savedLeaderFormulas}
@@ -916,7 +864,7 @@ export const SessionScreen = ({ navigation, route }: any) => {
                   <AppButton label="Edit Timer" onPress={() => setShowTimerSheet(true)} variant="secondary" />
                 </>
               ) : (
-                <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+                <Text style={{ color: lightToneSoftTextColor, lineHeight: 20 }}>
                   Timer controls stay hidden so the setup remains focused on water, style, and logging catches.
                 </Text>
               )}

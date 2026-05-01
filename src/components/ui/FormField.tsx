@@ -30,8 +30,9 @@ export const FormField = ({
   children: React.ReactNode;
 }) => {
   const { theme } = useTheme();
-  const labelColor = tone === 'modal' ? theme.colors.modalText : tone === 'light' ? theme.colors.textDark : theme.colors.text;
-  const helperColor = tone === 'modal' ? theme.colors.modalTextSoft : tone === 'light' ? theme.colors.textDarkSoft : theme.colors.textSoft;
+  const useThemeElevatedPalette = tone === 'light' && theme.id !== 'daylight_light';
+  const labelColor = tone === 'modal' ? theme.colors.modalText : tone === 'light' ? (useThemeElevatedPalette ? theme.colors.text : theme.colors.textDark) : theme.colors.text;
+  const helperColor = tone === 'modal' ? theme.colors.modalTextSoft : tone === 'light' ? (useThemeElevatedPalette ? theme.colors.textSoft : theme.colors.textDarkSoft) : theme.colors.textSoft;
 
   return (
     <YStack style={{ gap: theme.spacing.xs }}>

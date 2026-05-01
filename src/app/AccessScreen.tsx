@@ -48,10 +48,10 @@ export const AccessScreen = ({ navigation }: any) => {
   const layout = useResponsiveLayout();
   const { theme, themeId, setThemeId, themeOptions } = useTheme();
   const isDaylightTheme = theme.id === 'daylight_light';
-  const elevatedTextColor = theme.colors.textDark;
-  const elevatedSoftTextColor = theme.colors.textDarkSoft;
-  const elevatedNestedSurface = theme.colors.nestedSurface;
-  const elevatedNestedBorder = theme.colors.nestedSurfaceBorder;
+  const elevatedTextColor = isDaylightTheme ? theme.colors.textDark : theme.colors.text;
+  const elevatedSoftTextColor = isDaylightTheme ? theme.colors.textDarkSoft : theme.colors.textSoft;
+  const elevatedNestedSurface = isDaylightTheme ? theme.colors.nestedSurface : theme.colors.surface;
+  const elevatedNestedBorder = isDaylightTheme ? theme.colors.nestedSurfaceBorder : theme.colors.borderStrong;
   const [watchStatus, setWatchStatus] = useState<WatchCompanionStatus>({
     isSupported: false,
     isPaired: false,
@@ -965,7 +965,7 @@ export const AccessScreen = ({ navigation }: any) => {
           title: 'Voice Commands & Quick Capture',
           subtitle: 'See the field phrases and device status for voice and watch capture.',
           summary: (
-            <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+            <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
               Voice shortcuts, watch status, and supported field vocabulary
             </Text>
           ),
@@ -1003,13 +1003,13 @@ export const AccessScreen = ({ navigation }: any) => {
                     <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 19 }}>{example.description}</Text>
                   </View>
                 ))}
-                <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+                <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
                   Supported water types: {SUPPORTED_WATER_TYPES.join(', ')}
                 </Text>
-                <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+                <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
                   Supported techniques: {SUPPORTED_TECHNIQUES.join(', ')}
                 </Text>
-                <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+                <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
                   Practice fish logging uses the active segment. Competition fish logging uses the live scorecard. Assistant phrases should match the same wording on both Android and iPhone. Experiment fish logging still stays inside the touch workflow for now.
                 </Text>
               </SectionCard>
@@ -1018,15 +1018,15 @@ export const AccessScreen = ({ navigation }: any) => {
                 subtitle="The watch companion mirrors the same structured actions so the phone, Siri, and watch all teach the same workflow."
                 tone="light"
               >
-                <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>{watchStatusLabel}</Text>
-                <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+                <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>{watchStatusLabel}</Text>
+                <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
                   Watch status: {watchStatus.activationState} · paired {watchStatus.isPaired ? 'yes' : 'no'} · installed{' '}
                   {watchStatus.isWatchAppInstalled ? 'yes' : 'no'} · reachable {watchStatus.isReachable ? 'yes' : 'no'}
                 </Text>
-                <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+                <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
                   Recommended watch actions: Resume Outing, Log Fish, Add Note, Change Water, and Change Technique.
                 </Text>
-                <Text style={{ color: theme.colors.textDarkSoft, lineHeight: 20 }}>
+                <Text style={{ color: elevatedSoftTextColor, lineHeight: 20 }}>
                   Siri phrase to jump back in: “Resume current outing in Fishing Lab.”
                 </Text>
               </SectionCard>
